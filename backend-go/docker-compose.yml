@@ -1,0 +1,114 @@
+version: '3.8'
+
+services:
+  sql-studio-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8500:8500"    # HTTP Gateway
+      - "9500:9500"    # gRPC
+      - "9100:9100"    # Metrics
+    environment:
+      - SQL_STUDIO_SERVER_HOST=0.0.0.0
+      - SQL_STUDIO_SERVER_ENVIRONMENT=development
+      - SQL_STUDIO_LOG_LEVEL=debug
+      - SQL_STUDIO_AUTH_JWT_SECRET=development-secret-change-in-production-32-chars-min
+    volumes:
+      - ./configs:/app/configs:ro
+      - sql_studio_logs:/app/logs
+      - sql_studio_data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8500/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - sql-studio
+
+  # PostgreSQL for testing
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: testdb
+      POSTGRES_USER: testuser
+      POSTGRES_PASSWORD: testpass
+    ports:
+      - "15432:15432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - sql-studio
+
+  # MySQL for testing
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: testdb
+      MYSQL_USER: testuser
+      MYSQL_PASSWORD: testpass
+    ports:
+      - "13306:13306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - sql-studio
+
+  # Redis (optional, for caching and sessions)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "16379:16379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - sql-studio
+    command: redis-server --appendonly yes
+
+  # Prometheus for metrics
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "19090:19090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    networks:
+      - sql-studio
+
+  # Grafana for monitoring dashboards
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "13001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+    networks:
+      - sql-studio
+
+volumes:
+  sql_studio_logs:
+  sql_studio_data:
+  postgres_data:
+  mysql_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  sql-studio:
+    driver: bridge

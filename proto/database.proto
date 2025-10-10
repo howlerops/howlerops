@@ -1,0 +1,287 @@
+syntax = "proto3";
+
+package sqlstudio.database;
+
+option go_package = "github.com/sql-studio/backend-go/api/database";
+
+import "google/protobuf/timestamp.proto";
+
+// Database service definition
+service DatabaseService {
+  rpc CreateConnection(CreateConnectionRequest) returns (CreateConnectionResponse);
+  rpc GetConnection(GetConnectionRequest) returns (GetConnectionResponse);
+  rpc ListConnections(ListConnectionsRequest) returns (ListConnectionsResponse);
+  rpc UpdateConnection(UpdateConnectionRequest) returns (UpdateConnectionResponse);
+  rpc DeleteConnection(DeleteConnectionRequest) returns (DeleteConnectionResponse);
+  rpc TestConnection(TestConnectionRequest) returns (TestConnectionResponse);
+  rpc GetSchemas(GetSchemasRequest) returns (GetSchemasResponse);
+  rpc GetTables(GetTablesRequest) returns (GetTablesResponse);
+  rpc GetTableMetadata(GetTableMetadataRequest) returns (GetTableMetadataResponse);
+  rpc GetConnectionHealth(GetConnectionHealthRequest) returns (stream ConnectionHealthResponse);
+}
+
+// Database connection types
+enum DatabaseType {
+  DATABASE_TYPE_UNSPECIFIED = 0;
+  DATABASE_TYPE_POSTGRESQL = 1;
+  DATABASE_TYPE_MYSQL = 2;
+  DATABASE_TYPE_SQLITE = 3;
+  DATABASE_TYPE_MARIADB = 4;
+}
+
+// Connection configuration
+message ConnectionConfig {
+  DatabaseType type = 1;
+  string host = 2;
+  int32 port = 3;
+  string database = 4;
+  string username = 5;
+  string password = 6;
+  string ssl_mode = 7;
+  int32 connection_timeout = 8;
+  int32 idle_timeout = 9;
+  int32 max_connections = 10;
+  int32 max_idle_connections = 11;
+  map<string, string> parameters = 12;
+}
+
+// Database connection
+message DatabaseConnection {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  ConnectionConfig config = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp updated_at = 6;
+  bool active = 7;
+  string created_by = 8;
+  map<string, string> tags = 9;
+}
+
+// Create connection request
+message CreateConnectionRequest {
+  string name = 1;
+  string description = 2;
+  ConnectionConfig config = 3;
+  map<string, string> tags = 4;
+}
+
+// Create connection response
+message CreateConnectionResponse {
+  bool success = 1;
+  string message = 2;
+  DatabaseConnection connection = 3;
+}
+
+// Get connection request
+message GetConnectionRequest {
+  string id = 1;
+}
+
+// Get connection response
+message GetConnectionResponse {
+  bool success = 1;
+  string message = 2;
+  DatabaseConnection connection = 3;
+}
+
+// List connections request
+message ListConnectionsRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string filter = 3;
+  string sort = 4;
+  bool include_inactive = 5;
+}
+
+// List connections response
+message ListConnectionsResponse {
+  bool success = 1;
+  string message = 2;
+  repeated DatabaseConnection connections = 3;
+  int32 total = 4;
+  int32 page = 5;
+  int32 page_size = 6;
+}
+
+// Update connection request
+message UpdateConnectionRequest {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  ConnectionConfig config = 4;
+  map<string, string> tags = 5;
+}
+
+// Update connection response
+message UpdateConnectionResponse {
+  bool success = 1;
+  string message = 2;
+  DatabaseConnection connection = 3;
+}
+
+// Delete connection request
+message DeleteConnectionRequest {
+  string id = 1;
+}
+
+// Delete connection response
+message DeleteConnectionResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// Test connection request
+message TestConnectionRequest {
+  string connection_id = 1;
+  ConnectionConfig config = 2; // For testing new configs
+}
+
+// Test connection response
+message TestConnectionResponse {
+  bool success = 1;
+  string message = 2;
+  int64 response_time_ms = 3;
+  string version = 4;
+  map<string, string> server_info = 5;
+}
+
+// Get schemas request
+message GetSchemasRequest {
+  string connection_id = 1;
+}
+
+// Schema information
+message Schema {
+  string name = 1;
+  string owner = 2;
+  google.protobuf.Timestamp created_at = 3;
+  int64 table_count = 4;
+  int64 size_bytes = 5;
+  map<string, string> metadata = 6;
+}
+
+// Get schemas response
+message GetSchemasResponse {
+  bool success = 1;
+  string message = 2;
+  repeated Schema schemas = 3;
+}
+
+// Get tables request
+message GetTablesRequest {
+  string connection_id = 1;
+  string schema_name = 2;
+  string table_type = 3; // TABLE, VIEW, MATERIALIZED_VIEW
+}
+
+// Table information
+message Table {
+  string name = 1;
+  string schema = 2;
+  string type = 3; // TABLE, VIEW, MATERIALIZED_VIEW
+  string comment = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp updated_at = 6;
+  int64 row_count = 7;
+  int64 size_bytes = 8;
+  string owner = 9;
+  map<string, string> metadata = 10;
+}
+
+// Get tables response
+message GetTablesResponse {
+  bool success = 1;
+  string message = 2;
+  repeated Table tables = 3;
+}
+
+// Get table metadata request
+message GetTableMetadataRequest {
+  string connection_id = 1;
+  string schema_name = 2;
+  string table_name = 3;
+}
+
+// Column information
+message Column {
+  string name = 1;
+  string data_type = 2;
+  bool nullable = 3;
+  string default_value = 4;
+  bool primary_key = 5;
+  bool unique = 6;
+  bool indexed = 7;
+  string comment = 8;
+  int32 ordinal_position = 9;
+  int64 character_maximum_length = 10;
+  int32 numeric_precision = 11;
+  int32 numeric_scale = 12;
+  map<string, string> metadata = 13;
+}
+
+// Index information
+message Index {
+  string name = 1;
+  repeated string columns = 2;
+  bool unique = 3;
+  bool primary = 4;
+  string type = 5;
+  string method = 6;
+  map<string, string> metadata = 7;
+}
+
+// Foreign key information
+message ForeignKey {
+  string name = 1;
+  repeated string columns = 2;
+  string referenced_table = 3;
+  string referenced_schema = 4;
+  repeated string referenced_columns = 5;
+  string on_delete = 6;
+  string on_update = 7;
+}
+
+// Table metadata
+message TableMetadata {
+  Table table = 1;
+  repeated Column columns = 2;
+  repeated Index indexes = 3;
+  repeated ForeignKey foreign_keys = 4;
+  repeated string triggers = 5;
+  map<string, string> statistics = 6;
+}
+
+// Get table metadata response
+message GetTableMetadataResponse {
+  bool success = 1;
+  string message = 2;
+  TableMetadata metadata = 3;
+}
+
+// Get connection health request
+message GetConnectionHealthRequest {
+  string connection_id = 1;
+  int32 interval_seconds = 2; // How often to check
+}
+
+// Connection health status
+enum HealthStatus {
+  HEALTH_STATUS_UNSPECIFIED = 0;
+  HEALTH_STATUS_HEALTHY = 1;
+  HEALTH_STATUS_DEGRADED = 2;
+  HEALTH_STATUS_UNHEALTHY = 3;
+  HEALTH_STATUS_UNKNOWN = 4;
+}
+
+// Connection health response (streaming)
+message ConnectionHealthResponse {
+  string connection_id = 1;
+  HealthStatus status = 2;
+  string message = 3;
+  google.protobuf.Timestamp timestamp = 4;
+  int64 response_time_ms = 5;
+  int32 active_connections = 6;
+  int32 idle_connections = 7;
+  map<string, string> metrics = 8;
+}

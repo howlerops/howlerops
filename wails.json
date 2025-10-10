@@ -1,0 +1,112 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "howlerops",
+  "outputfilename": "howlerops",
+  "frontend": {
+    "dir": "./frontend",
+    "install": "npm install",
+    "build": "npm run build",
+    "dev": "npm run dev",
+    "package": {
+      "manager": "npm"
+    }
+  },
+  "author": {
+    "name": "HowlerOps Team",
+    "email": "team@howlerops.com"
+  },
+  "info": {
+    "productName": "HowlerOps",
+    "productVersion": "1.0.0",
+    "copyright": "Copyright © 2025 HowlerOps Team",
+    "comments": "A powerful desktop SQL client built with Wails"
+  },
+  "nsisType": "multiple",
+  "obfuscated": false,
+  "debug": {
+    "splitBuildDir": true,
+    "buildSubdirectory": "build"
+  },
+  "build": {
+    "compiler": "go",
+    "tags": [],
+    "ldflags": "-w -s",
+    "mode": "production",
+    "frontend": {
+      "trimpath": true,
+      "compress": true,
+      "package": {
+        "compress": true
+      }
+    }
+  },
+  "assetdir": "./frontend/dist",
+  "reloaddirs": "./frontend/src,./backend-go,./app.go,./main.go",
+  "wailsjsdir": "./frontend",
+  "debounceMS": 100,
+  "devServer": "localhost:5173",
+  "appargs": "",
+  "runNonNativeBuildHooks": false,
+  "preBuildHooks": {},
+  "postBuildHooks": {},
+  "darwin": {
+    "icon": "build/icons/icon.icns",
+    "bundleId": "com.howlerops.app",
+    "category": "public.app-category.developer-tools",
+    "signing": {
+      "identity": "",
+      "embedProvisioningProfile": false
+    },
+    "entitlements": {
+      "com.apple.security.app-sandbox": false,
+      "com.apple.security.network.client": true,
+      "com.apple.security.network.server": false,
+      "com.apple.security.files.user-selected.read-write": true,
+      "com.apple.security.files.downloads.read-write": true
+    },
+    "dmg": {
+      "title": "HowlerOps",
+      "size": {
+        "width": 658,
+        "height": 498
+      },
+      "iconSize": 128,
+      "contents": [
+        {
+          "x": 180,
+          "y": 170,
+          "type": "file"
+        },
+        {
+          "x": 480,
+          "y": 170,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    }
+  },
+  "windows": {
+    "icon": "build/icons/icon.ico",
+    "wailsManifest": "./build/windows/wails.exe.manifest",
+    "resDir": "./build/windows",
+    "theme": "auto",
+    "webviewGpuDisabled": false,
+    "webviewFixedVersion": "",
+    "messages": {
+      "installationRequired": "HowlerOps requires WebView2 to be installed. Do you want to download and install it now?",
+      "updateRequired": "Your WebView2 installation is outdated. Do you want to update it now?",
+      "failed": "WebView2 installation failed."
+    }
+  },
+  "linux": {
+    "icon": "build/icons/icon.png",
+    "packageType": "AppImage",
+    "maintainer": "HowlerOps Team <team@howlerops.com>",
+    "homepage": "https://howlerops.com",
+    "description": "A powerful desktop SQL client",
+    "category": "Development"
+  },
+  "productName": "HowlerOps",
+  "productVersion": "1.0.0"
+}

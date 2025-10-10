@@ -1,0 +1,301 @@
+version: '3.8'
+
+services:
+  # Backend API service
+  sql-studio-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: sql-studio-backend
+    ports:
+      - "8500:8500"
+    environment:
+      - NODE_ENV=production
+      - PORT=8500
+      - LOG_LEVEL=info
+      - DB_HOST=postgres
+      - DB_PORT=15432
+      - DB_NAME=${POSTGRES_DB:-sqlstudio}
+      - DB_USER=${POSTGRES_USER:-sqlstudio}
+      - DB_PASSWORD=${POSTGRES_PASSWORD:-sqlstudio}
+      - REDIS_HOST=redis
+      - REDIS_PORT=16379
+      - JWT_SECRET=${JWT_SECRET:-change-this-in-production}
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:8580}
+      - RATE_LIMIT_WINDOW_MS=900000
+      - RATE_LIMIT_MAX_REQUESTS=100
+      - PM2_INSTANCES=${PM2_INSTANCES:-max}
+    volumes:
+      - sql-studio-data:/app/data
+      - sql-studio-uploads:/app/uploads
+      - sql-studio-logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - sql-studio-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8500/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+
+  # Frontend service with Nginx
+  sql-studio-frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: production
+    container_name: sql-studio-frontend
+    ports:
+      - "${FRONTEND_PORT:-8580}:8580"
+    environment:
+      - BACKEND_URL=http://sql-studio-backend:8500
+    restart: unless-stopped
+    networks:
+      - sql-studio-network
+    depends_on:
+      sql-studio-backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8580/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.2'
+        reservations:
+          memory: 64M
+          cpus: '0.1'
+
+  # PostgreSQL primary database
+  postgres:
+    image: postgres:15-alpine
+    container_name: sql-studio-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-sqlstudio}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sqlstudio}
+      POSTGRES_DB: ${POSTGRES_DB:-sqlstudio}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=C --lc-ctype=C"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    networks:
+      - sql-studio-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sqlstudio} -d ${POSTGRES_DB:-sqlstudio}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.2'
+
+  # Redis for caching and sessions
+  redis:
+    image: redis:7-alpine
+    container_name: sql-studio-redis
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis-password}
+    volumes:
+      - redis-data:/data
+    networks:
+      - sql-studio-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.2'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
+
+  # Prometheus for metrics collection
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: sql-studio-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "19090:19090"
+    networks:
+      - sql-studio-network
+    restart: unless-stopped
+    profiles:
+      - monitoring
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.3'
+        reservations:
+          memory: 256M
+          cpus: '0.1'
+
+  # Grafana for monitoring dashboards
+  grafana:
+    image: grafana/grafana:latest
+    container_name: sql-studio-grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    ports:
+      - "13001:3000"
+    networks:
+      - sql-studio-network
+    restart: unless-stopped
+    profiles:
+      - monitoring
+    depends_on:
+      - prometheus
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.2'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
+
+  # Testing databases (activated with --profile testing)
+  postgres-test:
+    image: postgres:15-alpine
+    container_name: postgres-test
+    environment:
+      POSTGRES_USER: testuser
+      POSTGRES_PASSWORD: testpass
+      POSTGRES_DB: testdb
+    ports:
+      - "15433:15432"
+    volumes:
+      - postgres-test-data:/var/lib/postgresql/data
+    networks:
+      - sql-studio-network
+    profiles:
+      - testing
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U testuser -d testdb"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  mysql-test:
+    image: mysql:8.0
+    container_name: mysql-test
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: testdb
+      MYSQL_USER: testuser
+      MYSQL_PASSWORD: testpass
+    ports:
+      - "13307:13306"
+    volumes:
+      - mysql-test-data:/var/lib/mysql
+    networks:
+      - sql-studio-network
+    profiles:
+      - testing
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  mongo-test:
+    image: mongo:6.0
+    container_name: mongo-test
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: adminpass
+      MONGO_INITDB_DATABASE: testdb
+    ports:
+      - "37018:37017"
+    volumes:
+      - mongo-test-data:/data/db
+    networks:
+      - sql-studio-network
+    profiles:
+      - testing
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  sql-studio-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+volumes:
+  # Application data
+  sql-studio-data:
+    driver: local
+  sql-studio-uploads:
+    driver: local
+  sql-studio-logs:
+    driver: local
+
+  # Database data
+  postgres-data:
+    driver: local
+  redis-data:
+    driver: local
+
+  # Monitoring data
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+
+  # Testing database data
+  postgres-test-data:
+    driver: local
+  mysql-test-data:
+    driver: local
+  mongo-test-data:
+    driver: local

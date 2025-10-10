@@ -1,0 +1,326 @@
+syntax = "proto3";
+
+package sqlstudio.query;
+
+option go_package = "github.com/sql-studio/backend-go/api/query";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/any.proto";
+
+// Query service definition
+service QueryService {
+  rpc ExecuteQuery(ExecuteQueryRequest) returns (ExecuteQueryResponse);
+  rpc ExecuteStreamingQuery(ExecuteStreamingQueryRequest) returns (stream StreamingQueryResponse);
+  rpc CancelQuery(CancelQueryRequest) returns (CancelQueryResponse);
+  rpc GetQueryStatus(GetQueryStatusRequest) returns (GetQueryStatusResponse);
+  rpc ListActiveQueries(ListActiveQueriesRequest) returns (ListActiveQueriesResponse);
+  rpc ExecuteBatchEdit(ExecuteBatchEditRequest) returns (ExecuteBatchEditResponse);
+  rpc GetQueryHistory(GetQueryHistoryRequest) returns (GetQueryHistoryResponse);
+  rpc ExplainQuery(ExplainQueryRequest) returns (ExplainQueryResponse);
+}
+
+// Query types
+enum QueryType {
+  QUERY_TYPE_UNSPECIFIED = 0;
+  QUERY_TYPE_SELECT = 1;
+  QUERY_TYPE_INSERT = 2;
+  QUERY_TYPE_UPDATE = 3;
+  QUERY_TYPE_DELETE = 4;
+  QUERY_TYPE_DDL = 5;
+  QUERY_TYPE_TRANSACTION = 6;
+  QUERY_TYPE_EXPLAIN = 7;
+}
+
+// Query execution mode
+enum ExecutionMode {
+  EXECUTION_MODE_UNSPECIFIED = 0;
+  EXECUTION_MODE_IMMEDIATE = 1;
+  EXECUTION_MODE_STREAMING = 2;
+  EXECUTION_MODE_BATCH = 3;
+}
+
+// Data format for streaming
+enum DataFormat {
+  DATA_FORMAT_UNSPECIFIED = 0;
+  DATA_FORMAT_JSON = 1;
+  DATA_FORMAT_NDJSON = 2;
+  DATA_FORMAT_CSV = 3;
+  DATA_FORMAT_PROTOBUF = 4;
+}
+
+// Execute query request
+message ExecuteQueryRequest {
+  string connection_id = 1;
+  string sql = 2;
+  map<string, google.protobuf.Any> parameters = 3;
+  QueryOptions options = 4;
+  string query_id = 5; // Optional client-provided ID
+}
+
+// Query options
+message QueryOptions {
+  int32 limit = 1;
+  int32 timeout_seconds = 2;
+  bool read_only = 3;
+  bool explain = 4;
+  DataFormat format = 5;
+  bool include_metadata = 6;
+  int32 fetch_size = 7; // For streaming
+}
+
+// Column metadata
+message ColumnMetadata {
+  string name = 1;
+  string type = 2;
+  bool nullable = 3;
+  int32 ordinal = 4;
+  string table_name = 5;
+  string schema_name = 6;
+}
+
+// Query result row
+message QueryRow {
+  repeated google.protobuf.Any values = 1;
+}
+
+// Query results
+message QueryResult {
+  repeated ColumnMetadata columns = 1;
+  repeated QueryRow rows = 2;
+  int64 row_count = 3;
+  bool more_results = 4;
+  string cursor = 5; // For pagination
+}
+
+// Query execution statistics
+message QueryStats {
+  google.protobuf.Timestamp start_time = 1;
+  google.protobuf.Timestamp end_time = 2;
+  int64 duration_ms = 3;
+  int64 rows_affected = 4;
+  int64 rows_returned = 5;
+  int64 bytes_processed = 6;
+  int64 bytes_returned = 7;
+  double cpu_time_ms = 8;
+  int64 memory_used_bytes = 9;
+  int64 disk_reads = 10;
+  int64 disk_writes = 11;
+}
+
+// Execute query response
+message ExecuteQueryResponse {
+  bool success = 1;
+  string message = 2;
+  string query_id = 3;
+  QueryResult result = 4;
+  QueryStats stats = 5;
+  repeated string warnings = 6;
+}
+
+// Execute streaming query request
+message ExecuteStreamingQueryRequest {
+  string connection_id = 1;
+  string sql = 2;
+  map<string, google.protobuf.Any> parameters = 3;
+  QueryOptions options = 4;
+  string query_id = 5;
+}
+
+// Streaming query response types
+enum StreamResponseType {
+  STREAM_RESPONSE_TYPE_UNSPECIFIED = 0;
+  STREAM_RESPONSE_TYPE_METADATA = 1;
+  STREAM_RESPONSE_TYPE_DATA = 2;
+  STREAM_RESPONSE_TYPE_PROGRESS = 3;
+  STREAM_RESPONSE_TYPE_COMPLETE = 4;
+  STREAM_RESPONSE_TYPE_ERROR = 5;
+}
+
+// Query progress information
+message QueryProgress {
+  int64 rows_processed = 1;
+  int64 total_rows = 2; // If known
+  double progress_percentage = 3;
+  google.protobuf.Timestamp last_update = 4;
+  string current_phase = 5;
+  map<string, string> metrics = 6;
+}
+
+// Metadata wrapper for oneof
+message MetadataPayload {
+  repeated ColumnMetadata columns = 1;
+}
+
+// Streaming query response
+message StreamingQueryResponse {
+  StreamResponseType type = 1;
+  string query_id = 2;
+  oneof payload {
+    MetadataPayload metadata = 3;
+    QueryRow data = 4;
+    QueryProgress progress = 5;
+    QueryStats completion = 6;
+    string error = 7;
+  }
+}
+
+// Cancel query request
+message CancelQueryRequest {
+  string query_id = 1;
+}
+
+// Cancel query response
+message CancelQueryResponse {
+  bool success = 1;
+  string message = 2;
+  bool was_running = 3;
+}
+
+// Query status
+enum QueryStatus {
+  QUERY_STATUS_UNSPECIFIED = 0;
+  QUERY_STATUS_PENDING = 1;
+  QUERY_STATUS_RUNNING = 2;
+  QUERY_STATUS_COMPLETED = 3;
+  QUERY_STATUS_FAILED = 4;
+  QUERY_STATUS_CANCELLED = 5;
+}
+
+// Get query status request
+message GetQueryStatusRequest {
+  string query_id = 1;
+}
+
+// Get query status response
+message GetQueryStatusResponse {
+  bool success = 1;
+  string message = 2;
+  QueryStatus status = 3;
+  QueryProgress progress = 4;
+  QueryStats stats = 5;
+}
+
+// List active queries request
+message ListActiveQueriesRequest {
+  string connection_id = 1; // Optional filter
+  string user_id = 2; // Optional filter
+}
+
+// Active query info
+message ActiveQuery {
+  string query_id = 1;
+  string connection_id = 2;
+  string user_id = 3;
+  string sql = 4;
+  QueryStatus status = 5;
+  google.protobuf.Timestamp started_at = 6;
+  QueryProgress progress = 7;
+}
+
+// List active queries response
+message ListActiveQueriesResponse {
+  bool success = 1;
+  string message = 2;
+  repeated ActiveQuery queries = 3;
+}
+
+// Batch edit operation
+message BatchEditOperation {
+  enum OperationType {
+    OPERATION_TYPE_UNSPECIFIED = 0;
+    OPERATION_TYPE_INSERT = 1;
+    OPERATION_TYPE_UPDATE = 2;
+    OPERATION_TYPE_DELETE = 3;
+  }
+
+  string id = 1;
+  OperationType type = 2;
+  string table_name = 3;
+  string schema_name = 4;
+  map<string, google.protobuf.Any> values = 5;
+  map<string, google.protobuf.Any> where_conditions = 6;
+  int64 version = 7; // For optimistic locking
+}
+
+// Execute batch edit request
+message ExecuteBatchEditRequest {
+  string connection_id = 1;
+  repeated BatchEditOperation operations = 2;
+  bool use_transaction = 3;
+  QueryOptions options = 4;
+}
+
+// Batch edit result
+message BatchEditResult {
+  string operation_id = 1;
+  bool success = 2;
+  string message = 3;
+  int64 rows_affected = 4;
+  map<string, google.protobuf.Any> returned_values = 5; // For INSERT with RETURNING
+}
+
+// Execute batch edit response
+message ExecuteBatchEditResponse {
+  bool success = 1;
+  string message = 2;
+  repeated BatchEditResult results = 3;
+  QueryStats stats = 4;
+  string transaction_id = 5;
+}
+
+// Get query history request
+message GetQueryHistoryRequest {
+  string connection_id = 1; // Optional filter
+  string user_id = 2; // Optional filter
+  google.protobuf.Timestamp from_time = 3;
+  google.protobuf.Timestamp to_time = 4;
+  int32 limit = 5;
+  string cursor = 6; // For pagination
+}
+
+// Query history entry
+message QueryHistoryEntry {
+  string query_id = 1;
+  string connection_id = 2;
+  string user_id = 3;
+  string sql = 4;
+  QueryStatus status = 5;
+  google.protobuf.Timestamp started_at = 6;
+  google.protobuf.Timestamp completed_at = 7;
+  QueryStats stats = 8;
+  string error_message = 9;
+}
+
+// Get query history response
+message GetQueryHistoryResponse {
+  bool success = 1;
+  string message = 2;
+  repeated QueryHistoryEntry entries = 3;
+  string next_cursor = 4;
+  bool has_more = 5;
+}
+
+// Explain query request
+message ExplainQueryRequest {
+  string connection_id = 1;
+  string sql = 2;
+  map<string, google.protobuf.Any> parameters = 3;
+  bool analyze = 4; // Include actual execution stats
+  string format = 5; // JSON, TEXT, XML, YAML
+}
+
+// Query execution plan
+message ExecutionPlan {
+  string format = 1;
+  string plan = 2;
+  QueryStats estimated_stats = 3;
+  QueryStats actual_stats = 4; // If analyze=true
+  repeated string warnings = 5;
+}
+
+// Explain query response
+message ExplainQueryResponse {
+  bool success = 1;
+  string message = 2;
+  ExecutionPlan plan = 3;
+}

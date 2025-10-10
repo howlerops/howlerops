@@ -1,0 +1,101 @@
+syntax = "proto3";
+
+package sqlstudio.health;
+
+option go_package = "github.com/sql-studio/backend-go/api/health";
+
+import "google/protobuf/timestamp.proto";
+
+// Health service for monitoring and diagnostics
+service HealthService {
+  rpc Check(HealthCheckRequest) returns (HealthCheckResponse);
+  rpc Watch(HealthCheckRequest) returns (stream HealthCheckResponse);
+  rpc GetSystemMetrics(GetSystemMetricsRequest) returns (GetSystemMetricsResponse);
+  rpc GetDatabaseMetrics(GetDatabaseMetricsRequest) returns (GetDatabaseMetricsResponse);
+}
+
+// Health status
+enum HealthStatus {
+  HEALTH_STATUS_UNSPECIFIED = 0;
+  HEALTH_STATUS_SERVING = 1;
+  HEALTH_STATUS_NOT_SERVING = 2;
+  HEALTH_STATUS_DEGRADED = 3;
+  HEALTH_STATUS_UNKNOWN = 4;
+}
+
+// Health check request
+message HealthCheckRequest {
+  string service = 1; // Empty means overall health
+}
+
+// Health check response
+message HealthCheckResponse {
+  HealthStatus status = 1;
+  string message = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  map<string, string> details = 4;
+}
+
+// Get system metrics request
+message GetSystemMetricsRequest {
+  google.protobuf.Timestamp from_time = 1;
+  google.protobuf.Timestamp to_time = 2;
+  int32 interval_seconds = 3;
+}
+
+// System metrics
+message SystemMetrics {
+  google.protobuf.Timestamp timestamp = 1;
+  double cpu_usage_percent = 2;
+  int64 memory_used_bytes = 3;
+  int64 memory_total_bytes = 4;
+  int64 disk_used_bytes = 5;
+  int64 disk_total_bytes = 6;
+  int64 network_in_bytes = 7;
+  int64 network_out_bytes = 8;
+  int32 goroutines = 9;
+  int64 heap_alloc_bytes = 10;
+  int64 heap_sys_bytes = 11;
+  double load_average_1m = 12;
+  double load_average_5m = 13;
+  double load_average_15m = 14;
+}
+
+// Get system metrics response
+message GetSystemMetricsResponse {
+  bool success = 1;
+  string message = 2;
+  repeated SystemMetrics metrics = 3;
+}
+
+// Get database metrics request
+message GetDatabaseMetricsRequest {
+  string connection_id = 1;
+  google.protobuf.Timestamp from_time = 2;
+  google.protobuf.Timestamp to_time = 3;
+  int32 interval_seconds = 4;
+}
+
+// Database metrics
+message DatabaseMetrics {
+  string connection_id = 1;
+  google.protobuf.Timestamp timestamp = 2;
+  int32 active_connections = 3;
+  int32 idle_connections = 4;
+  int32 max_connections = 5;
+  int64 queries_executed = 6;
+  int64 queries_failed = 7;
+  double avg_query_duration_ms = 8;
+  int64 bytes_sent = 9;
+  int64 bytes_received = 10;
+  double cache_hit_ratio = 11;
+  int64 buffer_cache_size_bytes = 12;
+  int64 database_size_bytes = 13;
+}
+
+// Get database metrics response
+message GetDatabaseMetricsResponse {
+  bool success = 1;
+  string message = 2;
+  repeated DatabaseMetrics metrics = 3;
+}

@@ -1,0 +1,175 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+bin/
+sql-studio
+howlerops
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+coverage.html
+coverage.txt
+
+# Go vendor directory
+vendor/
+
+# Go build cache
+.cache/
+
+# Dependency directories
+node_modules/
+.pnp
+.pnp.js
+
+# Testing coverage
+coverage/
+*.lcov
+.nyc_output/
+
+# Production build
+build/
+dist/
+out/
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# IDE directories
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Debug
+*.pprof
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+connections.db
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Project specific
+config/local.yaml
+config/production.yaml
+data/
+sessions/
+uploads/
+
+# Wails specific
+*.app
+*.dmg
+*.AppImage
+wails.json.bak
+.wails/
+app.syso
+wails-build/
+bindings/
+*.syso
+
+# Frontend build
+frontend/dist/
+frontend/build/
+frontend/.vite/
+frontend/.turbo/
+
+# Generated files (protobuf, Wails bindings)
+backend-go/api/*.pb.go
+backend-go/api/*_grpc.pb.go
+frontend/src/generated/
+frontend/wailsjs/
+
+# Backend build artifacts
+backend-go/bin/
+backend-go/.gobuild/
+backend-go/cmd/server/main
+
+# Package manager lock files (keep package.json, ignore lock files)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Runtime and cache directories
+.cache/
+.gocache/
+.parcel-cache/
+.next/
+.nuxt/
+.vuepress/dist/
+
+# Test artifacts
+test-results/
+playwright-report/
+playwright/.cache/
+
+# Coverage reports
+coverage/
+*.lcov
+.nyc_output/
+
+# Editor and IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Local development files
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Backup files
+*.bak
+*.backup
+*.orig

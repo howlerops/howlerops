@@ -1,0 +1,460 @@
+syntax = "proto3";
+
+package sqlstudio.table;
+
+option go_package = "github.com/sql-studio/backend-go/api/table";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/any.proto";
+
+// Table service definition
+service TableService {
+  rpc GetTableData(GetTableDataRequest) returns (GetTableDataResponse);
+  rpc GetTableDataStream(GetTableDataStreamRequest) returns (stream TableDataStreamResponse);
+  rpc UpdateTableRow(UpdateTableRowRequest) returns (UpdateTableRowResponse);
+  rpc InsertTableRow(InsertTableRowRequest) returns (InsertTableRowResponse);
+  rpc DeleteTableRow(DeleteTableRowRequest) returns (DeleteTableRowResponse);
+  rpc CreateTable(CreateTableRequest) returns (CreateTableResponse);
+  rpc AlterTable(AlterTableRequest) returns (AlterTableResponse);
+  rpc DropTable(DropTableRequest) returns (DropTableResponse);
+  rpc GetTableStructure(GetTableStructureRequest) returns (GetTableStructureResponse);
+  rpc ValidateTableData(ValidateTableDataRequest) returns (ValidateTableDataResponse);
+  rpc BulkImport(BulkImportRequest) returns (stream BulkImportResponse);
+  rpc ExportTable(ExportTableRequest) returns (stream ExportTableResponse);
+}
+
+// Sort direction
+enum SortDirection {
+  SORT_DIRECTION_UNSPECIFIED = 0;
+  SORT_DIRECTION_ASC = 1;
+  SORT_DIRECTION_DESC = 2;
+}
+
+// Filter operator
+enum FilterOperator {
+  FILTER_OPERATOR_UNSPECIFIED = 0;
+  FILTER_OPERATOR_EQUALS = 1;
+  FILTER_OPERATOR_NOT_EQUALS = 2;
+  FILTER_OPERATOR_GREATER_THAN = 3;
+  FILTER_OPERATOR_GREATER_THAN_OR_EQUAL = 4;
+  FILTER_OPERATOR_LESS_THAN = 5;
+  FILTER_OPERATOR_LESS_THAN_OR_EQUAL = 6;
+  FILTER_OPERATOR_LIKE = 7;
+  FILTER_OPERATOR_NOT_LIKE = 8;
+  FILTER_OPERATOR_IN = 9;
+  FILTER_OPERATOR_NOT_IN = 10;
+  FILTER_OPERATOR_IS_NULL = 11;
+  FILTER_OPERATOR_IS_NOT_NULL = 12;
+  FILTER_OPERATOR_BETWEEN = 13;
+  FILTER_OPERATOR_NOT_BETWEEN = 14;
+}
+
+// Sort specification
+message SortSpec {
+  string column = 1;
+  SortDirection direction = 2;
+}
+
+// Filter specification
+message FilterSpec {
+  string column = 1;
+  FilterOperator operator = 2;
+  repeated google.protobuf.Any values = 3;
+}
+
+// Get table data request
+message GetTableDataRequest {
+  string connection_id = 1;
+  string schema_name = 2;
+  string table_name = 3;
+  repeated string columns = 4; // Empty means all columns
+  repeated FilterSpec filters = 5;
+  repeated SortSpec sorts = 6;
+  int32 limit = 7;
+  int32 offset = 8;
+  bool include_total_count = 9;
+}
+
+// Table row
+message TableRow {
+  map<string, google.protobuf.Any> values = 1;
+  int64 version = 2; // For optimistic locking
+  google.protobuf.Timestamp updated_at = 3;
+}
+
+// Get table data response
+message GetTableDataResponse {
+  bool success = 1;
+  string message = 2;
+  repeated TableRow rows = 3;
+  int64 total_count = 4;
+  bool has_more = 5;
+  string cursor = 6;
+}
+
+// Get table data stream request
+message GetTableDataStreamRequest {
+  string connection_id = 1;
+  string schema_name = 2;
+  string table_name = 3;
+  repeated string columns = 4;
+  repeated FilterSpec filters = 5;
+  repeated SortSpec sorts = 6;
+  int32 batch_size = 7;
+}
+
+// Table data stream response
+message TableDataStreamResponse {
+  oneof payload {
+    TableRow row = 1;
+    string error = 2;
+    TableStreamStats stats = 3;
+  }
+}
+
+// Table stream statistics
+message TableStreamStats {
+  int64 rows_processed = 1;
+  int64 total_rows = 2;
+  google.protobuf.Timestamp started_at = 3;
+  google.protobuf.Timestamp completed_at = 4;
+  bool completed = 5;
+}
+
+// Update table row request
+message UpdateTableRowRequest {
+  string connection_id = 1;
+  string schema_name = 2;
+  string table_name = 3;
+  map<string, google.protobuf.Any> primary_key = 4;
+  map<string, google.protobuf.Any> values = 5;
+  int64 version = 6; // For optimistic locking
+  bool return_updated_row = 7;
+}
+
+// Update table row response
+message UpdateTableRowResponse {
+  bool success = 1;
+  string message = 2;
+  int64 rows_affected = 3;
+  TableRow updated_row = 4;
+  int64 new_version = 5;
+}
+
+// Insert table row request
+message InsertTableRowRequest {
+  string connection_id = 1;
+  string schema_name = 2;
+  string table_name = 3;
+  map<string, google.protobuf.Any> values = 4;
+  bool return_inserted_row = 5;
+}
+
+// Insert table row response
+message InsertTableRowResponse {
+  bool success = 1;
+  string message = 2;
+  TableRow inserted_row = 3;
+  map<string, google.protobuf.Any> generated_values = 4; // Auto-generated columns
+}
+
+// Delete table row request
+message DeleteTableRowRequest {
+  string connection_id = 1;
+  string schema_name = 2;
+  string table_name = 3;
+  map<string, google.protobuf.Any> primary_key = 4;
+  int64 version = 5; // For optimistic locking
+}
+
+// Delete table row response
+message DeleteTableRowResponse {
+  bool success = 1;
+  string message = 2;
+  int64 rows_affected = 3;
+}
+
+// Column definition for table creation
+message ColumnDefinition {
+  string name = 1;
+  string data_type = 2;
+  bool nullable = 3;
+  string default_value = 4;
+  bool primary_key = 5;
+  bool unique = 6;
+  bool auto_increment = 7;
+  string comment = 8;
+  string check_constraint = 9;
+  map<string, string> attributes = 10;
+}
+
+// Index definition
+message IndexDefinition {
+  string name = 1;
+  repeated string columns = 2;
+  bool unique = 3;
+  string type = 4; // BTREE, HASH, etc.
+  string method = 5; // Database-specific
+  string where_clause = 6; // Partial index
+}
+
+// Foreign key definition
+message ForeignKeyDefinition {
+  string name = 1;
+  repeated string columns = 2;
+  string referenced_table = 3;
+  string referenced_schema = 4;
+  repeated string referenced_columns = 5;
+  string on_delete = 6; // CASCADE, SET NULL, etc.
+  string on_update = 7;
+}
+
+// Create table request
+message CreateTableRequest {
+  string connection_id = 1;
+  string schema_name = 2;
+  string table_name = 3;
+  repeated ColumnDefinition columns = 4;
+  repeated IndexDefinition indexes = 5;
+  repeated ForeignKeyDefinition foreign_keys = 6;
+  string comment = 7;
+  map<string, string> options = 8; // Database-specific options
+  bool if_not_exists = 9;
+}
+
+// Create table response
+message CreateTableResponse {
+  bool success = 1;
+  string message = 2;
+  string sql = 3; // Generated SQL
+}
+
+// Alter table operation types
+enum AlterOperation {
+  ALTER_OPERATION_UNSPECIFIED = 0;
+  ALTER_OPERATION_ADD_COLUMN = 1;
+  ALTER_OPERATION_DROP_COLUMN = 2;
+  ALTER_OPERATION_MODIFY_COLUMN = 3;
+  ALTER_OPERATION_RENAME_COLUMN = 4;
+  ALTER_OPERATION_ADD_INDEX = 5;
+  ALTER_OPERATION_DROP_INDEX = 6;
+  ALTER_OPERATION_ADD_FOREIGN_KEY = 7;
+  ALTER_OPERATION_DROP_FOREIGN_KEY = 8;
+  ALTER_OPERATION_RENAME_TABLE = 9;
+  ALTER_OPERATION_SET_COMMENT = 10;
+}
+
+// Alter table operation
+message AlterTableOperation {
+  AlterOperation operation = 1;
+  oneof details {
+    ColumnDefinition add_column = 2;
+    string drop_column = 3;
+    ColumnDefinition modify_column = 4;
+    RenameColumnDetails rename_column = 5;
+    IndexDefinition add_index = 6;
+    string drop_index = 7;
+    ForeignKeyDefinition add_foreign_key = 8;
+    string drop_foreign_key = 9;
+    string rename_table = 10;
+    string set_comment = 11;
+  }
+}
+
+// Rename column details
+message RenameColumnDetails {
+  string old_name = 1;
+  string new_name = 2;
+}
+
+// Alter table request
+message AlterTableRequest {
+  string connection_id = 1;
+  string schema_name = 2;
+  string table_name = 3;
+  repeated AlterTableOperation operations = 4;
+}
+
+// Alter table response
+message AlterTableResponse {
+  bool success = 1;
+  string message = 2;
+  repeated string sql_statements = 3;
+}
+
+// Drop table request
+message DropTableRequest {
+  string connection_id = 1;
+  string schema_name = 2;
+  string table_name = 3;
+  bool if_exists = 4;
+  bool cascade = 5;
+}
+
+// Drop table response
+message DropTableResponse {
+  bool success = 1;
+  string message = 2;
+  string sql = 3;
+}
+
+// Get table structure request
+message GetTableStructureRequest {
+  string connection_id = 1;
+  string schema_name = 2;
+  string table_name = 3;
+}
+
+// Get table structure response
+message GetTableStructureResponse {
+  bool success = 1;
+  string message = 2;
+  repeated ColumnDefinition columns = 3;
+  repeated IndexDefinition indexes = 4;
+  repeated ForeignKeyDefinition foreign_keys = 5;
+  repeated string triggers = 6;
+  string comment = 7;
+  map<string, string> options = 8;
+}
+
+// Data validation rule
+message ValidationRule {
+  string name = 1;
+  string column = 2;
+  string rule_type = 3; // NOT_NULL, UNIQUE, RANGE, PATTERN, etc.
+  map<string, google.protobuf.Any> parameters = 4;
+  string error_message = 5;
+}
+
+// Validate table data request
+message ValidateTableDataRequest {
+  string connection_id = 1;
+  string schema_name = 2;
+  string table_name = 3;
+  repeated ValidationRule rules = 4;
+  int32 sample_size = 5; // 0 = validate all data
+}
+
+// Validation error
+message ValidationError {
+  string rule_name = 1;
+  string column = 2;
+  google.protobuf.Any value = 3;
+  string error_message = 4;
+  int64 row_number = 5;
+}
+
+// Validate table data response
+message ValidateTableDataResponse {
+  bool success = 1;
+  string message = 2;
+  bool valid = 3;
+  repeated ValidationError errors = 4;
+  int64 rows_validated = 5;
+  int64 errors_count = 6;
+}
+
+// Import format
+enum ImportFormat {
+  IMPORT_FORMAT_UNSPECIFIED = 0;
+  IMPORT_FORMAT_CSV = 1;
+  IMPORT_FORMAT_JSON = 2;
+  IMPORT_FORMAT_NDJSON = 3;
+  IMPORT_FORMAT_XML = 4;
+  IMPORT_FORMAT_EXCEL = 5;
+}
+
+// Import options
+message ImportOptions {
+  ImportFormat format = 1;
+  string delimiter = 2; // For CSV
+  string quote_char = 3; // For CSV
+  string escape_char = 4; // For CSV
+  bool has_header = 5; // For CSV
+  string encoding = 6;
+  bool skip_errors = 7;
+  int32 batch_size = 8;
+  map<string, string> column_mapping = 9; // Source -> Target column mapping
+}
+
+// Bulk import request
+message BulkImportRequest {
+  string connection_id = 1;
+  string schema_name = 2;
+  string table_name = 3;
+  bytes data = 4; // File data or first chunk
+  ImportOptions options = 5;
+  bool create_table = 6; // Auto-create table from data
+  bool truncate_first = 7;
+}
+
+// Import statistics
+message ImportStats {
+  int64 rows_processed = 1;
+  int64 rows_imported = 2;
+  int64 rows_skipped = 3;
+  int64 rows_failed = 4;
+  google.protobuf.Timestamp started_at = 5;
+  google.protobuf.Timestamp completed_at = 6;
+  bool completed = 7;
+}
+
+// Bulk import response
+message BulkImportResponse {
+  oneof payload {
+    ImportStats progress = 1;
+    string error = 2;
+    ImportStats completion = 3;
+  }
+}
+
+// Export format
+enum ExportFormat {
+  EXPORT_FORMAT_UNSPECIFIED = 0;
+  EXPORT_FORMAT_CSV = 1;
+  EXPORT_FORMAT_JSON = 2;
+  EXPORT_FORMAT_NDJSON = 3;
+  EXPORT_FORMAT_XML = 4;
+  EXPORT_FORMAT_SQL = 5;
+}
+
+// Export options
+message ExportOptions {
+  ExportFormat format = 1;
+  string delimiter = 2; // For CSV
+  string quote_char = 3; // For CSV
+  bool include_header = 4; // For CSV
+  string encoding = 5;
+  int32 batch_size = 6;
+  bool compress = 7;
+}
+
+// Export table request
+message ExportTableRequest {
+  string connection_id = 1;
+  string schema_name = 2;
+  string table_name = 3;
+  repeated string columns = 4; // Empty means all columns
+  repeated FilterSpec filters = 5;
+  repeated SortSpec sorts = 6;
+  ExportOptions options = 7;
+}
+
+// Export statistics
+message ExportStats {
+  int64 rows_processed = 1;
+  int64 bytes_written = 2;
+  google.protobuf.Timestamp started_at = 3;
+  google.protobuf.Timestamp completed_at = 4;
+  bool completed = 5;
+}
+
+// Export table response
+message ExportTableResponse {
+  oneof payload {
+    bytes data = 1;
+    ExportStats progress = 2;
+    string error = 3;
+    ExportStats completion = 4;
+  }
+}

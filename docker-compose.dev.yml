@@ -1,0 +1,188 @@
+version: '3.8'
+
+services:
+  # Development backend with hot reload
+  sql-studio-backend-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: backend-builder
+    container_name: sql-studio-backend-dev
+    command: npm run dev
+    ports:
+      - "8500:8500"
+      - "9229:9229"  # Node.js debugger port
+    environment:
+      - NODE_ENV=development
+      - PORT=8500
+      - LOG_LEVEL=debug
+      - DB_HOST=postgres-dev
+      - DB_PORT=15432
+      - DB_NAME=sqlstudio_dev
+      - DB_USER=dev_user
+      - DB_PASSWORD=dev_password
+      - REDIS_HOST=redis-dev
+      - REDIS_PORT=16379
+      - JWT_SECRET=dev-jwt-secret-change-in-production
+      - CORS_ORIGIN=http://localhost:8580
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+      - sql-studio-dev-logs:/app/logs
+    networks:
+      - sql-studio-dev-network
+    depends_on:
+      postgres-dev:
+        condition: service_healthy
+      redis-dev:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Development frontend with Vite hot reload
+  sql-studio-frontend-dev:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: builder
+    container_name: sql-studio-frontend-dev
+    command: npm run dev -- --host 0.0.0.0 --port 8580
+    ports:
+      - "8580:8580"
+    environment:
+      - NODE_ENV=development
+      - VITE_API_URL=http://localhost:8500/api
+      - VITE_WS_URL=ws://localhost:8500
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - sql-studio-dev-network
+    depends_on:
+      - sql-studio-backend-dev
+    restart: unless-stopped
+
+  # Development PostgreSQL
+  postgres-dev:
+    image: postgres:15-alpine
+    container_name: sql-studio-postgres-dev
+    environment:
+      POSTGRES_USER: dev_user
+      POSTGRES_PASSWORD: dev_password
+      POSTGRES_DB: sqlstudio_dev
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+    ports:
+      - "15432:15432"
+    volumes:
+      - postgres-dev-data:/var/lib/postgresql/data
+      - ./scripts/dev-init.sql:/docker-entrypoint-initdb.d/dev-init.sql:ro
+    networks:
+      - sql-studio-dev-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dev_user -d sqlstudio_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # Development Redis
+  redis-dev:
+    image: redis:7-alpine
+    container_name: sql-studio-redis-dev
+    command: redis-server --appendonly yes
+    ports:
+      - "16379:16379"
+    volumes:
+      - redis-dev-data:/data
+    networks:
+      - sql-studio-dev-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  # Development database admin tools
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: sql-studio-pgadmin-dev
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@sqlstudio.dev
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin-dev-data:/var/lib/pgadmin
+    networks:
+      - sql-studio-dev-network
+    depends_on:
+      - postgres-dev
+    profiles:
+      - admin
+
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: sql-studio-redis-commander-dev
+    environment:
+      REDIS_HOSTS: local:redis-dev:16379
+    ports:
+      - "8081:8081"
+    networks:
+      - sql-studio-dev-network
+    depends_on:
+      - redis-dev
+    profiles:
+      - admin
+
+  # Development testing databases
+  postgres-test-dev:
+    image: postgres:15-alpine
+    container_name: postgres-test-dev
+    environment:
+      POSTGRES_USER: testuser
+      POSTGRES_PASSWORD: testpass
+      POSTGRES_DB: testdb
+    ports:
+      - "15433:15432"
+    volumes:
+      - postgres-test-dev-data:/var/lib/postgresql/data
+    networks:
+      - sql-studio-dev-network
+    profiles:
+      - testing
+
+  mysql-test-dev:
+    image: mysql:8.0
+    container_name: mysql-test-dev
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: testdb
+      MYSQL_USER: testuser
+      MYSQL_PASSWORD: testpass
+    ports:
+      - "13306:13306"
+    volumes:
+      - mysql-test-dev-data:/var/lib/mysql
+    networks:
+      - sql-studio-dev-network
+    profiles:
+      - testing
+
+networks:
+  sql-studio-dev-network:
+    driver: bridge
+
+volumes:
+  postgres-dev-data:
+    driver: local
+  redis-dev-data:
+    driver: local
+  pgadmin-dev-data:
+    driver: local
+  sql-studio-dev-logs:
+    driver: local
+  postgres-test-dev-data:
+    driver: local
+  mysql-test-dev-data:
+    driver: local

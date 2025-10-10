@@ -1,0 +1,600 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "database.proto",
+    "version": "version not set"
+  },
+  "tags": [
+    {
+      "name": "DatabaseService"
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {},
+  "definitions": {
+    "databaseColumn": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "dataType": {
+          "type": "string"
+        },
+        "nullable": {
+          "type": "boolean"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "primaryKey": {
+          "type": "boolean"
+        },
+        "unique": {
+          "type": "boolean"
+        },
+        "indexed": {
+          "type": "boolean"
+        },
+        "comment": {
+          "type": "string"
+        },
+        "ordinalPosition": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "characterMaximumLength": {
+          "type": "string",
+          "format": "int64"
+        },
+        "numericPrecision": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "numericScale": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "title": "Column information"
+    },
+    "databaseConnectionConfig": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "$ref": "#/definitions/databaseDatabaseType"
+        },
+        "host": {
+          "type": "string"
+        },
+        "port": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "database": {
+          "type": "string"
+        },
+        "username": {
+          "type": "string"
+        },
+        "password": {
+          "type": "string"
+        },
+        "sslMode": {
+          "type": "string"
+        },
+        "connectionTimeout": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "idleTimeout": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "maxConnections": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "maxIdleConnections": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "parameters": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "title": "Connection configuration"
+    },
+    "databaseConnectionHealthResponse": {
+      "type": "object",
+      "properties": {
+        "connectionId": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/definitions/sqlstudiodatabaseHealthStatus"
+        },
+        "message": {
+          "type": "string"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "responseTimeMs": {
+          "type": "string",
+          "format": "int64"
+        },
+        "activeConnections": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "idleConnections": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "metrics": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "title": "Connection health response (streaming)"
+    },
+    "databaseCreateConnectionResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        },
+        "connection": {
+          "$ref": "#/definitions/databaseDatabaseConnection"
+        }
+      },
+      "title": "Create connection response"
+    },
+    "databaseDatabaseConnection": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "config": {
+          "$ref": "#/definitions/databaseConnectionConfig"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "active": {
+          "type": "boolean"
+        },
+        "createdBy": {
+          "type": "string"
+        },
+        "tags": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "title": "Database connection"
+    },
+    "databaseDatabaseType": {
+      "type": "string",
+      "enum": [
+        "DATABASE_TYPE_UNSPECIFIED",
+        "DATABASE_TYPE_POSTGRESQL",
+        "DATABASE_TYPE_MYSQL",
+        "DATABASE_TYPE_SQLITE",
+        "DATABASE_TYPE_MARIADB"
+      ],
+      "default": "DATABASE_TYPE_UNSPECIFIED",
+      "title": "Database connection types"
+    },
+    "databaseDeleteConnectionResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "title": "Delete connection response"
+    },
+    "databaseForeignKey": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "columns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "referencedTable": {
+          "type": "string"
+        },
+        "referencedSchema": {
+          "type": "string"
+        },
+        "referencedColumns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "onDelete": {
+          "type": "string"
+        },
+        "onUpdate": {
+          "type": "string"
+        }
+      },
+      "title": "Foreign key information"
+    },
+    "databaseGetConnectionResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        },
+        "connection": {
+          "$ref": "#/definitions/databaseDatabaseConnection"
+        }
+      },
+      "title": "Get connection response"
+    },
+    "databaseGetSchemasResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        },
+        "schemas": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/databaseSchema"
+          }
+        }
+      },
+      "title": "Get schemas response"
+    },
+    "databaseGetTableMetadataResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        },
+        "metadata": {
+          "$ref": "#/definitions/databaseTableMetadata"
+        }
+      },
+      "title": "Get table metadata response"
+    },
+    "databaseGetTablesResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        },
+        "tables": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/databaseTable"
+          }
+        }
+      },
+      "title": "Get tables response"
+    },
+    "databaseIndex": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "columns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "unique": {
+          "type": "boolean"
+        },
+        "primary": {
+          "type": "boolean"
+        },
+        "type": {
+          "type": "string"
+        },
+        "method": {
+          "type": "string"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "title": "Index information"
+    },
+    "databaseListConnectionsResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        },
+        "connections": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/databaseDatabaseConnection"
+          }
+        },
+        "total": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "page": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "pageSize": {
+          "type": "integer",
+          "format": "int32"
+        }
+      },
+      "title": "List connections response"
+    },
+    "databaseSchema": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "owner": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "tableCount": {
+          "type": "string",
+          "format": "int64"
+        },
+        "sizeBytes": {
+          "type": "string",
+          "format": "int64"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "title": "Schema information"
+    },
+    "databaseTable": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "schema": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "title": "TABLE, VIEW, MATERIALIZED_VIEW"
+        },
+        "comment": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "rowCount": {
+          "type": "string",
+          "format": "int64"
+        },
+        "sizeBytes": {
+          "type": "string",
+          "format": "int64"
+        },
+        "owner": {
+          "type": "string"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "title": "Table information"
+    },
+    "databaseTableMetadata": {
+      "type": "object",
+      "properties": {
+        "table": {
+          "$ref": "#/definitions/databaseTable"
+        },
+        "columns": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/databaseColumn"
+          }
+        },
+        "indexes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/databaseIndex"
+          }
+        },
+        "foreignKeys": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/databaseForeignKey"
+          }
+        },
+        "triggers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "statistics": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "title": "Table metadata"
+    },
+    "databaseTestConnectionResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        },
+        "responseTimeMs": {
+          "type": "string",
+          "format": "int64"
+        },
+        "version": {
+          "type": "string"
+        },
+        "serverInfo": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "title": "Test connection response"
+    },
+    "databaseUpdateConnectionResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        },
+        "connection": {
+          "$ref": "#/definitions/databaseDatabaseConnection"
+        }
+      },
+      "title": "Update connection response"
+    },
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string",
+          "description": "A URL/resource name that uniquely identifies the type of the serialized\nprotocol buffer message. This string must contain at least\none \"/\" character. The last segment of the URL's path must represent\nthe fully qualified name of the type (as in\n`path/google.protobuf.Duration`). The name should be in a canonical form\n(e.g., leading \".\" is not accepted).\n\nIn practice, teams usually precompile into the binary all types that they\nexpect it to use in the context of Any. However, for URLs which use the\nscheme `http`, `https`, or no scheme, one can optionally set up a type\nserver that maps type URLs to message definitions as follows:\n\n* If no scheme is provided, `https` is assumed.\n* An HTTP GET on the URL must yield a [google.protobuf.Type][]\n  value in binary format, or produce an error.\n* Applications are allowed to cache lookup results based on the\n  URL, or have them precompiled into a binary to avoid any\n  lookup. Therefore, binary compatibility needs to be preserved\n  on changes to types. (Use versioned type names to manage\n  breaking changes.)\n\nNote: this functionality is not currently available in the official\nprotobuf release, and it is not used for type URLs beginning with\ntype.googleapis.com. As of May 2023, there are no widely used type server\nimplementations and no plans to implement one.\n\nSchemes other than `http`, `https` (or the empty scheme) might be\nused with implementation specific semantics."
+        }
+      },
+      "additionalProperties": {},
+      "description": "`Any` contains an arbitrary serialized protocol buffer message along with a\nURL that describes the type of the serialized message.\n\nProtobuf library provides support to pack/unpack Any values in the form\nof utility functions or additional generated methods of the Any type.\n\nExample 1: Pack and unpack a message in C++.\n\n    Foo foo = ...;\n    Any any;\n    any.PackFrom(foo);\n    ...\n    if (any.UnpackTo(\u0026foo)) {\n      ...\n    }\n\nExample 2: Pack and unpack a message in Java.\n\n    Foo foo = ...;\n    Any any = Any.pack(foo);\n    ...\n    if (any.is(Foo.class)) {\n      foo = any.unpack(Foo.class);\n    }\n    // or ...\n    if (any.isSameTypeAs(Foo.getDefaultInstance())) {\n      foo = any.unpack(Foo.getDefaultInstance());\n    }\n\n Example 3: Pack and unpack a message in Python.\n\n    foo = Foo(...)\n    any = Any()\n    any.Pack(foo)\n    ...\n    if any.Is(Foo.DESCRIPTOR):\n      any.Unpack(foo)\n      ...\n\n Example 4: Pack and unpack a message in Go\n\n     foo := \u0026pb.Foo{...}\n     any, err := anypb.New(foo)\n     if err != nil {\n       ...\n     }\n     ...\n     foo := \u0026pb.Foo{}\n     if err := any.UnmarshalTo(foo); err != nil {\n       ...\n     }\n\nThe pack methods provided by protobuf library will by default use\n'type.googleapis.com/full.type.name' as the type URL and the unpack\nmethods only use the fully qualified type name after the last '/'\nin the type URL, for example \"foo.bar.com/x/y.z\" will yield type\nname \"y.z\".\n\nJSON\n====\nThe JSON representation of an `Any` value uses the regular\nrepresentation of the deserialized, embedded message, with an\nadditional field `@type` which contains the type URL. Example:\n\n    package google.profile;\n    message Person {\n      string first_name = 1;\n      string last_name = 2;\n    }\n\n    {\n      \"@type\": \"type.googleapis.com/google.profile.Person\",\n      \"firstName\": \u003cstring\u003e,\n      \"lastName\": \u003cstring\u003e\n    }\n\nIf the embedded message type is well-known and has a custom JSON\nrepresentation, that representation will be embedded adding a field\n`value` which holds the custom JSON in addition to the `@type`\nfield. Example (for message [google.protobuf.Duration][]):\n\n    {\n      \"@type\": \"type.googleapis.com/google.protobuf.Duration\",\n      \"value\": \"1.212s\"\n    }"
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
+    "sqlstudiodatabaseHealthStatus": {
+      "type": "string",
+      "enum": [
+        "HEALTH_STATUS_UNSPECIFIED",
+        "HEALTH_STATUS_HEALTHY",
+        "HEALTH_STATUS_DEGRADED",
+        "HEALTH_STATUS_UNHEALTHY",
+        "HEALTH_STATUS_UNKNOWN"
+      ],
+      "default": "HEALTH_STATUS_UNSPECIFIED",
+      "title": "Connection health status"
+    }
+  }
+}

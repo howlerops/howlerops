@@ -1,0 +1,277 @@
+syntax = "proto3";
+
+package ai;
+
+option go_package = "github.com/sql-studio/backend-go/pkg/pb/ai";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
+
+// AI service definition
+service AIService {
+  // Generate SQL from natural language
+  rpc GenerateSQL(GenerateSQLRequest) returns (GenerateSQLResponse);
+
+  // Fix SQL based on error message
+  rpc FixSQL(FixSQLRequest) returns (FixSQLResponse);
+
+  // Get available providers
+  rpc GetProviders(GetProvidersRequest) returns (GetProvidersResponse);
+
+  // Get provider health status
+  rpc GetProviderHealth(GetProviderHealthRequest) returns (ProviderHealthResponse);
+
+  // Get available models for a provider
+  rpc GetProviderModels(GetProviderModelsRequest) returns (GetProviderModelsResponse);
+
+  // Test provider configuration
+  rpc TestProvider(TestProviderRequest) returns (TestProviderResponse);
+
+  // Get usage statistics
+  rpc GetUsageStats(GetUsageStatsRequest) returns (GetUsageStatsResponse);
+
+  // Get AI service configuration
+  rpc GetConfig(GetConfigRequest) returns (GetConfigResponse);
+}
+
+// Enums
+enum Provider {
+  PROVIDER_UNSPECIFIED = 0;
+  PROVIDER_OPENAI = 1;
+  PROVIDER_ANTHROPIC = 2;
+  PROVIDER_OLLAMA = 3;
+  PROVIDER_HUGGINGFACE = 4;
+  PROVIDER_CLAUDECODE = 5;
+  PROVIDER_CODEX = 6;
+}
+
+enum HealthStatus {
+  HEALTH_UNKNOWN = 0;
+  HEALTH_HEALTHY = 1;
+  HEALTH_UNHEALTHY = 2;
+  HEALTH_ERROR = 3;
+}
+
+enum ErrorType {
+  ERROR_UNKNOWN = 0;
+  ERROR_INVALID_REQUEST = 1;
+  ERROR_PROVIDER_ERROR = 2;
+  ERROR_CONFIG_ERROR = 3;
+  ERROR_RATE_LIMIT = 4;
+  ERROR_TIMEOUT = 5;
+  ERROR_INTERNAL = 6;
+}
+
+// Core message types
+message SQLRequest {
+  string prompt = 1;
+  string query = 2;          // For fixing existing queries
+  string error = 3;          // Error message to fix
+  string schema = 4;         // Database schema context
+  Provider provider = 5;
+  string model = 6;
+  int32 max_tokens = 7;
+  double temperature = 8;
+  map<string, string> context = 9; // Additional context
+}
+
+message SQLResponse {
+  string query = 1;
+  string explanation = 2;
+  double confidence = 3;
+  repeated string suggestions = 4;
+  repeated string warnings = 5;
+  Provider provider = 6;
+  string model = 7;
+  int32 tokens_used = 8;
+  google.protobuf.Duration time_taken = 9;
+  map<string, string> metadata = 10;
+}
+
+message ModelInfo {
+  string id = 1;
+  string name = 2;
+  Provider provider = 3;
+  string description = 4;
+  int32 max_tokens = 5;
+  repeated string capabilities = 6;
+  map<string, string> metadata = 7;
+}
+
+message ProviderHealth {
+  Provider provider = 1;
+  HealthStatus status = 2;
+  string message = 3;
+  google.protobuf.Timestamp last_checked = 4;
+  google.protobuf.Duration response_time = 5;
+}
+
+message Usage {
+  Provider provider = 1;
+  string model = 2;
+  int64 request_count = 3;
+  int64 tokens_used = 4;
+  double success_rate = 5;
+  google.protobuf.Duration avg_response_time = 6;
+  google.protobuf.Timestamp last_used = 7;
+}
+
+message AIError {
+  ErrorType type = 1;
+  string message = 2;
+  Provider provider = 3;
+  string code = 4;
+  map<string, string> details = 5;
+  bool retryable = 6;
+}
+
+// Request/Response messages for each RPC
+
+message GenerateSQLRequest {
+  SQLRequest request = 1;
+}
+
+message GenerateSQLResponse {
+  SQLResponse response = 1;
+  AIError error = 2;
+}
+
+message FixSQLRequest {
+  SQLRequest request = 1;
+}
+
+message FixSQLResponse {
+  SQLResponse response = 1;
+  AIError error = 2;
+}
+
+message GetProvidersRequest {
+  // No parameters needed
+}
+
+message GetProvidersResponse {
+  repeated Provider providers = 1;
+}
+
+message GetProviderHealthRequest {
+  Provider provider = 1;
+}
+
+message ProviderHealthResponse {
+  ProviderHealth health = 1;
+  AIError error = 2;
+}
+
+message GetProviderModelsRequest {
+  Provider provider = 1;
+}
+
+message GetProviderModelsResponse {
+  repeated ModelInfo models = 1;
+  AIError error = 2;
+}
+
+message TestProviderRequest {
+  Provider provider = 1;
+  oneof config {
+    OpenAIConfig openai_config = 2;
+    AnthropicConfig anthropic_config = 3;
+    OllamaConfig ollama_config = 4;
+    HuggingFaceConfig huggingface_config = 5;
+    ClaudeCodeConfig claudecode_config = 6;
+    CodexConfig codex_config = 7;
+  }
+}
+
+message TestProviderResponse {
+  bool success = 1;
+  string message = 2;
+  AIError error = 3;
+}
+
+message GetUsageStatsRequest {
+  Provider provider = 1; // If empty, return all providers
+}
+
+message GetUsageStatsResponse {
+  map<string, Usage> usage_stats = 1; // Key is provider name
+  AIError error = 2;
+}
+
+message GetConfigRequest {
+  // No parameters needed
+}
+
+message GetConfigResponse {
+  AIConfig config = 1;
+}
+
+// Configuration messages
+message AIConfig {
+  Provider default_provider = 1;
+  int32 max_tokens = 2;
+  double temperature = 3;
+  google.protobuf.Duration request_timeout = 4;
+  int32 rate_limit_per_min = 5;
+
+  OpenAIConfig openai = 6;
+  AnthropicConfig anthropic = 7;
+  OllamaConfig ollama = 8;
+  HuggingFaceConfig huggingface = 9;
+  ClaudeCodeConfig claudecode = 10;
+  CodexConfig codex = 11;
+}
+
+message OpenAIConfig {
+  string api_key = 1;      // Should be empty in responses for security
+  string base_url = 2;
+  repeated string models = 3;
+  string org_id = 4;
+  bool configured = 5;     // Indicates if provider is configured
+}
+
+message AnthropicConfig {
+  string api_key = 1;      // Should be empty in responses for security
+  string base_url = 2;
+  string version = 3;
+  repeated string models = 4;
+  bool configured = 5;     // Indicates if provider is configured
+}
+
+message OllamaConfig {
+  string endpoint = 1;
+  repeated string models = 2;
+  google.protobuf.Duration pull_timeout = 3;
+  google.protobuf.Duration generate_timeout = 4;
+  bool auto_pull_models = 5;
+  bool configured = 6;     // Indicates if provider is configured
+}
+
+message HuggingFaceConfig {
+  string endpoint = 1;
+  repeated string models = 2;
+  google.protobuf.Duration pull_timeout = 3;
+  google.protobuf.Duration generate_timeout = 4;
+  bool auto_pull_models = 5;
+  string recommended_model = 6;
+  bool configured = 7;     // Indicates if provider is configured
+}
+
+message ClaudeCodeConfig {
+  string api_key = 1;      // Should be empty in responses for security
+  string base_url = 2;
+  repeated string models = 3;
+  int32 max_tokens = 4;
+  double temperature = 5;
+  bool configured = 6;     // Indicates if provider is configured
+}
+
+message CodexConfig {
+  string api_key = 1;      // Should be empty in responses for security
+  string organization = 2;
+  string base_url = 3;
+  repeated string models = 4;
+  int32 max_tokens = 5;
+  float temperature = 6;
+  bool configured = 7;     // Indicates if provider is configured
+}

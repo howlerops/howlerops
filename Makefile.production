@@ -1,0 +1,186 @@
+# HowlerOps Production Deployment Makefile
+# Node.js Backend + React Frontend with Docker
+
+# Variables
+NPM := npm
+FRONTEND_DIR := ./frontend
+BACKEND_DIR := ./backend
+COMPOSE_FILE := docker-compose.yml
+DEV_COMPOSE_FILE := docker-compose.dev.yml
+ENV ?= development
+VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+
+# Colors for output
+COLOR_RESET := \033[0m
+COLOR_BOLD := \033[1m
+COLOR_GREEN := \033[32m
+COLOR_YELLOW := \033[33m
+COLOR_BLUE := \033[34m
+COLOR_RED := \033[31m
+
+# Default target
+.DEFAULT_GOAL := help
+
+## help: Display this help message
+.PHONY: help
+help:
+	@echo "$(COLOR_BOLD)HowlerOps Production Deployment$(COLOR_RESET)"
+	@echo ""
+	@echo "$(COLOR_BOLD)Quick Start:$(COLOR_RESET)"
+	@echo "  Development: make dev-setup && make dev"
+	@echo "  Production:  make prod-deploy"
+	@echo ""
+	@echo "$(COLOR_BOLD)Available Commands:$(COLOR_RESET)"
+	@grep -E '^## ' Makefile.production | sed 's/## /  /' | column -t -s ':'
+	@echo ""
+
+## install: Install all dependencies (backend + frontend)
+.PHONY: install
+install:
+	@echo "$(COLOR_BLUE)Installing dependencies...$(COLOR_RESET)"
+	@cd $(BACKEND_DIR) && $(NPM) ci
+	@cd $(FRONTEND_DIR) && $(NPM) ci
+	@echo "$(COLOR_GREEN)✓ Dependencies installed$(COLOR_RESET)"
+
+## build: Build production Docker images
+.PHONY: build
+build:
+	@echo "$(COLOR_BLUE)Building production images...$(COLOR_RESET)"
+	@docker-compose -f $(COMPOSE_FILE) build --parallel
+	@echo "$(COLOR_GREEN)✓ Production images built$(COLOR_RESET)"
+
+## dev-setup: Complete development environment setup
+.PHONY: dev-setup
+dev-setup:
+	@echo "$(COLOR_BLUE)Setting up development environment...$(COLOR_RESET)"
+	@chmod +x scripts/dev-setup.sh
+	@./scripts/dev-setup.sh
+
+## dev: Start development environment
+.PHONY: dev
+dev:
+	@echo "$(COLOR_BLUE)Starting development environment...$(COLOR_RESET)"
+	@docker-compose -f $(DEV_COMPOSE_FILE) up -d
+	@echo "$(COLOR_GREEN)Development environment started!$(COLOR_RESET)"
+	@echo "  Frontend: $(COLOR_YELLOW)http://localhost:5173$(COLOR_RESET)"
+	@echo "  Backend:  $(COLOR_YELLOW)http://localhost:3000$(COLOR_RESET)"
+
+## dev-stop: Stop development environment
+.PHONY: dev-stop
+dev-stop:
+	@echo "$(COLOR_YELLOW)Stopping development environment...$(COLOR_RESET)"
+	@docker-compose -f $(DEV_COMPOSE_FILE) down
+
+## prod: Start production environment
+.PHONY: prod
+prod:
+	@echo "$(COLOR_BLUE)Starting production environment...$(COLOR_RESET)"
+	@docker-compose -f $(COMPOSE_FILE) up -d
+	@echo "$(COLOR_GREEN)Production environment started!$(COLOR_RESET)"
+	@echo "  Application: $(COLOR_YELLOW)http://localhost:8080$(COLOR_RESET)"
+
+## prod-deploy: Zero-downtime production deployment
+.PHONY: prod-deploy
+prod-deploy:
+	@echo "$(COLOR_BLUE)Deploying to production...$(COLOR_RESET)"
+	@chmod +x scripts/deploy.sh
+	@DEPLOY_ENV=production ./scripts/deploy.sh deploy
+
+## prod-rollback: Rollback production deployment
+.PHONY: prod-rollback
+prod-rollback:
+	@echo "$(COLOR_YELLOW)Rolling back production...$(COLOR_RESET)"
+	@./scripts/deploy.sh rollback
+
+## test: Run all tests
+.PHONY: test
+test:
+	@echo "$(COLOR_BLUE)Running tests...$(COLOR_RESET)"
+	@cd $(BACKEND_DIR) && $(NPM) test
+	@cd $(FRONTEND_DIR) && $(NPM) test
+	@echo "$(COLOR_GREEN)✓ All tests passed$(COLOR_RESET)"
+
+## lint: Run linting for all code
+.PHONY: lint
+lint:
+	@echo "$(COLOR_BLUE)Running linting...$(COLOR_RESET)"
+	@cd $(BACKEND_DIR) && $(NPM) run lint
+	@cd $(FRONTEND_DIR) && $(NPM) run lint
+	@echo "$(COLOR_GREEN)✓ Linting completed$(COLOR_RESET)"
+
+## security: Run security audit
+.PHONY: security
+security:
+	@echo "$(COLOR_BLUE)Running security audit...$(COLOR_RESET)"
+	@cd $(BACKEND_DIR) && $(NPM) audit
+	@cd $(FRONTEND_DIR) && $(NPM) audit
+
+## logs: Show production logs
+.PHONY: logs
+logs:
+	@docker-compose -f $(COMPOSE_FILE) logs -f --tail=100
+
+## monitoring: Start monitoring stack
+.PHONY: monitoring
+monitoring:
+	@echo "$(COLOR_BLUE)Starting monitoring stack...$(COLOR_RESET)"
+	@docker-compose --profile monitoring up -d
+	@echo "$(COLOR_GREEN)Monitoring started!$(COLOR_RESET)"
+	@echo "  Grafana:    $(COLOR_YELLOW)http://localhost:3001$(COLOR_RESET)"
+	@echo "  Prometheus: $(COLOR_YELLOW)http://localhost:9090$(COLOR_RESET)"
+
+## backup: Create database backup
+.PHONY: backup
+backup:
+	@echo "$(COLOR_BLUE)Creating database backup...$(COLOR_RESET)"
+	@./scripts/deploy.sh backup
+
+## status: Show service status
+.PHONY: status
+status:
+	@echo "$(COLOR_BLUE)Service Status:$(COLOR_RESET)"
+	@docker-compose -f $(COMPOSE_FILE) ps
+
+## health: Check service health
+.PHONY: health
+health:
+	@echo "$(COLOR_BLUE)Checking health...$(COLOR_RESET)"
+	@./scripts/deploy.sh health-check
+
+## stop: Stop all services
+.PHONY: stop
+stop:
+	@echo "$(COLOR_YELLOW)Stopping services...$(COLOR_RESET)"
+	@docker-compose -f $(COMPOSE_FILE) down
+
+## clean: Clean Docker resources
+.PHONY: clean
+clean:
+	@echo "$(COLOR_YELLOW)Cleaning Docker resources...$(COLOR_RESET)"
+	@docker system prune -f
+	@docker volume prune -f
+
+## env-check: Validate environment configuration
+.PHONY: env-check
+env-check:
+	@echo "$(COLOR_BLUE)Checking environment...$(COLOR_RESET)"
+	@if [ ! -f .env ]; then \
+		echo "$(COLOR_RED)Error: .env file not found$(COLOR_RESET)"; \
+		echo "Run: make env-template"; \
+		exit 1; \
+	fi
+	@docker-compose config >/dev/null && echo "$(COLOR_GREEN)✓ Configuration valid$(COLOR_RESET)"
+
+## env-template: Create environment file from template
+.PHONY: env-template
+env-template:
+	@if [ ! -f .env ]; then \
+		cp .env.example .env; \
+		echo "$(COLOR_GREEN)Environment template created$(COLOR_RESET)"; \
+		echo "$(COLOR_YELLOW)Please edit .env with your settings$(COLOR_RESET)"; \
+	else \
+		echo "$(COLOR_YELLOW)Environment file already exists$(COLOR_RESET)"; \
+	fi
+
+.PHONY: all
+all: install build test

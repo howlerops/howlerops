@@ -1,0 +1,252 @@
+# Wails Makefile for HowlerOps Desktop Application
+# ===================================================
+
+.PHONY: help dev build build-all clean install deps generate test
+.DEFAULT_GOAL := help
+
+# Application info
+APP_NAME := sql-studio
+VERSION := 1.0.0
+BUILD_DIR := build
+DIST_DIR := dist
+
+# Go build flags
+LDFLAGS := -w -s -X main.version=$(VERSION)
+BUILD_FLAGS := -ldflags="$(LDFLAGS)"
+
+help: ## Show this help message
+	@echo "HowlerOps Desktop Application - Wails Build System"
+	@echo "=================================================="
+	@echo ""
+	@echo "Available commands:"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
+
+deps: ## Install dependencies
+	@echo "Installing Go dependencies..."
+	go mod download
+	go mod tidy
+	@echo "Installing Wails CLI..."
+	go install github.com/wailsapp/wails/v2/cmd/wails@latest
+	@echo "Installing frontend dependencies..."
+	cd frontend && npm install
+
+generate: ## Generate protobuf files and other generated code
+	@echo "Generating protobuf files..."
+	cd frontend && npm run proto:build
+
+dev: ## Start development server
+	@echo "Starting development server..."
+	wails dev
+
+build: ## Build application for current platform
+	@echo "Building application for current platform..."
+	wails build
+
+build-all: ## Build application for all platforms
+	@echo "Building application for all platforms..."
+	@$(MAKE) build-darwin
+	@$(MAKE) build-windows
+	@$(MAKE) build-linux
+
+build-darwin: ## Build for macOS
+	@echo "Building for macOS..."
+	wails build -platform darwin/amd64 -o $(BUILD_DIR)/darwin/amd64/$(APP_NAME)
+	wails build -platform darwin/arm64 -o $(BUILD_DIR)/darwin/arm64/$(APP_NAME)
+
+build-windows: ## Build for Windows
+	@echo "Building for Windows..."
+	wails build -platform windows/amd64 -o $(BUILD_DIR)/windows/amd64/$(APP_NAME).exe
+
+build-linux: ## Build for Linux
+	@echo "Building for Linux..."
+	wails build -platform linux/amd64 -o $(BUILD_DIR)/linux/amd64/$(APP_NAME)
+
+build-docker: ## Build using Docker
+	@echo "Building with Docker..."
+	docker build -t $(APP_NAME):$(VERSION) .
+
+package: build-all ## Package applications for distribution
+	@echo "Packaging applications..."
+	@mkdir -p $(DIST_DIR)
+
+	# Package macOS
+	@if [ -f "$(BUILD_DIR)/darwin/amd64/$(APP_NAME)" ]; then \
+		echo "Packaging macOS (Intel)..."; \
+		cd $(BUILD_DIR)/darwin/amd64 && zip -r ../../../$(DIST_DIR)/$(APP_NAME)-$(VERSION)-darwin-amd64.zip $(APP_NAME); \
+	fi
+	@if [ -f "$(BUILD_DIR)/darwin/arm64/$(APP_NAME)" ]; then \
+		echo "Packaging macOS (Apple Silicon)..."; \
+		cd $(BUILD_DIR)/darwin/arm64 && zip -r ../../../$(DIST_DIR)/$(APP_NAME)-$(VERSION)-darwin-arm64.zip $(APP_NAME); \
+	fi
+
+	# Package Windows
+	@if [ -f "$(BUILD_DIR)/windows/amd64/$(APP_NAME).exe" ]; then \
+		echo "Packaging Windows..."; \
+		cd $(BUILD_DIR)/windows/amd64 && zip -r ../../../$(DIST_DIR)/$(APP_NAME)-$(VERSION)-windows-amd64.zip $(APP_NAME).exe; \
+	fi
+
+	# Package Linux
+	@if [ -f "$(BUILD_DIR)/linux/amd64/$(APP_NAME)" ]; then \
+		echo "Packaging Linux..."; \
+		cd $(BUILD_DIR)/linux/amd64 && tar -czf ../../../$(DIST_DIR)/$(APP_NAME)-$(VERSION)-linux-amd64.tar.gz $(APP_NAME); \
+	fi
+
+test: ## Run tests
+	@echo "Running Go tests..."
+	go test ./...
+	@echo "Running frontend tests..."
+	cd frontend && npm test
+
+test-integration: ## Run integration tests
+	@echo "Running integration tests..."
+	cd frontend && npm run test:integration
+
+lint: ## Run linters
+	@echo "Running Go linter..."
+	golangci-lint run
+	@echo "Running frontend linter..."
+	cd frontend && npm run lint
+
+format: ## Format code
+	@echo "Formatting Go code..."
+	go fmt ./...
+	@echo "Formatting frontend code..."
+	cd frontend && npm run format
+
+clean: ## Clean build artifacts
+	@echo "Cleaning build artifacts..."
+	rm -rf $(BUILD_DIR)
+	rm -rf $(DIST_DIR)
+	rm -rf frontend/dist
+	rm -rf frontend/node_modules/.vite
+	wails clean
+
+install: ## Install the application locally (macOS/Linux)
+	@echo "Installing application locally..."
+	@if [ "$(shell uname)" = "Darwin" ]; then \
+		if [ -f "$(BUILD_DIR)/bin/$(APP_NAME)" ]; then \
+			cp $(BUILD_DIR)/bin/$(APP_NAME) /usr/local/bin/; \
+			echo "Installed to /usr/local/bin/$(APP_NAME)"; \
+		else \
+			echo "Build the application first with 'make build'"; \
+		fi \
+	else \
+		if [ -f "$(BUILD_DIR)/bin/$(APP_NAME)" ]; then \
+			sudo cp $(BUILD_DIR)/bin/$(APP_NAME) /usr/local/bin/; \
+			echo "Installed to /usr/local/bin/$(APP_NAME)"; \
+		else \
+			echo "Build the application first with 'make build'"; \
+		fi \
+	fi
+
+uninstall: ## Uninstall the application
+	@echo "Uninstalling application..."
+	@if [ -f "/usr/local/bin/$(APP_NAME)" ]; then \
+		sudo rm /usr/local/bin/$(APP_NAME); \
+		echo "Uninstalled from /usr/local/bin/$(APP_NAME)"; \
+	else \
+		echo "Application not found in /usr/local/bin/"; \
+	fi
+
+init: ## Initialize project (run once)
+	@echo "Initializing Wails project..."
+	@if [ ! -f "wails.json" ]; then \
+		wails init -n $(APP_NAME) -t vanilla-ts; \
+	else \
+		echo "Project already initialized"; \
+	fi
+
+doctor: ## Check development environment
+	@echo "Checking development environment..."
+	wails doctor
+
+version: ## Show version information
+	@echo "HowlerOps Desktop v$(VERSION)"
+	@echo "Built with Wails v2"
+
+update-deps: ## Update dependencies
+	@echo "Updating Go dependencies..."
+	go get -u ./...
+	go mod tidy
+	@echo "Updating frontend dependencies..."
+	cd frontend && npm update
+
+security-scan: ## Run security scans
+	@echo "Running security scans..."
+	@echo "Scanning Go dependencies..."
+	go list -json -m all | nancy sleuth
+	@echo "Scanning frontend dependencies..."
+	cd frontend && npm audit
+
+benchmark: ## Run performance benchmarks
+	@echo "Running benchmarks..."
+	go test -bench=. -benchmem ./...
+
+coverage: ## Generate test coverage report
+	@echo "Generating coverage report..."
+	go test -coverprofile=coverage.out ./...
+	go tool cover -html=coverage.out -o coverage.html
+	@echo "Coverage report generated: coverage.html"
+
+# Development helpers
+watch: ## Watch for changes and rebuild (requires fswatch)
+	@echo "Watching for changes..."
+	fswatch -o . | xargs -n1 -I{} make build
+
+run-backend: ## Run backend services only
+	@echo "Starting backend services..."
+	cd backend-go && go run cmd/server/main.go
+
+run-frontend: ## Run frontend only
+	@echo "Starting frontend development server..."
+	cd frontend && npm run dev
+
+# Docker targets
+docker-build: ## Build Docker image
+	@echo "Building Docker image..."
+	docker build -t $(APP_NAME):$(VERSION) .
+	docker tag $(APP_NAME):$(VERSION) $(APP_NAME):latest
+
+docker-run: ## Run Docker container
+	@echo "Running Docker container..."
+	docker run -p 8080:8080 --name $(APP_NAME) $(APP_NAME):$(VERSION)
+
+docker-clean: ## Clean Docker artifacts
+	@echo "Cleaning Docker artifacts..."
+	docker stop $(APP_NAME) || true
+	docker rm $(APP_NAME) || true
+	docker rmi $(APP_NAME):$(VERSION) || true
+	docker rmi $(APP_NAME):latest || true
+
+# Release targets
+release-prepare: clean test lint ## Prepare for release
+	@echo "Preparing for release..."
+	@echo "Version: $(VERSION)"
+
+release: release-prepare build-all package ## Create release packages
+	@echo "Release packages created in $(DIST_DIR)/"
+	@ls -la $(DIST_DIR)/
+
+# CI/CD targets
+ci-test: ## Run CI tests
+	@echo "Running CI tests..."
+	go test -v -race -coverprofile=coverage.out ./...
+	cd frontend && npm ci && npm run test:ci
+
+ci-build: ## Build for CI
+	@echo "Building for CI..."
+	wails build -clean
+
+# Platform-specific helpers
+.PHONY: build-darwin build-windows build-linux
+ifeq ($(OS),Windows_NT)
+    DETECTED_OS := Windows
+else
+    DETECTED_OS := $(shell uname -s)
+endif
+
+system-info: ## Show system information
+	@echo "System: $(DETECTED_OS)"
+	@echo "Go version: $(shell go version)"
+	@echo "Node version: $(shell node --version 2>/dev/null || echo 'Not installed')"
+	@echo "Wails version: $(shell wails version 2>/dev/null || echo 'Not installed')"
