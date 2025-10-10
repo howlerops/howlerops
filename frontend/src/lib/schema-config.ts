@@ -123,13 +123,43 @@ export class SchemaConfigBuilder {
     }))
 
     const edges = config.edges.map((edge) => {
-      let edgeType = 'default'
+      let edgeStyle = {
+        stroke: '#64748b',
+        strokeWidth: 2,
+      }
+      let markerEnd = {
+        type: 'arrowclosed',
+        color: '#64748b',
+      }
+
       if (edge.relation === 'hasMany') {
-        edgeType = 'oneToMany'
+        edgeStyle = {
+          stroke: '#f59e0b',
+          strokeWidth: 2,
+        }
+        markerEnd = {
+          type: 'arrowclosed',
+          color: '#f59e0b',
+        }
       } else if (edge.relation === 'hasOne') {
-        edgeType = 'primary'
+        edgeStyle = {
+          stroke: '#3b82f6',
+          strokeWidth: 2,
+        }
+        markerEnd = {
+          type: 'arrowclosed',
+          color: '#3b82f6',
+        }
       } else if (edge.relation === 'belongsTo') {
-        edgeType = 'foreign'
+        edgeStyle = {
+          stroke: '#8b5cf6',
+          strokeWidth: 2,
+          strokeDasharray: '5,5',
+        }
+        markerEnd = {
+          type: 'arrowclosed',
+          color: '#8b5cf6',
+        }
       }
 
       return {
@@ -138,7 +168,8 @@ export class SchemaConfigBuilder {
         target: edge.target,
         sourceHandle: `${edge.sourceKey}-source`,
         targetHandle: `${edge.targetKey}-target`,
-        type: edgeType,
+        style: edgeStyle,
+        markerEnd,
         label: edge.label,
         data: edge,
       }

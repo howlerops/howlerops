@@ -32,7 +32,7 @@ import {
 } from 'lucide-react'
 
 import { TableNode } from './TableNode'
-import { edgeTypes, CustomEdge } from './edgeTypes'
+import { edgeTypeConfigs } from './edgeTypes'
 import { LayoutEngine } from '@/lib/schema-layout'
 import { SchemaConfigBuilder } from '@/lib/schema-config'
 import { SchemaNode } from '@/hooks/useSchemaIntrospection'
@@ -47,14 +47,6 @@ import {
 
 const nodeTypes = {
   table: TableNode,
-}
-
-const edgeTypes = {
-  default: CustomEdge,
-  foreign: CustomEdge,
-  primary: CustomEdge,
-  oneToMany: CustomEdge,
-  manyToMany: CustomEdge,
 }
 
 interface SchemaVisualizerProps {
@@ -395,7 +387,6 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
               onEdgesChange={onEdgesChange}
               onConnect={onConnect}
               nodeTypes={nodeTypes}
-              edgeTypes={edgeTypes}
               fitView
               attributionPosition="bottom-left"
             >
