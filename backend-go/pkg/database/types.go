@@ -34,15 +34,16 @@ type ConnectionConfig struct {
 
 // Connection represents a database connection with metadata
 type Connection struct {
-	ID          string            `json:"id"`
-	Name        string            `json:"name"`
-	Description string            `json:"description"`
-	Config      ConnectionConfig  `json:"config"`
-	CreatedAt   time.Time         `json:"created_at"`
-	UpdatedAt   time.Time         `json:"updated_at"`
-	Active      bool              `json:"active"`
-	CreatedBy   string            `json:"created_by"`
-	Tags        map[string]string `json:"tags"`
+	ID           string            `json:"id"`
+	Name         string            `json:"name"`
+	Description  string            `json:"description"`
+	Config       ConnectionConfig  `json:"config"`
+	CreatedAt    time.Time         `json:"created_at"`
+	UpdatedAt    time.Time         `json:"updated_at"`
+	Active       bool              `json:"active"`
+	CreatedBy    string            `json:"created_by"`
+	Tags         map[string]string `json:"tags"`
+	Environments []string          `json:"environments,omitempty"` // Environment tags like "local", "dev", "prod"
 }
 
 // Pool represents a connection pool interface

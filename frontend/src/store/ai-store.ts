@@ -93,8 +93,8 @@ export interface AIActions {
   setLastError: (error: string | null) => void
   setConnectionStatus: (provider: string, status: string) => void
   testConnection: (provider: string) => Promise<boolean>
-  generateSQL: (prompt: string, schema?: string) => Promise<string>
-  fixSQL: (query: string, error: string, schema?: string) => Promise<string>
+  generateSQL: (prompt: string, schema?: string, mode?: 'single' | 'multi', connections?: any[], schemasMap?: Map<string, any[]>) => Promise<string>
+  fixSQL: (query: string, error: string, schema?: string, mode?: 'single' | 'multi', connections?: any[], schemasMap?: Map<string, any[]>) => Promise<string>
   resetConfig: () => void
 }
 
@@ -382,7 +382,7 @@ export const useAIStore = create<AIState & AIActions>()(
         }
       },
 
-      generateSQL: async (prompt: string, schema?: string): Promise<string> => {
+      generateSQL: async (prompt: string, schema?: string, mode?: 'single' | 'multi', connections?: any[], schemasMap?: Map<string, any[]>): Promise<string> => {
         const { config, setIsGenerating, addSuggestion, setLastError } = get()
 
         if (!config.enabled) {
@@ -393,35 +393,80 @@ export const useAIStore = create<AIState & AIActions>()(
         setLastError(null)
 
         try {
-          const response = await fetch('/api/ai/generate-sql', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              prompt,
-              schema,
-              provider: config.provider,
-              model: config.selectedModel,
-              maxTokens: config.maxTokens,
-              temperature: config.temperature,
-            }),
-          })
+          // Import Wails bindings
+          const { GenerateSQLFromNaturalLanguage } = await import('../../wailsjs/go/main/App')
+          const { AISchemaContextBuilder } = await import('@/lib/ai-schema-context')
 
-          if (!response.ok) {
-            const error = await response.text()
-            throw new Error(error || 'Failed to generate SQL')
+          // Auto-detect if user wants multi-DB query based on prompt
+          const detectsMultiDB = (prompt: string): boolean => {
+            const multiDBKeywords = [
+              /join.*from.*and.*from/i,
+              /across.*database/i,
+              /between.*database/i,
+              /from.*database.*and.*database/i,
+              /@\w+\./,  // Already using @connection syntax
+              /compare.*from.*and/i,
+              /merge.*from.*and/i,
+              /combine.*from.*and/i,
+              /different.*database/i,
+              /multiple.*database/i,
+            ]
+            return multiDBKeywords.some(pattern => pattern.test(prompt))
           }
 
-          const result = await response.json()
+          // Determine effective mode: auto-detect or use provided mode
+          const wantsMultiDB = detectsMultiDB(prompt)
+          const effectiveMode = wantsMultiDB ? 'multi' : (mode || 'single')
+          
+          console.log(`🤖 AI Query Mode Detection:`, {
+            providedMode: mode,
+            detectedMultiDB: wantsMultiDB,
+            effectiveMode,
+            hasConnections: !!connections && connections.length > 0
+          })
+
+          // Build schema context based on effective mode
+          let context = ''
+          let enhancedPrompt = prompt
+          
+          if (effectiveMode === 'multi' && connections && schemasMap && connections.length > 1) {
+            // Multi-database mode: build comprehensive context
+            const multiContext = AISchemaContextBuilder.buildMultiDatabaseContext(
+              connections.filter(c => c.isConnected),
+              schemasMap,
+              connections.find(c => c.isActive)?.id
+            )
+            context = AISchemaContextBuilder.generateCompactSchemaContext(multiContext)
+
+            // Enhance prompt with multi-DB syntax instructions
+            enhancedPrompt = `${prompt}\n\nIMPORTANT: This is a multi-database query. Use @connection_name.table syntax to reference tables from different databases. Available connections: ${connections.filter(c => c.isConnected).map(c => c.name).join(', ')}`
+          } else if (schema) {
+            // Single database mode: use simple schema context
+            context = `Database: ${schema}`
+          }
+
+          // Call the Wails backend method
+          const request = {
+            prompt: enhancedPrompt,
+            connectionId: connections?.find(c => c.isActive)?.id || '',
+            context
+          }
+
+          const result = await GenerateSQLFromNaturalLanguage(request)
+
+          if (!result) {
+            throw new Error('No response from AI service')
+          }
 
           addSuggestion({
-            query: result.query,
-            explanation: result.explanation,
-            confidence: result.confidence,
+            query: result.sql,
+            explanation: result.explanation || '',
+            confidence: result.confidence || 0.8,
             provider: config.provider,
             model: config.selectedModel,
           })
 
-          return result.query
+          return result.sql
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error'
           setLastError(errorMessage)
@@ -431,7 +476,7 @@ export const useAIStore = create<AIState & AIActions>()(
         }
       },
 
-      fixSQL: async (query: string, error: string, schema?: string): Promise<string> => {
+      fixSQL: async (query: string, error: string, schema?: string, mode?: 'single' | 'multi', connections?: any[], schemasMap?: Map<string, any[]>): Promise<string> => {
         const { config, setIsGenerating, addSuggestion, setLastError } = get()
 
         if (!config.enabled) {
@@ -442,36 +487,32 @@ export const useAIStore = create<AIState & AIActions>()(
         setLastError(null)
 
         try {
-          const response = await fetch('/api/ai/fix-sql', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              query,
-              error,
-              schema,
-              provider: config.provider,
-              model: config.selectedModel,
-              maxTokens: config.maxTokens,
-              temperature: config.temperature,
-            }),
-          })
+          // Import Wails bindings
+          const { FixSQLError } = await import('../../wailsjs/go/main/App')
 
-          if (!response.ok) {
-            const errorText = await response.text()
-            throw new Error(errorText || 'Failed to fix SQL')
+          // Add context about multi-DB mode to the error if applicable
+          let enhancedError = error
+          if (mode === 'multi') {
+            enhancedError = `${error}\n\nNote: This is a multi-database query. Tables should use @connection_name.table syntax. Available connections: ${connections?.filter(c => c.isConnected).map(c => c.name).join(', ') || 'none'}`
           }
 
-          const result = await response.json()
+          // Call the Wails backend method
+          const connectionId = connections?.find(c => c.isActive)?.id || ''
+          const result = await FixSQLError(query, enhancedError, connectionId)
+
+          if (!result) {
+            throw new Error('No response from AI service')
+          }
 
           addSuggestion({
-            query: result.query,
-            explanation: result.explanation,
-            confidence: result.confidence,
+            query: result.sql,
+            explanation: result.explanation || 'Fixed SQL query',
+            confidence: 0.9,
             provider: config.provider,
             model: config.selectedModel,
           })
 
-          return result.query
+          return result.sql
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error'
           setLastError(errorMessage)

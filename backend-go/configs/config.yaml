@@ -81,3 +81,159 @@ metrics:
   port: 9100
   namespace: "sql_studio"
   subsystem: "backend"
+
+# Multi-Database Query Configuration
+multiquery:
+  enabled: true
+  max_concurrent_connections: 10
+  default_strategy: "auto"  # Options: auto, federated, push_down
+  timeout: "30s"
+  max_result_rows: 10000
+  enable_cross_type_queries: true  # Allow queries across different DB types
+  
+  # Performance settings
+  performance:
+    enable_parallel_execution: true
+    connection_pool_size: 5
+    result_buffer_size: 1000
+  
+  # Security settings
+  security:
+    validate_permissions: true
+    audit_multi_queries: true
+    allow_write_operations: false  # Set to true to allow INSERT/UPDATE/DELETE
+
+# AI/RAG Configuration
+ai:
+  enabled: false  # Set to true to enable AI features
+  
+  # AI Provider Configuration
+  providers:
+    openai:
+      enabled: false
+      api_key: ""  # Set from environment: OPENAI_API_KEY
+      model: "gpt-4"
+      max_tokens: 2000
+      temperature: 0.7
+    
+    anthropic:
+      enabled: false
+      api_key: ""  # Set from environment: ANTHROPIC_API_KEY
+      model: "claude-3-opus-20240229"
+      max_tokens: 2000
+      temperature: 0.7
+    
+    claudecode:
+      enabled: false
+      binary_path: "claude"  # Path to Claude CLI binary
+      model: "claude-3-opus-20240229"
+      timeout: "60s"
+    
+    codex:
+      enabled: false
+      api_key: ""  # Set from environment: OPENAI_API_KEY (Codex uses OpenAI API)
+      model: "code-davinci-002"
+      max_tokens: 2000
+      temperature: 0.7
+    
+    ollama:
+      enabled: false
+      endpoint: "http://localhost:11434"
+      model: "llama2"
+      timeout: "60s"
+    
+    huggingface:
+      enabled: false
+      endpoint: "http://localhost:11434"  # Via Ollama
+      model: "codellama"
+      timeout: "60s"
+  
+  # Default provider to use
+  default_provider: "openai"
+
+# Storage Configuration (Local-First Architecture)
+storage:
+  mode: "local"  # local (solo) or team
+  
+  # Local SQLite config (always available)
+  local:
+    data_dir: "~/.howlerops"
+    database: "local.db"
+    vectors_db: "vectors.db"
+    
+  # Team mode config (optional, for future use)
+  team:
+    enabled: false
+    provider: "turso"  # turso, litefs, s3sync
+    
+    turso:
+      url: "${TURSO_URL}"
+      auth_token: "${TURSO_AUTH_TOKEN}"
+      local_replica: "~/.howlerops/team-replica.db"
+      sync_interval: "30s"
+    
+    sync:
+      mode: "auto"  # auto, manual
+      share_history: true
+      share_queries: true
+      share_learnings: true
+
+# RAG (Retrieval-Augmented Generation) Configuration
+rag:
+  enabled: true  # Enable RAG features with SQLite vector store
+  
+  # Vector Store Configuration (SQLite with vector extension)
+  vector_store:
+    type: "sqlite"  # SQLite is the only supported vector store
+    path: "~/.howlerops/vectors.db"  # Local database file
+    extension: "sqlite-vec"  # sqlite-vec or sqlite-vss
+    dimension: 1536  # OpenAI text-embedding-3-small default
+    timeout: "10s"
+    
+    # Collections (document types)
+    collections:
+      schemas: "schemas"
+      queries: "queries"
+      business_rules: "business_rules"
+      performance: "performance"
+    
+    # Performance tuning
+    cache_size_mb: 128
+    mmap_size_mb: 256
+    wal_enabled: true
+  
+  # Embedding Configuration
+  embedding:
+    provider: "openai"  # Options: openai, local
+    model: "text-embedding-3-small"
+    dimension: 1536
+    batch_size: 100
+    
+    # Local embedding model (if not using OpenAI)
+    local_model_path: ""
+  
+  # Learning Pipeline Configuration
+  learning:
+    enabled: true
+    min_confidence: 0.7
+    auto_index_schemas: true
+    index_successful_queries: true
+    query_success_threshold: 0.8
+    
+    # Background indexing
+    background_indexing: true
+    indexing_interval: "1h"
+    max_queries_to_index: 1000
+  
+  # Context Retrieval Configuration
+  context:
+    max_relevant_tables: 5
+    max_similar_queries: 3
+    similarity_threshold: 0.7
+    include_business_rules: true
+  
+  # Cache Configuration
+  cache:
+    enabled: true
+    ttl: "1h"
+    max_entries: 10000

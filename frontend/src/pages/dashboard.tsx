@@ -1,12 +1,14 @@
 import { useCallback, useRef, useState } from "react"
 import { QueryEditor } from "@/components/query-editor"
 import { ResultsPanel } from "@/components/results-panel"
+import { useQueryMode } from "@/hooks/useQueryMode"
 
 const MIN_PANEL_FRACTION = 0.2
 
 export function Dashboard() {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const [editorFraction, setEditorFraction] = useState(0.55)
+  const { mode } = useQueryMode('auto')
 
   // Remove automatic tab creation - let users create tabs manually
 
@@ -42,7 +44,7 @@ export function Dashboard() {
         className="flex min-h-[240px] flex-col border-b overflow-hidden"
         style={{ flexGrow: editorFraction, flexShrink: 1, flexBasis: 0 }}
       >
-        <QueryEditor />
+        <QueryEditor mode={mode} />
       </div>
 
       <div

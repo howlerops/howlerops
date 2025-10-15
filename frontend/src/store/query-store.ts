@@ -10,7 +10,9 @@ export interface QueryTab {
   isDirty: boolean
   isExecuting: boolean
   lastExecuted?: Date
-  connectionId?: string // Per-tab connection support
+  connectionId?: string // Per-tab connection support (single-DB mode)
+  selectedConnectionIds?: string[] // Multi-select connections (multi-DB mode)
+  environmentSnapshot?: string | null // Capture environment filter at creation
 }
 
 export interface QueryEditableColumn {
@@ -202,14 +204,54 @@ export const useQueryStore = create<QueryState>()(
       results: [],
 
       createTab: (title = 'New Query', connectionId?: string) => {
+        // Determine initial connection for the tab
+        let initialConnectionId = connectionId
+        let environmentSnapshot: string | null = null
+        
+        if (!initialConnectionId) {
+          // Get connection store state directly (avoid circular import)
+          const connectionState = (window as any).__connectionStore?.getState?.()
+          
+          if (connectionState) {
+            const { connections, defaultConnectionId, activeConnection, activeEnvironmentFilter } = connectionState
+            
+            // Capture the current environment filter
+            environmentSnapshot = activeEnvironmentFilter
+            
+            if (connections.length > 1 && defaultConnectionId) {
+              // Multi-connection mode with default set → use default
+              initialConnectionId = defaultConnectionId
+              console.log(`📝 New tab using default connection: ${connections.find((c: any) => c.id === defaultConnectionId)?.name}`)
+            } else if (activeConnection) {
+              // Use active connection
+              initialConnectionId = activeConnection.id
+              console.log(`📝 New tab using active connection: ${activeConnection.name}`)
+            } else if (connections.length > 0) {
+              // No default, no active → use first connected connection
+              const firstConnected = connections.find((c: any) => c.isConnected)
+              if (firstConnected) {
+                initialConnectionId = firstConnected.id
+                console.log(`📝 New tab using first connected: ${firstConnected.name}`)
+              } else {
+                // No connected connections → leave as undefined, UI will prompt user
+                console.log(`📝 New tab created with no connection - user must select`)
+              }
+            }
+            // If connections.length === 0, initialConnectionId remains undefined
+          }
+        }
+        
         const newTab: QueryTab = {
           id: crypto.randomUUID(),
           title,
           content: '',
           isDirty: false,
           isExecuting: false,
-          connectionId,
+          connectionId: initialConnectionId,
+          environmentSnapshot, // Store current environment filter
         }
+        
+        console.log(`📝 New tab created with environment: ${environmentSnapshot || 'All'}`)
 
         set((state) => ({
           tabs: [...state.tabs, newTab],

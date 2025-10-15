@@ -115,7 +115,7 @@ if (!valid) { \
 
 ## dev: Start Wails development mode with hot reload
 .PHONY: dev
-dev: check-node check-wails deps proto
+dev: check-node check-wails deps proto init-local-db
 	@echo "$(COLOR_BLUE)Starting frontend dev server and Wails (hot reload)...$(COLOR_RESET)"
 	@echo "$(COLOR_YELLOW)The application will open automatically$(COLOR_RESET)"
 	@bash -c '\
@@ -315,3 +315,27 @@ doctor:
 
 .PHONY: all
 all: deps build test
+
+# SQLite Database Management
+
+## init-local-db: Initialize local SQLite databases
+.PHONY: init-local-db
+init-local-db:
+	@echo "$(COLOR_BLUE)Initializing local databases...$(COLOR_RESET)"
+	@bash scripts/init-local-db.sh
+	@echo "$(COLOR_GREEN)✓ Databases initialized at ~/.howlerops/$(COLOR_RESET)"
+
+## reset-local-db: Reset local databases (WARNING: deletes all local data!)
+.PHONY: reset-local-db
+reset-local-db:
+	@bash scripts/reset-local-db.sh
+
+## backup-local-db: Backup local databases
+.PHONY: backup-local-db
+backup-local-db:
+	@echo "$(COLOR_BLUE)Creating backup...$(COLOR_RESET)"
+	@mkdir -p ~/.howlerops/backups
+	@TIMESTAMP=$$(date +%Y%m%d_%H%M%S) && \
+		cp ~/.howlerops/local.db ~/.howlerops/backups/local_$$TIMESTAMP.db 2>/dev/null || true && \
+		cp ~/.howlerops/vectors.db ~/.howlerops/backups/vectors_$$TIMESTAMP.db 2>/dev/null || true
+	@echo "$(COLOR_GREEN)✓ Backup complete in ~/.howlerops/backups/$(COLOR_RESET)"

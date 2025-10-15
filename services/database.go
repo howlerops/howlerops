@@ -10,6 +10,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"github.com/sql-studio/backend-go/pkg/database"
+	"github.com/sql-studio/backend-go/pkg/database/multiquery"
 )
 
 // DatabaseService wraps the backend database manager for Wails
@@ -68,6 +69,14 @@ func (s *DatabaseService) CreateConnection(config database.ConnectionConfig) (*d
 		return nil, err
 	}
 
+	// Preload schema in background (don't block connection creation)
+	go func() {
+		if err := s.PreloadSchema(connection.ID); err != nil {
+			s.logger.WithError(err).WithField("connection_id", connection.ID).
+				Warn("Background schema preload failed")
+		}
+	}()
+
 	// Emit connection created event
 	runtime.EventsEmit(s.ctx, "connection:created", map[string]interface{}{
 		"id":   connection.ID,
@@ -82,6 +91,23 @@ func (s *DatabaseService) CreateConnection(config database.ConnectionConfig) (*d
 	}).Info("Database connection created successfully")
 
 	return connection, nil
+}
+
+// PreloadSchema loads and caches schema for a connection
+func (s *DatabaseService) PreloadSchema(connectionID string) error {
+	ctx, cancel := context.WithTimeout(s.ctx, 30*time.Second)
+	defer cancel()
+
+	// Get schema (will populate cache)
+	_, err := s.manager.GetMultiConnectionSchema(ctx, []string{connectionID})
+	if err != nil {
+		s.logger.WithError(err).WithField("connection_id", connectionID).
+			Warn("Failed to preload schema, will load on-demand")
+		return err
+	}
+
+	s.logger.WithField("connection_id", connectionID).Info("Schema preloaded successfully")
+	return nil
 }
 
 // TestConnection tests a database connection
@@ -435,4 +461,140 @@ func (s *DatabaseService) GetDatabaseTypeInfo(dbType string) map[string]interfac
 		"supportsSSL":       config.Type == database.PostgreSQL || config.Type == database.MySQL,
 		"defaultParameters": config.Parameters,
 	}
+}
+
+// Multi-query methods
+
+// MultiQueryResponse represents the response from a multi-database query
+type MultiQueryResponse struct {
+	Columns         []string `json:"columns"`
+	Rows            [][]interface{} `json:"rows"`
+	RowCount        int64    `json:"rowCount"`
+	Duration        string   `json:"duration"`
+	ConnectionsUsed []string `json:"connectionsUsed"`
+	Strategy        string   `json:"strategy"`
+	Error           string   `json:"error,omitempty"`
+}
+
+// MultiQueryValidation represents validation result for a multi-query
+type MultiQueryValidation struct {
+	Valid               bool     `json:"valid"`
+	Errors              []string `json:"errors,omitempty"`
+	RequiredConnections []string `json:"requiredConnections,omitempty"`
+	Tables              []string `json:"tables,omitempty"`
+	EstimatedStrategy   string   `json:"estimatedStrategy,omitempty"`
+}
+
+// CombinedSchemaResponse represents combined schema from multiple connections
+type CombinedSchemaResponse struct {
+	Connections map[string]*multiquery.ConnectionSchema `json:"connections"`
+	Conflicts   []multiquery.SchemaConflict             `json:"conflicts"`
+}
+
+// ExecuteMultiDatabaseQuery executes a query across multiple connections
+func (s *DatabaseService) ExecuteMultiDatabaseQuery(query string, options *multiquery.Options) (*MultiQueryResponse, error) {
+	// Apply default options
+	if options == nil {
+		options = &multiquery.Options{
+			Timeout:  30 * time.Second,
+			Strategy: multiquery.StrategyFederated,
+			Limit:    1000,
+		}
+	}
+
+	// Execute via manager
+	result, err := s.manager.ExecuteMultiQuery(s.ctx, query, options)
+	if err != nil {
+		s.logger.WithError(err).Error("Multi-query execution failed")
+		return &MultiQueryResponse{
+			Error: err.Error(),
+		}, nil
+	}
+
+	// Emit multi-query executed event
+	runtime.EventsEmit(s.ctx, "multiquery:executed", map[string]interface{}{
+		"connections": result.ConnectionsUsed,
+		"duration":    result.Duration.String(),
+		"rowCount":    result.RowCount,
+	})
+
+	return &MultiQueryResponse{
+		Columns:         result.Columns,
+		Rows:            result.Rows,
+		RowCount:        result.RowCount,
+		Duration:        result.Duration.String(),
+		ConnectionsUsed: result.ConnectionsUsed,
+		Strategy:        string(result.Strategy),
+	}, nil
+}
+
+// ValidateMultiQuery validates a multi-database query
+func (s *DatabaseService) ValidateMultiQuery(query string) (*MultiQueryValidation, error) {
+	parsed, err := s.manager.ParseMultiQuery(query)
+	if err != nil {
+		return &MultiQueryValidation{
+			Valid:  false,
+			Errors: []string{err.Error()},
+		}, nil
+	}
+
+	if err := s.manager.ValidateMultiQuery(parsed); err != nil {
+		return &MultiQueryValidation{
+			Valid:  false,
+			Errors: []string{err.Error()},
+		}, nil
+	}
+
+	return &MultiQueryValidation{
+		Valid:               true,
+		RequiredConnections: parsed.RequiredConnections,
+		Tables:              parsed.Tables,
+		EstimatedStrategy:   string(parsed.SuggestedStrategy),
+	}, nil
+}
+
+// GetCombinedSchema returns combined schema for selected connections
+func (s *DatabaseService) GetCombinedSchema(connectionIDs []string) (*CombinedSchemaResponse, error) {
+	schema, err := s.manager.GetMultiConnectionSchema(s.ctx, connectionIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	return &CombinedSchemaResponse{
+		Connections: schema.Connections,
+		Conflicts:   schema.Conflicts,
+	}, nil
+}
+
+
+// ==================== Schema Cache Management ====================
+
+// InvalidateSchemaCache invalidates the cached schema for a specific connection
+func (s *DatabaseService) InvalidateSchemaCache(connectionID string) {
+	s.manager.InvalidateSchemaCache(connectionID)
+}
+
+// InvalidateAllSchemas invalidates all cached schemas
+func (s *DatabaseService) InvalidateAllSchemas() {
+	s.manager.InvalidateAllSchemas()
+}
+
+// RefreshSchema forces a refresh of the schema for a connection
+func (s *DatabaseService) RefreshSchema(ctx context.Context, connectionID string) error {
+	return s.manager.RefreshSchema(ctx, connectionID)
+}
+
+// GetSchemaCacheStats returns statistics about the schema cache
+func (s *DatabaseService) GetSchemaCacheStats() map[string]interface{} {
+	return s.manager.GetSchemaCacheStats()
+}
+
+// GetConnectionCount returns the number of active database connections
+func (s *DatabaseService) GetConnectionCount() int {
+	return s.manager.GetConnectionCount()
+}
+
+// GetConnectionIDs returns a list of all connection IDs
+func (s *DatabaseService) GetConnectionIDs() []string {
+	return s.manager.GetConnectionIDs()
 }

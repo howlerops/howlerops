@@ -30,35 +30,17 @@ class SchemaCache {
   }
 
   private loadFromStorage() {
-    try {
-      const stored = localStorage.getItem(this.STORAGE_KEY)
-      if (stored) {
-        const parsed = JSON.parse(stored)
-        const now = Date.now()
-        
-        // Only load non-expired entries
-        Object.entries(parsed).forEach(([key, value]: [string, unknown]) => {
-          const typedValue = value as { data: SchemaNode[]; timestamp: number };
-          if (typedValue.timestamp && (now - typedValue.timestamp) < this.CACHE_EXPIRY) {
-            this.cache.set(key, typedValue)
-          }
-        })
-      }
-    } catch (error) {
-      console.warn('Failed to load schema cache from storage:', error)
-    }
+    // ❌ DISABLED: localStorage quota exceeded with large schemas (312 tables)
+    // Session-only caching via in-memory Map is sufficient
+    // Backend caching (schema_cache.go) provides persistence
+    return
   }
 
   private saveToStorage() {
-    try {
-      const toStore: Record<string, { data: SchemaNode[]; timestamp: number }> = {}
-      this.cache.forEach((value, key) => {
-        toStore[key] = value
-      })
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(toStore))
-    } catch (error) {
-      console.warn('Failed to save schema cache to storage:', error)
-    }
+    // ❌ DISABLED: localStorage quota exceeded with large schemas (312 tables)
+    // Session-only caching via in-memory Map is sufficient
+    // Backend caching (schema_cache.go) provides persistence
+    return
   }
 
   get(key: string): SchemaNode[] | null {
@@ -68,7 +50,6 @@ class SchemaCache {
     const now = Date.now()
     if ((now - entry.timestamp) > this.CACHE_EXPIRY) {
       this.cache.delete(key)
-      this.saveToStorage()
       return null
     }
     
@@ -80,7 +61,7 @@ class SchemaCache {
       data,
       timestamp: Date.now()
     })
-    this.saveToStorage()
+    // No localStorage persistence needed (backend caching handles it)
   }
 
   clear(key?: string) {
@@ -89,7 +70,7 @@ class SchemaCache {
     } else {
       this.cache.clear()
     }
-    this.saveToStorage()
+    // No localStorage persistence needed
   }
 
   clearExpired() {
@@ -103,9 +84,7 @@ class SchemaCache {
     })
     
     expiredKeys.forEach(key => this.cache.delete(key))
-    if (expiredKeys.length > 0) {
-      this.saveToStorage()
-    }
+    // No localStorage persistence needed
   }
 }
 
