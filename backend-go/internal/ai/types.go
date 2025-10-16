@@ -82,6 +82,18 @@ type SQLRequest struct {
 	Context     map[string]string `json:"context,omitempty"` // Additional context
 }
 
+// ChatRequest represents a generic chat interaction request
+type ChatRequest struct {
+	Prompt      string            `json:"prompt"`
+	Context     string            `json:"context,omitempty"`
+	System      string            `json:"system,omitempty"`
+	Provider    Provider          `json:"provider"`
+	Model       string            `json:"model"`
+	MaxTokens   int               `json:"max_tokens,omitempty"`
+	Temperature float64           `json:"temperature,omitempty"`
+	Metadata    map[string]string `json:"metadata,omitempty"`
+}
+
 // SQLResponse represents the response from the AI service
 type SQLResponse struct {
 	Query       string            `json:"query"`
@@ -94,6 +106,16 @@ type SQLResponse struct {
 	TokensUsed  int               `json:"tokens_used,omitempty"`
 	TimeTaken   time.Duration     `json:"time_taken"`
 	Metadata    map[string]string `json:"metadata,omitempty"`
+}
+
+// ChatResponse represents a response from a generic chat interaction
+type ChatResponse struct {
+	Content    string            `json:"content"`
+	Provider   Provider          `json:"provider"`
+	Model      string            `json:"model"`
+	TokensUsed int               `json:"tokens_used,omitempty"`
+	TimeTaken  time.Duration     `json:"time_taken"`
+	Metadata   map[string]string `json:"metadata,omitempty"`
 }
 
 // HealthStatus represents the health status of a provider
@@ -132,6 +154,7 @@ type AIProvider interface {
 	// Core functionality
 	GenerateSQL(ctx context.Context, req *SQLRequest) (*SQLResponse, error)
 	FixSQL(ctx context.Context, req *SQLRequest) (*SQLResponse, error)
+	Chat(ctx context.Context, req *ChatRequest) (*ChatResponse, error)
 
 	// Health and status
 	HealthCheck(ctx context.Context) (*HealthStatus, error)
@@ -151,6 +174,7 @@ type Service interface {
 	// SQL operations
 	GenerateSQL(ctx context.Context, req *SQLRequest) (*SQLResponse, error)
 	FixSQL(ctx context.Context, req *SQLRequest) (*SQLResponse, error)
+	Chat(ctx context.Context, req *ChatRequest) (*ChatResponse, error)
 
 	// Provider management
 	GetProviders() []Provider
@@ -172,6 +196,7 @@ type Service interface {
 	// Test and validation
 	TestProvider(ctx context.Context, provider Provider, config interface{}) error
 	ValidateRequest(req *SQLRequest) error
+	ValidateChatRequest(req *ChatRequest) error
 
 	// Management
 	Start(ctx context.Context) error

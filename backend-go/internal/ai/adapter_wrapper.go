@@ -36,6 +36,33 @@ func (w *providerAdapterWrapper) FixSQL(ctx context.Context, req *SQLRequest) (*
 	return w.adapter.FixSQL(ctx, req.Query, req.Error, req.Schema, options...)
 }
 
+// Chat implements AIProvider
+func (w *providerAdapterWrapper) Chat(ctx context.Context, req *ChatRequest) (*ChatResponse, error) {
+	options := []GenerateOption{
+		WithModel(req.Model),
+		WithMaxTokens(req.MaxTokens),
+		WithTemperature(req.Temperature),
+	}
+
+	contextMap := map[string]string{}
+	if req.Context != "" {
+		contextMap["context"] = req.Context
+	}
+	if req.System != "" {
+		contextMap["system"] = req.System
+	}
+	if len(req.Metadata) > 0 {
+		for key, value := range req.Metadata {
+			contextMap[key] = value
+		}
+	}
+	if len(contextMap) > 0 {
+		options = append(options, WithContext(contextMap))
+	}
+
+	return w.adapter.Chat(ctx, req.Prompt, options...)
+}
+
 // HealthCheck implements AIProvider
 func (w *providerAdapterWrapper) HealthCheck(ctx context.Context) (*HealthStatus, error) {
 	return w.adapter.GetHealth(ctx)

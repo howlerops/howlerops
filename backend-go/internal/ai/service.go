@@ -210,9 +210,13 @@ func (s *serviceImpl) GenerateSQL(ctx context.Context, req *SQLRequest) (*SQLRes
 	start := time.Now()
 	response, err := provider.GenerateSQL(ctx, req)
 	duration := time.Since(start)
+	tokensUsed := 0
+	if response != nil {
+		tokensUsed = response.TokensUsed
+	}
 
 	// Update usage statistics
-	s.updateUsage(req.Provider, req.Model, err == nil, duration, response)
+	s.updateUsage(req.Provider, req.Model, err == nil, duration, tokensUsed)
 
 	if err != nil {
 		s.logger.WithError(err).WithField("provider", req.Provider).Error("Failed to generate SQL")
@@ -252,9 +256,13 @@ func (s *serviceImpl) FixSQL(ctx context.Context, req *SQLRequest) (*SQLResponse
 	start := time.Now()
 	response, err := provider.FixSQL(ctx, req)
 	duration := time.Since(start)
+	tokensUsed := 0
+	if response != nil {
+		tokensUsed = response.TokensUsed
+	}
 
 	// Update usage statistics
-	s.updateUsage(req.Provider, req.Model, err == nil, duration, response)
+	s.updateUsage(req.Provider, req.Model, err == nil, duration, tokensUsed)
 
 	if err != nil {
 		s.logger.WithError(err).WithField("provider", req.Provider).Error("Failed to fix SQL")
@@ -268,6 +276,43 @@ func (s *serviceImpl) FixSQL(ctx context.Context, req *SQLRequest) (*SQLResponse
 		"duration":   duration,
 		"confidence": response.Confidence,
 	}).Info("SQL fixed successfully")
+
+	return response, nil
+}
+
+// Chat handles generic conversational AI interactions
+func (s *serviceImpl) Chat(ctx context.Context, req *ChatRequest) (*ChatResponse, error) {
+	if err := s.ValidateChatRequest(req); err != nil {
+		return nil, err
+	}
+
+	provider, exists := s.providers[req.Provider]
+	if !exists {
+		return nil, NewAIError(ErrorTypeProviderError, fmt.Sprintf("provider %s not available", req.Provider), req.Provider)
+	}
+
+	start := time.Now()
+	response, err := provider.Chat(ctx, req)
+	duration := time.Since(start)
+	tokensUsed := 0
+	if response != nil {
+		tokensUsed = response.TokensUsed
+		response.TimeTaken = duration
+	}
+
+	s.updateUsage(req.Provider, req.Model, err == nil, duration, tokensUsed)
+
+	if err != nil {
+		s.logger.WithError(err).WithField("provider", req.Provider).Error("Failed to complete chat request")
+		return nil, err
+	}
+
+	s.logger.WithFields(logrus.Fields{
+		"provider": req.Provider,
+		"model":    req.Model,
+		"duration": duration,
+		"tokens":   tokensUsed,
+	}).Info("Chat response generated successfully")
 
 	return response, nil
 }
@@ -361,6 +406,36 @@ func (s *serviceImpl) GetAllAvailableModels(ctx context.Context) (map[Provider][
 	}
 
 	return result, nil
+}
+
+func (s *serviceImpl) defaultModelFor(provider Provider) string {
+	switch provider {
+	case ProviderOpenAI:
+		if len(s.config.OpenAI.Models) > 0 {
+			return s.config.OpenAI.Models[0]
+		}
+	case ProviderAnthropic:
+		if len(s.config.Anthropic.Models) > 0 {
+			return s.config.Anthropic.Models[0]
+		}
+	case ProviderOllama:
+		if len(s.config.Ollama.Models) > 0 {
+			return s.config.Ollama.Models[0]
+		}
+	case ProviderHuggingFace:
+		if len(s.config.HuggingFace.Models) > 0 {
+			return s.config.HuggingFace.Models[0]
+		}
+	case ProviderClaudeCode:
+		if s.config.ClaudeCode.Model != "" {
+			return s.config.ClaudeCode.Model
+		}
+	case ProviderCodex:
+		if s.config.Codex.Model != "" {
+			return s.config.Codex.Model
+		}
+	}
+	return ""
 }
 
 // UpdateProviderConfig updates configuration for a specific provider
@@ -474,6 +549,10 @@ func (s *serviceImpl) ValidateRequest(req *SQLRequest) error {
 	}
 
 	if req.Model == "" {
+		req.Model = s.defaultModelFor(req.Provider)
+	}
+
+	if req.Model == "" {
 		return NewAIError(ErrorTypeInvalidRequest, "model is required", req.Provider)
 	}
 
@@ -492,8 +571,45 @@ func (s *serviceImpl) ValidateRequest(req *SQLRequest) error {
 	return nil
 }
 
+// ValidateChatRequest validates a chat request
+func (s *serviceImpl) ValidateChatRequest(req *ChatRequest) error {
+	if req == nil {
+		return NewAIError(ErrorTypeInvalidRequest, "request cannot be nil", "")
+	}
+
+	if req.Provider == "" {
+		req.Provider = s.config.DefaultProvider
+	}
+
+	if req.Model == "" {
+		req.Model = s.defaultModelFor(req.Provider)
+	}
+
+	if req.Model == "" {
+		return NewAIError(ErrorTypeInvalidRequest, "model is required", req.Provider)
+	}
+
+	if req.MaxTokens <= 0 {
+		req.MaxTokens = s.config.MaxTokens
+	}
+
+	if req.Temperature < 0 || req.Temperature > 1 {
+		req.Temperature = s.config.Temperature
+	}
+
+	if req.Prompt == "" {
+		return NewAIError(ErrorTypeInvalidRequest, "prompt is required for chat requests", req.Provider)
+	}
+
+	if _, exists := s.providers[req.Provider]; !exists {
+		return NewAIError(ErrorTypeProviderError, fmt.Sprintf("provider %s not available", req.Provider), req.Provider)
+	}
+
+	return nil
+}
+
 // updateUsage updates usage statistics
-func (s *serviceImpl) updateUsage(provider Provider, model string, success bool, duration time.Duration, response *SQLResponse) {
+func (s *serviceImpl) updateUsage(provider Provider, model string, success bool, duration time.Duration, tokensUsed int) {
 	s.usageMu.Lock()
 	defer s.usageMu.Unlock()
 
@@ -512,8 +628,8 @@ func (s *serviceImpl) updateUsage(provider Provider, model string, success bool,
 	usage.LastUsed = time.Now()
 	usage.Model = model
 
-	if response != nil && response.TokensUsed > 0 {
-		usage.TokensUsed += int64(response.TokensUsed)
+	if tokensUsed > 0 {
+		usage.TokensUsed += int64(tokensUsed)
 	}
 
 	// Update average response time

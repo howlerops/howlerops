@@ -34,15 +34,16 @@ type ConnectionConfig struct {
 
 // Connection represents a database connection with metadata
 type Connection struct {
-	ID          string            `json:"id"`
-	Name        string            `json:"name"`
-	Description string            `json:"description"`
-	Config      ConnectionConfig  `json:"config"`
-	CreatedAt   time.Time         `json:"created_at"`
-	UpdatedAt   time.Time         `json:"updated_at"`
-	Active      bool              `json:"active"`
-	CreatedBy   string            `json:"created_by"`
-	Tags        map[string]string `json:"tags"`
+	ID           string            `json:"id"`
+	Name         string            `json:"name"`
+	Description  string            `json:"description"`
+	Config       ConnectionConfig  `json:"config"`
+	CreatedAt    time.Time         `json:"created_at"`
+	UpdatedAt    time.Time         `json:"updated_at"`
+	Active       bool              `json:"active"`
+	CreatedBy    string            `json:"created_by"`
+	Tags         map[string]string `json:"tags"`
+	Environments []string          `json:"environments,omitempty"` // Environment tags like "local", "dev", "prod"
 }
 
 // Pool represents a connection pool interface
@@ -141,6 +142,7 @@ type Database interface {
 	Execute(ctx context.Context, query string, args ...interface{}) (*QueryResult, error)
 	ExecuteStream(ctx context.Context, query string, batchSize int, callback func([][]interface{}) error, args ...interface{}) error
 	ExplainQuery(ctx context.Context, query string, args ...interface{}) (string, error)
+	ComputeEditableMetadata(ctx context.Context, query string, columns []string) (*EditableQueryMetadata, error)
 
 	// Schema operations
 	GetSchemas(ctx context.Context) ([]string, error)
@@ -216,6 +218,8 @@ type EditableQueryMetadata struct {
 	Table       string           `json:"table,omitempty"`
 	PrimaryKeys []string         `json:"primary_keys,omitempty"`
 	Columns     []EditableColumn `json:"columns,omitempty"`
+	Pending     bool             `json:"pending,omitempty"`
+	JobID       string           `json:"job_id,omitempty"`
 }
 
 // UpdateRowParams describes the data required to persist edits back to the source table

@@ -14,19 +14,29 @@ export interface DatabaseConnection {
   password?: string
   isConnected: boolean
   lastUsed?: Date
+  environments?: string[] // Environment tags like "local", "dev", "prod"
 }
 
 interface ConnectionState {
   connections: DatabaseConnection[]
   activeConnection: DatabaseConnection | null
+  autoConnectEnabled: boolean
   isConnecting: boolean
+  activeEnvironmentFilter: string | null // null = "All", otherwise specific environment
+  availableEnvironments: string[]
 
   addConnection: (connection: Omit<DatabaseConnection, 'id' | 'isConnected' | 'sessionId'>) => void
   updateConnection: (id: string, updates: Partial<DatabaseConnection>) => void
   removeConnection: (id: string) => void
   setActiveConnection: (connection: DatabaseConnection | null) => void
+  setAutoConnect: (enabled: boolean) => void
   connectToDatabase: (connectionId: string) => Promise<void>
   disconnectFromDatabase: (connectionId: string) => Promise<void>
+  setEnvironmentFilter: (env: string | null) => void
+  getFilteredConnections: () => DatabaseConnection[]
+  addEnvironmentToConnection: (connId: string, env: string) => void
+  removeEnvironmentFromConnection: (connId: string, env: string) => void
+  refreshAvailableEnvironments: () => void
 }
 
 export const useConnectionStore = create<ConnectionState>()(
@@ -35,7 +45,10 @@ export const useConnectionStore = create<ConnectionState>()(
       (set, get) => ({
         connections: [],
         activeConnection: null,
+        autoConnectEnabled: true,
         isConnecting: false,
+        activeEnvironmentFilter: null, // null = "All"
+        availableEnvironments: [],
 
         addConnection: (connectionData) => {
           const newConnection: DatabaseConnection = {
@@ -47,6 +60,18 @@ export const useConnectionStore = create<ConnectionState>()(
           set((state) => ({
             connections: [...state.connections, newConnection],
           }))
+          
+          // Auto-connect if enabled
+          if (get().autoConnectEnabled) {
+            // Delay slightly to ensure state is updated
+            setTimeout(async () => {
+              try {
+                await get().connectToDatabase(newConnection.id)
+              } catch {
+                // Auto-connect failed
+              }
+            }, 100)
+          }
         },
 
         updateConnection: (id, updates) => {
@@ -71,6 +96,10 @@ export const useConnectionStore = create<ConnectionState>()(
         setActiveConnection: (connection) => {
           set({ activeConnection: connection })
         },
+        
+        setAutoConnect: (enabled) => {
+          set({ autoConnectEnabled: enabled })
+        },
 
         connectToDatabase: async (connectionId) => {
           const state = get()
@@ -82,6 +111,23 @@ export const useConnectionStore = create<ConnectionState>()(
 
           set({ isConnecting: true })
           try {
+            const alias = connection.name?.trim()
+            const aliasParameters: Record<string, string> = {}
+
+            if (alias) {
+              aliasParameters.alias = alias
+
+              const slug = alias.replace(/[^\w-]/g, '-')
+              if (slug && slug !== alias) {
+                aliasParameters.alias_slug = slug
+              }
+
+              const lower = alias.toLowerCase()
+              if (lower !== alias) {
+                aliasParameters.alias_lower = lower
+              }
+            }
+
             const response = await wailsEndpoints.connections.create({
               name: connection.name,
               type: connection.type,
@@ -90,7 +136,7 @@ export const useConnectionStore = create<ConnectionState>()(
               database: connection.database,
               username: connection.username ?? '',
               password: connection.password ?? '',
-              parameters: {},
+              parameters: aliasParameters,
             })
 
             if (!response.success || !response.data?.id) {
@@ -146,6 +192,88 @@ export const useConnectionStore = create<ConnectionState>()(
               currentState.activeConnection?.id === connectionId ? null : currentState.activeConnection,
           }))
         },
+
+        setEnvironmentFilter: async (env) => {
+          set({ activeEnvironmentFilter: env })
+          
+          // Auto-connect filtered connections if not already connected
+          const filtered = get().getFilteredConnections()
+          const disconnected = filtered.filter(c => !c.isConnected)
+          
+          if (disconnected.length > 0) {
+            // Connect in parallel
+            const connectPromises = disconnected.map(async (conn) => {
+              try {
+                await get().connectToDatabase(conn.id)
+              } catch {
+                // Auto-connect failed
+              }
+            })
+            
+            await Promise.allSettled(connectPromises)
+          }
+        },
+
+        getFilteredConnections: () => {
+          const state = get()
+          const { connections, activeEnvironmentFilter } = state
+
+          // If no filter, return all connections
+          if (!activeEnvironmentFilter) {
+            return connections
+          }
+
+          // Filter by environment
+          return connections.filter((conn) => {
+            // Include connections with no environments (backward compatibility)
+            if (!conn.environments || conn.environments.length === 0) {
+              return true
+            }
+            // Include if connection has the active environment
+            return conn.environments.includes(activeEnvironmentFilter)
+          })
+        },
+
+        addEnvironmentToConnection: (connId, env) => {
+          set((state) => ({
+            connections: state.connections.map((conn) => {
+              if (conn.id === connId) {
+                const environments = conn.environments || []
+                if (!environments.includes(env)) {
+                  return { ...conn, environments: [...environments, env] }
+                }
+              }
+              return conn
+            }),
+          }))
+          get().refreshAvailableEnvironments()
+        },
+
+        removeEnvironmentFromConnection: (connId, env) => {
+          set((state) => ({
+            connections: state.connections.map((conn) => {
+              if (conn.id === connId && conn.environments) {
+                return {
+                  ...conn,
+                  environments: conn.environments.filter((e) => e !== env),
+                }
+              }
+              return conn
+            }),
+          }))
+          get().refreshAvailableEnvironments()
+        },
+
+        refreshAvailableEnvironments: () => {
+          const state = get()
+          const envSet = new Set<string>()
+          
+          state.connections.forEach((conn) => {
+            conn.environments?.forEach((env) => envSet.add(env))
+          })
+
+          set({ availableEnvironments: Array.from(envSet).sort() })
+        },
       }),
       {
         name: 'connection-store',
@@ -153,6 +281,8 @@ export const useConnectionStore = create<ConnectionState>()(
           connections: state.connections.map(({ sessionId, isConnected, lastUsed, ...rest }) => { // eslint-disable-line @typescript-eslint/no-unused-vars
             return { ...rest }
           }),
+          autoConnectEnabled: state.autoConnectEnabled,
+          activeEnvironmentFilter: state.activeEnvironmentFilter,
         }),
         onRehydrateStorage: () => (state, error) => {
           if (error) {
@@ -168,8 +298,23 @@ export const useConnectionStore = create<ConnectionState>()(
             lastUsed: undefined,
           }))
           state.activeConnection = null
+          // Keep autoConnectEnabled and activeEnvironmentFilter on rehydrate
+          
+          // Refresh available environments
+          state.refreshAvailableEnvironments()
         },
       }
     )
   )
 )
+
+// Expose store globally for cross-store access (avoids circular imports)
+declare global {
+  interface Window {
+    __connectionStore?: typeof useConnectionStore;
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.__connectionStore = useConnectionStore
+}

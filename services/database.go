@@ -6,20 +6,24 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"github.com/sql-studio/backend-go/pkg/database"
+	"github.com/sql-studio/backend-go/pkg/database/multiquery"
 )
 
 // DatabaseService wraps the backend database manager for Wails
 type DatabaseService struct {
-	manager  *database.Manager
-	logger   *logrus.Logger
-	ctx      context.Context
-	mu       sync.RWMutex
-	streams  map[string]*QueryStream
-	streamID int64
+	manager      *database.Manager
+	logger       *logrus.Logger
+	ctx          context.Context
+	mu           sync.RWMutex
+	streams      map[string]*QueryStream
+	streamID     int64
+	metadataJobs map[string]*EditableMetadataJob
+	metadataMu   sync.RWMutex
 }
 
 // QueryStream represents an active query stream
@@ -36,6 +40,19 @@ type QueryStream struct {
 	cancel     context.CancelFunc
 }
 
+// EditableMetadataJob tracks asynchronous editable metadata generation
+type EditableMetadataJob struct {
+	ID           string                          `json:"id"`
+	ConnectionID string                          `json:"connectionId"`
+	Query        string                          `json:"-"`
+	Columns      []string                        `json:"-"`
+	Status       string                          `json:"status"`
+	Metadata     *database.EditableQueryMetadata `json:"metadata,omitempty"`
+	Error        string                          `json:"error,omitempty"`
+	CreatedAt    time.Time                       `json:"createdAt"`
+	CompletedAt  *time.Time                      `json:"completedAt,omitempty"`
+}
+
 // StreamUpdate represents a streaming query update
 type StreamUpdate struct {
 	StreamID string          `json:"streamId"`
@@ -47,11 +64,25 @@ type StreamUpdate struct {
 
 // NewDatabaseService creates a new database service for Wails
 func NewDatabaseService(logger *logrus.Logger) *DatabaseService {
-	manager := database.NewManager(logger)
+	multiQueryConfig := &multiquery.Config{
+		Enabled:                true,
+		MaxConcurrentConns:     10,
+		DefaultStrategy:        multiquery.StrategyAuto,
+		Timeout:                30 * time.Second,
+		MaxResultRows:          10000,
+		EnableCrossTypeQueries: true,
+		BatchSize:              1000,
+		MergeBufferSize:        1000,
+		ParallelExecution:      true,
+		RequireExplicitConns:   false,
+	}
+
+	manager := database.NewManagerWithConfig(logger, multiQueryConfig)
 	return &DatabaseService{
-		manager: manager,
-		logger:  logger,
-		streams: make(map[string]*QueryStream),
+		manager:      manager,
+		logger:       logger,
+		streams:      make(map[string]*QueryStream),
+		metadataJobs: make(map[string]*EditableMetadataJob),
 	}
 }
 
@@ -68,20 +99,51 @@ func (s *DatabaseService) CreateConnection(config database.ConnectionConfig) (*d
 		return nil, err
 	}
 
+	// Preload schema in background (don't block connection creation)
+	go func() {
+		if err := s.PreloadSchema(connection.ID); err != nil {
+			s.logger.WithError(err).WithField("connection_id", connection.ID).
+				Warn("Background schema preload failed")
+		}
+	}()
+
 	// Emit connection created event
+	displayName := connection.Name
+	if displayName == "" {
+		displayName = config.Database
+	}
+
 	runtime.EventsEmit(s.ctx, "connection:created", map[string]interface{}{
 		"id":   connection.ID,
 		"type": config.Type,
-		"name": config.Database,
+		"name": displayName,
 	})
 
 	s.logger.WithFields(logrus.Fields{
 		"connection_id": connection.ID,
 		"type":          config.Type,
 		"database":      config.Database,
+		"alias":         displayName,
 	}).Info("Database connection created successfully")
 
 	return connection, nil
+}
+
+// PreloadSchema loads and caches schema for a connection
+func (s *DatabaseService) PreloadSchema(connectionID string) error {
+	ctx, cancel := context.WithTimeout(s.ctx, 30*time.Second)
+	defer cancel()
+
+	// Get schema (will populate cache)
+	_, err := s.manager.GetMultiConnectionSchema(ctx, []string{connectionID})
+	if err != nil {
+		s.logger.WithError(err).WithField("connection_id", connectionID).
+			Warn("Failed to preload schema, will load on-demand")
+		return err
+	}
+
+	s.logger.WithField("connection_id", connectionID).Info("Schema preloaded successfully")
+	return nil
 }
 
 // TestConnection tests a database connection
@@ -143,6 +205,11 @@ func (s *DatabaseService) ExecuteQuery(connectionID, query string, options *data
 		return nil, err
 	}
 
+	if result != nil && result.Editable != nil && result.Editable.Pending {
+		jobID := s.startEditableMetadataJob(connectionID, db, query, result.Columns, result.Editable)
+		result.Editable.JobID = jobID
+	}
+
 	// Emit query executed event
 	runtime.EventsEmit(s.ctx, "query:executed", map[string]interface{}{
 		"connectionId": connectionID,
@@ -159,6 +226,145 @@ func (s *DatabaseService) ExecuteQuery(connectionID, query string, options *data
 	}).Info("Query executed successfully")
 
 	return result, nil
+}
+
+func (s *DatabaseService) startEditableMetadataJob(connectionID string, db database.Database, query string, columns []string, meta *database.EditableQueryMetadata) string {
+	jobID := uuid.NewString()
+	columnCopy := append([]string(nil), columns...)
+	job := &EditableMetadataJob{
+		ID:           jobID,
+		ConnectionID: connectionID,
+		Query:        query,
+		Columns:      columnCopy,
+		Status:       "pending",
+		CreatedAt:    time.Now(),
+	}
+
+	s.metadataMu.Lock()
+	s.metadataJobs[jobID] = job
+	s.pruneCompletedMetadataJobsLocked()
+	s.metadataMu.Unlock()
+
+	if meta != nil {
+		meta.JobID = jobID
+		meta.Pending = true
+	}
+
+	go s.computeEditableMetadataJob(jobID, connectionID, db, query, columnCopy)
+
+	return jobID
+}
+
+func (s *DatabaseService) computeEditableMetadataJob(jobID, connectionID string, db database.Database, query string, columns []string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	metadata, err := db.ComputeEditableMetadata(ctx, query, columns)
+	completedAt := time.Now()
+
+	s.metadataMu.Lock()
+	job, exists := s.metadataJobs[jobID]
+	if !exists {
+		s.metadataMu.Unlock()
+		return
+	}
+
+	if err != nil {
+		job.Status = "failed"
+		job.Error = err.Error()
+		if metadata != nil {
+			metadata.Pending = false
+			metadata.JobID = jobID
+		}
+		job.Metadata = metadata
+	} else {
+		job.Status = "completed"
+		job.Error = ""
+		if metadata != nil {
+			metadata.Pending = false
+			metadata.JobID = jobID
+		}
+		job.Metadata = metadata
+	}
+	job.CompletedAt = &completedAt
+
+	// Copy data for use outside the lock
+	status := job.Status
+	jobError := job.Error
+	payloadMetadata := cloneEditableMetadata(job.Metadata)
+	s.metadataMu.Unlock()
+
+	eventPayload := map[string]interface{}{
+		"jobId":        jobID,
+		"connectionId": connectionID,
+		"status":       status,
+	}
+	if payloadMetadata != nil {
+		eventPayload["metadata"] = payloadMetadata
+	}
+	if jobError != "" {
+		eventPayload["error"] = jobError
+	}
+
+	runtime.EventsEmit(s.ctx, "query:editableMetadata", eventPayload)
+}
+
+func (s *DatabaseService) GetEditableMetadataJob(jobID string) (*EditableMetadataJob, error) {
+	s.metadataMu.RLock()
+	job, exists := s.metadataJobs[jobID]
+	s.metadataMu.RUnlock()
+
+	if !exists {
+		return nil, fmt.Errorf("metadata job not found: %s", jobID)
+	}
+
+	return cloneEditableMetadataJob(job), nil
+}
+
+func (s *DatabaseService) pruneCompletedMetadataJobsLocked() {
+	cutoff := time.Now().Add(-10 * time.Minute)
+	for id, job := range s.metadataJobs {
+		if job.CompletedAt != nil && job.CompletedAt.Before(cutoff) {
+			delete(s.metadataJobs, id)
+		}
+	}
+}
+
+func cloneEditableMetadataJob(job *EditableMetadataJob) *EditableMetadataJob {
+	if job == nil {
+		return nil
+	}
+
+	clone := &EditableMetadataJob{
+		ID:           job.ID,
+		ConnectionID: job.ConnectionID,
+		Query:        job.Query,
+		Columns:      append([]string(nil), job.Columns...),
+		Status:       job.Status,
+		Error:        job.Error,
+		CreatedAt:    job.CreatedAt,
+	}
+
+	if job.CompletedAt != nil {
+		completed := *job.CompletedAt
+		clone.CompletedAt = &completed
+	}
+
+	clone.Metadata = cloneEditableMetadata(job.Metadata)
+
+	return clone
+}
+
+func cloneEditableMetadata(meta *database.EditableQueryMetadata) *database.EditableQueryMetadata {
+	if meta == nil {
+		return nil
+	}
+
+	clone := *meta
+	clone.PrimaryKeys = append([]string(nil), meta.PrimaryKeys...)
+	clone.Columns = append([]database.EditableColumn(nil), meta.Columns...)
+
+	return &clone
 }
 
 // UpdateRow persists modifications to a single row in the result set
@@ -435,4 +641,139 @@ func (s *DatabaseService) GetDatabaseTypeInfo(dbType string) map[string]interfac
 		"supportsSSL":       config.Type == database.PostgreSQL || config.Type == database.MySQL,
 		"defaultParameters": config.Parameters,
 	}
+}
+
+// Multi-query methods
+
+// MultiQueryResponse represents the response from a multi-database query
+type MultiQueryResponse struct {
+	Columns         []string        `json:"columns"`
+	Rows            [][]interface{} `json:"rows"`
+	RowCount        int64           `json:"rowCount"`
+	Duration        string          `json:"duration"`
+	ConnectionsUsed []string        `json:"connectionsUsed"`
+	Strategy        string          `json:"strategy"`
+	Error           string          `json:"error,omitempty"`
+}
+
+// MultiQueryValidation represents validation result for a multi-query
+type MultiQueryValidation struct {
+	Valid               bool     `json:"valid"`
+	Errors              []string `json:"errors,omitempty"`
+	RequiredConnections []string `json:"requiredConnections,omitempty"`
+	Tables              []string `json:"tables,omitempty"`
+	EstimatedStrategy   string   `json:"estimatedStrategy,omitempty"`
+}
+
+// CombinedSchemaResponse represents combined schema from multiple connections
+type CombinedSchemaResponse struct {
+	Connections map[string]*multiquery.ConnectionSchema `json:"connections"`
+	Conflicts   []multiquery.SchemaConflict             `json:"conflicts"`
+}
+
+// ExecuteMultiDatabaseQuery executes a query across multiple connections
+func (s *DatabaseService) ExecuteMultiDatabaseQuery(query string, options *multiquery.Options) (*MultiQueryResponse, error) {
+	// Apply default options
+	if options == nil {
+		options = &multiquery.Options{
+			Timeout:  30 * time.Second,
+			Strategy: multiquery.StrategyFederated,
+			Limit:    1000,
+		}
+	}
+
+	// Execute via manager
+	result, err := s.manager.ExecuteMultiQuery(s.ctx, query, options)
+	if err != nil {
+		s.logger.WithError(err).Error("Multi-query execution failed")
+		return &MultiQueryResponse{
+			Error: err.Error(),
+		}, nil
+	}
+
+	// Emit multi-query executed event
+	runtime.EventsEmit(s.ctx, "multiquery:executed", map[string]interface{}{
+		"connections": result.ConnectionsUsed,
+		"duration":    result.Duration.String(),
+		"rowCount":    result.RowCount,
+	})
+
+	return &MultiQueryResponse{
+		Columns:         result.Columns,
+		Rows:            result.Rows,
+		RowCount:        result.RowCount,
+		Duration:        result.Duration.String(),
+		ConnectionsUsed: result.ConnectionsUsed,
+		Strategy:        string(result.Strategy),
+	}, nil
+}
+
+// ValidateMultiQuery validates a multi-database query
+func (s *DatabaseService) ValidateMultiQuery(query string) (*MultiQueryValidation, error) {
+	parsed, err := s.manager.ParseMultiQuery(query)
+	if err != nil {
+		return &MultiQueryValidation{
+			Valid:  false,
+			Errors: []string{err.Error()},
+		}, nil
+	}
+
+	if err := s.manager.ValidateMultiQuery(parsed); err != nil {
+		return &MultiQueryValidation{
+			Valid:  false,
+			Errors: []string{err.Error()},
+		}, nil
+	}
+
+	return &MultiQueryValidation{
+		Valid:               true,
+		RequiredConnections: parsed.RequiredConnections,
+		Tables:              parsed.Tables,
+		EstimatedStrategy:   string(parsed.SuggestedStrategy),
+	}, nil
+}
+
+// GetCombinedSchema returns combined schema for selected connections
+func (s *DatabaseService) GetCombinedSchema(connectionIDs []string) (*CombinedSchemaResponse, error) {
+	schema, err := s.manager.GetMultiConnectionSchema(s.ctx, connectionIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	return &CombinedSchemaResponse{
+		Connections: schema.Connections,
+		Conflicts:   schema.Conflicts,
+	}, nil
+}
+
+// ==================== Schema Cache Management ====================
+
+// InvalidateSchemaCache invalidates the cached schema for a specific connection
+func (s *DatabaseService) InvalidateSchemaCache(connectionID string) {
+	s.manager.InvalidateSchemaCache(connectionID)
+}
+
+// InvalidateAllSchemas invalidates all cached schemas
+func (s *DatabaseService) InvalidateAllSchemas() {
+	s.manager.InvalidateAllSchemas()
+}
+
+// RefreshSchema forces a refresh of the schema for a connection
+func (s *DatabaseService) RefreshSchema(ctx context.Context, connectionID string) error {
+	return s.manager.RefreshSchema(ctx, connectionID)
+}
+
+// GetSchemaCacheStats returns statistics about the schema cache
+func (s *DatabaseService) GetSchemaCacheStats() map[string]interface{} {
+	return s.manager.GetSchemaCacheStats()
+}
+
+// GetConnectionCount returns the number of active database connections
+func (s *DatabaseService) GetConnectionCount() int {
+	return s.manager.GetConnectionCount()
+}
+
+// GetConnectionIDs returns a list of all connection IDs
+func (s *DatabaseService) GetConnectionIDs() []string {
+	return s.manager.GetConnectionIDs()
 }

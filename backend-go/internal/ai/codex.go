@@ -172,6 +172,67 @@ func (p *CodexProvider) FixSQL(ctx context.Context, query string, errorMsg strin
 	}, nil
 }
 
+// Chat handles generic conversational interactions using Codex
+func (p *CodexProvider) Chat(ctx context.Context, prompt string, options ...GenerateOption) (*ChatResponse, error) {
+	opts := &GenerateOptions{
+		Model:       p.config.Model,
+		MaxTokens:   p.config.MaxTokens,
+		Temperature: float64(p.config.Temperature),
+	}
+
+	for _, opt := range options {
+		opt(opts)
+	}
+
+	var finalPrompt strings.Builder
+	if opts.Context != nil {
+		if system := opts.Context["system"]; system != "" {
+			finalPrompt.WriteString(system)
+			finalPrompt.WriteString("\n\n")
+		}
+		if ctxText := opts.Context["context"]; ctxText != "" {
+			finalPrompt.WriteString("Context:\n")
+			finalPrompt.WriteString(ctxText)
+			finalPrompt.WriteString("\n\n")
+		}
+	}
+	finalPrompt.WriteString(prompt)
+
+	startTime := time.Now()
+	req := openai.CompletionRequest{
+		Model:       opts.Model,
+		Prompt:      finalPrompt.String(),
+		MaxTokens:   opts.MaxTokens,
+		Temperature: float32(opts.Temperature),
+		N:           1,
+	}
+
+	resp, err := p.client.CreateCompletion(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("codex API error: %w", err)
+	}
+
+	if len(resp.Choices) == 0 {
+		return nil, fmt.Errorf("no response from Codex")
+	}
+
+	content := strings.TrimSpace(resp.Choices[0].Text)
+
+	return &ChatResponse{
+		Content:    content,
+		Provider:   ProviderCodex,
+		Model:      opts.Model,
+		TokensUsed: resp.Usage.TotalTokens,
+		TimeTaken:  time.Since(startTime),
+		Metadata: map[string]string{
+			"request_id":        resp.ID,
+			"prompt_tokens":     fmt.Sprintf("%d", resp.Usage.PromptTokens),
+			"completion_tokens": fmt.Sprintf("%d", resp.Usage.CompletionTokens),
+			"total_tokens":      fmt.Sprintf("%d", resp.Usage.TotalTokens),
+		},
+	}, nil
+}
+
 // GetHealth returns the health status of the Codex provider
 func (p *CodexProvider) GetHealth(ctx context.Context) (*HealthStatus, error) {
 	startTime := time.Now()

@@ -4,9 +4,11 @@ import { createPortal } from "react-dom"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useConnectionStore, type DatabaseConnection } from "@/store/connection-store"
-import { useSchemaIntrospection, SchemaNode } from "@/hooks/useSchemaIntrospection"
-import { SchemaVisualizerWrapper } from "@/components/schema-visualizer/SchemaVisualizer"
+import { useSchemaIntrospection, SchemaNode } from "@/hooks/use-schema-introspection"
+import { SchemaVisualizerWrapper } from "@/components/schema-visualizer/schema-visualizer"
+import { EnvironmentManager } from "@/components/environment-manager"
 import {
   Database,
   Table,
@@ -21,6 +23,8 @@ import {
   AlertCircle,
   Loader2,
   Network,
+  Filter,
+  Tag,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -130,11 +134,19 @@ export function Sidebar() {
     setActiveConnection,
     connectToDatabase,
     isConnecting,
+    activeEnvironmentFilter,
+    availableEnvironments,
+    setEnvironmentFilter,
+    getFilteredConnections,
   } = useConnectionStore()
   const { schema, loading, error, refreshSchema } = useSchemaIntrospection()
   const [connectingId, setConnectingId] = useState<string | null>(null)
   const [showVisualizer, setShowVisualizer] = useState(false)
   const [collapsedSchemas, setCollapsedSchemas] = useState<Set<string>>(new Set())
+  const [showEnvironmentManager, setShowEnvironmentManager] = useState(false)
+  
+  // Get filtered connections
+  const filteredConnections = getFilteredConnections()
 
   const handleConnectionSelect = async (connection: DatabaseConnection) => {
     if (connection.sessionId) {
@@ -183,37 +195,109 @@ export function Sidebar() {
             </Button>
           </div>
 
+          {/* Environment Filter */}
+          {availableEnvironments.length > 0 && (
+            <div className="mb-3 flex gap-2">
+              <Select
+                value={activeEnvironmentFilter || "__all__"}
+                onValueChange={(value) => setEnvironmentFilter(value === "__all__" ? null : value)}
+              >
+                <SelectTrigger className="h-8 text-xs flex-1">
+                  <div className="flex items-center gap-2">
+                    <Filter className="h-3 w-3" />
+                    <SelectValue placeholder="All Environments" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">All Environments</SelectItem>
+                  {availableEnvironments.map((env) => (
+                    <SelectItem key={env} value={env}>
+                      {env}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2"
+                onClick={() => setShowEnvironmentManager(true)}
+                title="Manage environments"
+              >
+                <Tag className="h-3 w-3" />
+              </Button>
+            </div>
+          )}
+
+          {/* Manage Environments button when no environments exist */}
+          {availableEnvironments.length === 0 && connections.length > 0 && (
+            <div className="mb-3">
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full h-8 text-xs"
+                onClick={() => setShowEnvironmentManager(true)}
+              >
+                <Tag className="h-3 w-3 mr-2" />
+                Add Environments
+              </Button>
+            </div>
+          )}
+
           <div className="space-y-2">
-            {connections.length === 0 ? (
+            {filteredConnections.length === 0 && connections.length > 0 ? (
+              <div className="text-xs text-muted-foreground text-center py-4">
+                No connections for this environment
+              </div>
+            ) : filteredConnections.length === 0 ? (
               <div className="text-xs text-muted-foreground text-center py-4">
                 No connections configured
               </div>
             ) : (
-              connections.map((connection) => {
+              filteredConnections.map((connection) => {
                 const isActive = activeConnection?.id === connection.id
                 const isPending = connectingId === connection.id
 
                 return (
-                  <Button
-                    key={connection.id}
-                    variant={isActive || isPending ? "secondary" : "ghost"}
-                    size="sm"
-                    className="h-8 w-full justify-start"
-                    disabled={isConnecting}
-                    onClick={() => {
-                      void handleConnectionSelect(connection)
-                    }}
-                  >
-                    <Database className="mr-2 h-4 w-4" />
-                    <span className="truncate">{connection.name}</span>
-                    <span className="ml-auto inline-flex items-center">
-                      {isPending ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : connection.isConnected ? (
-                        <span className="h-2 w-2 rounded-full bg-green-500" />
-                      ) : null}
-                    </span>
-                  </Button>
+                  <div key={connection.id} className="flex items-center gap-1">
+                    {/* Connection button */}
+                    <Button
+                      variant={isActive || isPending ? "secondary" : "ghost"}
+                      size="sm"
+                      className="h-8 w-full justify-start overflow-hidden"
+                      disabled={isConnecting}
+                      onClick={() => {
+                        void handleConnectionSelect(connection)
+                      }}
+                    >
+                      <Database className="mr-2 h-4 w-4 flex-shrink-0" />
+                      <span className="truncate flex-1 text-left">{connection.name}</span>
+                      
+                      {/* Show environment chips when "All" is selected */}
+                      {!activeEnvironmentFilter && connection.environments && connection.environments.length > 0 && (
+                        <div className="flex gap-1 ml-2 flex-shrink-0">
+                          {connection.environments.slice(0, 2).map((env) => (
+                            <Badge key={env} variant="outline" className="text-[10px] px-1 py-0 h-4">
+                              {env}
+                            </Badge>
+                          ))}
+                          {connection.environments.length > 2 && (
+                            <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">
+                              +{connection.environments.length - 2}
+                            </Badge>
+                          )}
+                        </div>
+                      )}
+                      
+                      <span className="ml-2 inline-flex items-center flex-shrink-0">
+                        {isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : connection.isConnected ? (
+                          <span className="h-2 w-2 rounded-full bg-primary" />
+                        ) : null}
+                      </span>
+                    </Button>
+                  </div>
                 )
               })
             )}
@@ -276,7 +360,7 @@ export function Sidebar() {
                   )
                 ) : (
                   <div className="text-xs text-muted-foreground text-center py-4">
-                    Connect to a database to explore schema
+                    Choose a database to explore schema
                   </div>
                 )}
               </div>
@@ -292,6 +376,14 @@ export function Sidebar() {
           onClose={() => setShowVisualizer(false)} 
         />,
         document.body
+      )}
+      
+      {/* Environment Manager Modal */}
+      {showEnvironmentManager && (
+        <EnvironmentManager
+          open={showEnvironmentManager}
+          onClose={() => setShowEnvironmentManager(false)}
+        />
       )}
     </div>
   )

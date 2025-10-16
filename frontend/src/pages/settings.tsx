@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useTheme } from "@/hooks/use-theme"
 import { ArrowLeft, Brain, Key, Server, AlertTriangle, Download, Play, CheckCircle } from "lucide-react"
 import { useNavigate } from "react-router-dom"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { useAIConfig } from "@/store/ai-store"
 import { useOllamaDetection } from "@/hooks/use-ollama-detection"
 
@@ -24,7 +24,7 @@ export function Settings() {
     anthropic: false,
     codex: false
   })
-  const [hasAutoTestedLocal, setHasAutoTestedLocal] = useState(false)
+  const hasAutoTestedLocalRef = useRef(false)
   const [testMessage, setTestMessage] = useState<{provider: string, message: string, type: 'success' | 'error'} | null>(null)
 
   const handleAiConfigChange = (key: string, value: string | number | boolean) => {
@@ -96,19 +96,16 @@ export function Settings() {
 
   // Automatically attempt to initialise the embedded runtime once when selected.
   useEffect(() => {
-    if (aiConfig.provider === 'ollama' && !hasAutoTestedLocal) {
-      setHasAutoTestedLocal(true)
+    if (aiConfig.provider === 'ollama' && !hasAutoTestedLocalRef.current) {
+      hasAutoTestedLocalRef.current = true
       testConnection('ollama').catch(() => {
         // Ignore errors here; the UI already shows status details and the user can retry manually.
       })
     }
-  }, [aiConfig.provider, hasAutoTestedLocal, testConnection])
-
-  useEffect(() => {
-    if (aiConfig.provider !== 'ollama' && hasAutoTestedLocal) {
-      setHasAutoTestedLocal(false)
+    if (aiConfig.provider !== 'ollama' && hasAutoTestedLocalRef.current) {
+      hasAutoTestedLocalRef.current = false
     }
-  }, [aiConfig.provider, hasAutoTestedLocal])
+  }, [aiConfig.provider, testConnection])
 
   return (
     <div className="flex flex-1 h-full min-h-0 w-full flex-col overflow-y-auto">
@@ -318,6 +315,21 @@ export function Settings() {
                       <SelectItem value="huggingface">Hugging Face (Local)</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+
+                {/* Memory Sync Toggle */}
+                <div className="flex items-start justify-between">
+                  <div className="space-y-0.5 pr-4">
+                    <Label htmlFor="ai-sync-memories">Sync AI Memories</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Keep conversation history in sync with your workspace storage. Memories always stay local-first.
+                    </p>
+                  </div>
+                  <Switch
+                    id="ai-sync-memories"
+                    checked={aiConfig.syncMemories}
+                    onCheckedChange={(checked) => handleAiConfigChange('syncMemories', checked)}
+                  />
                 </div>
 
                 {/* OpenAI Configuration */}

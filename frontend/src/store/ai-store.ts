@@ -1,46 +1,16 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { testAIProviderConnection, showHybridNotification } from '@/lib/wails-ai-api'
+import { LoadAIMemorySessions, SaveAIMemorySessions, RecallAIMemorySessions, DeleteAIMemorySession } from '../../wailsjs/go/main/App'
+import { main as wailsModels } from '../../wailsjs/go/models'
+import type { SchemaNode } from '@/hooks/use-schema-introspection'
+import type { DatabaseConnection } from '@/store/connection-store'
+import { useAIMemoryStore, estimateTokens as estimateMemoryTokens, type AIMemorySession as MemorySession } from '@/store/ai-memory-store'
 
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
-
-const normalizeEndpoint = (endpoint?: string): string => {
-  if (!endpoint || endpoint.trim() === '') {
-    return 'http://localhost:11434'
-  }
-
-  if (/^https?:\/\//i.test(endpoint.trim())) {
-    return endpoint.trim()
-  }
-
-  return `http://${endpoint.trim()}`
-}
-
-const isLocalOllamaEndpoint = (endpoint: string): boolean => {
-  try {
-    const url = new URL(normalizeEndpoint(endpoint))
-    const hostname = url.hostname.toLowerCase()
-    return ['localhost', '127.0.0.1', '0.0.0.0', '[::1]'].includes(hostname)
-  } catch {
-    return false
-  }
-}
-
-const dispatchOllamaStatusRefresh = () => {
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(new Event('ollama-status:refresh'))
-  }
-}
-
-interface OllamaDetectionStatus {
-  installed: boolean
-  running: boolean
-  available_models?: string[]
-  endpoint?: string
-  version?: string
-  last_checked?: string
-  error?: string
-  backend_available?: boolean
+// Normalize endpoint URL
+function normalizeEndpoint(endpoint: string | undefined): string {
+  if (!endpoint) return 'http://localhost:11434'
+  return endpoint.replace(/\/+$/, '') // Remove trailing slashes
 }
 
 export interface AIConfig {
@@ -58,6 +28,7 @@ export interface AIConfig {
   temperature: number
   autoFixEnabled: boolean
   suggestionThreshold: number
+  syncMemories: boolean
 }
 
 export interface SQLSuggestion {
@@ -83,6 +54,7 @@ export interface AIState {
     claudecode: 'connected' | 'disconnected' | 'testing' | 'error'
     codex: 'connected' | 'disconnected' | 'testing' | 'error'
   }
+  memoriesHydrated: boolean
 }
 
 export interface AIActions {
@@ -93,9 +65,24 @@ export interface AIActions {
   setLastError: (error: string | null) => void
   setConnectionStatus: (provider: string, status: string) => void
   testConnection: (provider: string) => Promise<boolean>
-  generateSQL: (prompt: string, schema?: string) => Promise<string>
-  fixSQL: (query: string, error: string, schema?: string) => Promise<string>
+  generateSQL: (prompt: string, schema?: string, mode?: 'single' | 'multi', connections?: DatabaseConnection[], schemasMap?: Map<string, SchemaNode[]>) => Promise<string>
+  fixSQL: (query: string, error: string, schema?: string, mode?: 'single' | 'multi', connections?: DatabaseConnection[], schemasMap?: Map<string, SchemaNode[]>) => Promise<string>
+  sendGenericMessage: (prompt: string, options?: {
+    context?: string
+    systemPrompt?: string
+    metadata?: Record<string, string>
+  }) => Promise<{
+    content: string
+    provider: string
+    model: string
+    tokensUsed: number
+    metadata?: Record<string, string>
+  }>
   resetConfig: () => void
+  resetSession: () => void
+  hydrateMemoriesFromBackend: () => Promise<void>
+  persistMemoriesIfEnabled: () => Promise<void>
+  deleteMemorySession: (sessionId: string) => Promise<void>
 }
 
 const defaultConfig: AIConfig = {
@@ -113,6 +100,7 @@ const defaultConfig: AIConfig = {
   temperature: 0.1,
   autoFixEnabled: true,
   suggestionThreshold: 0.7,
+  syncMemories: true,
 }
 
 const defaultState: AIState = {
@@ -128,6 +116,48 @@ const defaultState: AIState = {
     claudecode: 'disconnected',
     codex: 'disconnected',
   },
+  memoriesHydrated: false,
+}
+
+type WailsMemorySession = InstanceType<typeof wailsModels.AIMemorySession>
+type WailsMemoryMessage = InstanceType<typeof wailsModels.AIMemoryMessage>
+
+const serializeMemorySessions = (sessions: MemorySession[]): WailsMemorySession[] => {
+  return sessions.map(session => wailsModels.AIMemorySession.createFrom({
+    id: session.id,
+    title: session.title,
+    createdAt: session.createdAt,
+    updatedAt: session.updatedAt,
+    summary: session.summary ?? '',
+    summaryTokens: session.summaryTokens ?? 0,
+    metadata: session.metadata ?? {},
+    messages: session.messages.map(message => wailsModels.AIMemoryMessage.createFrom({
+      role: message.role,
+      content: message.content,
+      timestamp: message.timestamp,
+      metadata: message.metadata ?? {},
+    })),
+  }))
+}
+
+const deserializeMemorySessions = (payload: WailsMemorySession[]): MemorySession[] => {
+  return payload.map(session => ({
+    id: session.id,
+    title: session.title,
+    createdAt: session.createdAt,
+    updatedAt: session.updatedAt,
+    summary: session.summary || undefined,
+    summaryTokens: session.summaryTokens || undefined,
+    metadata: session.metadata && Object.keys(session.metadata).length ? session.metadata : undefined,
+    messages: (session.messages || []).map((message: WailsMemoryMessage) => ({
+      id: crypto.randomUUID(),
+      role: (message.role as 'system' | 'user' | 'assistant') ?? 'user',
+      content: message.content,
+      tokens: estimateMemoryTokens(message.content),
+      timestamp: message.timestamp,
+      metadata: message.metadata && Object.keys(message.metadata).length ? message.metadata : undefined,
+    })),
+  }))
 }
 
 // Secure storage for API keys
@@ -238,7 +268,7 @@ const createSecureStorage = () => {
       }
     },
 
-    removeItem: (name: string): void => {
+    removeItem: async (name: string): Promise<void> => {
       localStorage.removeItem(name)
     },
   }
@@ -250,9 +280,22 @@ export const useAIStore = create<AIState & AIActions>()(
       ...defaultState,
 
       updateConfig: (configUpdate: Partial<AIConfig>) => {
+        const previousConfig = get().config
         set(state => ({
           config: { ...state.config, ...configUpdate },
         }))
+
+        if (configUpdate.syncMemories !== undefined && configUpdate.syncMemories !== previousConfig.syncMemories) {
+          if (configUpdate.syncMemories) {
+            get().hydrateMemoriesFromBackend()
+              .catch((error) => console.error('Failed to hydrate AI memories:', error))
+              .finally(() => {
+                void get().persistMemoriesIfEnabled()
+              })
+          } else {
+            set({ memoriesHydrated: false })
+          }
+        }
       },
 
       setIsGenerating: (generating: boolean) => {
@@ -382,8 +425,14 @@ export const useAIStore = create<AIState & AIActions>()(
         }
       },
 
-      generateSQL: async (prompt: string, schema?: string): Promise<string> => {
+      generateSQL: async (prompt: string, schema?: string, mode?: 'single' | 'multi', connections?: DatabaseConnection[], schemasMap?: Map<string, SchemaNode[]>): Promise<string> => {
         const { config, setIsGenerating, addSuggestion, setLastError } = get()
+        const memoryStore = useAIMemoryStore.getState()
+
+        const provider = (config.provider || 'openai').toLowerCase()
+        const sessionId = memoryStore.ensureActiveSession({
+          title: `Session ${new Date().toLocaleString()}`,
+        })
 
         if (!config.enabled) {
           throw new Error('AI features are disabled')
@@ -393,46 +442,180 @@ export const useAIStore = create<AIState & AIActions>()(
         setLastError(null)
 
         try {
-          const response = await fetch('/api/ai/generate-sql', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              prompt,
-              schema,
-              provider: config.provider,
-              model: config.selectedModel,
-              maxTokens: config.maxTokens,
-              temperature: config.temperature,
-            }),
-          })
+          // Import Wails bindings
+          const { GenerateSQLFromNaturalLanguage } = await import('../../wailsjs/go/main/App')
+          const { AISchemaContextBuilder } = await import('@/lib/ai-schema-context')
 
-          if (!response.ok) {
-            const error = await response.text()
-            throw new Error(error || 'Failed to generate SQL')
+          // Auto-detect if user wants multi-DB query based on prompt
+          const detectsMultiDB = (prompt: string): boolean => {
+            const multiDBKeywords = [
+              /join.*from.*and.*from/i,
+              /across.*database/i,
+              /between.*database/i,
+              /from.*database.*and.*database/i,
+              /@\w+\./,  // Already using @connection syntax
+              /compare.*from.*and/i,
+              /merge.*from.*and/i,
+              /combine.*from.*and/i,
+              /different.*database/i,
+              /multiple.*database/i,
+            ]
+            return multiDBKeywords.some(pattern => pattern.test(prompt))
           }
 
-          const result = await response.json()
+          // Determine effective mode: auto-detect or use provided mode
+          const wantsMultiDB = detectsMultiDB(prompt)
+          const effectiveMode = wantsMultiDB ? 'multi' : (mode || 'single')
+          
+          console.log(`🤖 AI Query Mode Detection:`, {
+            providedMode: mode,
+            detectedMultiDB: wantsMultiDB,
+            effectiveMode,
+            hasConnections: !!connections && connections.length > 0
+          })
+
+          // Build schema context based on effective mode
+          let context = ''
+          let enhancedPrompt = prompt
+
+          const memoryContext = memoryStore.buildContext({
+            sessionId,
+            provider,
+            model: config.selectedModel,
+            maxTokens: config.maxTokens,
+          })
+
+          memoryStore.recordMessage({
+            sessionId,
+            role: 'user',
+            content: prompt,
+            metadata: {
+              mode: effectiveMode,
+              provider,
+            },
+          })
+          
+          if (effectiveMode === 'multi' && connections && schemasMap && connections.length > 1) {
+            // Multi-database mode: build comprehensive context
+            const multiContext = AISchemaContextBuilder.buildMultiDatabaseContext(
+              connections.filter(c => c.isConnected),
+              schemasMap,
+              undefined // Active connection ID not available here
+            )
+            context = AISchemaContextBuilder.generateCompactSchemaContext(multiContext)
+
+            // Enhance prompt with multi-DB syntax instructions
+            enhancedPrompt = `${prompt}\n\nIMPORTANT: This is a multi-database query. Use @connection_name.table syntax to reference tables from different databases. Available connections: ${connections.filter(c => c.isConnected).map(c => c.name).join(', ')}`
+          } else if (schema) {
+            // Single database mode: use simple schema context
+            context = `Database: ${schema}`
+          }
+
+          if (memoryContext) {
+            context = context
+              ? `${context}\n\n---\n\nConversation Memory:\n${memoryContext}`
+              : `Conversation Memory:\n${memoryContext}`
+          }
+
+          if (config.syncMemories) {
+            try {
+              const recalled = await RecallAIMemorySessions(query, 5)
+              if (Array.isArray(recalled) && recalled.length > 0) {
+                const recallContext = recalled
+                  .map((item) => {
+                    const summary = item.summary ? `Summary: ${item.summary}\n` : ''
+                    return `Session: ${item.title}\n${summary}Memory:\n${item.content}`
+                  })
+                  .join('\n---\n')
+
+                context = context
+                  ? `${context}\n\n---\n\nRelated Sessions:\n${recallContext}`
+                  : `Related Sessions:\n${recallContext}`
+              }
+            } catch (error) {
+              console.error('Failed to recall AI memories for fix:', error)
+            }
+          }
+
+          let recallContext = ''
+          if (config.syncMemories) {
+            try {
+              const recalled = await RecallAIMemorySessions(prompt, 5)
+              if (Array.isArray(recalled) && recalled.length > 0) {
+                recallContext = recalled
+                  .map((item) => {
+                    const summary = item.summary ? `Summary: ${item.summary}\n` : ''
+                    return `Session: ${item.title}\n${summary}Memory:\n${item.content}`
+                  })
+                  .join('\n---\n')
+              }
+            } catch (error) {
+              console.error('Failed to recall AI memories:', error)
+            }
+          }
+
+          if (recallContext) {
+            context = context
+              ? `${context}\n\n---\n\nRelated Sessions:\n${recallContext}`
+              : `Related Sessions:\n${recallContext}`
+          }
+
+          // Call the Wails backend method
+          const model = config.selectedModel || 'gpt-4o-mini'
+
+          const request = {
+            prompt: enhancedPrompt,
+            connectionId: connections?.[0]?.id || '', // Use first connection if available
+            context,
+            provider,
+            model,
+            maxTokens: config.maxTokens,
+            temperature: config.temperature,
+          }
+
+          const result = await GenerateSQLFromNaturalLanguage(request)
+
+          if (!result) {
+            throw new Error('No response from AI service')
+          }
 
           addSuggestion({
-            query: result.query,
-            explanation: result.explanation,
-            confidence: result.confidence,
+            query: result.sql,
+            explanation: result.explanation || '',
+            confidence: result.confidence || 0.8,
             provider: config.provider,
             model: config.selectedModel,
           })
 
-          return result.query
+          memoryStore.recordMessage({
+            sessionId,
+            role: 'assistant',
+            content: result.sql,
+            metadata: {
+              type: 'generation',
+              explanation: result.explanation,
+            },
+          })
+
+          void get().persistMemoriesIfEnabled()
+          return result.sql
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error'
           setLastError(errorMessage)
+          void get().persistMemoriesIfEnabled()
           throw error
         } finally {
           setIsGenerating(false)
         }
       },
 
-      fixSQL: async (query: string, error: string, schema?: string): Promise<string> => {
+      fixSQL: async (query: string, error: string, schema?: string, mode?: 'single' | 'multi', connections?: DatabaseConnection[], schemasMap?: Map<string, SchemaNode[]>): Promise<string> => {
         const { config, setIsGenerating, addSuggestion, setLastError } = get()
+        const memoryStore = useAIMemoryStore.getState()
+        const provider = (config.provider || 'openai').toLowerCase()
+        const sessionId = memoryStore.ensureActiveSession({
+          title: `Session ${new Date().toLocaleString()}`,
+        })
 
         if (!config.enabled) {
           throw new Error('AI features are disabled')
@@ -442,41 +625,202 @@ export const useAIStore = create<AIState & AIActions>()(
         setLastError(null)
 
         try {
-          const response = await fetch('/api/ai/fix-sql', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              query,
-              error,
-              schema,
-              provider: config.provider,
-              model: config.selectedModel,
-              maxTokens: config.maxTokens,
-              temperature: config.temperature,
-            }),
-          })
+          // Import Wails bindings
+          const { FixSQLErrorWithOptions } = await import('../../wailsjs/go/main/App')
+          const { AISchemaContextBuilder } = await import('@/lib/ai-schema-context')
 
-          if (!response.ok) {
-            const errorText = await response.text()
-            throw new Error(errorText || 'Failed to fix SQL')
+          // Build schema context for RAG
+          let context = ''
+          let enhancedError = error
+
+          if (mode === 'multi' && connections && schemasMap && connections.length > 1) {
+            // Multi-database mode: build comprehensive context
+            const multiContext = AISchemaContextBuilder.buildMultiDatabaseContext(
+              connections.filter(c => c.isConnected),
+              schemasMap,
+              undefined
+            )
+            context = AISchemaContextBuilder.generateCompactSchemaContext(multiContext)
+
+            enhancedError = `${error}\n\nNote: This is a multi-database query. Tables should use @connection_name.table syntax. Available connections: ${connections.filter(c => c.isConnected).map(c => c.name).join(', ')}`
+          } else if (schema) {
+            // Single database mode: use simple schema context
+            context = `Database: ${schema}`
           }
 
-          const result = await response.json()
+          const memoryContext = memoryStore.buildContext({
+            sessionId,
+            provider,
+            model: config.selectedModel,
+            maxTokens: config.maxTokens,
+          })
+
+          if (memoryContext) {
+            context = context
+              ? `${context}\n\n---\n\nConversation Memory:\n${memoryContext}`
+              : `Conversation Memory:\n${memoryContext}`
+          }
+
+          memoryStore.recordMessage({
+            sessionId,
+            role: 'user',
+            content: `Fix query:\n${query}\n\nError:\n${error}`,
+            metadata: {
+              type: 'fix-request',
+              provider,
+            },
+          })
+
+          // Call the Wails backend method with context
+          const connectionId = connections?.[0]?.id || ''
+          const model = config.selectedModel || ''
+          const request = {
+            query,
+            error: enhancedError,
+            connectionId,
+            context,
+            provider,
+            model,
+            maxTokens: config.maxTokens,
+            temperature: config.temperature,
+          }
+
+          const result = await FixSQLErrorWithOptions(request)
+
+          if (!result) {
+            throw new Error('No response from AI service')
+          }
 
           addSuggestion({
-            query: result.query,
-            explanation: result.explanation,
-            confidence: result.confidence,
+            query: result.sql,
+            explanation: result.explanation || 'Fixed SQL query',
+            confidence: 0.9,
             provider: config.provider,
             model: config.selectedModel,
           })
 
-          return result.query
+          memoryStore.recordMessage({
+            sessionId,
+            role: 'assistant',
+            content: result.sql,
+            metadata: {
+              type: 'fix-response',
+              explanation: result.explanation,
+            },
+          })
+
+          void get().persistMemoriesIfEnabled()
+          return result.sql
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+          setLastError(errorMessage)
+          void get().persistMemoriesIfEnabled()
+          throw error
+        } finally {
+          setIsGenerating(false)
+        }
+      },
+
+      sendGenericMessage: async (prompt: string, options?: {
+        context?: string
+        systemPrompt?: string
+        metadata?: Record<string, string>
+      }) => {
+        const { config, setIsGenerating, setLastError } = get()
+        const memoryStore = useAIMemoryStore.getState()
+
+        if (!config.enabled) {
+          throw new Error('AI features are disabled')
+        }
+
+        const provider = (config.provider || 'openai').toLowerCase()
+        let sessionId = memoryStore.ensureActiveSession({
+          title: `Chat Session ${new Date().toLocaleString()}`,
+          metadata: {
+            chatType: 'generic',
+          },
+        })
+
+        const activeSession = memoryStore.sessions[sessionId]
+        if (activeSession?.metadata?.chatType !== 'generic') {
+          sessionId = memoryStore.startNewSession({
+            title: `Chat Session ${new Date().toLocaleString()}`,
+            metadata: { chatType: 'generic' },
+          })
+          memoryStore.setActiveSession(sessionId)
+        }
+
+        setIsGenerating(true)
+        setLastError(null)
+
+        try {
+          const baseContext = options?.context?.trim() ?? ''
+          const memoryContext = memoryStore.buildContext({
+            sessionId,
+            provider,
+            model: config.selectedModel,
+            maxTokens: config.maxTokens,
+          })
+
+          let combinedContext = baseContext
+          if (memoryContext) {
+            combinedContext = combinedContext
+              ? `${combinedContext}\n\n---\n\nConversation Memory:\n${memoryContext}`
+              : `Conversation Memory:\n${memoryContext}`
+          }
+
+          memoryStore.recordMessage({
+            sessionId,
+            role: 'user',
+            content: prompt,
+            metadata: {
+              type: 'chat:user',
+              provider,
+            },
+          })
+
+          const { GenericChat } = await import('../../wailsjs/go/main/App')
+          const response = await GenericChat({
+            prompt,
+            context: combinedContext,
+            system: options?.systemPrompt,
+            provider,
+            model: config.selectedModel,
+            maxTokens: config.maxTokens,
+            temperature: config.temperature,
+            metadata: {
+              sessionId,
+              chatType: 'generic',
+              ...options?.metadata,
+            },
+          })
+
+          const assistantContent = response?.content ?? ''
+
+          memoryStore.recordMessage({
+            sessionId,
+            role: 'assistant',
+            content: assistantContent,
+            metadata: {
+              type: 'chat:assistant',
+              provider: response?.provider || provider,
+              tokensUsed: response?.tokensUsed ?? 0,
+            },
+          })
+
+          return {
+            content: assistantContent,
+            provider: response?.provider || provider,
+            model: response?.model || config.selectedModel,
+            tokensUsed: response?.tokensUsed ?? 0,
+            metadata: response?.metadata,
+          }
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error'
           setLastError(errorMessage)
           throw error
         } finally {
+          void get().persistMemoriesIfEnabled()
           setIsGenerating(false)
         }
       },
@@ -484,6 +828,67 @@ export const useAIStore = create<AIState & AIActions>()(
       resetConfig: () => {
         set({ config: defaultConfig })
         SecureStorage.getInstance().clear()
+      },
+
+      resetSession: () => {
+        const memoryStore = useAIMemoryStore.getState()
+        memoryStore.startNewSession({
+          title: `Session ${new Date().toLocaleString()}`,
+        })
+
+        set({
+          suggestions: [],
+          lastError: null,
+          isGenerating: false,
+        })
+
+        void get().persistMemoriesIfEnabled()
+      },
+
+      hydrateMemoriesFromBackend: async () => {
+        const { config, memoriesHydrated } = get()
+        if (!config.syncMemories) {
+          set({ memoriesHydrated: true })
+          return
+        }
+
+        if (memoriesHydrated) {
+          return
+        }
+
+        try {
+          const payload = await LoadAIMemorySessions()
+          if (Array.isArray(payload) && payload.length > 0) {
+            const sessions = deserializeMemorySessions(payload as WailsMemorySession[])
+            const memoryStore = useAIMemoryStore.getState()
+            memoryStore.importSessions(sessions, { merge: true })
+          }
+        } catch (error) {
+          console.error('Failed to hydrate memories from backend:', error)
+        } finally {
+          set({ memoriesHydrated: true })
+        }
+      },
+
+      persistMemoriesIfEnabled: async () => {
+        const { config } = get()
+        if (!config.syncMemories) {
+          return
+        }
+
+        const sessions = useAIMemoryStore.getState().exportSessions()
+        try {
+          await SaveAIMemorySessions(serializeMemorySessions(sessions))
+        } catch (error) {
+          console.error('Failed to persist AI memories:', error)
+        }
+      },
+
+      deleteMemorySession: async (sessionId: string) => {
+        const memoryStore = useAIMemoryStore.getState()
+        memoryStore.deleteSession(sessionId)
+        await DeleteAIMemorySession(sessionId)
+        await get().persistMemoriesIfEnabled()
       },
     }),
     {
@@ -496,7 +901,30 @@ export const useAIStore = create<AIState & AIActions>()(
           anthropicApiKey: state.config.anthropicApiKey ? 'STORED_SECURELY' : '',
           codexApiKey: state.config.codexApiKey ? 'STORED_SECURELY' : '',
         },
+        memoriesHydrated: state.memoriesHydrated,
       }),
+      version: 1,
+      migrate: (persistedState: unknown) => {
+        if (typeof persistedState !== 'object' || !persistedState) {
+          return persistedState
+        }
+
+        const record = persistedState as { state?: { config?: Partial<AIConfig> } }
+        if (!record.state?.config || record.state.config.syncMemories !== undefined) {
+          return persistedState
+        }
+
+        return {
+          ...record,
+          state: {
+            ...record.state,
+            config: {
+              ...record.state.config,
+              syncMemories: true,
+            },
+          },
+        }
+      },
     },
   ),
 )
@@ -537,17 +965,27 @@ export const useAIConfig = () => {
 export const useAIGeneration = () => {
   const generateSQL = useAIStore(state => state.generateSQL)
   const fixSQL = useAIStore(state => state.fixSQL)
+  const sendGenericMessage = useAIStore(state => state.sendGenericMessage)
   const isGenerating = useAIStore(state => state.isGenerating)
   const lastError = useAIStore(state => state.lastError)
   const suggestions = useAIStore(state => state.suggestions)
   const clearSuggestions = useAIStore(state => state.clearSuggestions)
+  const resetSession = useAIStore(state => state.resetSession)
+  const hydrateMemoriesFromBackend = useAIStore(state => state.hydrateMemoriesFromBackend)
+  const deleteMemorySession = useAIStore(state => state.deleteMemorySession)
+  const persistMemoriesIfEnabled = useAIStore(state => state.persistMemoriesIfEnabled)
 
   return {
     generateSQL,
     fixSQL,
+    sendGenericMessage,
     isGenerating,
     lastError,
     suggestions,
     clearSuggestions,
+    resetSession,
+    hydrateMemoriesFromBackend,
+    deleteMemorySession,
+    persistMemoriesIfEnabled,
   }
 }

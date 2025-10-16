@@ -41,9 +41,9 @@
     }
   },
   "assetdir": "./frontend/dist",
-  "reloaddirs": "./frontend/src,./backend-go,./app.go,./main.go",
+  "reloaddirs": "./backend-go,./app.go,./main.go",
   "wailsjsdir": "./frontend",
-  "debounceMS": 100,
+  "debounceMS": 500,
   "devServer": "localhost:5173",
   "appargs": "",
   "runNonNativeBuildHooks": false,

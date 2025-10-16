@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
-import { Database, Clock, Save, AlertCircle, Download, Search } from 'lucide-react'
+import { Database, Clock, Save, AlertCircle, Download, Search, Inbox, Loader2 } from 'lucide-react'
 
-import { EditableTable } from './EditableTable/EditableTable'
+import { EditableTable } from './editable-table/editable-table'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
-import { TableColumn, ExportOptions } from '../types/table'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
+import { TableColumn, ExportOptions, TableRow } from '../types/table'
 import { QueryEditableMetadata, QueryResultRow, useQueryStore } from '../store/query-store'
 import { wailsEndpoints } from '../lib/wails-api'
 import type { EditableTableContext } from '../types/table'
+import { toast } from '../hooks/use-toast'
 
 interface QueryResultsTableProps {
   resultId: string
@@ -32,7 +34,7 @@ interface ToolbarProps {
   canSave: boolean
   saving: boolean
   onSave: () => void
-  onExport: (options: ExportOptions) => void
+  onExport: (options: ExportOptions) => Promise<void>
   metadata?: QueryEditableMetadata | null
   saveError?: string | null
   saveSuccess?: string | null
@@ -71,46 +73,54 @@ const serialiseCsvValue = (value: unknown): string => {
   return stringValue
 }
 
-const ExportButton = ({ context, onExport }: { context: EditableTableContext; onExport: (options: unknown) => void }) => {
-  const [showExportMenu, setShowExportMenu] = useState(false)
-  const [exportOptions, setExportOptions] = useState({
-    format: 'csv' as 'csv' | 'json',
+const ExportButton = ({ context, onExport }: { context: EditableTableContext; onExport: (options: ExportOptions) => Promise<void> }) => {
+  const [showExportDialog, setShowExportDialog] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
+  const [exportOptions, setExportOptions] = useState<ExportOptions>({
+    format: 'csv',
     includeHeaders: true,
     selectedOnly: false,
   })
 
-  const handleExport = (format: 'csv' | 'json') => {
-    const options = { ...exportOptions, format }
-    onExport(options)
-    setShowExportMenu(false)
+  const handleExport = async () => {
+    setIsExporting(true)
+    try {
+      await onExport(exportOptions)
+      setShowExportDialog(false)
+    } finally {
+      setIsExporting(false)
+    }
   }
 
   return (
-    <div className="relative">
+    <>
       <Button
         variant="outline"
         size="sm"
-        onClick={() => setShowExportMenu(!showExportMenu)}
+        onClick={() => setShowExportDialog(true)}
         className="gap-2"
       >
         <Download className="h-4 w-4" />
         Export
       </Button>
 
-      {showExportMenu && (
-        <div className="absolute right-0 top-full mt-1 w-64 bg-white border border-gray-300 rounded-md shadow-lg z-50">
-          <div className="p-3">
-            <h3 className="font-medium text-gray-900 mb-3">Export Options</h3>
+      <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Export Data</DialogTitle>
+            <DialogDescription>
+              Configure export options and download to your Downloads folder.
+            </DialogDescription>
+          </DialogHeader>
 
+          <div className="grid gap-4 py-4">
             {/* Format selection */}
-            <div className="mb-3">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Format
-              </label>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Format</label>
               <select
                 value={exportOptions.format}
                 onChange={(e) => setExportOptions(prev => ({ ...prev, format: e.target.value as 'csv' | 'json' }))}
-                className="w-full px-3 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
               >
                 <option value="csv">CSV</option>
                 <option value="json">JSON</option>
@@ -118,60 +128,63 @@ const ExportButton = ({ context, onExport }: { context: EditableTableContext; on
             </div>
 
             {/* Options */}
-            <div className="space-y-2 mb-3">
-              <label className="flex items-center">
+            <div className="space-y-3">
+              <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={exportOptions.includeHeaders}
                   onChange={(e) => setExportOptions(prev => ({ ...prev, includeHeaders: e.target.checked }))}
-                  className="rounded border-gray-300 focus:ring-2 focus:ring-blue-500"
+                  className="rounded border-input focus:ring-2 focus:ring-ring"
                 />
-                <span className="ml-2 text-sm text-gray-700">Include headers</span>
+                <span className="text-sm">Include headers</span>
               </label>
               {context.state.selectedRows.length > 0 && (
-                <label className="flex items-center">
+                <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={exportOptions.selectedOnly}
                     onChange={(e) => setExportOptions(prev => ({ ...prev, selectedOnly: e.target.checked }))}
-                    className="rounded border-gray-300 focus:ring-2 focus:ring-blue-500"
+                    className="rounded border-input focus:ring-2 focus:ring-ring"
                   />
-                  <span className="ml-2 text-sm text-gray-700">
+                  <span className="text-sm">
                     Selected only ({context.state.selectedRows.length} rows)
                   </span>
                 </label>
               )}
             </div>
-
-            {/* Export buttons */}
-            <div className="flex gap-2">
-              <button
-                onClick={() => handleExport(exportOptions.format)}
-                className="flex-1 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm"
-              >
-                Export
-              </button>
-              <button
-                onClick={() => setShowExportMenu(false)}
-                className="px-3 py-2 border border-gray-300 rounded hover:bg-gray-50 transition-colors text-sm"
-              >
-                Cancel
-              </button>
-            </div>
           </div>
-        </div>
-      )}
-    </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowExportDialog(false)}
+              disabled={isExporting}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleExport} disabled={isExporting}>
+              {isExporting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Exporting...
+                </>
+              ) : (
+                <>
+                  <Download className="h-4 w-4 mr-2" />
+                  Export to Downloads
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
 
 const QueryResultsToolbar = ({
   context,
-  rowCount,
-  columnCount,
-  executionTimeMs,
   executedAt,
-  dirtyCount,
   canSave,
   saving,
   onSave,
@@ -185,22 +198,38 @@ const QueryResultsToolbar = ({
   }
 
   return (
-    <div className="flex flex-col gap-3 border-b border-gray-200 bg-background px-4 py-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-          <span className="flex items-center gap-2">
-            <Database className="h-4 w-4" />
-            {rowCount} rows
-          </span>
-          <span className="flex items-center gap-2">
-            <Clock className="h-4 w-4" />
-            {executionTimeMs.toFixed(2)} ms
-          </span>
-          {dirtyCount > 0 && (
-            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800">
-              {dirtyCount} pending change{dirtyCount > 1 ? 's' : ''}
-            </span>
+    <div className="flex flex-col gap-3 border-b border-gray-200 bg-background px-1 py-1">
+      {(saveError || saveSuccess || (!metadata?.enabled && metadata?.reason)) && (
+        <div className="flex flex-col gap-2 text-xs">
+          {saveError && (
+            <div className="flex items-center gap-2 rounded border border-destructive/40 bg-destructive/10 px-3 py-2 text-destructive">
+              <AlertCircle className="h-4 w-4" />
+              <span>{saveError}</span>
+            </div>
           )}
+          {!saveError && saveSuccess && (
+            <div className="rounded border border-primary bg-primary/10 px-3 py-2 text-primary">
+              {saveSuccess}
+            </div>
+          )}
+          {!metadata?.enabled && metadata?.reason && (
+            <div className="flex items-center gap-2 rounded border border-accent bg-accent/10 px-3 py-2 text-accent-foreground">
+              <AlertCircle className="h-4 w-4" />
+              <span>{metadata.reason}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="relative w-full max-w-xs">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={context.state.globalFilter}
+            onChange={handleSearchChange}
+            placeholder="Search…"
+            className="h-9 w-full pl-9"
+          />
         </div>
 
         <div className="flex items-center gap-3">
@@ -229,46 +258,6 @@ const QueryResultsToolbar = ({
               )}
             </Button>
           )}
-        </div>
-      </div>
-
-      {(saveError || saveSuccess || (!metadata?.enabled && metadata?.reason)) && (
-        <div className="flex flex-col gap-2 text-xs">
-          {saveError && (
-            <div className="flex items-center gap-2 rounded border border-destructive/40 bg-destructive/10 px-3 py-2 text-destructive">
-              <AlertCircle className="h-4 w-4" />
-              <span>{saveError}</span>
-            </div>
-          )}
-          {!saveError && saveSuccess && (
-            <div className="rounded border border-emerald-300 bg-emerald-50 px-3 py-2 text-emerald-700">
-              {saveSuccess}
-            </div>
-          )}
-          {!metadata?.enabled && metadata?.reason && (
-            <div className="flex items-center gap-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">
-              <AlertCircle className="h-4 w-4" />
-              <span>{metadata.reason}</span>
-            </div>
-          )}
-        </div>
-      )}
-
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="relative w-full max-w-xs">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={context.state.globalFilter}
-            onChange={handleSearchChange}
-            placeholder="Search…"
-            className="h-9 w-full pl-9"
-          />
-        </div>
-
-        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-          <span>
-            {rowCount} rows • {columnCount} columns
-          </span>
         </div>
       </div>
     </div>
@@ -403,7 +392,7 @@ export const QueryResultsTable = ({
   //   URL.revokeObjectURL(url)
   // }, [columns, resolveCurrentRows])
 
-  const handleExport = useCallback((options: ExportOptions) => {
+  const handleExport = useCallback(async (options: ExportOptions) => {
     const currentRows = resolveCurrentRows()
     let dataToExport = currentRows
 
@@ -413,29 +402,51 @@ export const QueryResultsTable = ({
       dataToExport = currentRows.filter(row => selectedIds.includes(row.__rowId!))
     }
 
+    const timestamp = Date.now()
+    let filename: string
+    let content: string
+
     if (options.format === 'csv') {
+      filename = `query-results-${timestamp}.csv`
       const header = options.includeHeaders ? columns.join(',') : ''
       const records = dataToExport.map((row) =>
         columns.map((column) => serialiseCsvValue(row[column])).join(',')
       )
+      content = options.includeHeaders ? [header, ...records].join('\n') : records.join('\n')
+    } else {
+      filename = `query-results-${timestamp}.json`
+      content = JSON.stringify(dataToExport, null, 2)
+    }
 
-      const csv = options.includeHeaders ? [header, ...records].join('\n') : records.join('\n')
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    try {
+      // Import the Wails function
+      const { SaveToDownloads } = await import('../../wailsjs/go/main/App')
+      const filePath = await SaveToDownloads(filename, content)
+      
+      // Show success notification with file path
+      toast({
+        title: 'Export successful',
+        description: `File saved to: ${filePath}`,
+        variant: 'default',
+      })
+    } catch (error) {
+      console.error('Failed to save file to Downloads:', error)
+      
+      // Show error and fallback to browser download
+      toast({
+        title: 'Export failed',
+        description: 'Falling back to browser download',
+        variant: 'destructive',
+      })
+      
+      // Fallback to browser download if Wails method fails
+      const blob = new Blob([content], { 
+        type: options.format === 'csv' ? 'text/csv;charset=utf-8;' : 'application/json;charset=utf-8;'
+      })
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      link.setAttribute('download', `query-results-${Date.now()}.csv`)
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
-    } else if (options.format === 'json') {
-      const json = JSON.stringify(dataToExport, null, 2)
-      const blob = new Blob([json], { type: 'application/json;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.setAttribute('download', `query-results-${Date.now()}.json`)
+      link.setAttribute('download', filename)
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
@@ -631,52 +642,78 @@ export const QueryResultsTable = ({
 
   const canSave = Boolean(metadata?.enabled && dirtyRowIds.length > 0 && !saving)
 
+  // Memoize onDirtyChange to prevent infinite re-renders
+  const handleDirtyChange = useCallback((ids: string[]) => {
+    setDirtyRowIds(ids)
+    if (ids.length > 0) {
+      setSaveSuccess(null)
+    }
+  }, [])
+
+  // Memoize toolbar function to prevent infinite re-renders
+  const renderToolbar = useCallback((context: EditableTableContext) => {
+    // Capture context in ref outside of render
+    tableContextRef.current = context
+    
+    return (
+      <QueryResultsToolbar
+        context={context}
+        rowCount={rowCount}
+        columnCount={columns.length}
+        executionTimeMs={executionTimeMs}
+        executedAt={executedAt}
+        dirtyCount={dirtyRowIds.length}
+        canSave={canSave}
+        saving={saving}
+        onSave={handleSave}
+        onExport={handleExport}
+        metadata={metadata}
+        saveError={saveError}
+        saveSuccess={saveSuccess}
+      />
+    )
+  }, [rowCount, columns.length, executionTimeMs, executedAt, dirtyRowIds.length, 
+      canSave, saving, handleSave, handleExport, metadata, saveError, saveSuccess])
+
   return (
     <div className="flex flex-1 min-h-0 flex-col">
-      <EditableTable
-        data={rows}
-        columns={tableColumns}
-        onDirtyChange={(ids) => {
-          setDirtyRowIds(ids)
-          if (ids.length > 0) {
-            setSaveSuccess(null)
-          }
-        }}
-        enableMultiSelect={false}
-        enableGlobalFilter={false}
-        enableExport={true}
-        loading={saving}
-        className="flex-1 min-h-0"
-        height="100%"
-        onExport={handleExport}
-        onCellEdit={handleCellEdit}
-        toolbar={(context) => {
-          tableContextRef.current = context
-          return (
-            <QueryResultsToolbar
-              context={context}
-              rowCount={rowCount}
-              columnCount={columns.length}
-              executionTimeMs={executionTimeMs}
-              executedAt={executedAt}
-              dirtyCount={dirtyRowIds.length}
-              canSave={canSave}
-              saving={saving}
-              onSave={handleSave}
-              onExport={handleExport}
-              metadata={metadata}
-              saveError={saveError}
-              saveSuccess={saveSuccess}
-            />
-          )
-        }}
-        footer={null}
-      />
+      {rows.length === 0 ? (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center text-muted-foreground">
+            <Inbox className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <p className="text-lg font-medium mb-1">No results found</p>
+            <p className="text-sm">Your query returned 0 rows</p>
+          </div>
+        </div>
+      ) : (
+        <EditableTable
+          data={rows as TableRow[]}
+          columns={tableColumns}
+          onDirtyChange={handleDirtyChange}
+          enableMultiSelect={false}
+          enableGlobalFilter={false}
+          enableExport={true}
+          loading={saving}
+          className="flex-1 min-h-0"
+          height="100%"
+          onExport={handleExport}
+          onCellEdit={handleCellEdit}
+          toolbar={renderToolbar}
+          footer={null}
+        />
+      )}
 
       <div className="flex-shrink-0 border-t border-border bg-muted/40 px-4 py-2 text-xs text-muted-foreground flex items-center justify-between">
-        <span>
-          {rowCount.toLocaleString()} rows • {columns.length} columns
-        </span>
+        <div className="flex items-center gap-4">
+          <span className="flex items-center gap-1.5">
+            <Database className="h-3.5 w-3.5" />
+            {rowCount.toLocaleString()} rows • {columns.length} columns
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Clock className="h-3.5 w-3.5" />
+            {executionTimeMs.toFixed(2)} ms
+          </span>
+        </div>
         <span>
           {dirtyRowIds.length > 0
             ? `${dirtyRowIds.length} pending change${dirtyRowIds.length === 1 ? '' : 's'}`

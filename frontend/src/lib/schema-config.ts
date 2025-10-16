@@ -1,4 +1,4 @@
-import { SchemaNode } from '@/hooks/useSchemaIntrospection'
+import { SchemaNode } from '@/hooks/use-schema-introspection'
 import { SchemaConfig, TableConfig, ColumnConfig, EdgeConfig } from '@/types/schema-visualizer'
 
 interface ForeignKeyInfo {

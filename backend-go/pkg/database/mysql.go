@@ -14,9 +14,10 @@ import (
 
 // MySQLDatabase implements the Database interface for MySQL/MariaDB
 type MySQLDatabase struct {
-	pool   *ConnectionPool
-	config ConnectionConfig
-	logger *logrus.Logger
+	pool           *ConnectionPool
+	config         ConnectionConfig
+	logger         *logrus.Logger
+	structureCache *tableStructureCache
 }
 
 // NewMySQLDatabase creates a new MySQL database instance
@@ -27,9 +28,10 @@ func NewMySQLDatabase(config ConnectionConfig, logger *logrus.Logger) (*MySQLDat
 	}
 
 	return &MySQLDatabase{
-		pool:   pool,
-		config: config,
-		logger: logger,
+		pool:           pool,
+		config:         config,
+		logger:         logger,
+		structureCache: newTableStructureCache(10 * time.Minute),
 	}, nil
 }
 
@@ -45,6 +47,7 @@ func (m *MySQLDatabase) Connect(ctx context.Context, config ConnectionConfig) er
 		m.pool.Close()
 	}
 	m.pool = pool
+	m.structureCache = newTableStructureCache(10 * time.Minute)
 
 	return nil
 }
@@ -189,71 +192,96 @@ func (m *MySQLDatabase) executeSelect(ctx context.Context, db *sql.DB, query str
 
 	result.RowCount = int64(len(result.Rows))
 	result.Duration = time.Since(start)
-	result.Editable = m.buildEditableMetadata(ctx, query, columns)
+
+	if metadata, ready, err := m.computeEditableMetadata(ctx, query, columns, false); err == nil {
+		if metadata != nil {
+			if !ready {
+				metadata.Pending = true
+				if metadata.Reason == "" {
+					metadata.Reason = "Loading editable metadata"
+				}
+			}
+			result.Editable = metadata
+		}
+	} else {
+		meta := newEditableMetadata(columns)
+		meta.Reason = "Failed to prepare editable metadata"
+		result.Editable = meta
+	}
 
 	return result, nil
 }
 
-func (m *MySQLDatabase) buildEditableMetadata(ctx context.Context, query string, columns []string) *EditableQueryMetadata {
-	metadata := &EditableQueryMetadata{
-		Enabled: false,
-		Columns: make([]EditableColumn, 0, len(columns)),
-	}
-
-	// Default columns (read-only) in case we early-return
-	for _, col := range columns {
-		metadata.Columns = append(metadata.Columns, EditableColumn{
-			Name:       col,
-			ResultName: col,
-			Editable:   false,
-			PrimaryKey: false,
-		})
-	}
+func (m *MySQLDatabase) computeEditableMetadata(ctx context.Context, query string, columns []string, allowFetch bool) (*EditableQueryMetadata, bool, error) {
+	metadata := newEditableMetadata(columns)
 
 	query = strings.TrimSpace(query)
 	if query == "" {
 		metadata.Reason = "Empty query"
-		return metadata
+		return metadata, true, nil
 	}
 
 	schema, table, reason, ok := parseSimpleSelect(query)
 	if !ok {
 		metadata.Reason = reason
-		return metadata
+		return metadata, true, nil
+	}
+
+	if table == "" {
+		metadata.Reason = "Unable to identify target table"
+		return metadata, true, nil
 	}
 
 	if schema == "" {
-		schema = m.config.Database // Use database name as schema for MySQL
+		schema = strings.TrimSpace(m.config.Database)
+	}
+	if schema == "" {
+		metadata.Reason = "Unable to determine target schema"
+		return metadata, true, nil
 	}
 
-	// Get table structure to determine editable columns
-	tableStructure, err := m.GetTableStructure(ctx, schema, table)
+	metadata.Schema = schema
+	metadata.Table = table
+
+	structure, ok, err := m.ensureTableStructure(ctx, schema, table, allowFetch)
 	if err != nil {
 		metadata.Reason = fmt.Sprintf("Failed to get table structure: %v", err)
-		return metadata
+		return metadata, true, err
 	}
 
-	// Build column metadata
+	if !ok {
+		metadata.Pending = true
+		if metadata.Reason == "" {
+			metadata.Reason = "Loading table metadata"
+		}
+		return metadata, false, nil
+	}
+
+	columnMap := make(map[string]ColumnInfo, len(structure.Columns))
+	primaryKeys := make([]string, 0)
+	for _, col := range structure.Columns {
+		columnMap[strings.ToLower(col.Name)] = col
+		if col.PrimaryKey {
+			primaryKeys = append(primaryKeys, col.Name)
+		}
+	}
+
+	if len(primaryKeys) == 0 {
+		metadata.Reason = "Table does not have a primary key"
+		return metadata, true, nil
+	}
+
 	editableColumns := make([]EditableColumn, 0, len(columns))
 	for _, col := range columns {
-		var columnInfo *ColumnInfo
-		for _, colInfo := range tableStructure.Columns {
-			if strings.EqualFold(colInfo.Name, col) {
-				columnInfo = &colInfo
-				break
-			}
-		}
-
-		if columnInfo != nil {
+		if colInfo, exists := columnMap[strings.ToLower(col)]; exists {
 			editableColumns = append(editableColumns, EditableColumn{
-				Name:       columnInfo.Name,
-				ResultName: columnInfo.Name,
-				DataType:   columnInfo.DataType,
-				Editable:   true, // MySQL allows editing most columns
-				PrimaryKey: columnInfo.PrimaryKey,
+				Name:       colInfo.Name,
+				ResultName: colInfo.Name,
+				DataType:   colInfo.DataType,
+				Editable:   true,
+				PrimaryKey: colInfo.PrimaryKey,
 			})
 		} else {
-			// Column not found in table structure, mark as read-only
 			editableColumns = append(editableColumns, EditableColumn{
 				Name:       col,
 				ResultName: col,
@@ -263,26 +291,74 @@ func (m *MySQLDatabase) buildEditableMetadata(ctx context.Context, query string,
 		}
 	}
 
-	// Collect primary keys
-	var primaryKeys []string
-	for _, col := range tableStructure.Columns {
-		if col.PrimaryKey {
-			primaryKeys = append(primaryKeys, col.Name)
-		}
-	}
-
-	if len(primaryKeys) == 0 {
-		metadata.Reason = "Table does not have a primary key"
-		return metadata
-	}
-
 	metadata.Enabled = true
-	metadata.Schema = schema
-	metadata.Table = table
 	metadata.PrimaryKeys = primaryKeys
 	metadata.Columns = editableColumns
+	metadata.Pending = false
+	metadata.Reason = ""
 
-	return metadata
+	return metadata, true, nil
+}
+
+func (m *MySQLDatabase) ensureTableStructure(ctx context.Context, schema, table string, allowFetch bool) (*TableStructure, bool, error) {
+	if structure, ok := m.structureCache.get(schema, table); ok {
+		return structure, true, nil
+	}
+
+	if !allowFetch {
+		return nil, false, nil
+	}
+
+	structure, err := m.loadTableStructure(ctx, schema, table)
+	if err != nil {
+		return nil, false, err
+	}
+
+	m.structureCache.set(schema, table, structure)
+	return cloneTableStructure(structure), true, nil
+}
+
+func (m *MySQLDatabase) loadTableStructure(ctx context.Context, schema, table string) (*TableStructure, error) {
+	db, err := m.pool.Get(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	structure := &TableStructure{}
+
+	tableInfo, err := m.getTableInfo(ctx, db, schema, table)
+	if err != nil {
+		return nil, err
+	}
+	structure.Table = *tableInfo
+
+	columns, err := m.getTableColumns(ctx, db, schema, table)
+	if err != nil {
+		return nil, err
+	}
+	structure.Columns = columns
+
+	indexes, err := m.getTableIndexes(ctx, db, schema, table)
+	if err != nil {
+		return nil, err
+	}
+	structure.Indexes = indexes
+
+	foreignKeys, err := m.getTableForeignKeys(ctx, db, schema, table)
+	if err != nil {
+		return nil, err
+	}
+	structure.ForeignKeys = foreignKeys
+
+	return structure, nil
+}
+
+func (m *MySQLDatabase) ComputeEditableMetadata(ctx context.Context, query string, columns []string) (*EditableQueryMetadata, error) {
+	metadata, _, err := m.computeEditableMetadata(ctx, query, columns, true)
+	if metadata != nil {
+		metadata.Pending = false
+	}
+	return metadata, err
 }
 
 // executeNonSelect handles INSERT, UPDATE, DELETE, DDL queries
@@ -476,42 +552,17 @@ func (m *MySQLDatabase) GetTables(ctx context.Context, schema string) ([]TableIn
 
 // GetTableStructure returns detailed structure information for a table
 func (m *MySQLDatabase) GetTableStructure(ctx context.Context, schema, table string) (*TableStructure, error) {
-	db, err := m.pool.Get(ctx)
+	if structure, ok := m.structureCache.get(schema, table); ok {
+		return structure, nil
+	}
+
+	structure, err := m.loadTableStructure(ctx, schema, table)
 	if err != nil {
 		return nil, err
 	}
 
-	structure := &TableStructure{}
-
-	// Get table info
-	tableInfo, err := m.getTableInfo(ctx, db, schema, table)
-	if err != nil {
-		return nil, err
-	}
-	structure.Table = *tableInfo
-
-	// Get columns
-	columns, err := m.getTableColumns(ctx, db, schema, table)
-	if err != nil {
-		return nil, err
-	}
-	structure.Columns = columns
-
-	// Get indexes
-	indexes, err := m.getTableIndexes(ctx, db, schema, table)
-	if err != nil {
-		return nil, err
-	}
-	structure.Indexes = indexes
-
-	// Get foreign keys
-	foreignKeys, err := m.getTableForeignKeys(ctx, db, schema, table)
-	if err != nil {
-		return nil, err
-	}
-	structure.ForeignKeys = foreignKeys
-
-	return structure, nil
+	m.structureCache.set(schema, table, structure)
+	return cloneTableStructure(structure), nil
 }
 
 // Helper methods for getting table structure details
@@ -894,4 +945,3 @@ func (t *MySQLTransaction) Commit() error {
 func (t *MySQLTransaction) Rollback() error {
 	return t.tx.Rollback()
 }
-

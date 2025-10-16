@@ -445,3 +445,56 @@ func (f *FileService) CreateTempFile(content, prefix, suffix string) (string, er
 
 	return filePath, nil
 }
+
+// GetDownloadsPath returns the user's Downloads directory path
+func (f *FileService) GetDownloadsPath() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("failed to get home directory: %w", err)
+	}
+	downloadsPath := filepath.Join(home, "Downloads")
+	return downloadsPath, nil
+}
+
+// SaveToDownloads saves content to a file in the Downloads folder
+func (f *FileService) SaveToDownloads(filename, content string) (string, error) {
+	if filename == "" {
+		return "", fmt.Errorf("filename cannot be empty")
+	}
+
+	downloadsPath, err := f.GetDownloadsPath()
+	if err != nil {
+		return "", err
+	}
+
+	// Ensure Downloads directory exists
+	if err := os.MkdirAll(downloadsPath, 0755); err != nil {
+		return "", fmt.Errorf("failed to create Downloads directory: %w", err)
+	}
+
+	// Create full file path
+	filePath := filepath.Join(downloadsPath, filename)
+
+	// Write the file
+	err = ioutil.WriteFile(filePath, []byte(content), 0644)
+	if err != nil {
+		f.logger.WithFields(logrus.Fields{
+			"file_path": filePath,
+			"error":     err,
+		}).Error("Failed to write file to Downloads")
+		return "", fmt.Errorf("failed to write file: %w", err)
+	}
+
+	f.logger.WithFields(logrus.Fields{
+		"file_path": filePath,
+		"size":      len(content),
+	}).Info("File saved to Downloads successfully")
+
+	// Emit file saved event
+	runtime.EventsEmit(f.ctx, "file:saved", map[string]interface{}{
+		"path": filePath,
+		"size": len(content),
+	})
+
+	return filePath, nil
+}

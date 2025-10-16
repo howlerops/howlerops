@@ -3,15 +3,23 @@ package main
 import (
 	"context"
 	"embed"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
+	"github.com/sql-studio/backend-go/pkg/ai"
 	"github.com/sql-studio/backend-go/pkg/database"
+	"github.com/sql-studio/backend-go/pkg/database/multiquery"
+	"github.com/sql-studio/backend-go/pkg/rag"
+	"github.com/sql-studio/backend-go/pkg/storage"
 	"github.com/sql-studio/sql-studio/services"
 )
 
@@ -20,11 +28,14 @@ var iconFS embed.FS
 
 // App struct
 type App struct {
-	ctx             context.Context
-	logger          *logrus.Logger
-	databaseService *services.DatabaseService
-	fileService     *services.FileService
-	keyboardService *services.KeyboardService
+	ctx              context.Context
+	logger           *logrus.Logger
+	storageManager   *storage.Manager // Storage for connections, queries, and RAG
+	databaseService  *services.DatabaseService
+	fileService      *services.FileService
+	keyboardService  *services.KeyboardService
+	aiService        *ai.Service
+	embeddingService rag.EmbeddingService
 }
 
 // ConnectionRequest represents a database connection request
@@ -56,6 +67,17 @@ type QueryResponse struct {
 	Duration string                          `json:"duration"`
 	Error    string                          `json:"error,omitempty"`
 	Editable *database.EditableQueryMetadata `json:"editable,omitempty"`
+}
+
+// EditableMetadataJobResponse represents the status of an editable metadata background job
+type EditableMetadataJobResponse struct {
+	ID           string                          `json:"id"`
+	ConnectionID string                          `json:"connectionId"`
+	Status       string                          `json:"status"`
+	Metadata     *database.EditableQueryMetadata `json:"metadata,omitempty"`
+	Error        string                          `json:"error,omitempty"`
+	CreatedAt    string                          `json:"createdAt"`
+	CompletedAt  string                          `json:"completedAt,omitempty"`
 }
 
 // QueryRowUpdateRequest represents an inline edit save request
@@ -111,6 +133,215 @@ type ColumnInfo struct {
 	NumericScale       *int    `json:"numericScale"`
 }
 
+// Multi-Database Query Types
+
+// MultiQueryRequest represents a multi-database query request
+type MultiQueryRequest struct {
+	Query    string            `json:"query"`
+	Limit    int               `json:"limit,omitempty"`
+	Timeout  int               `json:"timeout,omitempty"`  // seconds
+	Strategy string            `json:"strategy,omitempty"` // "auto", "federated", "push_down"
+	Options  map[string]string `json:"options,omitempty"`
+}
+
+// MultiQueryResponse represents a multi-database query response
+type MultiQueryResponse struct {
+	Columns         []string        `json:"columns"`
+	Rows            [][]interface{} `json:"rows"`
+	RowCount        int64           `json:"rowCount"`
+	Duration        string          `json:"duration"`
+	ConnectionsUsed []string        `json:"connectionsUsed"`
+	Strategy        string          `json:"strategy"`
+	Error           string          `json:"error,omitempty"`
+}
+
+// ValidationResult represents validation result for a multi-query
+type ValidationResult struct {
+	Valid               bool     `json:"valid"`
+	Errors              []string `json:"errors,omitempty"`
+	RequiredConnections []string `json:"requiredConnections,omitempty"`
+	Tables              []string `json:"tables,omitempty"`
+	EstimatedStrategy   string   `json:"estimatedStrategy,omitempty"`
+}
+
+// CombinedSchema represents combined schema from multiple connections
+type CombinedSchema struct {
+	Connections map[string]ConnectionSchema `json:"connections"`
+	Conflicts   []SchemaConflict            `json:"conflicts"`
+}
+
+// ConnectionSchema represents schema info for a connection
+type ConnectionSchema struct {
+	ConnectionID string      `json:"connectionId"`
+	Name         string      `json:"name"`
+	Type         string      `json:"type"`
+	Schemas      []string    `json:"schemas"`
+	Tables       []TableInfo `json:"tables"`
+}
+
+// SchemaConflict represents a table name conflict
+type SchemaConflict struct {
+	TableName   string             `json:"tableName"`
+	Connections []ConflictingTable `json:"connections"`
+	Resolution  string             `json:"resolution"`
+}
+
+// ConflictingTable represents a table in a conflict
+type ConflictingTable struct {
+	ConnectionID string `json:"connectionId"`
+	TableName    string `json:"tableName"`
+	Schema       string `json:"schema"`
+}
+
+// AI/RAG Types
+
+// NLQueryRequest represents a natural language query request
+type NLQueryRequest struct {
+	Prompt       string  `json:"prompt"`
+	ConnectionID string  `json:"connectionId"`
+	Context      string  `json:"context,omitempty"`
+	Provider     string  `json:"provider,omitempty"`
+	Model        string  `json:"model,omitempty"`
+	MaxTokens    int     `json:"maxTokens,omitempty"`
+	Temperature  float64 `json:"temperature,omitempty"`
+}
+
+// FixSQLRequest represents a request to fix an SQL statement
+type FixSQLRequest struct {
+	Query        string  `json:"query"`
+	Error        string  `json:"error"`
+	ConnectionID string  `json:"connectionId"`
+	Provider     string  `json:"provider,omitempty"`
+	Model        string  `json:"model,omitempty"`
+	MaxTokens    int     `json:"maxTokens,omitempty"`
+	Temperature  float64 `json:"temperature,omitempty"`
+	Context      string  `json:"context,omitempty"`
+}
+
+// GenericChatRequest represents a generic AI chat request
+type GenericChatRequest struct {
+	Prompt      string            `json:"prompt"`
+	Context     string            `json:"context,omitempty"`
+	System      string            `json:"system,omitempty"`
+	Provider    string            `json:"provider,omitempty"`
+	Model       string            `json:"model,omitempty"`
+	MaxTokens   int               `json:"maxTokens,omitempty"`
+	Temperature float64           `json:"temperature,omitempty"`
+	Metadata    map[string]string `json:"metadata,omitempty"`
+}
+
+// GenericChatResponse represents a generic AI chat response
+type GenericChatResponse struct {
+	Content    string            `json:"content"`
+	Provider   string            `json:"provider"`
+	Model      string            `json:"model"`
+	TokensUsed int               `json:"tokensUsed,omitempty"`
+	Metadata   map[string]string `json:"metadata,omitempty"`
+}
+
+// AIMemoryMessagePayload represents a single conversational turn stored for memory
+type AIMemoryMessagePayload struct {
+	Role      string                 `json:"role"`
+	Content   string                 `json:"content"`
+	Timestamp int64                  `json:"timestamp"`
+	Metadata  map[string]interface{} `json:"metadata,omitempty"`
+}
+
+// AIMemorySessionPayload represents a persisted AI memory session
+type AIMemorySessionPayload struct {
+	ID            string                   `json:"id"`
+	Title         string                   `json:"title"`
+	CreatedAt     int64                    `json:"createdAt"`
+	UpdatedAt     int64                    `json:"updatedAt"`
+	Summary       string                   `json:"summary,omitempty"`
+	SummaryTokens int                      `json:"summaryTokens,omitempty"`
+	Metadata      map[string]interface{}   `json:"metadata,omitempty"`
+	Messages      []AIMemoryMessagePayload `json:"messages"`
+}
+
+// GeneratedSQLResponse represents a generated SQL query
+type GeneratedSQLResponse struct {
+	SQL          string             `json:"sql"`
+	Confidence   float64            `json:"confidence"`
+	Explanation  string             `json:"explanation"`
+	Warnings     []string           `json:"warnings,omitempty"`
+	Alternatives []AlternativeQuery `json:"alternatives,omitempty"`
+}
+
+// AlternativeQuery represents an alternative query option
+type AlternativeQuery struct {
+	SQL         string  `json:"sql"`
+	Confidence  float64 `json:"confidence"`
+	Description string  `json:"description"`
+}
+
+// FixedSQLResponse represents a fixed SQL query
+type FixedSQLResponse struct {
+	SQL         string   `json:"sql"`
+	Explanation string   `json:"explanation"`
+	Changes     []string `json:"changes"`
+}
+
+// AIMemoryRecallResult represents a recalled AI memory snippet
+type AIMemoryRecallResult struct {
+	SessionID string  `json:"sessionId"`
+	Title     string  `json:"title"`
+	Summary   string  `json:"summary,omitempty"`
+	Content   string  `json:"content"`
+	Score     float32 `json:"score"`
+}
+
+// OptimizationResponse represents an optimized query
+type OptimizationResponse struct {
+	SQL              string       `json:"sql"`
+	EstimatedSpeedup string       `json:"estimatedSpeedup"`
+	Explanation      string       `json:"explanation"`
+	Suggestions      []Suggestion `json:"suggestions"`
+}
+
+// Suggestion represents an autocomplete or optimization suggestion
+type Suggestion struct {
+	Text        string  `json:"text"`
+	Type        string  `json:"type"`
+	Detail      string  `json:"detail,omitempty"`
+	Confidence  float64 `json:"confidence,omitempty"`
+	Description string  `json:"description,omitempty"`
+	SQL         string  `json:"sql,omitempty"`
+}
+
+// VizSuggestion represents a visualization suggestion
+type VizSuggestion struct {
+	ChartType   string            `json:"chartType"`
+	Title       string            `json:"title"`
+	Description string            `json:"description"`
+	Config      map[string]string `json:"config"`
+	Confidence  float64           `json:"confidence"`
+}
+
+// ResultData represents query result data for AI processing
+type ResultData struct {
+	Columns  []string        `json:"columns"`
+	Rows     [][]interface{} `json:"rows"`
+	RowCount int64           `json:"rowCount"`
+}
+
+// ProviderStatus represents AI provider status
+type ProviderStatus struct {
+	Name      string `json:"name"`
+	Available bool   `json:"available"`
+	Error     string `json:"error,omitempty"`
+	Model     string `json:"model,omitempty"`
+}
+
+// ProviderConfig represents AI provider configuration
+type ProviderConfig struct {
+	Provider string            `json:"provider"`
+	APIKey   string            `json:"apiKey,omitempty"`
+	Endpoint string            `json:"endpoint,omitempty"`
+	Model    string            `json:"model,omitempty"`
+	Options  map[string]string `json:"options,omitempty"`
+}
+
 // NewApp creates a new App application struct
 func NewApp() *App {
 	logger := logrus.New()
@@ -139,15 +370,158 @@ func (a *App) OnStartup(ctx context.Context) {
 	a.fileService.SetContext(ctx)
 	a.keyboardService.SetContext(ctx)
 
+	// Initialize storage manager
+	if err := a.initializeStorageManager(ctx); err != nil {
+		a.logger.WithError(err).Error("Failed to initialize storage manager")
+		// Continue without storage - graceful degradation
+	}
+
+	// Initialize AI service if available (graceful degradation)
+	a.initializeAIService(ctx)
+	a.initializeEmbeddingService(ctx)
+
 	a.logger.Info("HowlerOps desktop application started")
 
 	// Emit app ready event
 	runtime.EventsEmit(ctx, "app:startup-complete")
 }
 
+// initializeStorageManager initializes the storage manager for local data
+func (a *App) initializeStorageManager(ctx context.Context) error {
+	// Get user ID from environment or generate one
+	userID := getEnvOrDefault("HOWLEROPS_USER_ID", "local-user")
+
+	vectorStoreType := strings.ToLower(getEnvOrDefault("VECTOR_STORE_TYPE", "sqlite"))
+	mysqlVectorDSN := os.Getenv("MYSQL_VECTOR_DSN")
+	mysqlVectorSize := getEnvOrDefault("MYSQL_VECTOR_SIZE", "1536")
+	vectorSize := 1536
+	if parsed, err := strconv.Atoi(mysqlVectorSize); err == nil {
+		vectorSize = parsed
+	}
+
+	// Configure storage
+	storageConfig := &storage.Config{
+		Mode: storage.ModeSolo,
+		Local: storage.LocalStorageConfig{
+			DataDir:         getEnvOrDefault("HOWLEROPS_DATA_DIR", "~/.howlerops"),
+			Database:        "local.db",
+			VectorsDB:       "vectors.db",
+			UserID:          userID,
+			VectorSize:      vectorSize,
+			VectorStoreType: vectorStoreType,
+		},
+		UserID: userID,
+	}
+
+	if vectorStoreType == "mysql" && mysqlVectorDSN != "" {
+		storageConfig.Local.MySQLVector = &storage.MySQLVectorConfig{
+			DSN:        mysqlVectorDSN,
+			VectorSize: vectorSize,
+		}
+	}
+
+	// Check if team mode is enabled
+	if os.Getenv("HOWLEROPS_MODE") == "team" && os.Getenv("TURSO_URL") != "" {
+		storageConfig.Mode = storage.ModeTeam
+		storageConfig.Team = &storage.TursoConfig{
+			Enabled:        true,
+			URL:            os.Getenv("TURSO_URL"),
+			AuthToken:      os.Getenv("TURSO_AUTH_TOKEN"),
+			LocalReplica:   getEnvOrDefault("TURSO_LOCAL_REPLICA", "~/.howlerops/team-replica.db"),
+			SyncInterval:   getEnvOrDefault("TURSO_SYNC_INTERVAL", "30s"),
+			ShareHistory:   true,
+			ShareQueries:   true,
+			ShareLearnings: true,
+			TeamID:         os.Getenv("TEAM_ID"),
+		}
+	}
+
+	// Create storage manager
+	manager, err := storage.NewManager(ctx, storageConfig, a.logger)
+	if err != nil {
+		return fmt.Errorf("failed to create storage manager: %w", err)
+	}
+
+	a.storageManager = manager
+	a.logger.WithFields(logrus.Fields{
+		"mode":    manager.GetMode().String(),
+		"user_id": manager.GetUserID(),
+	}).Info("Storage manager initialized")
+
+	return nil
+}
+
+// initializeAIService initializes the AI service if configured
+// This is optional and will gracefully degrade if not available
+func (a *App) initializeAIService(ctx context.Context) {
+	// Try to initialize AI service (loads config from environment variables)
+	aiService, err := ai.NewService(a.logger)
+	if err != nil {
+		a.logger.WithError(err).Warn("AI service not available - configure API keys via environment variables")
+		a.logger.Info("Set OPENAI_API_KEY or ANTHROPIC_API_KEY to enable AI features")
+		return
+	}
+
+	// Start the AI service
+	if err := aiService.Start(ctx); err != nil {
+		a.logger.WithError(err).Warn("Failed to start AI service")
+		return
+	}
+
+	a.aiService = aiService
+	a.logger.Info("AI service initialized successfully")
+
+	// Check which providers have API keys
+	if os.Getenv("OPENAI_API_KEY") != "" {
+		a.logger.Info("OpenAI provider enabled")
+	}
+	if os.Getenv("ANTHROPIC_API_KEY") != "" {
+		a.logger.Info("Anthropic provider enabled")
+	}
+	if os.Getenv("OLLAMA_ENDPOINT") != "" || true {
+		a.logger.Info("Ollama provider available (default: http://localhost:11434)")
+	}
+}
+
+// initializeEmbeddingService initializes the embedding service used for AI memory recall
+func (a *App) initializeEmbeddingService(ctx context.Context) {
+	apiKey := os.Getenv("OPENAI_API_KEY")
+	if apiKey == "" {
+		a.logger.Warn("Embedding service disabled: OPENAI_API_KEY not set")
+		return
+	}
+
+	model := getEnvOrDefault("OPENAI_EMBED_MODEL", "text-embedding-3-small")
+	provider := rag.NewOpenAIEmbeddingProvider(apiKey, model, a.logger)
+	a.embeddingService = rag.NewEmbeddingService(provider, a.logger)
+	a.logger.WithField("model", model).Info("Embedding service initialized")
+}
+
+// getEnvOrDefault gets environment variable or returns default value
+func getEnvOrDefault(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
+}
+
 // OnShutdown is called when the app is shutting down
 func (a *App) OnShutdown(ctx context.Context) {
 	a.logger.Info("HowlerOps desktop application shutting down")
+
+	// Close storage manager
+	if a.storageManager != nil {
+		if err := a.storageManager.Close(); err != nil {
+			a.logger.WithError(err).Error("Failed to close storage manager")
+		}
+	}
+
+	// Stop AI service
+	if a.aiService != nil {
+		if err := a.aiService.Stop(ctx); err != nil {
+			a.logger.WithError(err).Error("Failed to stop AI service")
+		}
+	}
 
 	// Close database service
 	if a.databaseService != nil {
@@ -284,6 +658,38 @@ func (a *App) ExecuteQuery(req QueryRequest) (*QueryResponse, error) {
 		Duration: result.Duration.String(),
 		Editable: result.Editable,
 	}, nil
+}
+
+// GetEditableMetadata returns the status of an editable metadata job
+func (a *App) GetEditableMetadata(jobID string) (*EditableMetadataJobResponse, error) {
+	if strings.TrimSpace(jobID) == "" {
+		return nil, fmt.Errorf("jobId is required")
+	}
+
+	job, err := a.databaseService.GetEditableMetadataJob(jobID)
+	if err != nil {
+		return nil, err
+	}
+
+	response := &EditableMetadataJobResponse{
+		ID:           job.ID,
+		ConnectionID: job.ConnectionID,
+		Status:       job.Status,
+		Metadata:     job.Metadata,
+		Error:        job.Error,
+		CreatedAt:    job.CreatedAt.Format(time.RFC3339Nano),
+	}
+
+	if job.Metadata != nil {
+		job.Metadata.JobID = job.ID
+		job.Metadata.Pending = job.Status == "pending"
+	}
+
+	if job.CompletedAt != nil {
+		response.CompletedAt = job.CompletedAt.Format(time.RFC3339Nano)
+	}
+
+	return response, nil
 }
 
 // UpdateQueryRow persists edits made to a query result row
@@ -523,6 +929,14 @@ func (a *App) GetTempDir() string {
 
 func (a *App) CreateTempFile(content, prefix, suffix string) (string, error) {
 	return a.fileService.CreateTempFile(content, prefix, suffix)
+}
+
+func (a *App) GetDownloadsPath() (string, error) {
+	return a.fileService.GetDownloadsPath()
+}
+
+func (a *App) SaveToDownloads(filename, content string) (string, error) {
+	return a.fileService.SaveToDownloads(filename, content)
 }
 
 // Keyboard Service Methods
@@ -768,6 +1182,1102 @@ func (a *App) TestHuggingFaceConnection(endpoint, model string) *AITestResponse 
 	return a.TestOllamaConnection(endpoint, model)
 }
 
+// ===============================
+// AI/RAG Methods
+// ===============================
+
+// GenerateSQLFromNaturalLanguage generates SQL from a natural language prompt
+func (a *App) GenerateSQLFromNaturalLanguage(req NLQueryRequest) (*GeneratedSQLResponse, error) {
+	a.logger.WithFields(logrus.Fields{
+		"prompt":       req.Prompt,
+		"connectionId": req.ConnectionID,
+		"hasContext":   req.Context != "",
+	}).Info("Generating SQL from natural language")
+
+	if a.aiService == nil {
+		return nil, fmt.Errorf("AI service not configured. Set OPENAI_API_KEY or ANTHROPIC_API_KEY environment variable and restart the app")
+	}
+
+	// Build comprehensive schema context
+	var schemaContext string
+
+	// Check if this is a multi-database query based on context
+	isMultiDB := strings.Contains(req.Context, "Multi-DB Mode") || strings.Contains(req.Context, "@connection_name")
+
+	if isMultiDB {
+		// Multi-database mode: context already contains comprehensive schema info from frontend
+		schemaContext = req.Context
+
+		// Add additional instructions for multi-DB SQL generation
+		schemaContext += "\n\nIMPORTANT SQL Generation Rules for Multi-Database Mode:\n"
+		schemaContext += "1. Use @connection_name.table_name syntax for all table references\n"
+		schemaContext += "2. Use @connection_name.schema_name.table_name for non-public schemas\n"
+		schemaContext += "3. Table aliases are recommended for readability\n"
+		schemaContext += "4. Cross-database JOINs are supported\n"
+		schemaContext += "5. Ensure connection names match exactly (case-sensitive)\n"
+	} else if req.ConnectionID != "" {
+		// Single database mode: build detailed schema context for the active connection
+		detailedContext := a.buildDetailedSchemaContext(req.ConnectionID)
+
+		if detailedContext != "" {
+			schemaContext = detailedContext
+		}
+
+		// Add custom context if provided
+		if req.Context != "" {
+			if schemaContext != "" {
+				schemaContext += "\n\n"
+			}
+			schemaContext += req.Context
+		}
+	} else {
+		// No connection specified, use provided context only
+		schemaContext = req.Context
+	}
+
+	// Enhance prompt with mode-specific instructions
+	enhancedPrompt := req.Prompt
+	if isMultiDB {
+		enhancedPrompt = fmt.Sprintf(
+			"Generate a SQL query for the following request in MULTI-DATABASE mode. "+
+				"Use @connection_name.table_name syntax for all tables. "+
+				"Request: %s",
+			req.Prompt,
+		)
+	}
+
+	// Generate SQL using AI service with provider configuration
+	request := &ai.SQLRequest{
+		Prompt:      enhancedPrompt,
+		Schema:      schemaContext,
+		Provider:    req.Provider,
+		Model:       req.Model,
+		MaxTokens:   req.MaxTokens,
+		Temperature: req.Temperature,
+	}
+
+	result, err := a.aiService.GenerateSQLWithRequest(a.ctx, request)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate SQL: %w", err)
+	}
+
+	sanitizeSQLResponse(result)
+
+	return &GeneratedSQLResponse{
+		SQL:         strings.TrimSpace(result.SQL),
+		Confidence:  result.Confidence,
+		Explanation: result.Explanation,
+		Warnings:    []string{}, // TODO: Add warnings if confidence is low
+	}, nil
+}
+
+// GenericChat handles generic conversational AI requests without SQL-specific expectations
+func (a *App) GenericChat(req GenericChatRequest) (*GenericChatResponse, error) {
+	a.logger.WithFields(logrus.Fields{
+		"hasContext": req.Context != "",
+		"provider":  req.Provider,
+		"model":     req.Model,
+	}).Info("Handling generic AI chat request")
+
+	if a.aiService == nil {
+		return nil, fmt.Errorf("AI service not configured. Set OPENAI_API_KEY or ANTHROPIC_API_KEY environment variable and restart the app")
+	}
+
+	chatReq := &ai.ChatRequest{
+		Prompt:      req.Prompt,
+		Context:     req.Context,
+		System:      req.System,
+		Provider:    req.Provider,
+		Model:       req.Model,
+		MaxTokens:   req.MaxTokens,
+		Temperature: req.Temperature,
+		Metadata:    req.Metadata,
+	}
+
+	response, err := a.aiService.Chat(a.ctx, chatReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate chat response: %w", err)
+	}
+
+	return &GenericChatResponse{
+		Content:    response.Content,
+		Provider:   response.Provider,
+		Model:      response.Model,
+		TokensUsed: response.TokensUsed,
+		Metadata:   response.Metadata,
+	}, nil
+}
+
+// buildDetailedSchemaContext constructs a concise schema summary with column details for a connection.
+func (a *App) buildDetailedSchemaContext(connectionID string) string {
+	const (
+		maxTablesPerSchema = 10
+		maxTotalTables     = 40
+		maxColumnsPerTable = 25
+	)
+
+	schemas, err := a.databaseService.GetSchemas(connectionID)
+	if err != nil {
+		a.logger.WithError(err).WithField("connection_id", connectionID).
+			Warn("Failed to load schemas for AI context")
+		return ""
+	}
+
+	if len(schemas) == 0 {
+		return ""
+	}
+
+	sort.Strings(schemas)
+
+	var builder strings.Builder
+	builder.WriteString("Database Schema Information:\n")
+
+	totalTables := 0
+	for _, schemaName := range schemas {
+		if totalTables >= maxTotalTables {
+			break
+		}
+
+		tables, err := a.databaseService.GetTables(connectionID, schemaName)
+		if err != nil {
+			a.logger.WithError(err).WithFields(logrus.Fields{
+				"connection_id": connectionID,
+				"schema":        schemaName,
+			}).Warn("Failed to load tables for AI context")
+			continue
+		}
+
+		if len(tables) == 0 {
+			continue
+		}
+
+		builder.WriteString(fmt.Sprintf("\nSchema: %s\n", schemaName))
+
+		tableLimit := len(tables)
+		if tableLimit > maxTablesPerSchema {
+			tableLimit = maxTablesPerSchema
+		}
+
+		for i := 0; i < tableLimit && totalTables < maxTotalTables; i++ {
+			table := tables[i]
+			tableType := strings.ToLower(table.Type)
+			if tableType == "" {
+				tableType = "table"
+			}
+
+			builder.WriteString(fmt.Sprintf("Table: %s (%s)\n", table.Name, tableType))
+
+			structure, err := a.databaseService.GetTableStructure(connectionID, schemaName, table.Name)
+			if err != nil {
+				a.logger.WithError(err).WithFields(logrus.Fields{
+					"connection_id": connectionID,
+					"schema":        schemaName,
+					"table":         table.Name,
+				}).Debug("Failed to load table structure for AI context")
+				totalTables++
+				continue
+			}
+
+			if structure != nil && len(structure.Columns) > 0 {
+				columns := formatColumnsForAI(structure.Columns, maxColumnsPerTable)
+				builder.WriteString("Columns: " + strings.Join(columns, ", ") + "\n")
+			}
+
+			totalTables++
+		}
+
+		if len(tables) > tableLimit {
+			builder.WriteString(fmt.Sprintf("... %d more tables in schema %s omitted for brevity\n", len(tables)-tableLimit, schemaName))
+		}
+	}
+
+	return strings.TrimSpace(builder.String())
+}
+
+// formatColumnsForAI shortens column metadata for prompt consumption.
+func formatColumnsForAI(columns []database.ColumnInfo, maxColumns int) []string {
+	formatted := make([]string, 0, len(columns))
+
+	for _, column := range columns {
+		columnType := strings.ToLower(column.DataType)
+		if columnType == "" {
+			columnType = "unknown"
+		}
+
+		attributes := make([]string, 0, 3)
+		if column.PrimaryKey {
+			attributes = append(attributes, "pk")
+		}
+		if column.Unique {
+			attributes = append(attributes, "unique")
+		}
+		if !column.Nullable {
+			attributes = append(attributes, "not null")
+		}
+
+		if len(attributes) > 0 {
+			columnType = fmt.Sprintf("%s %s", columnType, strings.Join(attributes, "/"))
+		}
+
+		formatted = append(formatted, fmt.Sprintf("%s (%s)", column.Name, columnType))
+
+		if maxColumns > 0 && len(formatted) >= maxColumns {
+			break
+		}
+	}
+
+	if maxColumns > 0 && len(columns) > maxColumns {
+		formatted = append(formatted, "... additional columns omitted")
+	}
+
+	return formatted
+}
+
+// sanitizeSQLResponse removes duplicate SQL blocks and strips code from explanations to reduce UI noise.
+func sanitizeSQLResponse(resp *ai.SQLResponse) {
+	if resp == nil {
+		return
+	}
+
+	resp.SQL = deduplicateSequentialSQL(resp.SQL)
+	resp.SQL = strings.TrimSpace(resp.SQL)
+
+	resp.Explanation = sanitizeExplanation(resp.Explanation, resp.SQL)
+}
+
+// deduplicateSequentialSQL collapses responses where the model repeats the same SQL twice.
+func deduplicateSequentialSQL(sql string) string {
+	trimmed := strings.TrimSpace(sql)
+	if trimmed == "" {
+		return trimmed
+	}
+
+	halfStart := len(trimmed) / 2
+	for i := halfStart; i < len(trimmed); i++ {
+		if trimmed[i] != '\n' && trimmed[i] != '\r' {
+			continue
+		}
+
+		first := strings.TrimSpace(trimmed[:i])
+		second := strings.TrimSpace(trimmed[i:])
+		if first != "" && first == second {
+			return first
+		}
+	}
+
+	return trimmed
+}
+
+// sanitizeExplanation strips code blocks and duplicate SQL from the explanation text.
+func sanitizeExplanation(explanation string, sql string) string {
+	if explanation == "" {
+		return ""
+	}
+
+	cleaned := removeCodeBlocks(explanation)
+
+	if sql != "" {
+		cleaned = strings.ReplaceAll(cleaned, sql, "")
+		// Also remove compressed versions of the SQL where extra whitespace may have been collapsed.
+		compressedSQL := strings.Join(strings.Fields(sql), " ")
+		if compressedSQL != "" {
+			cleaned = strings.ReplaceAll(cleaned, compressedSQL, "")
+		}
+	}
+
+	return strings.TrimSpace(cleaned)
+}
+
+// removeCodeBlocks removes fenced code blocks (``` ... ```) from a string.
+func removeCodeBlocks(text string) string {
+	result := text
+
+	for {
+		start := strings.Index(result, "```")
+		if start == -1 {
+			break
+		}
+
+		end := strings.Index(result[start+3:], "```")
+		if end == -1 {
+			// Unclosed code block; drop everything after start
+			result = result[:start]
+			break
+		}
+
+		closing := start + 3 + end + 3
+		if closing > len(result) {
+			closing = len(result)
+		}
+
+		result = result[:start] + result[closing:]
+	}
+
+	return strings.TrimSpace(result)
+}
+
+// FixSQLError attempts to fix a SQL error
+func (a *App) FixSQLError(query string, error string, connectionID string) (*FixedSQLResponse, error) {
+	return a.FixSQLErrorWithOptions(FixSQLRequest{
+		Query:        query,
+		Error:        error,
+		ConnectionID: connectionID,
+	})
+}
+
+// OptimizeQuery optimizes a SQL query
+func (a *App) OptimizeQuery(query string, connectionID string) (*OptimizationResponse, error) {
+	a.logger.WithFields(logrus.Fields{
+		"query":        query,
+		"connectionId": connectionID,
+	}).Info("Optimizing query")
+
+	if a.aiService == nil {
+		return nil, fmt.Errorf("AI service not configured. Set OPENAI_API_KEY or ANTHROPIC_API_KEY environment variable")
+	}
+
+	result, err := a.aiService.OptimizeQuery(a.ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to optimize query: %w", err)
+	}
+
+	return &OptimizationResponse{
+		SQL:              result.OptimizedSQL,
+		EstimatedSpeedup: result.Impact,
+		Explanation:      result.Explanation,
+		Suggestions:      []Suggestion{},
+	}, nil
+}
+
+// FixSQLErrorWithOptions applies AI-based fixes with provider-specific configuration
+func (a *App) FixSQLErrorWithOptions(req FixSQLRequest) (*FixedSQLResponse, error) {
+	a.logger.WithFields(logrus.Fields{
+		"query":        req.Query,
+		"error":        req.Error,
+		"connectionId": req.ConnectionID,
+		"provider":     req.Provider,
+		"model":        req.Model,
+	}).Info("Fixing SQL error with options")
+
+	if a.aiService == nil {
+		return nil, fmt.Errorf("AI service not configured. Set OPENAI_API_KEY or ANTHROPIC_API_KEY environment variable")
+	}
+
+	if strings.TrimSpace(req.Query) == "" {
+		return nil, fmt.Errorf("query cannot be empty")
+	}
+
+	if strings.TrimSpace(req.Error) == "" {
+		return nil, fmt.Errorf("error message cannot be empty")
+	}
+
+	isMultiDB := strings.Contains(req.Query, "@") && (strings.Contains(req.Error, "multi-database") || strings.Contains(req.Error, "@connection_name"))
+
+	enhancedError := req.Error
+	if isMultiDB {
+		enhancedError = fmt.Sprintf(
+			"%s\n\n"+
+				"Context: This appears to be a multi-database query. "+
+				"Ensure that:\n"+
+				"1. Table references use @connection_name.table_name syntax\n"+
+				"2. Connection names are spelled correctly (case-sensitive)\n"+
+				"3. All referenced connections are properly connected\n"+
+				"4. Schema names are included for non-public schemas (@conn.schema.table)",
+			req.Error,
+		)
+	}
+
+	provider := strings.ToLower(strings.TrimSpace(req.Provider))
+	model := strings.TrimSpace(req.Model)
+
+	aiRequest := &ai.SQLRequest{
+		Query:       req.Query,
+		Error:       enhancedError,
+		Schema:      req.Context,
+		Provider:    provider,
+		Model:       model,
+		MaxTokens:   req.MaxTokens,
+		Temperature: req.Temperature,
+	}
+
+	result, err := a.aiService.FixQueryWithRequest(a.ctx, aiRequest)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fix query: %w", err)
+	}
+
+	return &FixedSQLResponse{
+		SQL:         result.SQL,
+		Explanation: result.Explanation,
+		Changes:     []string{"Fixed query based on error message"},
+	}, nil
+}
+
+// SaveAIMemorySessions persists AI memory sessions and indexes them for recall
+func (a *App) SaveAIMemorySessions(sessions []AIMemorySessionPayload) error {
+	if a.storageManager == nil {
+		return fmt.Errorf("storage manager not initialized")
+	}
+
+	previousSessions, err := a.LoadAIMemorySessions()
+	if err != nil {
+		return err
+	}
+
+	data, err := json.Marshal(sessions)
+	if err != nil {
+		return fmt.Errorf("failed to marshal AI memory sessions: %w", err)
+	}
+
+	if err := a.storageManager.SetSetting(a.ctx, "ai_memory_sessions", string(data)); err != nil {
+		return fmt.Errorf("failed to save AI memory sessions: %w", err)
+	}
+
+	if err := a.indexAIMemorySessions(a.ctx, sessions); err != nil {
+		a.logger.WithError(err).Warn("Failed to index AI memory sessions")
+	}
+
+	a.pruneAIMemoryDocuments(previousSessions, sessions)
+
+	return nil
+}
+
+// LoadAIMemorySessions retrieves previously stored AI memory sessions
+func (a *App) LoadAIMemorySessions() ([]AIMemorySessionPayload, error) {
+	if a.storageManager == nil {
+		return []AIMemorySessionPayload{}, nil
+	}
+
+	value, err := a.storageManager.GetSetting(a.ctx, "ai_memory_sessions")
+	if err != nil {
+		return nil, fmt.Errorf("failed to load AI memory sessions: %w", err)
+	}
+
+	if strings.TrimSpace(value) == "" {
+		return []AIMemorySessionPayload{}, nil
+	}
+
+	var sessions []AIMemorySessionPayload
+	if err := json.Unmarshal([]byte(value), &sessions); err != nil {
+		return nil, fmt.Errorf("failed to decode AI memory sessions: %w", err)
+	}
+
+	return sessions, nil
+}
+
+// ClearAIMemorySessions removes stored AI memory sessions
+func (a *App) ClearAIMemorySessions() error {
+	if a.storageManager == nil {
+		return nil
+	}
+
+	if err := a.storageManager.DeleteSetting(a.ctx, "ai_memory_sessions"); err != nil {
+		return fmt.Errorf("failed to clear AI memory sessions: %w", err)
+	}
+
+	return nil
+}
+
+// RecallAIMemorySessions returns the most relevant stored memories for the given prompt
+func (a *App) RecallAIMemorySessions(prompt string, limit int) ([]AIMemoryRecallResult, error) {
+	if strings.TrimSpace(prompt) == "" || limit == 0 {
+		return []AIMemoryRecallResult{}, nil
+	}
+
+	if limit < 0 {
+		limit = 5
+	}
+	if limit == 0 {
+		limit = 5
+	}
+
+	if a.embeddingService == nil || a.storageManager == nil {
+		return []AIMemoryRecallResult{}, nil
+	}
+
+	embedding, err := a.embeddingService.EmbedText(a.ctx, prompt)
+	if err != nil {
+		return nil, fmt.Errorf("failed to embed prompt for memory recall: %w", err)
+	}
+
+	docs, err := a.storageManager.SearchDocuments(a.ctx, embedding, &storage.DocumentFilters{
+		Type:  string(rag.DocumentTypeMemory),
+		Limit: limit,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to search AI memories: %w", err)
+	}
+
+	results := make([]AIMemoryRecallResult, 0, len(docs))
+	for _, doc := range docs {
+		sessionID := ""
+		title := ""
+		summary := ""
+
+		if doc.Metadata != nil {
+			if val, ok := doc.Metadata["session_id"].(string); ok {
+				sessionID = val
+			}
+			if val, ok := doc.Metadata["title"].(string); ok {
+				title = val
+			}
+			if val, ok := doc.Metadata["summary"].(string); ok {
+				summary = val
+			}
+		}
+
+		results = append(results, AIMemoryRecallResult{
+			SessionID: sessionID,
+			Title:     title,
+			Summary:   summary,
+			Content:   doc.Content,
+			Score:     doc.Score,
+		})
+	}
+
+	return results, nil
+}
+
+func (a *App) indexAIMemorySessions(ctx context.Context, sessions []AIMemorySessionPayload) error {
+	if a.embeddingService == nil || a.storageManager == nil {
+		return nil
+	}
+
+	for _, session := range sessions {
+		doc, err := a.buildMemoryDocument(ctx, session)
+		if err != nil {
+			a.logger.WithError(err).WithField("session_id", session.ID).Warn("Failed to build memory document")
+			continue
+		}
+		if doc == nil {
+			continue
+		}
+
+		if err := a.storageManager.IndexDocument(ctx, doc); err != nil {
+			a.logger.WithError(err).WithField("session_id", session.ID).Warn("Failed to index AI memory document")
+		}
+	}
+
+	return nil
+}
+
+func (a *App) buildMemoryDocument(ctx context.Context, session AIMemorySessionPayload) (*storage.Document, error) {
+	if len(session.Messages) == 0 {
+		return nil, nil
+	}
+
+	var builder strings.Builder
+	builder.WriteString(fmt.Sprintf("Session: %s\n", session.Title))
+	if session.Summary != "" {
+		builder.WriteString(fmt.Sprintf("Summary: %s\n", session.Summary))
+	}
+
+	const maxMessages = 6
+	start := len(session.Messages) - maxMessages
+	if start < 0 {
+		start = 0
+	}
+
+	builder.WriteString("Recent conversation:\n")
+	for _, msg := range session.Messages[start:] {
+		builder.WriteString(fmt.Sprintf("[%s] %s\n", strings.ToUpper(msg.Role), msg.Content))
+	}
+
+	content := builder.String()
+	embedding, err := a.embeddingService.EmbedText(ctx, content)
+	if err != nil {
+		return nil, fmt.Errorf("failed to embed AI memory: %w", err)
+	}
+
+	createdAt := time.UnixMilli(session.CreatedAt)
+	if session.CreatedAt == 0 {
+		createdAt = time.Now()
+	}
+	updatedAt := time.UnixMilli(session.UpdatedAt)
+	if session.UpdatedAt == 0 {
+		updatedAt = createdAt
+	}
+
+	metadata := map[string]interface{}{
+		"session_id":    session.ID,
+		"title":         session.Title,
+		"summary":       session.Summary,
+		"message_count": len(session.Messages),
+	}
+
+	return &storage.Document{
+		ID:           fmt.Sprintf("ai_memory:%s", session.ID),
+		ConnectionID: "",
+		Type:         string(rag.DocumentTypeMemory),
+		Content:      content,
+		Embedding:    embedding,
+		Metadata:     metadata,
+		CreatedAt:    createdAt,
+		UpdatedAt:    updatedAt,
+	}, nil
+}
+
+// DeleteAIMemorySession removes a single session by ID
+func (a *App) DeleteAIMemorySession(sessionID string) error {
+	if strings.TrimSpace(sessionID) == "" {
+		return fmt.Errorf("session ID cannot be empty")
+	}
+
+	sessions, err := a.LoadAIMemorySessions()
+	if err != nil {
+		return err
+	}
+
+	filtered := make([]AIMemorySessionPayload, 0, len(sessions))
+	for _, session := range sessions {
+		if session.ID != sessionID {
+			filtered = append(filtered, session)
+		}
+	}
+
+	if len(filtered) == len(sessions) {
+		return fmt.Errorf("session not found")
+	}
+
+	if err := a.SaveAIMemorySessions(filtered); err != nil {
+		return err
+	}
+
+	if a.storageManager != nil {
+		docID := fmt.Sprintf("ai_memory:%s", sessionID)
+		if err := a.storageManager.DeleteDocument(a.ctx, docID); err != nil {
+			a.logger.WithError(err).WithField("session_id", sessionID).Warn("Failed to delete memory document")
+		}
+	}
+
+	return nil
+}
+
+func (a *App) pruneAIMemoryDocuments(previous, current []AIMemorySessionPayload) {
+	if a.storageManager == nil {
+		return
+	}
+
+	currentSet := make(map[string]struct{}, len(current))
+	for _, session := range current {
+		currentSet[session.ID] = struct{}{}
+	}
+
+	for _, session := range previous {
+		if _, exists := currentSet[session.ID]; !exists {
+			docID := fmt.Sprintf("ai_memory:%s", session.ID)
+			if err := a.storageManager.DeleteDocument(a.ctx, docID); err != nil {
+				a.logger.WithError(err).WithField("session_id", session.ID).Warn("Failed to delete AI memory document")
+			}
+		}
+	}
+}
+
+// GetQuerySuggestions provides autocomplete suggestions for a partial query
+func (a *App) GetQuerySuggestions(partialQuery string, connectionID string) ([]Suggestion, error) {
+	a.logger.WithFields(logrus.Fields{
+		"query":        partialQuery,
+		"connectionId": connectionID,
+	}).Debug("Getting query suggestions")
+
+	// TODO: Integrate with backend-go AI service when properly exposed
+	return []Suggestion{}, nil
+}
+
+// SuggestVisualization suggests appropriate visualizations for query results
+func (a *App) SuggestVisualization(resultData ResultData) (*VizSuggestion, error) {
+	a.logger.WithFields(logrus.Fields{
+		"columns":  len(resultData.Columns),
+		"rowCount": resultData.RowCount,
+	}).Debug("Suggesting visualization")
+
+	// TODO: Integrate with backend-go AI service when properly exposed
+	return nil, fmt.Errorf("AI service not yet integrated")
+}
+
+// GetAIProviderStatus returns the status of available AI providers
+func (a *App) GetAIProviderStatus() (map[string]ProviderStatus, error) {
+	a.logger.Debug("Getting AI provider status")
+
+	if a.aiService == nil {
+		return map[string]ProviderStatus{
+			"openai":      {Name: "OpenAI", Available: false, Error: "Not configured - set OPENAI_API_KEY"},
+			"anthropic":   {Name: "Anthropic", Available: false, Error: "Not configured - set ANTHROPIC_API_KEY"},
+			"claudecode":  {Name: "Claude Code", Available: false, Error: "Not configured"},
+			"codex":       {Name: "Codex", Available: false, Error: "Not configured"},
+			"ollama":      {Name: "Ollama", Available: false, Error: "Not configured"},
+			"huggingface": {Name: "HuggingFace", Available: false, Error: "Not configured"},
+		}, nil
+	}
+
+	// Get provider statuses from AI service
+	providers, err := a.aiService.GetProviders(a.ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get provider status: %w", err)
+	}
+
+	// Convert to map
+	result := make(map[string]ProviderStatus)
+	for _, p := range providers {
+		result[strings.ToLower(p.Name)] = ProviderStatus{
+			Name:      p.Name,
+			Available: p.Available,
+			Error:     "",
+		}
+	}
+
+	// Fill in missing providers as unavailable
+	allProviders := []string{"openai", "anthropic", "claudecode", "codex", "ollama", "huggingface"}
+	for _, name := range allProviders {
+		if _, exists := result[name]; !exists {
+			result[name] = ProviderStatus{
+				Name:      strings.Title(name),
+				Available: false,
+				Error:     "Not configured",
+			}
+		}
+	}
+
+	return result, nil
+}
+
+// ConfigureAIProvider configures an AI provider dynamically from UI
+func (a *App) ConfigureAIProvider(config ProviderConfig) error {
+	a.logger.WithField("provider", config.Provider).Info("Configuring AI provider")
+
+	// Set environment variables based on provider configuration
+	// This allows the AI service to pick them up
+	switch strings.ToLower(config.Provider) {
+	case "openai":
+		if config.APIKey != "" {
+			os.Setenv("OPENAI_API_KEY", config.APIKey)
+		}
+		if config.Model != "" {
+			os.Setenv("OPENAI_MODEL", config.Model)
+		}
+		os.Setenv("AI_DEFAULT_PROVIDER", "openai")
+
+	case "anthropic":
+		if config.APIKey != "" {
+			os.Setenv("ANTHROPIC_API_KEY", config.APIKey)
+		}
+		if config.Model != "" {
+			os.Setenv("ANTHROPIC_MODEL", config.Model)
+		}
+		os.Setenv("AI_DEFAULT_PROVIDER", "anthropic")
+
+	case "ollama":
+		if config.Endpoint != "" {
+			os.Setenv("OLLAMA_ENDPOINT", config.Endpoint)
+		}
+		if config.Model != "" {
+			os.Setenv("OLLAMA_MODEL", config.Model)
+		}
+		os.Setenv("AI_DEFAULT_PROVIDER", "ollama")
+
+	case "claudecode":
+		if config.Options != nil {
+			if binaryPath, ok := config.Options["binary_path"]; ok {
+				os.Setenv("CLAUDE_BINARY_PATH", binaryPath)
+			}
+		}
+		if config.Model != "" {
+			os.Setenv("CLAUDE_MODEL", config.Model)
+		}
+		os.Setenv("AI_DEFAULT_PROVIDER", "claudecode")
+
+	case "codex":
+		if config.APIKey != "" {
+			os.Setenv("OPENAI_API_KEY", config.APIKey) // Codex uses OpenAI API
+		}
+		if config.Model != "" {
+			os.Setenv("CODEX_MODEL", config.Model)
+		}
+		os.Setenv("AI_DEFAULT_PROVIDER", "codex")
+
+	case "huggingface":
+		if config.Endpoint != "" {
+			os.Setenv("HUGGINGFACE_ENDPOINT", config.Endpoint)
+		}
+		if config.Model != "" {
+			os.Setenv("HUGGINGFACE_MODEL", config.Model)
+		}
+		os.Setenv("AI_DEFAULT_PROVIDER", "huggingface")
+	}
+
+	// Reinitialize AI service with new configuration
+	aiService, err := ai.NewService(a.logger)
+	if err != nil {
+		return fmt.Errorf("failed to initialize AI service with new config: %w", err)
+	}
+
+	// Start the new AI service
+	if err := aiService.Start(a.ctx); err != nil {
+		return fmt.Errorf("failed to start AI service: %w", err)
+	}
+
+	// Stop old service if it exists
+	if a.aiService != nil {
+		_ = a.aiService.Stop(a.ctx)
+	}
+
+	// Replace with new service
+	a.aiService = aiService
+
+	a.logger.WithFields(logrus.Fields{
+		"provider": config.Provider,
+		"model":    config.Model,
+	}).Info("AI provider configured successfully")
+
+	return nil
+}
+
+// TestAIProvider tests a provider configuration without saving it
+func (a *App) TestAIProvider(config ProviderConfig) (*ProviderStatus, error) {
+	a.logger.WithField("provider", config.Provider).Info("Testing AI provider")
+
+	// Temporarily set environment variables for testing
+	oldEnv := make(map[string]string)
+
+	switch strings.ToLower(config.Provider) {
+	case "openai":
+		if oldKey := os.Getenv("OPENAI_API_KEY"); oldKey != "" {
+			oldEnv["OPENAI_API_KEY"] = oldKey
+		}
+		os.Setenv("OPENAI_API_KEY", config.APIKey)
+		defer func() {
+			if old, ok := oldEnv["OPENAI_API_KEY"]; ok {
+				os.Setenv("OPENAI_API_KEY", old)
+			}
+		}()
+
+	case "anthropic":
+		if oldKey := os.Getenv("ANTHROPIC_API_KEY"); oldKey != "" {
+			oldEnv["ANTHROPIC_API_KEY"] = oldKey
+		}
+		os.Setenv("ANTHROPIC_API_KEY", config.APIKey)
+		defer func() {
+			if old, ok := oldEnv["ANTHROPIC_API_KEY"]; ok {
+				os.Setenv("ANTHROPIC_API_KEY", old)
+			}
+		}()
+	}
+
+	// Try to create a test AI service
+	testService, err := ai.NewService(a.logger)
+	if err != nil {
+		return &ProviderStatus{
+			Name:      config.Provider,
+			Available: false,
+			Error:     err.Error(),
+		}, nil
+	}
+	defer testService.Stop(a.ctx)
+
+	// Start it to verify connection
+	if err := testService.Start(a.ctx); err != nil {
+		return &ProviderStatus{
+			Name:      config.Provider,
+			Available: false,
+			Error:     err.Error(),
+		}, nil
+	}
+
+	return &ProviderStatus{
+		Name:      config.Provider,
+		Available: true,
+		Error:     "",
+	}, nil
+}
+
+// GetAIConfiguration returns the current AI configuration
+func (a *App) GetAIConfiguration() (ProviderConfig, error) {
+	provider := strings.ToLower(os.Getenv("AI_DEFAULT_PROVIDER"))
+	if provider == "" {
+		provider = "openai"
+	}
+
+	config := ProviderConfig{
+		Provider: provider,
+	}
+
+	switch provider {
+	case "openai":
+		config.APIKey = maskAPIKey(os.Getenv("OPENAI_API_KEY"))
+		config.Model = getEnvOrDefault("OPENAI_MODEL", "gpt-4o-mini")
+
+	case "anthropic":
+		config.APIKey = maskAPIKey(os.Getenv("ANTHROPIC_API_KEY"))
+		config.Model = getEnvOrDefault("ANTHROPIC_MODEL", "claude-3-5-sonnet-20241022")
+
+	case "ollama":
+		config.Endpoint = getEnvOrDefault("OLLAMA_ENDPOINT", "http://localhost:11434")
+		config.Model = getEnvOrDefault("OLLAMA_MODEL", "sqlcoder:7b")
+	}
+
+	return config, nil
+}
+
+// maskAPIKey masks an API key for display
+func maskAPIKey(key string) string {
+	if key == "" {
+		return ""
+	}
+	if len(key) <= 8 {
+		return "****"
+	}
+	return key[:4] + "****" + key[len(key)-4:]
+}
+
+// ===============================
+// Multi-Database Query Methods
+// ===============================
+
+// ExecuteMultiDatabaseQuery executes a query that spans multiple database connections
+func (a *App) ExecuteMultiDatabaseQuery(req MultiQueryRequest) (*MultiQueryResponse, error) {
+	a.logger.WithFields(logrus.Fields{
+		"query_length": len(req.Query),
+		"limit":        req.Limit,
+		"strategy":     req.Strategy,
+	}).Info("Executing multi-database query")
+
+	// Parse strategy
+	var strategy multiquery.ExecutionStrategy
+	switch req.Strategy {
+	case "federated":
+		strategy = multiquery.StrategyFederated
+	case "push_down":
+		strategy = multiquery.StrategyPushDown
+	case "auto":
+		strategy = multiquery.StrategyAuto
+	default:
+		strategy = multiquery.StrategyAuto
+	}
+
+	// Build options
+	options := &multiquery.Options{
+		Timeout:  time.Duration(req.Timeout) * time.Second,
+		Strategy: strategy,
+		Limit:    req.Limit,
+	}
+
+	// Apply defaults
+	if options.Timeout == 0 {
+		options.Timeout = 30 * time.Second
+	}
+	if options.Limit == 0 {
+		options.Limit = 1000
+	}
+
+	// Execute via database service
+	result, err := a.databaseService.ExecuteMultiDatabaseQuery(req.Query, options)
+	if err != nil {
+		return &MultiQueryResponse{
+			Error: err.Error(),
+		}, nil
+	}
+
+	// Convert from services.MultiQueryResponse to app.MultiQueryResponse
+	return &MultiQueryResponse{
+		Columns:         result.Columns,
+		Rows:            result.Rows,
+		RowCount:        result.RowCount,
+		Duration:        result.Duration,
+		ConnectionsUsed: result.ConnectionsUsed,
+		Strategy:        result.Strategy,
+		Error:           result.Error,
+	}, nil
+}
+
+// ValidateMultiQuery validates a multi-database query without executing it
+func (a *App) ValidateMultiQuery(query string) (*ValidationResult, error) {
+	a.logger.WithField("query_length", len(query)).Debug("Validating multi-query")
+
+	validation, err := a.databaseService.ValidateMultiQuery(query)
+	if err != nil {
+		return &ValidationResult{
+			Valid:  false,
+			Errors: []string{err.Error()},
+		}, nil
+	}
+
+	return &ValidationResult{
+		Valid:               validation.Valid,
+		Errors:              validation.Errors,
+		RequiredConnections: validation.RequiredConnections,
+		Tables:              validation.Tables,
+		EstimatedStrategy:   validation.EstimatedStrategy,
+	}, nil
+}
+
+// GetMultiConnectionSchema returns combined schema information for multiple connections
+func (a *App) GetMultiConnectionSchema(connectionIDs []string) (*CombinedSchema, error) {
+	a.logger.WithField("connection_count", len(connectionIDs)).Debug("Fetching combined schema")
+
+	schema, err := a.databaseService.GetCombinedSchema(connectionIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to app-level types
+	result := &CombinedSchema{
+		Connections: make(map[string]ConnectionSchema),
+		Conflicts:   make([]SchemaConflict, len(schema.Conflicts)),
+	}
+
+	for connID, connSchema := range schema.Connections {
+		tables := make([]TableInfo, len(connSchema.Tables))
+		for i, table := range connSchema.Tables {
+			tables[i] = TableInfo{
+				Schema:    table.Schema,
+				Name:      table.Name,
+				Type:      table.Type,
+				Comment:   table.Comment,
+				RowCount:  table.RowCount,
+				SizeBytes: table.SizeBytes,
+			}
+		}
+
+		result.Connections[connID] = ConnectionSchema{
+			ConnectionID: connSchema.ConnectionID,
+			Schemas:      connSchema.Schemas,
+			Tables:       tables,
+		}
+	}
+
+	for i, conflict := range schema.Conflicts {
+		conflictingTables := make([]ConflictingTable, len(conflict.Connections))
+		for j, ct := range conflict.Connections {
+			conflictingTables[j] = ConflictingTable{
+				ConnectionID: ct.ConnectionID,
+				TableName:    ct.TableName,
+				Schema:       ct.Schema,
+			}
+		}
+
+		result.Conflicts[i] = SchemaConflict{
+			TableName:   conflict.TableName,
+			Connections: conflictingTables,
+			Resolution:  conflict.Resolution,
+		}
+	}
+
+	return result, nil
+}
+
+// ParseQueryConnections extracts connection IDs from a query without validating
+func (a *App) ParseQueryConnections(query string) ([]string, error) {
+	a.logger.Debug("Parsing query for connections")
+
+	// Use the database service's manager to parse the query
+	// This is a simplified version - the full implementation would need access to the manager
+	validation, err := a.databaseService.ValidateMultiQuery(query)
+	if err != nil {
+		return []string{}, nil // Return empty array instead of error for parsing
+	}
+
+	return validation.RequiredConnections, nil
+}
+
 // ShowNotification shows a notification using Wails MessageDialog
 func (a *App) ShowNotification(title, message string, isError bool) {
 	if isError {
@@ -775,4 +2285,51 @@ func (a *App) ShowNotification(title, message string, isError bool) {
 	} else {
 		a.ShowInfoDialog(title, message)
 	}
+}
+
+// ==================== Schema Cache Management ====================
+
+// InvalidateSchemaCache invalidates the cached schema for a specific connection
+func (a *App) InvalidateSchemaCache(connectionID string) error {
+	a.logger.WithField("connection", connectionID).Info("Invalidating schema cache")
+	a.databaseService.InvalidateSchemaCache(connectionID)
+	return nil
+}
+
+// InvalidateAllSchemas invalidates all cached schemas
+func (a *App) InvalidateAllSchemas() error {
+	a.logger.Info("Invalidating all schema caches")
+	a.databaseService.InvalidateAllSchemas()
+	return nil
+}
+
+// RefreshSchema forces a refresh of the schema for a connection
+func (a *App) RefreshSchema(connectionID string) error {
+	a.logger.WithField("connection", connectionID).Info("Refreshing schema")
+	return a.databaseService.RefreshSchema(a.ctx, connectionID)
+}
+
+// GetSchemaCacheStats returns statistics about the schema cache
+func (a *App) GetSchemaCacheStats() map[string]interface{} {
+	return a.databaseService.GetSchemaCacheStats()
+}
+
+// ==================== Connection Management ====================
+
+// GetConnectionCount returns the number of active database connections
+func (a *App) GetConnectionCount() int {
+	return a.databaseService.GetConnectionCount()
+}
+
+// GetConnectionIDs returns a list of all connection IDs
+func (a *App) GetConnectionIDs() []string {
+	return a.databaseService.GetConnectionIDs()
+}
+
+// GetAvailableEnvironments returns all unique environment tags across connections
+func (a *App) GetAvailableEnvironments() ([]string, error) {
+	if a.storageManager == nil {
+		return []string{}, nil
+	}
+	return a.storageManager.GetAvailableEnvironments(a.ctx)
 }

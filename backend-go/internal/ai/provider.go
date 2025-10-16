@@ -13,6 +13,9 @@ type ProviderAdapter interface {
 	// FixSQL fixes SQL based on error message
 	FixSQL(ctx context.Context, query string, errorMsg string, schema string, options ...GenerateOption) (*SQLResponse, error)
 
+	// Chat handles generic conversational requests
+	Chat(ctx context.Context, prompt string, options ...GenerateOption) (*ChatResponse, error)
+
 	// GetHealth returns the health status of the provider
 	GetHealth(ctx context.Context) (*HealthStatus, error)
 

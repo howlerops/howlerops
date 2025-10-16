@@ -273,17 +273,25 @@ func (p *anthropicProvider) ValidateConfig(config interface{}) error {
 
 // callAnthropic makes a request to the Anthropic API
 func (p *anthropicProvider) callAnthropic(ctx context.Context, model, prompt string, maxTokens int, temperature float64) (*anthropicResponse, error) {
-	requestBody := anthropicRequest{
-		Model:     model,
-		MaxTokens: maxTokens,
-		Messages: []anthropicMessage{
-			{
-				Role:    "user",
-				Content: prompt,
-			},
+	messages := []anthropicMessage{
+		{
+			Role:    "user",
+			Content: prompt,
 		},
+	}
+	systemPrompt := "You are an expert SQL developer. Generate clean, efficient SQL queries and provide clear explanations. Always format your responses as valid JSON when requested."
+
+	return p.callAnthropicWithMessages(ctx, model, systemPrompt, messages, maxTokens, temperature)
+}
+
+// callAnthropicWithMessages makes a request to the Anthropic API with explicit messages
+func (p *anthropicProvider) callAnthropicWithMessages(ctx context.Context, model, systemPrompt string, messages []anthropicMessage, maxTokens int, temperature float64) (*anthropicResponse, error) {
+	requestBody := anthropicRequest{
+		Model:       model,
+		MaxTokens:   maxTokens,
+		Messages:    messages,
 		Temperature: temperature,
-		System:      "You are an expert SQL developer. Generate clean, efficient SQL queries and provide clear explanations. Always format your responses as valid JSON when requested.",
+		System:      systemPrompt,
 	}
 
 	jsonBody, err := json.Marshal(requestBody)
@@ -325,6 +333,50 @@ func (p *anthropicProvider) callAnthropic(ctx context.Context, model, prompt str
 	}
 
 	return &anthropicResp, nil
+}
+
+// Chat handles generic conversational interactions
+func (p *anthropicProvider) Chat(ctx context.Context, req *ChatRequest) (*ChatResponse, error) {
+	if req == nil {
+		return nil, fmt.Errorf("request cannot be nil")
+	}
+
+	systemPrompt := req.System
+	if systemPrompt == "" {
+		systemPrompt = "You are a helpful assistant for SQL Studio. Provide thoughtful, concise answers and include actionable guidance when relevant."
+	}
+
+	if req.Context != "" {
+		systemPrompt = fmt.Sprintf("%s\n\nAdditional context:\n%s", systemPrompt, req.Context)
+	}
+
+	messages := []anthropicMessage{
+		{
+			Role:    "user",
+			Content: req.Prompt,
+		},
+	}
+
+	response, err := p.callAnthropicWithMessages(ctx, req.Model, systemPrompt, messages, req.MaxTokens, req.Temperature)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(response.Content) == 0 {
+		return nil, fmt.Errorf("no content in response")
+	}
+
+	content := strings.TrimSpace(response.Content[0].Text)
+
+	return &ChatResponse{
+		Content:    content,
+		Provider:   ProviderAnthropic,
+		Model:      req.Model,
+		TokensUsed: response.Usage.InputTokens + response.Usage.OutputTokens,
+		Metadata: map[string]string{
+			"stop_reason": response.StopReason,
+		},
+	}, nil
 }
 
 // buildGeneratePrompt builds a prompt for SQL generation

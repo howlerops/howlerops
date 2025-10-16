@@ -70,6 +70,19 @@ func LoadConfig() (*Config, error) {
 		},
 	}
 
+	// Claude Code Configuration
+	claudePath := os.Getenv("CLAUDE_CLI_PATH")
+	if claudePath == "" {
+		claudePath = "claude"
+	}
+
+	config.ClaudeCode = ClaudeCodeConfig{
+		ClaudePath:  claudePath,
+		Model:       getEnvWithDefault("CLAUDE_CODE_MODEL", "opus"),
+		MaxTokens:   getEnvIntWithDefault("CLAUDE_CODE_MAX_TOKENS", 4096),
+		Temperature: getEnvFloatWithDefault("CLAUDE_CODE_TEMPERATURE", 0.7),
+	}
+
 	// Override default provider if specified
 	if provider := os.Getenv("AI_DEFAULT_PROVIDER"); provider != "" {
 		switch Provider(provider) {
@@ -171,6 +184,24 @@ func ValidateConfig(config *Config) error {
 func getEnvWithDefault(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
+	}
+	return defaultValue
+}
+
+func getEnvIntWithDefault(key string, defaultValue int) int {
+	if value := os.Getenv(key); value != "" {
+		if parsed, err := parseIntEnv(key, value); err == nil {
+			return parsed
+		}
+	}
+	return defaultValue
+}
+
+func getEnvFloatWithDefault(key string, defaultValue float64) float64 {
+	if value := os.Getenv(key); value != "" {
+		if parsed, err := parseFloatEnv(key, value); err == nil {
+			return parsed
+		}
 	}
 	return defaultValue
 }

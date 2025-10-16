@@ -1,13 +1,13 @@
 package database
 
 import (
-    "context"
-    "database/sql"
-    "errors"
-    "fmt"
-    "sort"
-    "strings"
-    "time"
+	"context"
+	"database/sql"
+	"errors"
+	"fmt"
+	"sort"
+	"strings"
+	"time"
 
 	_ "github.com/lib/pq"
 	"github.com/sirupsen/logrus"
@@ -15,9 +15,10 @@ import (
 
 // PostgresDatabase implements the Database interface for PostgreSQL
 type PostgresDatabase struct {
-	pool   *ConnectionPool
-	config ConnectionConfig
-	logger *logrus.Logger
+	pool           *ConnectionPool
+	config         ConnectionConfig
+	logger         *logrus.Logger
+	structureCache *tableStructureCache
 }
 
 // NewPostgresDatabase creates a new PostgreSQL database instance
@@ -28,9 +29,10 @@ func NewPostgresDatabase(config ConnectionConfig, logger *logrus.Logger) (*Postg
 	}
 
 	return &PostgresDatabase{
-		pool:   pool,
-		config: config,
-		logger: logger,
+		pool:           pool,
+		config:         config,
+		logger:         logger,
+		structureCache: newTableStructureCache(10 * time.Minute),
 	}, nil
 }
 
@@ -46,6 +48,7 @@ func (p *PostgresDatabase) Connect(ctx context.Context, config ConnectionConfig)
 		p.pool.Close()
 	}
 	p.pool = pool
+	p.structureCache = newTableStructureCache(10 * time.Minute)
 
 	return nil
 }
@@ -190,57 +193,108 @@ func (p *PostgresDatabase) executeSelect(ctx context.Context, db *sql.DB, query 
 
 	result.RowCount = int64(len(result.Rows))
 	result.Duration = time.Since(start)
-	result.Editable = p.buildEditableMetadata(ctx, query, columns)
+
+	if metadata, ready, err := p.computeEditableMetadata(ctx, query, columns, false); err == nil {
+		if metadata != nil {
+			if !ready {
+				metadata.Pending = true
+				if metadata.Reason == "" {
+					metadata.Reason = "Loading editable metadata"
+				}
+			}
+			result.Editable = metadata
+		}
+	} else {
+		// Fall back to disabled metadata with error reason
+		metadata := newEditableMetadata(columns)
+		metadata.Reason = "Failed to prepare editable metadata"
+		result.Editable = metadata
+	}
 
 	return result, nil
 }
 
-func (p *PostgresDatabase) buildEditableMetadata(ctx context.Context, query string, columns []string) *EditableQueryMetadata {
-	metadata := &EditableQueryMetadata{
-		Enabled: false,
-		Columns: make([]EditableColumn, 0, len(columns)),
-	}
-
-	// Default columns (read-only) in case we early-return
-	for _, col := range columns {
-		metadata.Columns = append(metadata.Columns, EditableColumn{
-			Name:       col,
-			ResultName: col,
-			Editable:   false,
-			PrimaryKey: false,
-		})
-	}
+func (p *PostgresDatabase) computeEditableMetadata(ctx context.Context, query string, columns []string, allowFetch bool) (*EditableQueryMetadata, bool, error) {
+	metadata := newEditableMetadata(columns)
 
 	query = strings.TrimSpace(query)
 	if query == "" {
 		metadata.Reason = "Empty query"
-		return metadata
+		return metadata, true, nil
 	}
 
 	schema, table, reason, ok := parseSimpleSelect(query)
 	if !ok {
 		metadata.Reason = reason
-		return metadata
-	}
-
-	if schema == "" {
-		currentSchema, err := p.getCurrentSchema(ctx)
-		if err != nil {
-			metadata.Reason = "Unable to determine current schema"
-			return metadata
-		}
-		schema = currentSchema
+		return metadata, true, nil
 	}
 
 	if table == "" {
 		metadata.Reason = "Unable to identify target table"
-		return metadata
+		return metadata, true, nil
 	}
 
-	structure, err := p.GetTableStructure(ctx, schema, table)
+	if schema == "" {
+		if !allowFetch {
+			metadata.Pending = true
+			metadata.Reason = "Resolving schema"
+			return metadata, false, nil
+		}
+
+		currentSchema, err := p.getCurrentSchema(ctx)
+		if err != nil {
+			metadata.Reason = "Unable to determine current schema"
+			return metadata, true, err
+		}
+		schema = currentSchema
+	}
+
+	metadata.Schema = schema
+	metadata.Table = table
+
+	structure, ok, err := p.ensureTableStructure(ctx, schema, table, allowFetch)
 	if err != nil {
 		metadata.Reason = "Unable to load table metadata"
-		return metadata
+		return metadata, true, err
+	}
+
+	if !ok {
+		metadata.Pending = true
+		if metadata.Reason == "" {
+			metadata.Reason = "Loading table metadata"
+		}
+		return metadata, false, nil
+	}
+
+	if err := populateEditableMetadataFromStructure(metadata, columns, structure); err != nil {
+		metadata.Reason = err.Error()
+		return metadata, true, nil
+	}
+
+	return metadata, true, nil
+}
+
+func (p *PostgresDatabase) ensureTableStructure(ctx context.Context, schema, table string, allowFetch bool) (*TableStructure, bool, error) {
+	if structure, ok := p.structureCache.get(schema, table); ok {
+		return structure, true, nil
+	}
+
+	if !allowFetch {
+		return nil, false, nil
+	}
+
+	structure, err := p.loadTableStructure(ctx, schema, table)
+	if err != nil {
+		return nil, false, err
+	}
+
+	p.structureCache.set(schema, table, structure)
+	return cloneTableStructure(structure), true, nil
+}
+
+func populateEditableMetadataFromStructure(metadata *EditableQueryMetadata, columns []string, structure *TableStructure) error {
+	if metadata == nil || structure == nil {
+		return fmt.Errorf("Unable to load table metadata")
 	}
 
 	columnMap := make(map[string]ColumnInfo)
@@ -254,8 +308,7 @@ func (p *PostgresDatabase) buildEditableMetadata(ctx context.Context, query stri
 	}
 
 	if len(primaryKeys) == 0 {
-		metadata.Reason = "Table does not have a primary key"
-		return metadata
+		return fmt.Errorf("Table does not have a primary key")
 	}
 
 	resultColumnSet := make(map[string]struct{})
@@ -270,8 +323,7 @@ func (p *PostgresDatabase) buildEditableMetadata(ctx context.Context, query stri
 		}
 	}
 	if len(missingPK) > 0 {
-		metadata.Reason = fmt.Sprintf("Result set is missing primary key columns: %s", strings.Join(missingPK, ", "))
-		return metadata
+		return fmt.Errorf("Result set is missing primary key columns: %s", strings.Join(missingPK, ", "))
 	}
 
 	editableColumns := make([]EditableColumn, 0, len(columns))
@@ -293,29 +345,69 @@ func (p *PostgresDatabase) buildEditableMetadata(ctx context.Context, query stri
 				columnMeta.Editable = true
 				editableCount++
 			}
-		} else {
-			// Column not part of the base table (computed/alias)
-			columnMeta.Editable = false
 		}
 
 		editableColumns = append(editableColumns, columnMeta)
 	}
 
 	if editableCount == 0 {
-		metadata.Reason = "No editable columns found in result set"
-		return metadata
+		return fmt.Errorf("No editable columns found in result set")
 	}
 
 	metadata.Enabled = true
 	metadata.Reason = ""
-	metadata.Schema = schema
-	metadata.Table = table
 	metadata.PrimaryKeys = primaryKeys
 	metadata.Columns = editableColumns
 
-	return metadata
+	return nil
 }
 
+func (p *PostgresDatabase) loadTableStructure(ctx context.Context, schema, table string) (*TableStructure, error) {
+	db, err := p.pool.Get(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	structure := &TableStructure{}
+
+	// Get table info
+	tableInfo, err := p.getTableInfo(ctx, db, schema, table)
+	if err != nil {
+		return nil, err
+	}
+	structure.Table = *tableInfo
+
+	// Get columns
+	columns, err := p.getTableColumns(ctx, db, schema, table)
+	if err != nil {
+		return nil, err
+	}
+	structure.Columns = columns
+
+	// Get indexes
+	indexes, err := p.getTableIndexes(ctx, db, schema, table)
+	if err != nil {
+		return nil, err
+	}
+	structure.Indexes = indexes
+
+	// Get foreign keys
+	foreignKeys, err := p.getTableForeignKeys(ctx, db, schema, table)
+	if err != nil {
+		return nil, err
+	}
+	structure.ForeignKeys = foreignKeys
+
+	return structure, nil
+}
+
+func (p *PostgresDatabase) ComputeEditableMetadata(ctx context.Context, query string, columns []string) (*EditableQueryMetadata, error) {
+	metadata, _, err := p.computeEditableMetadata(ctx, query, columns, true)
+	if metadata != nil {
+		metadata.Pending = false
+	}
+	return metadata, err
+}
 
 func (p *PostgresDatabase) getCurrentSchema(ctx context.Context) (string, error) {
 	db, err := p.pool.Get(ctx)
@@ -361,11 +453,16 @@ func (p *PostgresDatabase) UpdateRow(ctx context.Context, params UpdateRowParams
 		return errors.New("result column metadata is required for updates")
 	}
 
-	metadata := p.buildEditableMetadata(ctx, params.OriginalQuery, params.Columns)
+	metadata, metaErr := p.ComputeEditableMetadata(ctx, params.OriginalQuery, params.Columns)
+	if metaErr != nil && (metadata == nil || metadata.Reason == "") {
+		return metaErr
+	}
 	if metadata == nil || !metadata.Enabled {
 		reason := "query is not editable"
 		if metadata != nil && metadata.Reason != "" {
 			reason = metadata.Reason
+		} else if metaErr != nil {
+			reason = metaErr.Error()
 		}
 		return errors.New(reason)
 	}
@@ -647,42 +744,17 @@ func (p *PostgresDatabase) GetTables(ctx context.Context, schema string) ([]Tabl
 
 // GetTableStructure returns detailed structure information for a table
 func (p *PostgresDatabase) GetTableStructure(ctx context.Context, schema, table string) (*TableStructure, error) {
-	db, err := p.pool.Get(ctx)
+	if structure, ok := p.structureCache.get(schema, table); ok {
+		return structure, nil
+	}
+
+	structure, err := p.loadTableStructure(ctx, schema, table)
 	if err != nil {
 		return nil, err
 	}
 
-	structure := &TableStructure{}
-
-	// Get table info
-	tableInfo, err := p.getTableInfo(ctx, db, schema, table)
-	if err != nil {
-		return nil, err
-	}
-	structure.Table = *tableInfo
-
-	// Get columns
-	columns, err := p.getTableColumns(ctx, db, schema, table)
-	if err != nil {
-		return nil, err
-	}
-	structure.Columns = columns
-
-	// Get indexes
-	indexes, err := p.getTableIndexes(ctx, db, schema, table)
-	if err != nil {
-		return nil, err
-	}
-	structure.Indexes = indexes
-
-	// Get foreign keys
-	foreignKeys, err := p.getTableForeignKeys(ctx, db, schema, table)
-	if err != nil {
-		return nil, err
-	}
-	structure.ForeignKeys = foreignKeys
-
-	return structure, nil
+	p.structureCache.set(schema, table, structure)
+	return cloneTableStructure(structure), nil
 }
 
 // Helper methods for getting table structure details

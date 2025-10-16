@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, userEvent } from '../../utils/testUtils';
+import { render, screen, userEvent } from '../../utils/test-utils';
 import { Button } from '@/components/ui/button';
 
 describe('Button Component', () => {

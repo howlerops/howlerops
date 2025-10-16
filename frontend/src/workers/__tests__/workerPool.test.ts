@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { WorkerPool } from '../workerPool';
+import { WorkerPool } from '../worker-pool';
 import {
   WorkerMessageType,
   Priority,
@@ -487,17 +487,20 @@ describe('WorkerPool', () => {
       });
 
       // Submit task but don't wait
+      // Add catch handler immediately to prevent unhandled rejection
       const taskPromise = testPool.execute(
         WorkerMessageType.VALIDATE_DATA,
         { data: 'test' },
         Priority.NORMAL
-      );
+      ).catch(err => err);
 
       // Immediately shutdown
       await testPool.shutdown();
 
       // Task should be rejected
-      await expect(taskPromise).rejects.toThrow(/shutting down/i);
+      const result = await taskPromise;
+      expect(result).toBeInstanceOf(Error);
+      expect(result.message).toMatch(/shutting down/i);
     });
   });
 });

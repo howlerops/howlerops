@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { WorkerClient } from '../workerClient';
+import { WorkerClient } from '../worker-client';
 import {
   WorkerMessageType,
   QueryResult,
