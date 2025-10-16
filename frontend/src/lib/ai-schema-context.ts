@@ -5,8 +5,11 @@
  * that includes information from multiple connected databases.
  */
 
-import { ConnectionInfo } from '@/store/connection-store'
-import { SchemaNode } from '@/hooks/useSchemaIntrospection'
+import { DatabaseConnection } from '@/store/connection-store'
+import { SchemaNode } from '@/hooks/use-schema-introspection'
+
+// Type alias for compatibility
+type ConnectionInfo = Pick<DatabaseConnection, 'id' | 'name' | 'database' | 'isConnected'>
 
 export interface DatabaseSchemaContext {
   connectionId: string

@@ -4,15 +4,15 @@
  */
 
 export * from './types';
-export { WorkerClient } from './workerClient';
-export { WorkerPool } from './workerPool';
-export { PerformanceMonitor } from './performanceMonitor';
-export { SharedBufferManager } from './sharedBuffer';
+export { WorkerClient } from './worker-client';
+export { WorkerPool } from './worker-pool';
+export { PerformanceMonitor } from './performance-monitor';
+export { SharedBufferManager } from './shared-buffer';
 
-// import { WorkerClient } from './workerClient';
-import { WorkerPool } from './workerPool';
-import { PerformanceMonitor } from './performanceMonitor';
-import { SharedBufferManager } from './sharedBuffer';
+// import { WorkerClient } from './worker-client';
+import { WorkerPool } from './worker-pool';
+import { PerformanceMonitor } from './performance-monitor';
+import { SharedBufferManager } from './shared-buffer';
 import {
   WorkerPoolConfig,
   QueryResult,

@@ -3,11 +3,11 @@
  * Exports all WebSocket-related React components
  */
 
-export { ConflictResolutionModal } from './ConflictResolutionModal';
-export { OptimisticUpdateIndicator } from './OptimisticUpdateIndicator';
-export { ConnectionStatusIndicator } from './ConnectionStatusIndicator';
-export { RealtimeTableEditor } from './RealtimeTableEditor';
+export { ConflictResolutionModal } from './conflict-resolution-modal';
+export { OptimisticUpdateIndicator } from './optimistic-update-indicator';
+export { ConnectionStatusIndicator } from './connection-status-indicator';
+export { RealtimeTableEditor } from './realtime-table-editor';
 
 // Additional utility components
-export { QueryProgressIndicator } from './QueryProgressIndicator';
-export { WebSocketDebugPanel } from './WebSocketDebugPanel';
+export { QueryProgressIndicator } from './query-progress-indicator';
+export { WebSocketDebugPanel } from './websocket-debug-panel';

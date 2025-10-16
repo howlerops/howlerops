@@ -7,7 +7,7 @@
  * - Performance hints
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Database, Clock, TrendingUp, AlertTriangle, Table2, Info } from 'lucide-react';
 
 interface QueryContext {
@@ -46,16 +46,7 @@ export const QueryContextPanel: React.FC<QueryContextPanelProps> = ({ connection
   const [context, setContext] = useState<QueryContext | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Load context when query or connection changes
-  useEffect(() => {
-    if (query && query.length > 10 && connectionId) {
-      loadContext();
-    } else {
-      setContext(null);
-    }
-  }, [query, connectionId]);
-
-  const loadContext = async () => {
+  const loadContext = useCallback(async () => {
     setIsLoading(true);
     try {
       // TODO: Call backend API to get query context
@@ -110,13 +101,23 @@ export const QueryContextPanel: React.FC<QueryContextPanelProps> = ({ connection
       console.error('Failed to load context:', err);
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  // Load context when query or connection changes
+  useEffect(() => {
+    if (query && query.length > 10 && connectionId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      loadContext();
+    } else {
+      setContext(null);
+    }
+  }, [query, connectionId, loadContext]);
 
   // Render loading state
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full text-gray-400">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
       </div>
     );
   }
@@ -133,7 +134,7 @@ export const QueryContextPanel: React.FC<QueryContextPanelProps> = ({ connection
 
   // Render relevance indicator
   const renderRelevance = (relevance: number) => {
-    const color = relevance >= 0.8 ? 'bg-green-500' : relevance >= 0.6 ? 'bg-yellow-500' : 'bg-gray-500';
+    const color = relevance >= 0.8 ? 'bg-primary/10' : relevance >= 0.6 ? 'bg-accent/10' : 'bg-gray-500';
     return (
       <div className="flex items-center gap-2">
         <div className="w-16 h-2 bg-gray-700 rounded-full overflow-hidden">
@@ -164,7 +165,7 @@ export const QueryContextPanel: React.FC<QueryContextPanelProps> = ({ connection
             {context.relevantTables.map((table, idx) => (
               <div key={idx} className="p-3 bg-gray-800 rounded-lg border border-gray-700">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="font-mono text-sm text-blue-400">
+                  <span className="font-mono text-sm text-primary">
                     {table.schema}.{table.name}
                   </span>
                   {renderRelevance(table.relevance)}
@@ -229,15 +230,15 @@ export const QueryContextPanel: React.FC<QueryContextPanelProps> = ({ connection
                 key={idx}
                 className={`p-3 rounded-lg border ${
                   hint.type === 'warning'
-                    ? 'bg-yellow-500/10 border-yellow-500/50'
+                    ? 'bg-accent/10/10 border-accent/50'
                     : hint.type === 'suggestion'
-                    ? 'bg-blue-500/10 border-blue-500/50'
+                    ? 'bg-primary/10/10 border-primary/50'
                     : 'bg-gray-800 border-gray-700'
                 }`}
               >
                 <div className="flex items-start gap-2">
-                  {hint.type === 'warning' && <AlertTriangle size={16} className="text-yellow-500 mt-0.5" />}
-                  {hint.type === 'suggestion' && <TrendingUp size={16} className="text-blue-500 mt-0.5" />}
+                  {hint.type === 'warning' && <AlertTriangle size={16} className="text-accent-foreground mt-0.5" />}
+                  {hint.type === 'suggestion' && <TrendingUp size={16} className="text-primary mt-0.5" />}
                   {hint.type === 'info' && <Info size={16} className="text-gray-400 mt-0.5" />}
                   <div className="flex-1">
                     <p className="text-sm text-gray-300">{hint.message}</p>

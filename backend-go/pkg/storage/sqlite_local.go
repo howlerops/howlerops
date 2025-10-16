@@ -33,6 +33,225 @@ type LocalStorageConfig struct {
 	VectorsDB  string
 	UserID     string
 	VectorSize int
+	VectorStoreType string
+	MySQLVector     *MySQLVectorConfig
+}
+
+// localStorageSchema is the embedded migration SQL for creating local storage tables
+const localStorageSchema = `
+-- Local Storage Schema
+-- Migration: 001 - Initialize local storage tables
+
+-- Connections (encrypted credentials)
+CREATE TABLE IF NOT EXISTS connections (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    type TEXT NOT NULL,
+    host TEXT,
+    port INTEGER,
+    database_name TEXT,
+    username TEXT,
+    password_encrypted TEXT,
+    ssl_config TEXT,
+    created_by TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    team_id TEXT,
+    is_shared BOOLEAN DEFAULT 0,
+    metadata TEXT  -- JSON
+);
+
+-- Saved queries
+CREATE TABLE IF NOT EXISTS saved_queries (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    query TEXT NOT NULL,
+    description TEXT,
+    connection_id TEXT,
+    created_by TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    team_id TEXT,
+    is_shared BOOLEAN DEFAULT 0,
+    tags TEXT,  -- JSON array
+    folder TEXT,
+    FOREIGN KEY (connection_id) REFERENCES connections(id) ON DELETE SET NULL
+);
+
+-- Query history
+CREATE TABLE IF NOT EXISTS query_history (
+    id TEXT PRIMARY KEY,
+    query TEXT NOT NULL,
+    connection_id TEXT,
+    executed_by TEXT NOT NULL,
+    executed_at INTEGER NOT NULL,
+    duration_ms INTEGER,
+    rows_returned INTEGER,
+    success BOOLEAN NOT NULL,
+    error TEXT,
+    team_id TEXT,
+    is_shared BOOLEAN DEFAULT 1,
+    FOREIGN KEY (connection_id) REFERENCES connections(id) ON DELETE SET NULL
+);
+
+-- Local credentials (AI keys, etc - NEVER synced)
+CREATE TABLE IF NOT EXISTS local_credentials (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+-- Settings
+CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    scope TEXT,  -- 'user', 'team'
+    user_id TEXT,
+    team_id TEXT
+);
+
+-- Schema cache
+CREATE TABLE IF NOT EXISTS schema_cache (
+    connection_id TEXT PRIMARY KEY,
+    schema_data TEXT NOT NULL,  -- JSON
+    cached_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL,
+    FOREIGN KEY (connection_id) REFERENCES connections(id) ON DELETE CASCADE
+);
+
+-- User metadata
+CREATE TABLE IF NOT EXISTS user_metadata (
+    id TEXT PRIMARY KEY,
+    name TEXT,
+    mode TEXT DEFAULT 'solo',  -- 'solo' or 'team'
+    team_id TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+-- Teams (for team mode)
+CREATE TABLE IF NOT EXISTS teams (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    created_by TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    settings TEXT  -- JSON
+);
+
+-- Team members
+CREATE TABLE IF NOT EXISTS team_members (
+    team_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    role TEXT NOT NULL,  -- 'admin', 'member', 'viewer'
+    joined_at INTEGER NOT NULL,
+    invited_by TEXT,
+    PRIMARY KEY (team_id, user_id),
+    FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE
+);
+
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_connections_created_by ON connections(created_by);
+CREATE INDEX IF NOT EXISTS idx_connections_team_id ON connections(team_id);
+CREATE INDEX IF NOT EXISTS idx_connections_type ON connections(type);
+
+CREATE INDEX IF NOT EXISTS idx_saved_queries_created_by ON saved_queries(created_by);
+CREATE INDEX IF NOT EXISTS idx_saved_queries_team_id ON saved_queries(team_id);
+CREATE INDEX IF NOT EXISTS idx_saved_queries_connection_id ON saved_queries(connection_id);
+CREATE INDEX IF NOT EXISTS idx_saved_queries_folder ON saved_queries(folder);
+
+CREATE INDEX IF NOT EXISTS idx_query_history_executed_by ON query_history(executed_by);
+CREATE INDEX IF NOT EXISTS idx_query_history_team_id ON query_history(team_id);
+CREATE INDEX IF NOT EXISTS idx_query_history_connection_id ON query_history(connection_id);
+CREATE INDEX IF NOT EXISTS idx_query_history_executed_at ON query_history(executed_at);
+CREATE INDEX IF NOT EXISTS idx_query_history_success ON query_history(success);
+
+CREATE INDEX IF NOT EXISTS idx_schema_cache_expires_at ON schema_cache(expires_at);
+`
+
+// parseLocalStorageStatements parses SQL text into individual statements
+func parseLocalStorageStatements(sql string) []string {
+	var statements []string
+	var currentStmt strings.Builder
+	
+	lines := strings.Split(sql, "\n")
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		
+		// Skip empty lines and comments when not in a statement
+		if currentStmt.Len() == 0 && (trimmed == "" || strings.HasPrefix(trimmed, "--")) {
+			continue
+		}
+		
+		// Add line to current statement
+		if currentStmt.Len() > 0 {
+			currentStmt.WriteString("\n")
+		}
+		currentStmt.WriteString(line)
+		
+		// Check if statement is complete (ends with semicolon)
+		if strings.HasSuffix(trimmed, ";") {
+			statements = append(statements, currentStmt.String())
+			currentStmt.Reset()
+		}
+	}
+	
+	// Add any remaining statement
+	if currentStmt.Len() > 0 {
+		statements = append(statements, currentStmt.String())
+	}
+	
+	return statements
+}
+
+// runLocalStorageMigrations executes the initialization schema for local storage
+func runLocalStorageMigrations(db *sql.DB, logger *logrus.Logger) error {
+	logger.Debug("Running local storage migrations")
+	
+	// Check if tables exist
+	var tableExists bool
+	err := db.QueryRow(`
+		SELECT COUNT(*) > 0
+		FROM sqlite_master
+		WHERE type='table' AND name='connections'
+	`).Scan(&tableExists)
+	
+	if err != nil {
+		return fmt.Errorf("failed to check if tables exist: %w", err)
+	}
+	
+	// If tables already exist, skip migrations
+	if tableExists {
+		logger.Debug("Local storage tables already exist, skipping migrations")
+		return nil
+	}
+	
+	// Parse and execute migration statements
+	statements := parseLocalStorageStatements(localStorageSchema)
+	
+	tx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+	
+	for _, stmt := range statements {
+		stmt = strings.TrimSpace(stmt)
+		if stmt == "" {
+			continue
+		}
+		
+		if _, err := tx.Exec(stmt); err != nil {
+			return fmt.Errorf("failed to execute migration statement: %w", err)
+		}
+	}
+	
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit migrations: %w", err)
+	}
+	
+	logger.Info("Local storage migrations completed successfully")
+	return nil
 }
 
 // NewLocalStorage creates a new local SQLite storage
@@ -64,29 +283,51 @@ func NewLocalStorage(config *LocalStorageConfig, logger *logrus.Logger) (*LocalS
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(5 * time.Minute)
 
-	// Create vector store
-	vectorDBPath := filepath.Join(dataDir, config.VectorsDB)
-	vectorConfig := &rag.SQLiteVectorConfig{
-		Path:        vectorDBPath,
-		Extension:   "sqlite-vec",
-		VectorSize:  config.VectorSize,
-		CacheSizeMB: 128,
-		MMapSizeMB:  256,
-		WALEnabled:  true,
-		Timeout:     10 * time.Second,
+	// Run migrations to ensure schema exists
+	if err := runLocalStorageMigrations(db, logger); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to run local storage migrations: %w", err)
 	}
 
-	vectorStore, err := rag.NewSQLiteVectorStore(vectorConfig, logger)
-	if err != nil {
-		db.Close()
-		return nil, fmt.Errorf("failed to create vector store: %w", err)
-	}
+    // Create vector store
+    vectorStoreType := strings.ToLower(config.VectorStoreType)
+    vectorConfig := &rag.VectorStoreConfig{}
 
-	// Initialize vector store
-	if err := vectorStore.Initialize(context.Background()); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("failed to initialize vector store: %w", err)
-	}
+    switch vectorStoreType {
+    case "mysql":
+        if config.MySQLVector == nil || config.MySQLVector.DSN == "" {
+            db.Close()
+            return nil, fmt.Errorf("mysql vector store requires DSN")
+        }
+        vectorConfig.Type = "mysql"
+        vectorConfig.MySQLConfig = &rag.MySQLVectorConfig{
+            DSN:        config.MySQLVector.DSN,
+            VectorSize: config.MySQLVector.VectorSize,
+        }
+    default:
+        vectorDBPath := filepath.Join(dataDir, config.VectorsDB)
+        vectorConfig.Type = "sqlite"
+        vectorConfig.SQLiteConfig = &rag.SQLiteVectorConfig{
+            Path:        vectorDBPath,
+            Extension:   "sqlite-vec",
+            VectorSize:  config.VectorSize,
+            CacheSizeMB: 128,
+            MMapSizeMB:  256,
+            WALEnabled:  true,
+            Timeout:     10 * time.Second,
+        }
+    }
+
+    vectorStore, err := rag.NewVectorStore(vectorConfig, logger)
+    if err != nil {
+        db.Close()
+        return nil, fmt.Errorf("failed to create vector store: %w", err)
+    }
+
+    if err := vectorStore.Initialize(context.Background()); err != nil {
+        db.Close()
+        return nil, fmt.Errorf("failed to initialize vector store: %w", err)
+    }
 
 	storage := &LocalSQLiteStorage{
 		db:          db,
@@ -499,7 +740,17 @@ func (s *LocalSQLiteStorage) IndexDocument(ctx context.Context, doc *Document) e
 		AccessCount:  doc.AccessCount,
 		LastAccessed: doc.LastAccessed,
 	}
-	return s.vectorStore.IndexDocument(ctx, ragDoc)
+	
+	if err := s.vectorStore.IndexDocument(ctx, ragDoc); err != nil {
+		return err
+	}
+	
+	// Copy back any fields that may have been modified
+	doc.ID = ragDoc.ID
+	doc.CreatedAt = ragDoc.CreatedAt
+	doc.UpdatedAt = ragDoc.UpdatedAt
+	
+	return nil
 }
 
 func (s *LocalSQLiteStorage) SearchDocuments(ctx context.Context, embedding []float32, filters *DocumentFilters) ([]*Document, error) {
@@ -799,4 +1050,3 @@ func (s *LocalSQLiteStorage) scanQueryHistory(row scanner) (*QueryHistory, error
 		IsShared:     isShared,
 	}, nil
 }
-

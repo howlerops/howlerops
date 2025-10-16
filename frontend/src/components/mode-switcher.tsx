@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { Database, Network, ChevronDown, Info, CheckCircle2, Circle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -12,7 +12,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { useConnectionStore } from '@/store/connection-store'
-import { UseQueryModeReturn } from '@/hooks/useQueryMode'
+import { UseQueryModeReturn } from '@/hooks/use-query-mode'
 
 interface ModeSwitcherProps {
   mode: UseQueryModeReturn['mode']
@@ -44,11 +44,11 @@ const modeConfigs: Record<'single' | 'multi', ModeConfig> = {
     description: 'Query one database at a time with full autocomplete support',
     icon: Database,
     color: {
-      bg: 'bg-blue-50 dark:bg-blue-950/30',
-      border: 'border-blue-200 dark:border-blue-800',
-      text: 'text-blue-900 dark:text-blue-100',
-      icon: 'text-blue-600 dark:text-blue-400',
-      badge: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+      bg: 'bg-secondary',
+      border: 'border-primary',
+      text: 'text-foreground',
+      icon: 'text-primary',
+      badge: 'bg-primary text-primary-foreground',
     },
     requirements: ['At least 1 connection configured'],
   },
@@ -58,17 +58,17 @@ const modeConfigs: Record<'single' | 'multi', ModeConfig> = {
     description: 'Query across multiple databases using @connectionName.table syntax',
     icon: Network,
     color: {
-      bg: 'bg-purple-50 dark:bg-purple-950/30',
-      border: 'border-purple-200 dark:border-purple-800',
-      text: 'text-purple-900 dark:text-purple-100',
-      icon: 'text-purple-600 dark:text-purple-400',
-      badge: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+      bg: 'bg-secondary',
+      border: 'border-accent',
+      text: 'text-foreground',
+      icon: 'text-accent-foreground',
+      badge: 'bg-accent text-accent-foreground',
     },
     requirements: ['At least 2 connections configured', 'Connections must be in same environment'],
   },
 }
 
-export function ModeSwitcher({ mode, canToggle, toggleMode, connectionCount, className }: ModeSwitcherProps) {
+export function ModeSwitcher({ mode, toggleMode, className }: ModeSwitcherProps) {
   const { connections, getFilteredConnections, activeEnvironmentFilter } = useConnectionStore()
   const [isOpen, setIsOpen] = useState(false)
 
@@ -79,9 +79,14 @@ export function ModeSwitcher({ mode, canToggle, toggleMode, connectionCount, cla
   // Check if multi-mode requirements are met
   const canUseMulti = filteredConnections.length >= 2
 
+  // Auto-close dropdown when mode changes
+  const prevModeRef = useRef(mode)
   useEffect(() => {
-    // Auto-close dropdown when mode changes
-    setIsOpen(false)
+    if (prevModeRef.current !== mode) {
+      prevModeRef.current = mode
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setIsOpen(false)
+    }
   }, [mode])
 
   // Auto-connect filtered connections when switching to multi-DB mode
@@ -92,15 +97,12 @@ export function ModeSwitcher({ mode, canToggle, toggleMode, connectionCount, cla
         const disconnected = filtered.filter(c => !c.isConnected)
         
         if (disconnected.length > 0) {
-          console.log(`⚡ Multi-DB mode: Auto-connecting ${disconnected.length} connections...`)
-          
           const { connectToDatabase } = useConnectionStore.getState()
           const connectPromises = disconnected.map(async (conn) => {
             try {
               await connectToDatabase(conn.id)
-              console.log(`  ✓ Connected: ${conn.name}`)
-            } catch (error) {
-              console.warn(`  ✗ Failed: ${conn.name}`, error)
+            } catch {
+              // Auto-connect failed
             }
           })
           
@@ -243,13 +245,13 @@ export function ModeSwitcher({ mode, canToggle, toggleMode, connectionCount, cla
                           return (
                             <div key={index} className="flex items-center gap-1.5">
                               {isMet ? (
-                                <CheckCircle2 className="h-3 w-3 text-green-500" />
+                                <CheckCircle2 className="h-3 w-3 text-primary" />
                               ) : (
                                 <Circle className="h-3 w-3 text-muted-foreground" />
                               )}
                               <span className={cn(
                                 'text-xs',
-                                isMet ? 'text-green-700 dark:text-green-400' : 'text-muted-foreground'
+                                isMet ? 'text-primary' : 'text-muted-foreground'
                               )}>
                                 {req}
                               </span>
@@ -275,7 +277,7 @@ export function ModeSwitcher({ mode, canToggle, toggleMode, connectionCount, cla
               </div>
               <div>
                 <span className="text-muted-foreground">Connected:</span>
-                <span className="font-medium ml-1 text-green-600 dark:text-green-400">
+                <span className="font-medium ml-1 text-primary">
                   {connectedCount}
                 </span>
               </div>

@@ -110,8 +110,13 @@ func (e *Executor) executeSingle(
 		return nil, fmt.Errorf("no database connection available")
 	}
 
-	// Execute the query
-	queryResult, err := db.Execute(ctx, parsed.OriginalSQL)
+	// Execute the query (strip @connection prefixes if present)
+	queryToExecute := parsed.OriginalSQL
+	if len(parsed.Segments) > 0 {
+		queryToExecute = e.replaceConnectionRefs(queryToExecute)
+	}
+
+	queryResult, err := db.Execute(ctx, queryToExecute)
 	if err != nil {
 		return nil, fmt.Errorf("query execution failed: %w", err)
 	}
@@ -179,11 +184,11 @@ func (e *Executor) replaceConnectionRefs(sql string) string {
 	// Remove @connection_id. prefix, keeping schema.table or just table
 	// Pattern: @connection_id.schema.table -> schema.table
 	// Pattern: @connection_id.table -> table
-	
+
 	// For now, just remove the @connection. prefix
 	// This is a simplified approach that works for basic queries
 	result := sql
-	
+
 	// Use a simple approach: find and replace @word. patterns
 	for {
 		start := -1
@@ -193,25 +198,25 @@ func (e *Executor) replaceConnectionRefs(sql string) string {
 				break
 			}
 		}
-		
+
 		if start == -1 {
 			break
 		}
-		
+
 		// Find the end of the connection reference (first dot)
 		end := start + 1
 		for end < len(result) && result[end] != '.' {
 			end++
 		}
-		
+
 		if end >= len(result) {
 			break
 		}
-		
+
 		// Remove @connection part
 		result = result[:start] + result[end+1:]
 	}
-	
+
 	return result
 }
 
@@ -259,4 +264,3 @@ func (e *Executor) executeParallel(
 
 	return results, nil
 }
-

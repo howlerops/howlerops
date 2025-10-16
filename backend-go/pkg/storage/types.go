@@ -24,6 +24,12 @@ type Connection struct {
 	Metadata          map[string]string `json:"metadata,omitempty"`
 }
 
+// MySQLVectorConfig represents MySQL vector store connection details
+type MySQLVectorConfig struct {
+    DSN        string `json:"dsn"`
+    VectorSize int    `json:"vector_size"`
+}
+
 // ConnectionFilters represents filters for connection queries
 type ConnectionFilters struct {
 	TeamID       string
@@ -144,4 +150,3 @@ func (m Mode) String() string {
 		return "unknown"
 	}
 }
-

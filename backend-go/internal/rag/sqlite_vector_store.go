@@ -3,17 +3,90 @@ package rag
 import (
 	"context"
 	"database/sql"
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"math"
 	"sort"
+	"strings"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 )
+
+// initSchema is the embedded migration SQL for creating vector store tables
+const initSchema = `
+-- SQLite Vector Store Schema
+-- Migration: 001 - Initialize SQLite vector store tables
+
+-- Documents table (core document storage)
+CREATE TABLE IF NOT EXISTS documents (
+    id TEXT PRIMARY KEY,
+    connection_id TEXT NOT NULL,
+    type TEXT NOT NULL,  -- 'schema', 'query', 'plan', 'result', 'business', 'performance'
+    content TEXT NOT NULL,
+    metadata TEXT,  -- JSON
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    access_count INTEGER DEFAULT 0,
+    last_accessed INTEGER
+);
+
+-- Vector embeddings table (stores document embeddings)
+-- Note: This will use sqlite-vec extension when available
+-- For now, we store as BLOB and implement search in Go
+CREATE TABLE IF NOT EXISTS embeddings (
+    document_id TEXT PRIMARY KEY,
+    embedding BLOB NOT NULL,  -- Serialized float32 array
+    dimension INTEGER NOT NULL,
+    FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE
+);
+
+-- Full-text search index
+CREATE VIRTUAL TABLE IF NOT EXISTS documents_fts USING fts5(
+    document_id UNINDEXED,
+    content,
+    tokenize = 'porter unicode61'
+);
+
+-- Trigger to keep FTS index in sync
+CREATE TRIGGER IF NOT EXISTS documents_ai AFTER INSERT ON documents BEGIN
+    INSERT INTO documents_fts(document_id, content) VALUES (new.id, new.content);
+END;
+
+CREATE TRIGGER IF NOT EXISTS documents_au AFTER UPDATE ON documents BEGIN
+    UPDATE documents_fts SET content = new.content WHERE document_id = old.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS documents_ad AFTER DELETE ON documents BEGIN
+    DELETE FROM documents_fts WHERE document_id = old.id;
+END;
+
+-- Collections metadata (tracks different document collections)
+CREATE TABLE IF NOT EXISTS collections (
+    name TEXT PRIMARY KEY,
+    vector_size INTEGER NOT NULL,
+    distance TEXT NOT NULL,  -- 'cosine', 'euclidean', 'dot'
+    document_count INTEGER DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_documents_connection ON documents(connection_id);
+CREATE INDEX IF NOT EXISTS idx_documents_type ON documents(type);
+CREATE INDEX IF NOT EXISTS idx_documents_created ON documents(created_at);
+CREATE INDEX IF NOT EXISTS idx_documents_accessed ON documents(last_accessed);
+CREATE INDEX IF NOT EXISTS idx_embeddings_dimension ON embeddings(dimension);
+
+-- Initialize default collections
+INSERT OR IGNORE INTO collections (name, vector_size, distance, document_count, created_at, updated_at) VALUES
+    ('schemas', 1536, 'cosine', 0, unixepoch(), unixepoch()),
+    ('queries', 1536, 'cosine', 0, unixepoch(), unixepoch()),
+    ('performance', 1536, 'euclidean', 0, unixepoch(), unixepoch()),
+    ('business', 1536, 'cosine', 0, unixepoch(), unixepoch()),
+    ('memory', 1536, 'cosine', 0, unixepoch(), unixepoch());
+`
 
 // SQLiteVectorConfig holds SQLite vector store configuration
 type SQLiteVectorConfig struct {
@@ -72,10 +145,132 @@ func NewSQLiteVectorStore(config *SQLiteVectorConfig, logger *logrus.Logger) (*S
 	return store, nil
 }
 
+// runMigrations executes the initialization schema
+func (s *SQLiteVectorStore) runMigrations(ctx context.Context) error {
+	s.logger.Debug("Running vector store migrations")
+	
+	// Parse SQL statements properly, handling triggers with nested semicolons
+	statements := s.parseSQLStatements(initSchema)
+	
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+	
+	fts5Available := true
+	
+	for _, stmt := range statements {
+		stmt = strings.TrimSpace(stmt)
+		if stmt == "" {
+			continue
+		}
+		
+		// Skip FTS5-related statements if FTS5 is not available
+		stmtUpper := strings.ToUpper(stmt)
+		isFTS5Related := strings.Contains(stmtUpper, "FTS5") || 
+		                 strings.Contains(stmtUpper, "DOCUMENTS_FTS")
+		
+		if isFTS5Related && !fts5Available {
+			s.logger.Debug("Skipping FTS5 statement (not available)")
+			continue
+		}
+		
+		if _, err := tx.ExecContext(ctx, stmt); err != nil {
+			// Check if FTS5 module is not available
+			if strings.Contains(err.Error(), "no such module: fts5") {
+				fts5Available = false
+				s.logger.WithError(err).Warn("FTS5 not available, skipping full-text search features")
+				continue
+			}
+			return fmt.Errorf("failed to execute migration statement: %w", err)
+		}
+	}
+	
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit migrations: %w", err)
+	}
+	
+	if !fts5Available {
+		s.logger.Info("Vector store migrations completed (FTS5 disabled)")
+	} else {
+		s.logger.Info("Vector store migrations completed successfully")
+	}
+	return nil
+}
+
+// parseSQLStatements parses SQL text into individual statements, handling triggers correctly
+func (s *SQLiteVectorStore) parseSQLStatements(sql string) []string {
+	var statements []string
+	var currentStmt strings.Builder
+	inTrigger := false
+	
+	lines := strings.Split(sql, "\n")
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		
+		// Skip empty lines and comments when not in a statement
+		if currentStmt.Len() == 0 && (trimmed == "" || strings.HasPrefix(trimmed, "--")) {
+			continue
+		}
+		
+		// Check if we're starting a trigger
+		if strings.HasPrefix(strings.ToUpper(trimmed), "CREATE TRIGGER") {
+			inTrigger = true
+		}
+		
+		// Add line to current statement
+		if currentStmt.Len() > 0 {
+			currentStmt.WriteString("\n")
+		}
+		currentStmt.WriteString(line)
+		
+		// Check if statement is complete
+		if inTrigger {
+			// Triggers end with "END;"
+			if strings.HasSuffix(trimmed, "END;") {
+				statements = append(statements, currentStmt.String())
+				currentStmt.Reset()
+				inTrigger = false
+			}
+		} else {
+			// Regular statements end with semicolon
+			if strings.HasSuffix(trimmed, ";") {
+				statements = append(statements, currentStmt.String())
+				currentStmt.Reset()
+			}
+		}
+	}
+	
+	// Add any remaining statement
+	if currentStmt.Len() > 0 {
+		statements = append(statements, currentStmt.String())
+	}
+	
+	return statements
+}
+
 // Initialize initializes the vector store
 func (s *SQLiteVectorStore) Initialize(ctx context.Context) error {
-	// Migrations should be run separately via migration files
-	// This method just loads existing configuration
+	// Check if collections table exists
+	var tableExists bool
+	err := s.db.QueryRowContext(ctx, `
+		SELECT COUNT(*) > 0 
+		FROM sqlite_master 
+		WHERE type='table' AND name='collections'
+	`).Scan(&tableExists)
+	
+	if err != nil {
+		return fmt.Errorf("failed to check if tables exist: %w", err)
+	}
+	
+	// If tables don't exist, run migrations
+	if !tableExists {
+		s.logger.Info("Vector store tables not found, running migrations")
+		if err := s.runMigrations(ctx); err != nil {
+			return fmt.Errorf("failed to run migrations: %w", err)
+		}
+	}
 	
 	// Load existing collections
 	rows, err := s.db.QueryContext(ctx, `
@@ -698,47 +893,9 @@ func (s *SQLiteVectorStore) getCollectionForType(docType DocumentType) string {
 		return "performance"
 	case DocumentTypeBusiness:
 		return "business"
+	case DocumentTypeMemory:
+		return "memory"
 	default:
 		return "queries"
 	}
 }
-
-// serializeEmbedding converts float32 slice to bytes
-func serializeEmbedding(embedding []float32) []byte {
-	bytes := make([]byte, len(embedding)*4)
-	for i, v := range embedding {
-		binary.LittleEndian.PutUint32(bytes[i*4:], math.Float32bits(v))
-	}
-	return bytes
-}
-
-// deserializeEmbedding converts bytes to float32 slice
-func deserializeEmbedding(bytes []byte) []float32 {
-	embedding := make([]float32, len(bytes)/4)
-	for i := range embedding {
-		bits := binary.LittleEndian.Uint32(bytes[i*4:])
-		embedding[i] = math.Float32frombits(bits)
-	}
-	return embedding
-}
-
-// cosineSimilarity calculates cosine similarity between two vectors
-func cosineSimilarity(a, b []float32) float32 {
-	if len(a) != len(b) {
-		return 0
-	}
-
-	var dotProduct, normA, normB float32
-	for i := range a {
-		dotProduct += a[i] * b[i]
-		normA += a[i] * a[i]
-		normB += b[i] * b[i]
-	}
-
-	if normA == 0 || normB == 0 {
-		return 0
-	}
-
-	return dotProduct / (float32(math.Sqrt(float64(normA))) * float32(math.Sqrt(float64(normB))))
-}
-

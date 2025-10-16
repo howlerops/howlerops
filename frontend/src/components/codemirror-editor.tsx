@@ -19,6 +19,7 @@ export interface CodeMirrorEditorProps {
   value?: string
   onChange?: (value: string) => void
   onMount?: (editor: EditorView) => void
+  onExecute?: () => void
   theme?: 'light' | 'dark'
   height?: string
   readOnly?: boolean
@@ -43,6 +44,7 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorRef, CodeMirrorEditor
       value = '',
       onChange,
       onMount,
+      onExecute,
       theme = 'light',
       height = '400px',
       readOnly = false,
@@ -87,6 +89,14 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorRef, CodeMirrorEditor
         highlightActiveLine(),
         highlightSelectionMatches(),
         keymap.of([
+          // Cmd/Ctrl+Enter to execute query
+          ...(onExecute ? [{
+            key: 'Mod-Enter',
+            run: () => {
+              onExecute()
+              return true
+            }
+          }] : []),
           ...closeBracketsKeymap,
           ...defaultKeymap,
           ...searchKeymap,
@@ -140,7 +150,7 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorRef, CodeMirrorEditor
         view.destroy()
         viewRef.current = null
       }
-    }, []) // eslint-disable-line react-hooks/exhaustive-deps
+    }, [columnLoader]) // Re-create editor when columnLoader changes
 
     // Update value when prop changes
     useEffect(() => {
@@ -201,7 +211,7 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorRef, CodeMirrorEditor
     return (
       <div 
         className={cn(
-          'codemirror-wrapper border rounded-md overflow-hidden',
+          'codemirror-wrapper border overflow-hidden',
           'bg-background text-foreground',
           className
         )}

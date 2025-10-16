@@ -7,7 +7,7 @@ import { useQueryStore } from "@/store/query-store"
 import { Moon, Sun, Plus, Settings } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useNavigate } from "react-router-dom"
-import { HowlerOpsIcon } from "@/components/ui/HowlerOpsIcon"
+import { HowlerOpsIcon } from "@/components/ui/howlerops-icon"
 
 export function Header() {
   const location = useLocation()
@@ -63,7 +63,7 @@ export function Header() {
           <div className="text-sm text-muted-foreground">
             {activeConnection ? (
               <span className="flex items-center space-x-2">
-                <div className="h-2 w-2 rounded-full bg-green-500" />
+                <div className="h-2 w-2 rounded-full bg-primary" />
                 <span>{activeConnection.name}</span>
               </span>
             ) : (

@@ -7,7 +7,7 @@
 
 import { EditorView, keymap, ViewUpdate } from '@codemirror/view'
 import { EditorState, Extension, StateEffect, StateField } from '@codemirror/state'
-import { sql, SQLDialect, SQLConfig } from '@codemirror/lang-sql'
+import { sql, SQLDialect } from '@codemirror/lang-sql'
 import { 
   autocompletion, 
   Completion, 
@@ -54,6 +54,7 @@ export const updateSchemaEffect = StateEffect.define<{
   connections: Connection[]
   schemas: Map<string, SchemaNode[]>
   mode: 'single' | 'multi'
+  isLoading?: boolean
 }>()
 
 // State field to hold schema data
@@ -62,23 +63,26 @@ export const schemaState = StateField.define<{
   schemas: Map<string, SchemaNode[]>
   mode: 'single' | 'multi'
   columnCache: Map<string, Column[]>
+  isLoading: boolean
 }>({
   create() {
     return {
       connections: [],
       schemas: new Map(),
       mode: 'single',
-      columnCache: new Map()
+      columnCache: new Map(),
+      isLoading: false
     }
   },
   update(value, tr) {
-    for (let effect of tr.effects) {
+    for (const effect of tr.effects) {
       if (effect.is(updateSchemaEffect)) {
         return {
           ...value,
           connections: effect.value.connections,
           schemas: effect.value.schemas,
-          mode: effect.value.mode
+          mode: effect.value.mode,
+          isLoading: effect.value.isLoading ?? value.isLoading
         }
       }
     }
@@ -213,8 +217,9 @@ export function sqlAutocompletion(columnLoader?: ColumnLoader): Extension {
             const [, connId, partialTable] = tableMatch
             const connection = findConnection(connections, connId)
 
-            if (connection && schemas.has(connection.id)) {
-              const connSchemas = schemas.get(connection.id)!
+            // Use connId (matched identifier) instead of connection.id for schema lookup
+            if (connection && schemas.has(connId)) {
+              const connSchemas = schemas.get(connId)!
 
               connSchemas.forEach(schema => {
                 if (schema.type === 'schema' && schema.children) {
@@ -239,6 +244,12 @@ export function sqlAutocompletion(columnLoader?: ColumnLoader): Extension {
                 from: context.pos - partialTable.length,
                 options
               }
+            }
+            
+            // If pattern matched but no schemas found, return empty to prevent fallthrough
+            return {
+              from: context.pos - partialTable.length,
+              options: []
             }
           }
         }
@@ -413,10 +424,11 @@ export function updateEditorSchema(
   view: EditorView,
   connections: Connection[],
   schemas: Map<string, SchemaNode[]>,
-  mode: 'single' | 'multi'
+  mode: 'single' | 'multi',
+  isLoading?: boolean
 ) {
   view.dispatch({
-    effects: updateSchemaEffect.of({ connections, schemas, mode })
+    effects: updateSchemaEffect.of({ connections, schemas, mode, isLoading })
   })
 }
 

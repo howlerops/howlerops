@@ -6,8 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useConnectionStore, type DatabaseConnection } from "@/store/connection-store"
-import { useSchemaIntrospection, SchemaNode } from "@/hooks/useSchemaIntrospection"
-import { SchemaVisualizerWrapper } from "@/components/schema-visualizer/SchemaVisualizer"
+import { useSchemaIntrospection, SchemaNode } from "@/hooks/use-schema-introspection"
+import { SchemaVisualizerWrapper } from "@/components/schema-visualizer/schema-visualizer"
 import { EnvironmentManager } from "@/components/environment-manager"
 import {
   Database,
@@ -23,7 +23,6 @@ import {
   AlertCircle,
   Loader2,
   Network,
-  Star,
   Filter,
   Tag,
 } from "lucide-react"
@@ -132,9 +131,7 @@ export function Sidebar() {
   const {
     connections,
     activeConnection,
-    defaultConnectionId,
     setActiveConnection,
-    setDefaultConnection,
     connectToDatabase,
     isConnecting,
     activeEnvironmentFilter,
@@ -164,23 +161,6 @@ export function Sidebar() {
       console.error('Failed to activate connection:', error)
     } finally {
       setConnectingId(null)
-    }
-  }
-  
-  const handleSetDefault = (connectionId: string, e: React.MouseEvent) => {
-    e.stopPropagation()
-    
-    const connection = connections.find(c => c.id === connectionId)
-    if (!connection?.isConnected) {
-      console.warn('Cannot set default: connection not connected')
-      return
-    }
-    
-    // Toggle: if already default, unset; otherwise set
-    if (defaultConnectionId === connectionId) {
-      setDefaultConnection(null)
-    } else {
-      setDefaultConnection(connectionId)
     }
   }
 
@@ -277,27 +257,14 @@ export function Sidebar() {
               filteredConnections.map((connection) => {
                 const isActive = activeConnection?.id === connection.id
                 const isPending = connectingId === connection.id
-                const isDefault = defaultConnectionId === connection.id
 
                 return (
                   <div key={connection.id} className="flex items-center gap-1">
-                    {/* Default star button */}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 flex-shrink-0"
-                      disabled={!connection.isConnected}
-                      onClick={(e) => handleSetDefault(connection.id, e)}
-                      title={isDefault ? "Default connection for new tabs" : "Set as default"}
-                    >
-                      <Star className={`h-4 w-4 ${isDefault ? 'fill-yellow-500 text-yellow-500' : 'text-muted-foreground'}`} />
-                    </Button>
-                    
                     {/* Connection button */}
                     <Button
                       variant={isActive || isPending ? "secondary" : "ghost"}
                       size="sm"
-                      className="h-8 flex-1 justify-start overflow-hidden"
+                      className="h-8 w-full justify-start overflow-hidden"
                       disabled={isConnecting}
                       onClick={() => {
                         void handleConnectionSelect(connection)
@@ -326,7 +293,7 @@ export function Sidebar() {
                         {isPending ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : connection.isConnected ? (
-                          <span className="h-2 w-2 rounded-full bg-green-500" />
+                          <span className="h-2 w-2 rounded-full bg-primary" />
                         ) : null}
                       </span>
                     </Button>

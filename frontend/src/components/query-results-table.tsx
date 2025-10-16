@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { Database, Clock, Save, AlertCircle, Download, Search } from 'lucide-react'
 
-import { EditableTable } from './EditableTable/EditableTable'
+import { EditableTable } from './editable-table/editable-table'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
-import { TableColumn, ExportOptions } from '../types/table'
+import { TableColumn, ExportOptions, TableRow } from '../types/table'
 import { QueryEditableMetadata, QueryResultRow, useQueryStore } from '../store/query-store'
 import { wailsEndpoints } from '../lib/wails-api'
 import type { EditableTableContext } from '../types/table'
@@ -71,16 +71,16 @@ const serialiseCsvValue = (value: unknown): string => {
   return stringValue
 }
 
-const ExportButton = ({ context, onExport }: { context: EditableTableContext; onExport: (options: unknown) => void }) => {
+const ExportButton = ({ context, onExport }: { context: EditableTableContext; onExport: (options: ExportOptions) => void }) => {
   const [showExportMenu, setShowExportMenu] = useState(false)
-  const [exportOptions, setExportOptions] = useState({
-    format: 'csv' as 'csv' | 'json',
+  const [exportOptions, setExportOptions] = useState<ExportOptions>({
+    format: 'csv',
     includeHeaders: true,
     selectedOnly: false,
   })
 
-  const handleExport = (format: 'csv' | 'json') => {
-    const options = { ...exportOptions, format }
+  const handleExport = (format: ExportOptions['format']) => {
+    const options: ExportOptions = { ...exportOptions, format }
     onExport(options)
     setShowExportMenu(false)
   }
@@ -147,13 +147,13 @@ const ExportButton = ({ context, onExport }: { context: EditableTableContext; on
             <div className="flex gap-2">
               <button
                 onClick={() => handleExport(exportOptions.format)}
-                className="flex-1 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm"
+                className="flex-1 px-3 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors text-sm"
               >
                 Export
               </button>
               <button
                 onClick={() => setShowExportMenu(false)}
-                className="px-3 py-2 border border-gray-300 rounded hover:bg-gray-50 transition-colors text-sm"
+                className="px-3 py-2 border border-border rounded hover:bg-muted/50 transition-colors text-sm"
               >
                 Cancel
               </button>
@@ -167,11 +167,7 @@ const ExportButton = ({ context, onExport }: { context: EditableTableContext; on
 
 const QueryResultsToolbar = ({
   context,
-  rowCount,
-  columnCount,
-  executionTimeMs,
   executedAt,
-  dirtyCount,
   canSave,
   saving,
   onSave,
@@ -185,22 +181,38 @@ const QueryResultsToolbar = ({
   }
 
   return (
-    <div className="flex flex-col gap-3 border-b border-gray-200 bg-background px-4 py-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-          <span className="flex items-center gap-2">
-            <Database className="h-4 w-4" />
-            {rowCount} rows
-          </span>
-          <span className="flex items-center gap-2">
-            <Clock className="h-4 w-4" />
-            {executionTimeMs.toFixed(2)} ms
-          </span>
-          {dirtyCount > 0 && (
-            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800">
-              {dirtyCount} pending change{dirtyCount > 1 ? 's' : ''}
-            </span>
+    <div className="flex flex-col gap-3 border-b border-gray-200 bg-background px-1 py-1">
+      {(saveError || saveSuccess || (!metadata?.enabled && metadata?.reason)) && (
+        <div className="flex flex-col gap-2 text-xs">
+          {saveError && (
+            <div className="flex items-center gap-2 rounded border border-destructive/40 bg-destructive/10 px-3 py-2 text-destructive">
+              <AlertCircle className="h-4 w-4" />
+              <span>{saveError}</span>
+            </div>
           )}
+          {!saveError && saveSuccess && (
+            <div className="rounded border border-primary bg-primary/10 px-3 py-2 text-primary">
+              {saveSuccess}
+            </div>
+          )}
+          {!metadata?.enabled && metadata?.reason && (
+            <div className="flex items-center gap-2 rounded border border-accent bg-accent/10 px-3 py-2 text-accent-foreground">
+              <AlertCircle className="h-4 w-4" />
+              <span>{metadata.reason}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="relative w-full max-w-xs">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={context.state.globalFilter}
+            onChange={handleSearchChange}
+            placeholder="Search…"
+            className="h-9 w-full pl-9"
+          />
         </div>
 
         <div className="flex items-center gap-3">
@@ -229,46 +241,6 @@ const QueryResultsToolbar = ({
               )}
             </Button>
           )}
-        </div>
-      </div>
-
-      {(saveError || saveSuccess || (!metadata?.enabled && metadata?.reason)) && (
-        <div className="flex flex-col gap-2 text-xs">
-          {saveError && (
-            <div className="flex items-center gap-2 rounded border border-destructive/40 bg-destructive/10 px-3 py-2 text-destructive">
-              <AlertCircle className="h-4 w-4" />
-              <span>{saveError}</span>
-            </div>
-          )}
-          {!saveError && saveSuccess && (
-            <div className="rounded border border-emerald-300 bg-emerald-50 px-3 py-2 text-emerald-700">
-              {saveSuccess}
-            </div>
-          )}
-          {!metadata?.enabled && metadata?.reason && (
-            <div className="flex items-center gap-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">
-              <AlertCircle className="h-4 w-4" />
-              <span>{metadata.reason}</span>
-            </div>
-          )}
-        </div>
-      )}
-
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="relative w-full max-w-xs">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={context.state.globalFilter}
-            onChange={handleSearchChange}
-            placeholder="Search…"
-            className="h-9 w-full pl-9"
-          />
-        </div>
-
-        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-          <span>
-            {rowCount} rows • {columnCount} columns
-          </span>
         </div>
       </div>
     </div>
@@ -631,17 +603,45 @@ export const QueryResultsTable = ({
 
   const canSave = Boolean(metadata?.enabled && dirtyRowIds.length > 0 && !saving)
 
+  // Memoize onDirtyChange to prevent infinite re-renders
+  const handleDirtyChange = useCallback((ids: string[]) => {
+    setDirtyRowIds(ids)
+    if (ids.length > 0) {
+      setSaveSuccess(null)
+    }
+  }, [])
+
+  // Memoize toolbar function to prevent infinite re-renders
+  const renderToolbar = useCallback((context: EditableTableContext) => {
+    // Capture context in ref outside of render
+    tableContextRef.current = context
+    
+    return (
+      <QueryResultsToolbar
+        context={context}
+        rowCount={rowCount}
+        columnCount={columns.length}
+        executionTimeMs={executionTimeMs}
+        executedAt={executedAt}
+        dirtyCount={dirtyRowIds.length}
+        canSave={canSave}
+        saving={saving}
+        onSave={handleSave}
+        onExport={handleExport}
+        metadata={metadata}
+        saveError={saveError}
+        saveSuccess={saveSuccess}
+      />
+    )
+  }, [rowCount, columns.length, executionTimeMs, executedAt, dirtyRowIds.length, 
+      canSave, saving, handleSave, handleExport, metadata, saveError, saveSuccess])
+
   return (
     <div className="flex flex-1 min-h-0 flex-col">
       <EditableTable
-        data={rows}
+        data={rows as TableRow[]}
         columns={tableColumns}
-        onDirtyChange={(ids) => {
-          setDirtyRowIds(ids)
-          if (ids.length > 0) {
-            setSaveSuccess(null)
-          }
-        }}
+        onDirtyChange={handleDirtyChange}
         enableMultiSelect={false}
         enableGlobalFilter={false}
         enableExport={true}
@@ -650,33 +650,21 @@ export const QueryResultsTable = ({
         height="100%"
         onExport={handleExport}
         onCellEdit={handleCellEdit}
-        toolbar={(context) => {
-          tableContextRef.current = context
-          return (
-            <QueryResultsToolbar
-              context={context}
-              rowCount={rowCount}
-              columnCount={columns.length}
-              executionTimeMs={executionTimeMs}
-              executedAt={executedAt}
-              dirtyCount={dirtyRowIds.length}
-              canSave={canSave}
-              saving={saving}
-              onSave={handleSave}
-              onExport={handleExport}
-              metadata={metadata}
-              saveError={saveError}
-              saveSuccess={saveSuccess}
-            />
-          )
-        }}
+        toolbar={renderToolbar}
         footer={null}
       />
 
       <div className="flex-shrink-0 border-t border-border bg-muted/40 px-4 py-2 text-xs text-muted-foreground flex items-center justify-between">
-        <span>
-          {rowCount.toLocaleString()} rows • {columns.length} columns
-        </span>
+        <div className="flex items-center gap-4">
+          <span className="flex items-center gap-1.5">
+            <Database className="h-3.5 w-3.5" />
+            {rowCount.toLocaleString()} rows • {columns.length} columns
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Clock className="h-3.5 w-3.5" />
+            {executionTimeMs.toFixed(2)} ms
+          </span>
+        </div>
         <span>
           {dirtyRowIds.length > 0
             ? `${dirtyRowIds.length} pending change${dirtyRowIds.length === 1 ? '' : 's'}`

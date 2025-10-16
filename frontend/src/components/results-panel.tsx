@@ -5,9 +5,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button'
 import { useQueryStore } from '@/store/query-store'
 import { QueryResultsTable } from '@/components/query-results-table'
-import { RotateCcw, Clock, Database, AlertCircle, BarChart3 } from 'lucide-react'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { useAIConfig } from '@/store/ai-store'
+import { RotateCcw, Clock, Database, AlertCircle, BarChart3, Wand2 } from 'lucide-react'
 
-export function ResultsPanel() {
+export interface ResultsPanelProps {
+  onFixWithAI?: (error: string, query: string) => void
+}
+
+export function ResultsPanel({ onFixWithAI }: ResultsPanelProps = {}) {
   const tabs = useQueryStore((state) => state.tabs)
   const activeTabId = useQueryStore((state) => state.activeTabId)
   const results = useQueryStore((state) => state.results)
@@ -17,14 +23,17 @@ export function ResultsPanel() {
   const latestResult = tabResults.length > 0 ? tabResults[tabResults.length - 1] : null
   const hasHistory = tabResults.length > 1
 
+  const { isEnabled: aiEnabled } = useAIConfig()
   const [showHistory, setShowHistory] = useState(false)
 
   useEffect(() => {
     if (!hasHistory && showHistory) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setShowHistory(false)
     }
   }, [hasHistory, showHistory])
 
+  /* eslint-disable react-hooks/preserve-manual-memoization */
   const numericColumns = useMemo(() => {
     if (!latestResult) return []
     return latestResult.columns.filter((column) => {
@@ -36,11 +45,13 @@ export function ResultsPanel() {
       })
     })
   }, [latestResult])
+  /* eslint-enable react-hooks/preserve-manual-memoization */
 
   const [selectedMetric, setSelectedMetric] = useState<string | null>(null)
 
   useEffect(() => {
     if (numericColumns.length === 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedMetric(null)
     } else if (!selectedMetric || !numericColumns.includes(selectedMetric)) {
       setSelectedMetric(numericColumns[0])
@@ -57,7 +68,7 @@ export function ResultsPanel() {
         return Number.isNaN(numeric) ? null : numeric
       })
       .filter((value): value is number => value !== null)
-  }, [latestResult, selectedMetric])
+  }, [latestResult, selectedMetric]) // eslint-disable-line react-hooks/preserve-manual-memoization
 
   const metricStats = useMemo(() => {
     if (metricValues.length === 0) {
@@ -134,18 +145,47 @@ export function ResultsPanel() {
           value="results"
           className="flex flex-1 min-h-0 flex-col overflow-hidden data-[state=inactive]:hidden"
         >
-          <QueryResultsTable
-            resultId={latestResult.id}
-            columns={latestResult.columns}
-            rows={latestResult.rows}
-            originalRows={latestResult.originalRows}
-            metadata={latestResult.editable}
-            query={latestResult.query}
-            connectionId={latestResult.connectionId}
-            executionTimeMs={latestResult.executionTime}
-            rowCount={latestResult.rowCount}
-            executedAt={latestResult.timestamp}
-          />
+          {latestResult.error ? (
+            <div className="flex h-full items-center justify-center p-6">
+              <Alert variant="destructive" className="max-w-lg text-left">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <AlertTitle>Query failed</AlertTitle>
+                    <AlertDescription className="mt-1 whitespace-pre-wrap">
+                      {latestResult.error}
+                    </AlertDescription>
+                    {aiEnabled && onFixWithAI && latestResult.query && (
+                      <div className="mt-3">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => onFixWithAI(latestResult.error!, latestResult.query)}
+                          className="gap-2"
+                        >
+                          <Wand2 className="h-4 w-4" />
+                          Fix with AI
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </Alert>
+            </div>
+          ) : (
+            <QueryResultsTable
+              resultId={latestResult.id}
+              columns={latestResult.columns}
+              rows={latestResult.rows}
+              originalRows={latestResult.originalRows}
+              metadata={latestResult.editable}
+              query={latestResult.query}
+              connectionId={latestResult.connectionId}
+              executionTimeMs={latestResult.executionTime}
+              rowCount={latestResult.rowCount}
+              executedAt={latestResult.timestamp}
+            />
+          )}
         </TabsContent>
 
         <TabsContent
@@ -239,7 +279,7 @@ export function ResultsPanel() {
                       {result.error ? (
                         <span className="text-destructive">Error: {result.error}</span>
                       ) : (
-                        <span className="text-emerald-600">
+                        <span className="text-primary">
                           Query executed successfully. {result.rowCount} rows affected.
                         </span>
                       )}

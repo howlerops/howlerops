@@ -1,10 +1,12 @@
 package rag
 
 import (
-	"context"
-	"time"
+    "context"
+    "fmt"
+    "strings"
+    "time"
 
-	"github.com/sirupsen/logrus"
+    "github.com/sirupsen/logrus"
 )
 
 // DocumentType represents the type of document being embedded
@@ -17,6 +19,7 @@ const (
 	DocumentTypeResult      DocumentType = "result"
 	DocumentTypeBusiness    DocumentType = "business"
 	DocumentTypePerformance DocumentType = "performance"
+	DocumentTypeMemory      DocumentType = "memory"
 )
 
 // Document represents an embedded document in the vector store
@@ -97,23 +100,34 @@ type CollectionConfig struct {
 
 // VectorStoreConfig holds configuration for any vector store
 type VectorStoreConfig struct {
-	Type         string              `json:"type"` // "sqlite"
-	SQLiteConfig *SQLiteVectorConfig `json:"sqlite_config,omitempty"`
+    Type         string              `json:"type"`
+    SQLiteConfig *SQLiteVectorConfig `json:"sqlite_config,omitempty"`
+    MySQLConfig  *MySQLVectorConfig  `json:"mysql_config,omitempty"`
 }
 
 // NewVectorStore creates a new vector store based on configuration
 func NewVectorStore(config *VectorStoreConfig, logger *logrus.Logger) (VectorStore, error) {
-	// Default to SQLite (only supported type)
-	if config.SQLiteConfig == nil {
-		logger.Info("Creating default SQLite vector store config")
-		config.SQLiteConfig = &SQLiteVectorConfig{
-			Path:        "~/.howlerops/vectors.db",
-			VectorSize:  1536,
-			CacheSizeMB: 128,
-			MMapSizeMB:  256,
-			WALEnabled:  true,
-			Timeout:     10 * time.Second,
-		}
-	}
-	return NewSQLiteVectorStore(config.SQLiteConfig, logger)
+    storeType := strings.ToLower(config.Type)
+    switch storeType {
+    case "", "sqlite":
+        if config.SQLiteConfig == nil {
+            logger.Info("Creating default SQLite vector store config")
+            config.SQLiteConfig = &SQLiteVectorConfig{
+                Path:        "~/.howlerops/vectors.db",
+                VectorSize:  1536,
+                CacheSizeMB: 128,
+                MMapSizeMB:  256,
+                WALEnabled:  true,
+                Timeout:     10 * time.Second,
+            }
+        }
+        return NewSQLiteVectorStore(config.SQLiteConfig, logger)
+    case "mysql":
+        if config.MySQLConfig == nil {
+            return nil, fmt.Errorf("mysql vector store requires configuration")
+        }
+        return NewMySQLVectorStore(config.MySQLConfig, logger)
+    default:
+        return nil, fmt.Errorf("unsupported vector store type: %s", storeType)
+    }
 }

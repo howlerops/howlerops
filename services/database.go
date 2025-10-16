@@ -48,7 +48,20 @@ type StreamUpdate struct {
 
 // NewDatabaseService creates a new database service for Wails
 func NewDatabaseService(logger *logrus.Logger) *DatabaseService {
-	manager := database.NewManager(logger)
+	multiQueryConfig := &multiquery.Config{
+		Enabled:                true,
+		MaxConcurrentConns:     10,
+		DefaultStrategy:        multiquery.StrategyAuto,
+		Timeout:                30 * time.Second,
+		MaxResultRows:          10000,
+		EnableCrossTypeQueries: true,
+		BatchSize:              1000,
+		MergeBufferSize:        1000,
+		ParallelExecution:      true,
+		RequireExplicitConns:   false,
+	}
+
+	manager := database.NewManagerWithConfig(logger, multiQueryConfig)
 	return &DatabaseService{
 		manager: manager,
 		logger:  logger,
@@ -78,16 +91,22 @@ func (s *DatabaseService) CreateConnection(config database.ConnectionConfig) (*d
 	}()
 
 	// Emit connection created event
+	displayName := connection.Name
+	if displayName == "" {
+		displayName = config.Database
+	}
+
 	runtime.EventsEmit(s.ctx, "connection:created", map[string]interface{}{
 		"id":   connection.ID,
 		"type": config.Type,
-		"name": config.Database,
+		"name": displayName,
 	})
 
 	s.logger.WithFields(logrus.Fields{
 		"connection_id": connection.ID,
 		"type":          config.Type,
 		"database":      config.Database,
+		"alias":         displayName,
 	}).Info("Database connection created successfully")
 
 	return connection, nil
@@ -467,13 +486,13 @@ func (s *DatabaseService) GetDatabaseTypeInfo(dbType string) map[string]interfac
 
 // MultiQueryResponse represents the response from a multi-database query
 type MultiQueryResponse struct {
-	Columns         []string `json:"columns"`
+	Columns         []string        `json:"columns"`
 	Rows            [][]interface{} `json:"rows"`
-	RowCount        int64    `json:"rowCount"`
-	Duration        string   `json:"duration"`
-	ConnectionsUsed []string `json:"connectionsUsed"`
-	Strategy        string   `json:"strategy"`
-	Error           string   `json:"error,omitempty"`
+	RowCount        int64           `json:"rowCount"`
+	Duration        string          `json:"duration"`
+	ConnectionsUsed []string        `json:"connectionsUsed"`
+	Strategy        string          `json:"strategy"`
+	Error           string          `json:"error,omitempty"`
 }
 
 // MultiQueryValidation represents validation result for a multi-query
@@ -565,7 +584,6 @@ func (s *DatabaseService) GetCombinedSchema(connectionIDs []string) (*CombinedSc
 		Conflicts:   schema.Conflicts,
 	}, nil
 }
-
 
 // ==================== Schema Cache Management ====================
 

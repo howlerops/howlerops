@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
 import { wailsEndpoints } from '@/lib/wails-api'
-import { useConnectionStore } from './connection-store'
+import { useConnectionStore, type DatabaseConnection } from './connection-store'
 
 export interface QueryTab {
   id: string
@@ -210,25 +210,21 @@ export const useQueryStore = create<QueryState>()(
         
         if (!initialConnectionId) {
           // Get connection store state directly (avoid circular import)
-          const connectionState = (window as any).__connectionStore?.getState?.()
+          const connectionState = window.__connectionStore?.getState?.()
           
           if (connectionState) {
-            const { connections, defaultConnectionId, activeConnection, activeEnvironmentFilter } = connectionState
+            const { connections, activeConnection, activeEnvironmentFilter } = connectionState
             
             // Capture the current environment filter
             environmentSnapshot = activeEnvironmentFilter
             
-            if (connections.length > 1 && defaultConnectionId) {
-              // Multi-connection mode with default set → use default
-              initialConnectionId = defaultConnectionId
-              console.log(`📝 New tab using default connection: ${connections.find((c: any) => c.id === defaultConnectionId)?.name}`)
-            } else if (activeConnection) {
+            if (activeConnection) {
               // Use active connection
               initialConnectionId = activeConnection.id
               console.log(`📝 New tab using active connection: ${activeConnection.name}`)
             } else if (connections.length > 0) {
-              // No default, no active → use first connected connection
-              const firstConnected = connections.find((c: any) => c.isConnected)
+              // Use first connected connection
+              const firstConnected = connections.find((c: DatabaseConnection) => c.isConnected)
               if (firstConnected) {
                 initialConnectionId = firstConnected.id
                 console.log(`📝 New tab using first connected: ${firstConnected.name}`)

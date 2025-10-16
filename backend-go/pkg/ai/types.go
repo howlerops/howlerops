@@ -4,10 +4,10 @@ import "time"
 
 // Config represents the AI service configuration
 type Config struct {
-	DefaultProvider string          `yaml:"default_provider"`
-	OpenAI          OpenAIConfig    `yaml:"openai"`
-	Anthropic       AnthropicConfig `yaml:"anthropic"`
-	Ollama          OllamaConfig    `yaml:"ollama"`
+	DefaultProvider string            `yaml:"default_provider"`
+	OpenAI          OpenAIConfig      `yaml:"openai"`
+	Anthropic       AnthropicConfig   `yaml:"anthropic"`
+	Ollama          OllamaConfig      `yaml:"ollama"`
 	HuggingFace     HuggingFaceConfig `yaml:"huggingface"`
 	ClaudeCode      ClaudeCodeConfig  `yaml:"claudecode"`
 	Codex           CodexConfig       `yaml:"codex"`
@@ -58,6 +58,18 @@ type CodexConfig struct {
 	Temperature float64 `yaml:"temperature"`
 }
 
+// SQLRequest represents an AI SQL generation or fix request
+type SQLRequest struct {
+	Prompt      string  `json:"prompt"`
+	Query       string  `json:"query,omitempty"`
+	Error       string  `json:"error,omitempty"`
+	Schema      string  `json:"schema,omitempty"`
+	Provider    string  `json:"provider"`
+	Model       string  `json:"model"`
+	MaxTokens   int     `json:"maxTokens,omitempty"`
+	Temperature float64 `json:"temperature,omitempty"`
+}
+
 // SQLResponse represents a generated SQL query response
 type SQLResponse struct {
 	SQL         string  `json:"sql"`
@@ -87,4 +99,3 @@ type ProviderStatus struct {
 	RequestCount int64   `json:"requestCount"`
 	SuccessRate  float64 `json:"successRate"`
 }
-

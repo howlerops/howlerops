@@ -1,16 +1,21 @@
 import { useCallback, useRef, useState } from "react"
-import { QueryEditor } from "@/components/query-editor"
+import { QueryEditor, type QueryEditorHandle } from "@/components/query-editor"
 import { ResultsPanel } from "@/components/results-panel"
-import { useQueryMode } from "@/hooks/useQueryMode"
+import { useQueryMode } from "@/hooks/use-query-mode"
 
 const MIN_PANEL_FRACTION = 0.2
 
 export function Dashboard() {
   const containerRef = useRef<HTMLDivElement | null>(null)
+  const queryEditorRef = useRef<QueryEditorHandle>(null)
   const [editorFraction, setEditorFraction] = useState(0.55)
   const { mode } = useQueryMode('auto')
 
   // Remove automatic tab creation - let users create tabs manually
+
+  const handleFixWithAI = useCallback((error: string, query: string) => {
+    queryEditorRef.current?.openAIFix(error, query)
+  }, [])
 
   const handleResizeStart = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
     event.preventDefault()
@@ -44,7 +49,7 @@ export function Dashboard() {
         className="flex min-h-[240px] flex-col border-b overflow-hidden"
         style={{ flexGrow: editorFraction, flexShrink: 1, flexBasis: 0 }}
       >
-        <QueryEditor mode={mode} />
+        <QueryEditor ref={queryEditorRef} mode={mode} />
       </div>
 
       <div
@@ -61,7 +66,7 @@ export function Dashboard() {
         className="flex min-h-[180px] flex-col overflow-hidden"
         style={{ flexGrow: 1 - editorFraction, flexShrink: 1, flexBasis: 0 }}
       >
-        <ResultsPanel />
+        <ResultsPanel onFixWithAI={handleFixWithAI} />
       </div>
     </div>
   )

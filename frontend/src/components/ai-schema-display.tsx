@@ -53,6 +53,7 @@ export function AISchemaDisplay({
   useEffect(() => {
     const connectedDbs = connections.filter(c => c.isConnected)
     if (connectedDbs.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setExpandedDatabases(new Set([connectedDbs[0].id]))
 
       const schemas = schemasMap.get(connectedDbs[0].id) || schemasMap.get(connectedDbs[0].name)
@@ -160,8 +161,8 @@ export function AISchemaDisplay({
               </CollapsibleTrigger>
 
               <CollapsibleContent className="pl-4">
-                {schemas.map(schema => {
-                  const schemaId = `${connection.id}-${schema.name}`
+                {schemas.map((schema, schemaIndex) => {
+                  const schemaId = `${connection.id}-${schema.name}-${schemaIndex}`
                   const isSchemaExpanded = expandedSchemas.has(schemaId)
 
                   return (
@@ -189,8 +190,8 @@ export function AISchemaDisplay({
                       </CollapsibleTrigger>
 
                       <CollapsibleContent className="pl-4">
-                        {(schema.children || []).map(table => {
-                          const tableId = `${schemaId}-${table.name}`
+                        {(schema.children || []).map((table, tableIndex) => {
+                          const tableId = `${schemaId}-${table.name}-${tableIndex}`
                           const isTableExpanded = expandedTables.has(tableId)
                           const tablePath = getTablePath(connection, schema.name, table.name)
 
@@ -236,9 +237,9 @@ export function AISchemaDisplay({
                               {/* Show columns if expanded */}
                               {isTableExpanded && table.children && (
                                 <div className="pl-8 space-y-0.5">
-                                  {table.children.map(column => (
+                                  {table.children.map((column, columnIndex) => (
                                     <div
-                                      key={`${tableId}-${column.name}`}
+                                      key={`${tableId}-${column.name}-${columnIndex}`}
                                       className="flex items-center gap-1 py-0.5"
                                     >
                                       <Columns className="h-3 w-3 text-muted-foreground" />

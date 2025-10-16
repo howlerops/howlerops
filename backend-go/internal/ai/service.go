@@ -363,6 +363,36 @@ func (s *serviceImpl) GetAllAvailableModels(ctx context.Context) (map[Provider][
 	return result, nil
 }
 
+func (s *serviceImpl) defaultModelFor(provider Provider) string {
+	switch provider {
+	case ProviderOpenAI:
+		if len(s.config.OpenAI.Models) > 0 {
+			return s.config.OpenAI.Models[0]
+		}
+	case ProviderAnthropic:
+		if len(s.config.Anthropic.Models) > 0 {
+			return s.config.Anthropic.Models[0]
+		}
+	case ProviderOllama:
+		if len(s.config.Ollama.Models) > 0 {
+			return s.config.Ollama.Models[0]
+		}
+	case ProviderHuggingFace:
+		if len(s.config.HuggingFace.Models) > 0 {
+			return s.config.HuggingFace.Models[0]
+		}
+	case ProviderClaudeCode:
+		if s.config.ClaudeCode.Model != "" {
+			return s.config.ClaudeCode.Model
+		}
+	case ProviderCodex:
+		if s.config.Codex.Model != "" {
+			return s.config.Codex.Model
+		}
+	}
+	return ""
+}
+
 // UpdateProviderConfig updates configuration for a specific provider
 func (s *serviceImpl) UpdateProviderConfig(provider Provider, config interface{}) error {
 	s.mu.Lock()
@@ -471,6 +501,10 @@ func (s *serviceImpl) ValidateRequest(req *SQLRequest) error {
 
 	if req.Provider == "" {
 		req.Provider = s.config.DefaultProvider
+	}
+
+	if req.Model == "" {
+		req.Model = s.defaultModelFor(req.Provider)
 	}
 
 	if req.Model == "" {

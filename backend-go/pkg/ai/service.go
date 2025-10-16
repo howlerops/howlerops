@@ -34,12 +34,16 @@ func NewService(logger *logrus.Logger) (*Service, error) {
 
 // GenerateSQL generates SQL from a natural language prompt
 func (s *Service) GenerateSQL(ctx context.Context, prompt string, schema string) (*SQLResponse, error) {
-	req := &ai.SQLRequest{
+	return s.GenerateSQLWithRequest(ctx, &SQLRequest{
 		Prompt: prompt,
 		Schema: schema,
-	}
+	})
+}
 
-	resp, err := s.internal.GenerateSQL(ctx, req)
+// GenerateSQLWithRequest generates SQL using a detailed request payload
+func (s *Service) GenerateSQLWithRequest(ctx context.Context, req *SQLRequest) (*SQLResponse, error) {
+	internalReq := s.toInternalRequest(req)
+	resp, err := s.internal.GenerateSQL(ctx, internalReq)
 	if err != nil {
 		return nil, err
 	}
@@ -54,12 +58,16 @@ func (s *Service) GenerateSQL(ctx context.Context, prompt string, schema string)
 
 // FixQuery attempts to fix a SQL error
 func (s *Service) FixQuery(ctx context.Context, query string, errorMsg string) (*SQLResponse, error) {
-	req := &ai.SQLRequest{
+	return s.FixQueryWithRequest(ctx, &SQLRequest{
 		Query: query,
 		Error: errorMsg,
-	}
+	})
+}
 
-	resp, err := s.internal.FixSQL(ctx, req)
+// FixQueryWithRequest attempts to fix SQL using a detailed request payload
+func (s *Service) FixQueryWithRequest(ctx context.Context, req *SQLRequest) (*SQLResponse, error) {
+	internalReq := s.toInternalRequest(req)
+	resp, err := s.internal.FixSQL(ctx, internalReq)
 	if err != nil {
 		return nil, err
 	}
@@ -70,6 +78,23 @@ func (s *Service) FixQuery(ctx context.Context, query string, errorMsg string) (
 		Explanation: resp.Explanation,
 		TokensUsed:  resp.TokensUsed,
 	}, nil
+}
+
+func (s *Service) toInternalRequest(req *SQLRequest) *ai.SQLRequest {
+	if req == nil {
+		return &ai.SQLRequest{}
+	}
+
+	return &ai.SQLRequest{
+		Prompt:      req.Prompt,
+		Query:       req.Query,
+		Error:       req.Error,
+		Schema:      req.Schema,
+		Provider:    ai.Provider(req.Provider),
+		Model:       req.Model,
+		MaxTokens:   req.MaxTokens,
+		Temperature: req.Temperature,
+	}
 }
 
 // OptimizeQuery suggests optimizations for a query
@@ -139,4 +164,3 @@ func (s *Service) Start(ctx context.Context) error {
 func (s *Service) Stop(ctx context.Context) error {
 	return s.internal.Stop(ctx)
 }
-

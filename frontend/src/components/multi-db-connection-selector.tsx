@@ -40,8 +40,9 @@ export function MultiDBConnectionSelector({
   
   const [localSelection, setLocalSelection] = useState<string[]>(selectedConnectionIds)
 
-  // Update local selection when prop changes
+  // Update local selection when prop changes (controlled component pattern)
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLocalSelection(selectedConnectionIds)
   }, [selectedConnectionIds, open])
 
@@ -88,7 +89,7 @@ export function MultiDBConnectionSelector({
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Network className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+            <Network className="h-5 w-5 text-accent-foreground" />
             Select Connections
           </DialogTitle>
           <DialogDescription>
@@ -99,9 +100,9 @@ export function MultiDBConnectionSelector({
 
         <div className="space-y-4">
           {/* Summary */}
-          <div className="flex items-center justify-between p-3 bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800 rounded-lg">
+          <div className="flex items-center justify-between p-3 bg-accent/10 border border-accent rounded-lg">
             <div className="flex items-center gap-2">
-              <Network className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+              <Network className="h-4 w-4 text-accent-foreground" />
               <span className="text-sm font-medium">
                 {selectedCount} of {totalCount} databases selected
               </span>
@@ -143,7 +144,7 @@ export function MultiDBConnectionSelector({
                     className={cn(
                       'flex items-center gap-3 p-3 border rounded-lg transition-colors cursor-pointer',
                       isSelected
-                        ? 'bg-purple-50 dark:bg-purple-950/30 border-purple-300 dark:border-purple-700'
+                        ? 'bg-accent/10 border-accent'
                         : 'bg-background hover:bg-muted/50 border-border',
                       isOnlySelected && 'cursor-not-allowed opacity-75'
                     )}
@@ -154,7 +155,7 @@ export function MultiDBConnectionSelector({
                       onCheckedChange={() => !isOnlySelected && handleToggleConnection(connection.id)}
                       disabled={isOnlySelected}
                       className={cn(
-                        isSelected && 'border-purple-500 data-[state=checked]:bg-purple-600'
+                        isSelected && 'border-accent data-[state=checked]:bg-accent'
                       )}
                     />
 
@@ -165,7 +166,7 @@ export function MultiDBConnectionSelector({
                           {connection.type}
                         </Badge>
                         {connection.isConnected ? (
-                          <div className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                          <div className="flex items-center gap-1 text-primary">
                             <CheckCircle2 className="h-3 w-3" />
                             <span className="text-xs">Connected</span>
                           </div>
@@ -188,7 +189,7 @@ export function MultiDBConnectionSelector({
 
           {/* Warning */}
           {selectedCount === 1 && (
-            <div className="p-2 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded text-xs text-amber-700 dark:text-amber-300">
+            <div className="p-2 bg-accent/10 border border-accent rounded text-xs text-accent-foreground">
               At least one connection must remain selected for multi-DB queries.
             </div>
           )}
@@ -199,10 +200,7 @@ export function MultiDBConnectionSelector({
           <Button variant="outline" onClick={handleCancel}>
             Cancel
           </Button>
-          <Button
-            onClick={handleApply}
-            className="bg-purple-600 hover:bg-purple-700 text-white"
-          >
+          <Button onClick={handleApply}>
             Apply Selection
           </Button>
         </div>

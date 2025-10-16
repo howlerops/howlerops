@@ -1,35 +1,52 @@
-import { useState, useRef, useEffect, type SyntheticEvent } from "react"
+import { useState, useRef, useEffect, useCallback, useMemo, forwardRef, useImperativeHandle, type SyntheticEvent } from "react"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
+import {
   Dialog,
   DialogContent,
-  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { useQueryStore, type QueryTab } from "@/store/query-store"
 import { useConnectionStore } from "@/store/connection-store"
 import { useTheme } from "@/hooks/use-theme"
 import { useAIConfig, useAIGeneration } from "@/store/ai-store"
-import { Play, Square, Plus, X, Wand2, AlertCircle, Loader2, Network, Database, Bug, Sparkles, Users } from "lucide-react"
+import { Play, Square, Plus, X, Wand2, AlertCircle, Loader2, Network, Database, Bug, Sparkles, Users, Pencil, Trash2 } from "lucide-react"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AISchemaDisplay } from "@/components/ai-schema-display"
 import { cn } from "@/lib/utils"
-import { useSchemaIntrospection, type SchemaNode } from "@/hooks/useSchemaIntrospection"
+import { useAIMemoryStore } from "@/store/ai-memory-store"
+import { useSchemaIntrospection, type SchemaNode } from "@/hooks/use-schema-introspection"
 import { MultiDBDiagnostics } from "@/components/debug/multi-db-diagnostics"
 import { CodeMirrorEditor, type CodeMirrorEditorRef } from "@/components/codemirror-editor"
 import { type ColumnLoader } from "@/lib/codemirror-sql"
 import { ModeSwitcher } from "@/components/mode-switcher"
-import { useQueryMode } from "@/hooks/useQueryMode"
+import { useQueryMode } from "@/hooks/use-query-mode"
 import { MultiDBConnectionSelector } from "@/components/multi-db-connection-selector"
+import { AISuggestionCard } from "@/components/ai-suggestion-card"
 
 
 export interface QueryEditorProps {
   mode?: 'single' | 'multi';
 }
 
-export function QueryEditor({ mode: propMode = 'single' }: QueryEditorProps = {}) {
+export interface QueryEditorHandle {
+  openAIFix: (error: string, query: string) => void
+}
+
+export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mode: propMode = 'single' }, ref) => {
   const { theme } = useTheme()
   const { mode, canToggle, toggleMode, connectionCount } = useQueryMode(propMode)
   const {
@@ -51,17 +68,32 @@ export function QueryEditor({ mode: propMode = 'single' }: QueryEditorProps = {}
   } = useQueryStore()
 
   // AI Integration
-  const { isEnabled: aiEnabled } = useAIConfig()
-  const { generateSQL, fixSQL, isGenerating, lastError, suggestions } = useAIGeneration()
+  const { config: aiConfig, isEnabled: aiEnabled } = useAIConfig()
+  const {
+    generateSQL,
+    fixSQL,
+    isGenerating,
+    lastError,
+    suggestions,
+    clearSuggestions,
+    resetSession,
+    hydrateMemoriesFromBackend,
+    deleteMemorySession,
+    persistMemoriesIfEnabled,
+  } = useAIGeneration()
   const { schema } = useSchemaIntrospection()
 
   const editorRef = useRef<CodeMirrorEditorRef>(null)
   const [editorContent, setEditorContent] = useState("")
   const [naturalLanguagePrompt, setNaturalLanguagePrompt] = useState("")
-  const [showAIPanel, setShowAIPanel] = useState(false)
   const [showAIDialog, setShowAIDialog] = useState(false)
   const [lastExecutionError, setLastExecutionError] = useState<string | null>(null)
   const [lastConnectionError, setLastConnectionError] = useState<string | null>(null)
+  const [appliedSuggestionId, setAppliedSuggestionId] = useState<string | null>(null)
+  const [isFixMode, setIsFixMode] = useState(false)
+  const [aiSheetTab, setAISheetTab] = useState<'assistant' | 'memories'>('assistant')
+  const [renameSessionId, setRenameSessionId] = useState<string | null>(null)
+  const [renameTitle, setRenameTitle] = useState('')
 
   // Multi-DB state - schemas for all connections
   const [multiDBSchemas, setMultiDBSchemas] = useState<Map<string, SchemaNode[]>>(new Map())
@@ -70,11 +102,88 @@ export function QueryEditor({ mode: propMode = 'single' }: QueryEditorProps = {}
   // Column cache for lazy loading (sessionId-schema-table -> columns)
   const columnCacheRef = useRef<Map<string, SchemaNode[]>>(new Map())
 
+  const memorySessionsMap = useAIMemoryStore(state => state.sessions)
+  const activeMemorySessionId = useAIMemoryStore(state => state.activeSessionId)
+  const setActiveMemorySession = useAIMemoryStore(state => state.setActiveSession)
+  const startMemorySession = useAIMemoryStore(state => state.startNewSession)
+  const renameMemorySession = useAIMemoryStore(state => state.renameSession)
+  const clearAllMemorySessions = useAIMemoryStore(state => state.clearAll)
+  const memorySessions = useMemo(() =>
+    Object.values(memorySessionsMap).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)),
+    [memorySessionsMap]
+  )
+
   // Diagnostics panel state
   const [showDiagnostics, setShowDiagnostics] = useState(false)
   
   // Multi-DB connection selector state
   const [showConnectionSelector, setShowConnectionSelector] = useState(false)
+
+  // Expose methods to parent components
+  useImperativeHandle(ref, () => ({
+    openAIFix: (error: string, query: string) => {
+      setIsFixMode(true)
+      setLastExecutionError(error)
+      if (activeTab) {
+        setEditorContent(query)
+        updateTab(activeTab.id, { content: query })
+      }
+      setShowAIDialog(true)
+      // Automatically trigger fix
+      handleFixQueryError(error, query)
+    }
+  }))
+
+  const filteredConnections = useMemo(
+    () => getFilteredConnections(),
+    [getFilteredConnections]
+  )
+
+  const editorConnections = useMemo(() => {
+    if (mode === 'multi') {
+      return filteredConnections.filter(conn => conn.isConnected)
+    }
+
+    if (activeConnection?.isConnected) {
+      return [activeConnection]
+    }
+
+    return []
+  }, [mode, filteredConnections, activeConnection])
+
+  const singleConnectionSchemas = useMemo(() => {
+    if (!activeConnection?.id || schema.length === 0) {
+      return new Map<string, SchemaNode[]>()
+    }
+
+    const map = new Map<string, SchemaNode[]>()
+
+    map.set(activeConnection.id, schema)
+    if (activeConnection.name && activeConnection.name !== activeConnection.id) {
+      map.set(activeConnection.name, schema)
+    }
+
+    if (activeConnection.name) {
+      const slug = activeConnection.name.replace(/[^\w-]/g, '-')
+      if (slug && slug !== activeConnection.name) {
+        map.set(slug, schema)
+      }
+    }
+
+    return map
+  }, [activeConnection?.id, activeConnection?.name, schema])
+
+  const codeMirrorConnections = useMemo(
+    () => editorConnections.map(conn => ({
+      id: conn.id,
+      name: conn.name,
+      type: conn.type,
+      database: conn.database,
+      sessionId: conn.sessionId,
+      isConnected: conn.isConnected,
+    })),
+    [editorConnections]
+  )
 
   const activeTab = tabs.find(tab => tab.id === activeTabId)
 
@@ -84,13 +193,22 @@ export function QueryEditor({ mode: propMode = 'single' }: QueryEditorProps = {}
     multiDBSchemasRef.current = multiDBSchemas
   }, [multiDBSchemas])
 
+  useEffect(() => {
+    if (!aiEnabled || !aiConfig.syncMemories) {
+      return
+    }
+
+    hydrateMemoriesFromBackend().catch(error => {
+      console.error('Failed to hydrate AI memories:', error)
+    })
+  }, [aiEnabled, aiConfig.syncMemories, hydrateMemoriesFromBackend])
+
   // Keyboard shortcut for diagnostics panel (Ctrl/Cmd+Shift+D)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'D') {
         e.preventDefault()
         setShowDiagnostics(prev => !prev)
-        console.log('🐛 Diagnostics panel toggled')
       }
     }
     
@@ -98,38 +216,20 @@ export function QueryEditor({ mode: propMode = 'single' }: QueryEditorProps = {}
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
-  const loadMultiDBSchemas = async () => {
+  const loadMultiDBSchemas = useCallback(async () => {
     // Apply environment filter for multi-DB mode
     const relevantConnections = mode === 'multi' ? getFilteredConnections() : connections
-    
-    console.log('🔄 Loading multi-DB schemas...', { 
-      mode, 
-      totalConnections: connections.length,
-      filteredConnections: relevantConnections.length,
-      connectionIds: relevantConnections.map(c => c.id)
-    })
     
     try {
       // Step 1: Ensure ALL filtered connections are connected (auto-connect)
       const disconnected = relevantConnections.filter(c => !c.isConnected)
       
       if (disconnected.length > 0) {
-        console.log(`⚡ Auto-connecting ${disconnected.length} connections for multi-DB...`)
-        
-        const connectResults = await Promise.allSettled(
+        await Promise.allSettled(
           disconnected.map(async (conn) => {
-            try {
-              await connectToDatabase(conn.id)
-              console.log(`  ✓ Connected: ${conn.name}`)
-            } catch (error) {
-              console.warn(`  ✗ Failed: ${conn.name}`, error)
-              throw error
-            }
+            await connectToDatabase(conn.id)
           })
         )
-        
-        const successful = connectResults.filter(r => r.status === 'fulfilled').length
-        console.log(`⚡ Auto-connect complete: ${successful}/${disconnected.length} successful`)
         
         // Wait a bit for state to update after connections
         await new Promise(resolve => setTimeout(resolve, 100))
@@ -139,42 +239,21 @@ export function QueryEditor({ mode: propMode = 'single' }: QueryEditorProps = {}
       // Filter to only connected connections (from filtered set) that have sessionIds
       const connectedWithSessions = relevantConnections.filter(c => c.isConnected && c.sessionId)
       const sessionIds = connectedWithSessions.map(c => c.sessionId!)
-      
-      console.log(`📊 Connected sessions for multi-DB:`, {
-        total: connections.length,
-        connectedWithSessions: connectedWithSessions.length,
-        sessionIds,
-        connectionDetails: connectedWithSessions.map(c => ({ name: c.name, id: c.id, sessionId: c.sessionId }))
-      })
         
       if (sessionIds.length === 0) {
-        console.warn('⚠️ No connected sessions for multi-DB - connections may still be connecting')
         setMultiDBSchemas(new Map())
         return
       }
       
-      console.log(`📡 Fetching schemas for ${sessionIds.length} sessions:`, sessionIds)
-      
       // Step 3: Load schemas using GetMultiConnectionSchema (uses cache!)
       try {
         const { GetMultiConnectionSchema } = await import('../../wailsjs/go/main/App')
-        console.log('✓ Imported Wails functions')
-        
         const combined = await GetMultiConnectionSchema(sessionIds)
-        console.log('✓ GetMultiConnectionSchema returned')
         
-        console.log('📦 Received combined schema:', {
-          combinedType: typeof combined,
-          hasConnections: !!combined?.connections,
-          connectionCount: Object.keys(combined?.connections || {}).length,
-          connections: Object.keys(combined?.connections || {})
-        })
-        
-        if (!combined || !combined.connections) {
-          console.error('❌ GetMultiConnectionSchema returned invalid data:', combined)
-          setMultiDBSchemas(new Map())
-          return
-        }
+          if (!combined || !combined.connections) {
+            setMultiDBSchemas(new Map())
+            return
+          }
       
       // Convert to SchemaNode format and load columns for each table
       const schemasMap = new Map<string, SchemaNode[]>()
@@ -189,16 +268,9 @@ export function QueryEditor({ mode: propMode = 'single' }: QueryEditorProps = {}
         const schemaNames = (connSchema.schemas as string[]) || []
         const tables = (connSchema.tables as Array<{ name: string; schema: string }>) || []
         
-        console.log(`📋 Processing session ${sessionId} (${connection?.name || 'unknown'}):`, {
-          schemaCount: schemaNames.length,
-          tableCount: tables.length
-        })
-        
         // Process each schema
         for (const schemaName of schemaNames) {
           const schemaTables = tables.filter(t => t.schema === schemaName)
-          
-          console.log(`  📁 Schema ${schemaName}: ${schemaTables.length} tables`)
           
           // Skip migration table and internal postgres tables
           const nonMigrationTables = schemaTables.filter(t => 
@@ -236,82 +308,60 @@ export function QueryEditor({ mode: propMode = 'single' }: QueryEditorProps = {}
         
         // Store by connection ID (not sessionId!) and name for lookup
         if (connection) {
-          schemasMap.set(connection.id, schemaNodes)
-          
-          // Also store by connection name for @name.table lookup
-          if (connection.name && connection.name !== connection.id) {
-            schemasMap.set(connection.name, schemaNodes)
-            console.log(`  🔗 Stored schemas for: ${connection.name} (id: ${connection.id})`)
+          const keys = new Set<string>([connection.id])
+
+          if (connection.name) {
+            keys.add(connection.name)
+
+            const slug = connection.name.replace(/[^\w-]/g, '-')
+            if (slug && slug !== connection.name) {
+              keys.add(slug)
+            }
           }
-          
+
+          keys.forEach(key => {
+            schemasMap.set(key, schemaNodes)
+          })
+
           // ✅ UPDATE BOTH STATE AND REF! Don't wait for useEffect - update ref immediately
           const newMap = new Map(schemasMap)
           setMultiDBSchemas(newMap)
           multiDBSchemasRef.current = newMap  // Direct ref update for immediate availability!
-          
-          console.log(`  ⚡ ${connection.name} schemas now available for autocomplete (${schemaNodes.length} schemas)`)
-          console.log(`  📊 Ref updated with keys:`, Array.from(multiDBSchemasRef.current.keys()))
-        } else {
-          console.warn(`  ⚠️ Could not find connection for sessionId: ${sessionId}`)
         }
       }
       
       // Final update with complete schema
       setMultiDBSchemas(schemasMap)
       multiDBSchemasRef.current = schemasMap  // Final ref sync
-      
-      const totalTables = Array.from(schemasMap.values()).reduce((sum, schemas) => 
-        sum + schemas.reduce((s, schema) => s + (schema.children?.length || 0), 0), 0
-      )
-      const totalColumns = Array.from(schemasMap.values()).reduce((sum, schemas) => 
-        sum + schemas.reduce((s, schema) => 
-          s + schema.children!.reduce((c, table) => c + (table.children?.length || 0), 0), 0
-        ), 0
-      )
-      
-      console.log('✅ Multi-DB schemas loaded successfully:', {
-        connections: Array.from(schemasMap.keys()),
-        totalTables,
-        totalColumns
-      })
-      } catch (importError) {
-        console.error('❌ Failed to import Wails functions or call GetMultiConnectionSchema:', importError)
-        setMultiDBSchemas(new Map())
-        return
+      } catch {
+      setMultiDBSchemas(new Map())
+      return
       }
-    } catch (error) {
-      console.error('❌ Failed to load multi-DB schemas:', error)
-      console.error('Error details:', {
-        message: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined
-      })
+    } catch {
       // Set empty map on error so autocomplete still works (without multi-DB)
       setMultiDBSchemas(new Map())
     }
-  }
+  }, [mode, getFilteredConnections, connections, connectToDatabase])
 
   // Load schemas for all connections when in multi-DB mode
   // Apply environment filter
   useEffect(() => {
-    const filteredConns = mode === 'multi' ? getFilteredConnections() : connections
-    
-    console.log('🎯 Mode or connections changed:', { 
-      mode, 
-      connectionCount: connections.length,
-      filteredCount: filteredConns.length,
-      shouldLoadMultiDB: mode === 'multi' && filteredConns.length > 1
-    })
-    
-    if (mode === 'multi' && filteredConns.length > 1) {
-      loadMultiDBSchemas()
-    } else if (mode === 'multi' && filteredConns.length <= 1) {
-      console.log('⚠️ Multi-DB mode but only 1 filtered connection, not loading multi-DB schemas')
+    if (mode !== 'multi') {
+      return
     }
-  }, [mode, connections, getFilteredConnections, loadMultiDBSchemas])
 
-  const columnLoader: ColumnLoader = async (sessionId: string, schema: string, tableName: string) => {
+    if (filteredConnections.length === 0) {
+      const emptyMap = new Map<string, SchemaNode[]>()
+      setMultiDBSchemas(emptyMap)
+      multiDBSchemasRef.current = emptyMap
+      return
+    }
+
+    loadMultiDBSchemas()
+  }, [mode, filteredConnections, loadMultiDBSchemas])
+
+  const columnLoader: ColumnLoader = useCallback(async (sessionId: string, schema: string, tableName: string) => {
     try {
-      console.log(`  ⏳ Loading columns for: ${schema}.${tableName}`)
       const { GetTableStructure } = await import('../../wailsjs/go/main/App')
       const structure = await GetTableStructure(sessionId, schema, tableName)
 
@@ -326,15 +376,13 @@ export function QueryEditor({ mode: propMode = 'single' }: QueryEditorProps = {}
         nullable: col.nullable,
         primaryKey: col.primary_key
       }))
-    } catch (error) {
-      console.error(`Failed to load columns for ${schema}.${tableName}:`, error)
+    } catch {
       return []
     }
-  }
+  }, [])
 
   const handleEditorDidMount = () => {
     // Editor mounted
-    console.log('CodeMirror editor mounted')
   }
 
   const handleEditorChange = (value: string) => {
@@ -347,7 +395,7 @@ export function QueryEditor({ mode: propMode = 'single' }: QueryEditorProps = {}
     }
   }
 
-  const handleExecuteQuery = async () => {
+  const handleExecuteQuery = useCallback(async () => {
     if (!activeTab) return
 
     const currentEditorValue = editorRef.current?.getValue() ?? editorContent
@@ -370,7 +418,22 @@ export function QueryEditor({ mode: propMode = 'single' }: QueryEditorProps = {}
     }
 
     await executeQuery(activeTab.id, trimmedValue)
-  }
+  }, [activeTab, editorContent, executeQuery, updateTab])
+
+  // Keyboard shortcut for executing query (Ctrl/Cmd+Enter)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault()
+        if (activeConnection?.isConnected && editorContent.trim() && !activeTab?.isExecuting) {
+          handleExecuteQuery()
+        }
+      }
+    }
+    
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [activeConnection, editorContent, activeTab?.isExecuting, handleExecuteQuery])
 
   // Removed handleSaveTab - not currently used
 
@@ -450,23 +513,11 @@ export function QueryEditor({ mode: propMode = 'single' }: QueryEditorProps = {}
         schemasMap = new Map([[activeConnection.id, schema]])
       }
 
-      const generatedSQL = await generateSQL(naturalLanguagePrompt, schemaDatabase, mode, connections, schemasMap)
+      await generateSQL(naturalLanguagePrompt, schemaDatabase, mode, connections, schemasMap)
 
-      if (activeTab) {
-        setEditorContent(generatedSQL)
-        updateTab(activeTab.id, {
-          content: generatedSQL,
-          isDirty: true
-        })
-        // Update the editor content directly
-        if (editorRef.current) {
-          editorRef.current.setValue(generatedSQL)
-        }
-      }
-
+      // Don't auto-apply, let user apply from suggestions in sidebar
+      // The suggestion is already added to the store by generateSQL
       setNaturalLanguagePrompt("")
-      setShowAIPanel(true)
-      setShowAIDialog(false)
     } catch (error) {
       console.error('Failed to generate SQL:', error)
       setLastExecutionError(error instanceof Error ? error.message : 'Failed to generate SQL')
@@ -476,44 +527,127 @@ export function QueryEditor({ mode: propMode = 'single' }: QueryEditorProps = {}
   const handleFixSQL = async () => {
     if (!lastExecutionError || !editorContent.trim() || !aiEnabled) return
 
-    try {
-      const schema = activeConnection?.database || undefined
-      const connections = mode === 'multi' ? getFilteredConnections() : undefined
-      const schemasMap = mode === 'multi' ? multiDBSchemas : undefined
-      const fixedSQL = await fixSQL(editorContent, lastExecutionError, schema, mode, connections, schemasMap)
+    // Open the AI sidebar in fix mode
+    setIsFixMode(true)
+    setShowAIDialog(true)
+    
+    // Call the fix handler
+    await handleFixQueryError(lastExecutionError, editorContent)
+  }
 
-      if (activeTab) {
-        setEditorContent(fixedSQL)
-        updateTab(activeTab.id, {
-          content: fixedSQL,
-          isDirty: true
-        })
-        // Update the editor content directly
-        if (editorRef.current) {
-          editorRef.current.setValue(fixedSQL)
-        }
+  const handleFixQueryError = async (error: string, query: string) => {
+    if (!aiEnabled) return
+
+    try {
+      const schemaDatabase = activeConnection?.database || undefined
+
+      // Prepare connections and schemas for RAG context
+      let connections = undefined
+      let schemasMap = undefined
+
+      if (mode === 'multi') {
+        connections = getFilteredConnections()
+        schemasMap = multiDBSchemas
+      } else if (activeConnection && schema) {
+        connections = [activeConnection]
+        schemasMap = new Map([[activeConnection.id, schema]])
       }
 
-      setLastExecutionError(null)
-      setShowAIPanel(true)
+      // Call fixSQL with full context including schemas for RAG
+      await fixSQL(query, error, schemaDatabase, mode, connections, schemasMap)
+
+      // Don't auto-apply, let user apply from suggestions in sidebar
+      // The suggestion is already added to the store by fixSQL
     } catch (error) {
       console.error('Failed to fix SQL:', error)
     }
   }
 
-  const handleApplySuggestion = (suggestion: string) => {
+  const handleApplySuggestion = (suggestionQuery: string, suggestionId: string) => {
     if (activeTab) {
-      setEditorContent(suggestion)
+      setEditorContent(suggestionQuery)
       updateTab(activeTab.id, {
-        content: suggestion,
+        content: suggestionQuery,
         isDirty: true
       })
       // Update the editor content directly
       if (editorRef.current) {
-        editorRef.current.setValue(suggestion)
+        editorRef.current.setValue(suggestionQuery)
       }
+      // Track applied suggestion and close dialog
+      setAppliedSuggestionId(suggestionId)
+      setShowAIDialog(false)
+      setIsFixMode(false)
     }
   }
+
+  const handleResetAISession = () => {
+    resetSession()
+    clearSuggestions()
+    setNaturalLanguagePrompt('')
+    setAppliedSuggestionId(null)
+    setIsFixMode(false)
+  }
+
+  const handleCreateMemorySession = () => {
+    const sessionId = startMemorySession({ title: `Session ${new Date().toLocaleString()}` })
+    setActiveMemorySession(sessionId)
+    setAISheetTab('assistant')
+    void persistMemoriesIfEnabled()
+  }
+
+  const handleDeleteMemorySession = async (sessionId: string) => {
+    if (!sessionId) return
+    if (!window.confirm('Delete this memory session? This cannot be undone.')) {
+      return
+    }
+    await deleteMemorySession(sessionId)
+  }
+
+  const handleClearAllMemories = () => {
+    if (memorySessions.length === 0) return
+    if (!window.confirm('Clear all AI memory sessions? This cannot be undone.')) {
+      return
+    }
+    clearAllMemorySessions()
+    void persistMemoriesIfEnabled()
+  }
+
+  const handleResumeMemorySession = (sessionId: string) => {
+    setActiveMemorySession(sessionId)
+    setAISheetTab('assistant')
+  }
+
+  const openRenameDialog = (sessionId: string, currentTitle: string) => {
+    setRenameSessionId(sessionId)
+    setRenameTitle(currentTitle)
+  }
+
+  const closeRenameDialog = () => {
+    setRenameSessionId(null)
+    setRenameTitle('')
+  }
+
+  const handleConfirmRename = () => {
+    if (!renameSessionId) return
+    const title = renameTitle.trim()
+    if (!title) {
+      return
+    }
+    renameMemorySession(renameSessionId, title)
+    void persistMemoriesIfEnabled()
+    closeRenameDialog()
+  }
+
+  useEffect(() => {
+    if (!aiEnabled || !aiConfig.syncMemories) {
+      return
+    }
+
+    hydrateMemoriesFromBackend().catch((error) => {
+      console.error('Failed to hydrate AI memories:', error)
+    })
+  }, [aiEnabled, aiConfig.syncMemories, hydrateMemoriesFromBackend])
 
   if (tabs.length === 0) {
     return (
@@ -532,46 +666,18 @@ export function QueryEditor({ mode: propMode = 'single' }: QueryEditorProps = {}
 
   // Test autocomplete programmatically
   const testAutocomplete = () => {
-    console.log('🧪 === AUTOCOMPLETE TEST ===')
-    console.log('Multi-DB Schemas Ref:', multiDBSchemasRef.current)
-    console.log('Schema Keys:', Array.from(multiDBSchemasRef.current.keys()))
-    console.log('Connections:', connections.map(c => ({ 
-      id: c.id, 
-      name: c.name, 
-      isConnected: c.isConnected,
-      sessionId: c.sessionId 
-    })))
-    
-    // Simulate what happens when user types "@Prod-Leviosa."
+    // Test autocomplete functionality
     const testInput = "@Prod-Leviosa."
     const pattern = /@([\w-]+)\.(\w*)$/
     const match = testInput.match(pattern)
     
-    console.log('Test Input:', testInput)
-    console.log('Pattern Match:', match)
-    
     if (match) {
       const connectionIdentifier = match[1]
-      const partialTable = match[2]
-      
-      console.log('  Connection Identifier:', connectionIdentifier)
-      console.log('  Partial Table:', partialTable)
-      
-      const schemas = multiDBSchemasRef.current.get(connectionIdentifier)
-      console.log('  Found Schemas:', schemas ? `YES (${schemas.length} schemas)` : 'NO')
-      
-      if (schemas) {
-        schemas.forEach(schema => {
-          console.log(`    Schema: ${schema.name}, Tables: ${schema.children?.length || 0}`)
-        })
-      } else {
-        console.log('  ❌ Schema lookup failed!')
-        console.log('  Available keys:', Array.from(multiDBSchemasRef.current.keys()))
-      }
+      multiDBSchemasRef.current.get(connectionIdentifier)
     }
-    
-    console.log('========================')
   }
+
+  const editorSchemas = mode === 'multi' ? multiDBSchemas : singleConnectionSchemas
 
   return (
     <div className="flex-1 flex h-full min-h-0 w-full flex-col">
@@ -581,7 +687,6 @@ export function QueryEditor({ mode: propMode = 'single' }: QueryEditorProps = {}
           multiDBSchemas={multiDBSchemas}
           columnCache={columnCacheRef.current}
           onRefreshSchemas={() => {
-            console.log('🔄 Manual schema refresh triggered')
             loadMultiDBSchemas()
           }}
           onTestAutocomplete={testAutocomplete}
@@ -603,19 +708,15 @@ export function QueryEditor({ mode: propMode = 'single' }: QueryEditorProps = {}
             {/* Environment and Connection Status */}
             <div className="flex items-center gap-2">
               {activeEnvironmentFilter && (
-                <div className="flex items-center gap-1.5 px-2 py-1 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-md">
-                  <span className="text-xs font-medium text-amber-700 dark:text-amber-300">
-                    {activeEnvironmentFilter}
-                  </span>
-                </div>
+                <Badge variant="secondary" className="gap-1.5 font-medium">
+                  {activeEnvironmentFilter}
+                </Badge>
               )}
 
-              <div className="flex items-center gap-1.5 px-2 py-1 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-md">
-                <Users className="h-3 w-3 text-green-600 dark:text-green-400" />
-                <span className="text-xs font-medium text-green-700 dark:text-green-300">
-                  {getFilteredConnections().filter(c => c.isConnected).length}/{getFilteredConnections().length} Connected
-                </span>
-              </div>
+              <Badge variant="secondary" className="gap-1.5 font-medium">
+                <Users className="h-3 w-3" />
+                {getFilteredConnections().filter(c => c.isConnected).length}/{getFilteredConnections().length} Connected
+              </Badge>
             </div>
           </div>
 
@@ -661,12 +762,12 @@ export function QueryEditor({ mode: propMode = 'single' }: QueryEditorProps = {}
                       "h-10 px-3 rounded-none border-0 data-[state=active]:bg-background",
                       "data-[state=active]:border-b-2 data-[state=active]:border-primary",
                       "flex items-center space-x-2 min-w-[120px] max-w-[200px]",
-                      mode === 'single' && hasNoConnection && "border-b-2 border-yellow-500/50"
+                      mode === 'single' && hasNoConnection && "border-b-2 border-accent/50"
                     )}
                   >
                     <span className={cn(
                       "truncate",
-                      mode === 'single' && hasNoConnection && "text-yellow-600 dark:text-yellow-400"
+                      mode === 'single' && hasNoConnection && "text-accent-foreground"
                     )}>
                       {tab.title}
                       {tab.isDirty && <span className="ml-1">•</span>}
@@ -688,7 +789,7 @@ export function QueryEditor({ mode: propMode = 'single' }: QueryEditorProps = {}
                         </SelectTrigger>
                         <SelectContent>
                           {!tab.connectionId && (
-                            <div className="px-2 py-1.5 text-xs text-yellow-600 dark:text-yellow-400 border-b">
+                            <div className="px-2 py-1.5 text-xs text-accent-foreground border-b">
                               ⚠️ Please select a connection
                             </div>
                           )}
@@ -697,9 +798,9 @@ export function QueryEditor({ mode: propMode = 'single' }: QueryEditorProps = {}
                               <div className="flex items-center gap-2">
                                 <span>{conn.name}</span>
                                 {conn.isConnected ? (
-                                  <span className="text-xs text-green-600">●</span>
+                                  <span className="text-xs text-primary">●</span>
                                 ) : (
-                                  <span className="text-xs text-gray-400">○</span>
+                                  <span className="text-xs text-muted-foreground">○</span>
                                 )}
                               </div>
                             </SelectItem>
@@ -707,7 +808,7 @@ export function QueryEditor({ mode: propMode = 'single' }: QueryEditorProps = {}
                         </SelectContent>
                       </Select>
                       {lastConnectionError && (
-                        <div className="text-xs text-red-500 mt-1 max-w-32 truncate" title={lastConnectionError}>
+                        <div className="text-xs text-destructive mt-1 max-w-32 truncate" title={lastConnectionError}>
                           {lastConnectionError}
                         </div>
                       )}
@@ -723,9 +824,9 @@ export function QueryEditor({ mode: propMode = 'single' }: QueryEditorProps = {}
                           setActiveTab(tab.id)
                           setShowConnectionSelector(true)
                         }}
-                        className="h-6 px-2 text-xs bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800 hover:bg-purple-100 dark:hover:bg-purple-950/50"
+                        className="h-6 px-2 text-xs bg-accent/10 border-accent hover:bg-accent/20"
                       >
-                        <Network className="h-3 w-3 mr-1 text-purple-600 dark:text-purple-400" />
+                        <Network className="h-3 w-3 mr-1 text-accent-foreground" />
                         {(() => {
                           const activeConnections = getActiveConnectionsForTab(tab)
                           const filteredConns = getFilteredConnections()
@@ -769,137 +870,350 @@ export function QueryEditor({ mode: propMode = 'single' }: QueryEditorProps = {}
         </div>
       </div>
 
-      {/* AI Assistant Dialog */}
+      {/* AI Assistant Drawer */}
       {aiEnabled && (
-        <Dialog open={showAIDialog} onOpenChange={setShowAIDialog}>
-          <DialogContent className="sm:max-w-[600px]">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                AI SQL Assistant
-              </DialogTitle>
-              <DialogDescription>
-                Describe what you want to query in natural language, and I'll generate the SQL for you.
-                
-                {/* Show current mode */}
-                {mode === 'multi' ? (
-                  <div className="mt-2 p-2 bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800 rounded-md">
-                    <div className="flex items-center gap-2 text-purple-700 dark:text-purple-300">
-                      <Network className="h-4 w-4" />
-                      <span className="text-sm font-medium">Multi-Database Mode Active</span>
-                    </div>
-                    <p className="text-xs text-purple-600 dark:text-purple-400 mt-1">
-                      The AI can generate queries across multiple databases. Use @connectionName.table syntax in your descriptions.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-md">
-                    <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300">
-                      <Database className="h-4 w-4" />
-                      <span className="text-sm font-medium">Single Database Mode</span>
-                    </div>
-                    <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                      💡 Tip: Mention multiple databases or "compare" to trigger multi-database mode automatically.
-                    </p>
-                  </div>
-                )}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="space-y-2">
-                <label htmlFor="ai-prompt" className="text-sm font-medium">
-                  What would you like to query?
-                </label>
-                <textarea
-                  id="ai-prompt"
-                  placeholder="e.g., 'Show me all users who signed up last month with their total orders'"
-                  value={naturalLanguagePrompt}
-                  onChange={(e) => setNaturalLanguagePrompt(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                      e.preventDefault()
-                      handleGenerateSQL()
-                    }
-                  }}
-                  className="w-full h-32 p-3 text-sm bg-background border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
-                  disabled={isGenerating}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Press Ctrl+Enter (or Cmd+Enter on Mac) to generate SQL
-                </p>
-              </div>
+        <Sheet open={showAIDialog} onOpenChange={setShowAIDialog}>
+          <SheetContent
+            side="right"
+            className="w-[600px] sm:max-w-[600px] m-4 h-[calc(100vh-2rem)] rounded-xl shadow-2xl border overflow-y-auto flex flex-col"
+          >
+            <SheetHeader className="space-y-4 border-b pb-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <SheetTitle className="flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-primary" />
+                    {isFixMode ? 'AI Query Fixer' : 'AI SQL Assistant'}
+                  </SheetTitle>
+                  <SheetDescription className="mt-2 text-left">
+                    {isFixMode ? (
+                      <>
+                        The AI will analyze the error and suggest fixes for your query.
+                        {lastExecutionError && (
+                          <Alert variant="destructive" className="mt-2">
+                            <AlertCircle className="h-4 w-4" />
+                            <AlertTitle>Query Error</AlertTitle>
+                            <AlertDescription className="text-xs whitespace-pre-wrap">
+                              {lastExecutionError}
+                            </AlertDescription>
+                          </Alert>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        Describe what you want to query in natural language, and I'll generate the SQL for you.
 
-              {/* Show connection context */}
-              {mode === 'single' && activeConnection && (
-                <div className="p-2 bg-muted/50 rounded-lg">
-                  <p className="text-xs font-medium text-muted-foreground mb-1">Using connection:</p>
-                  <p className="text-sm font-medium">{activeConnection.name || activeConnection.database}</p>
-                  <p className="text-xs text-muted-foreground">{activeConnection.type}</p>
+                        {mode === 'multi' ? (
+                          <Alert className="mt-2">
+                            <Network className="h-4 w-4" />
+                            <AlertTitle>Multi-Database Mode Active</AlertTitle>
+                            <AlertDescription>
+                              The AI can generate queries across multiple databases. Use @connectionName.table syntax in your descriptions.
+                            </AlertDescription>
+                          </Alert>
+                        ) : (
+                          <Alert className="mt-2">
+                            <Database className="h-4 w-4" />
+                            <AlertTitle>Single Database Mode</AlertTitle>
+                            <AlertDescription>
+                              💡 Tip: Mention multiple databases or "compare" to trigger multi-database mode automatically.
+                            </AlertDescription>
+                          </Alert>
+                        )}
+                      </>
+                    )}
+                  </SheetDescription>
                 </div>
-              )}
-
-              {/* Show available schemas and tables */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Available Databases & Tables:</label>
-                <AISchemaDisplay
-                  mode={mode}
-                  connections={mode === 'multi' ? getFilteredConnections() : (activeConnection ? [activeConnection] : [])}
-                  schemasMap={mode === 'multi' ? multiDBSchemas : (activeConnection && schema ? new Map([[activeConnection.id, schema]]) : new Map())}
-                  onTableClick={(connName, tableName, schemaName) => {
-                    // Insert table reference into the prompt
-                    const tablePath = mode === 'multi'
-                      ? (schemaName === 'public' ? `@${connName}.${tableName}` : `@${connName}.${schemaName}.${tableName}`)
-                      : (schemaName === 'public' ? tableName : `${schemaName}.${tableName}`)
-
-                    const currentPrompt = naturalLanguagePrompt
-                    const newPrompt = currentPrompt
-                      ? `${currentPrompt} ${tablePath}`
-                      : `Query the ${tablePath} table`
-                    setNaturalLanguagePrompt(newPrompt)
-                  }}
-                  className="border rounded-lg"
-                />
+                {!isFixMode && (
+                  <Button size="sm" onClick={handleCreateMemorySession}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    New Session
+                  </Button>
+                )}
               </div>
+              {!isFixMode && (
+                <Tabs
+                  value={aiSheetTab}
+                  onValueChange={(value) => setAISheetTab(value as 'assistant' | 'memories')}
+                  className="w-full"
+                >
+                  <TabsList className="grid w-full grid-cols-2 bg-muted/40 p-1 rounded-lg">
+                    <TabsTrigger value="assistant" className="h-8 text-sm">
+                      Assistant
+                    </TabsTrigger>
+                    <TabsTrigger value="memories" className="h-8 text-sm">
+                      Memories
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              )}
+            </SheetHeader>
 
-              {/* Error display */}
-              {lastError && (
-                <div className="p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg">
-                  <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
-                    <AlertCircle className="h-4 w-4" />
-                    <p className="text-sm font-medium">Error</p>
+            <div className="flex-1 overflow-hidden">
+              {isFixMode || aiSheetTab === 'assistant' ? (
+                <div className="grid h-full gap-4 py-4 pr-2 overflow-y-auto">
+                  {!isFixMode && (
+                    <>
+                      <div className="space-y-2">
+                        <label htmlFor="ai-prompt" className="text-sm font-medium">
+                          What would you like to query?
+                        </label>
+                        <textarea
+                          id="ai-prompt"
+                          placeholder="e.g., 'Show me all users who signed up last month with their total orders'"
+                          value={naturalLanguagePrompt}
+                          onChange={(e) => setNaturalLanguagePrompt(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                              e.preventDefault()
+                              handleGenerateSQL()
+                            }
+                          }}
+                          className="w-full h-32 p-3 text-sm bg-background border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                          disabled={isGenerating}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Press Ctrl+Enter (or Cmd+Enter on Mac) to generate SQL
+                        </p>
+                      </div>
+
+                      {mode === 'single' && activeConnection && (
+                        <div className="p-2 bg-muted/50 rounded-lg">
+                          <p className="text-xs font-medium text-muted-foreground mb-1">Using connection:</p>
+                          <p className="text-sm font-medium">{activeConnection.name || activeConnection.database}</p>
+                          <p className="text-xs text-muted-foreground">{activeConnection.type}</p>
+                        </div>
+                      )}
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Available Databases & Tables:</label>
+                        <AISchemaDisplay
+                          mode={mode}
+                          connections={mode === 'multi' ? getFilteredConnections() : (activeConnection ? [activeConnection] : [])}
+                          schemasMap={mode === 'multi' ? multiDBSchemas : (activeConnection && schema ? new Map([[activeConnection.id, schema]]) : new Map())}
+                          onTableClick={(connName, tableName, schemaName) => {
+                            const tablePath = mode === 'multi'
+                              ? (schemaName === 'public' ? `@${connName}.${tableName}` : `@${connName}.${schemaName}.${tableName}`)
+                              : (schemaName === 'public' ? tableName : `${schemaName}.${tableName}`)
+
+                            const currentPrompt = naturalLanguagePrompt
+                            const newPrompt = currentPrompt
+                              ? `${currentPrompt} ${tablePath}`
+                              : `Query the ${tablePath} table`
+                            setNaturalLanguagePrompt(newPrompt)
+                          }}
+                          className="border rounded-lg"
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {lastError && (
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertTitle>Error</AlertTitle>
+                      <AlertDescription>{lastError}</AlertDescription>
+                    </Alert>
+                  )}
+
+                  {suggestions.length > 0 && (
+                    <div className="border-t pt-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-semibold">
+                          {isFixMode ? 'Suggested Fixes' : 'Generated Queries'}
+                        </h3>
+                        <span className="text-xs text-muted-foreground">
+                          {suggestions.length} suggestion{suggestions.length !== 1 ? 's' : ''}
+                        </span>
+                      </div>
+                      <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                        {suggestions.map((suggestion) => (
+                          <AISuggestionCard
+                            key={suggestion.id}
+                            suggestion={suggestion}
+                            onApply={(query) => handleApplySuggestion(query, suggestion.id)}
+                            isApplied={appliedSuggestionId === suggestion.id}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex h-full flex-col py-4">
+                  <div className="flex flex-col gap-2 border-b pb-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <h3 className="text-sm font-semibold">Memory Sessions</h3>
+                      <p className="text-xs text-muted-foreground">
+                        Switch between saved assistant context or start fresh sessions.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleClearAllMemories}
+                        disabled={memorySessions.length === 0}
+                      >
+                        Clear All
+                      </Button>
+                      <Button size="sm" onClick={handleCreateMemorySession}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        New Session
+                      </Button>
+                    </div>
                   </div>
-                  <p className="text-sm text-red-700 dark:text-red-300 mt-1">{lastError}</p>
+
+                  <ScrollArea className="flex-1 pr-4">
+                    <div className="space-y-2 py-4">
+                      {memorySessions.length === 0 ? (
+                        <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+                          No memory sessions yet. Create one to let the assistant remember context.
+                        </div>
+                      ) : (
+                        memorySessions.map((session) => (
+                          <div
+                            key={session.id}
+                            className={cn(
+                              "rounded-lg border p-3 transition-colors",
+                              session.id === activeMemorySessionId
+                                ? "border-primary bg-primary/5"
+                                : "hover:bg-muted/50"
+                            )}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="text-sm font-semibold flex items-center gap-2">
+                                  <span className="truncate">{session.title}</span>
+                                  {session.id === activeMemorySessionId && (
+                                    <Badge variant="secondary" className="text-[10px] uppercase tracking-wide">
+                                      Active
+                                    </Badge>
+                                  )}
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Updated {new Date((session.updatedAt || session.createdAt)).toLocaleString()}
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {session.messages.length} message{session.messages.length === 1 ? '' : 's'}
+                                </p>
+                                {session.summary && (
+                                  <p className="text-xs text-muted-foreground mt-2 whitespace-pre-wrap">
+                                    {session.summary}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7"
+                                  onClick={() => openRenameDialog(session.id, session.title)}
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                  <span className="sr-only">Rename session</span>
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-destructive"
+                                  onClick={() => { void handleDeleteMemorySession(session.id) }}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                  <span className="sr-only">Delete session</span>
+                                </Button>
+                              </div>
+                            </div>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              <Button
+                                size="sm"
+                                variant={session.id === activeMemorySessionId ? "default" : "outline"}
+                                onClick={() => handleResumeMemorySession(session.id)}
+                              >
+                                {session.id === activeMemorySessionId ? 'Continue in Assistant' : 'Resume in Assistant'}
+                              </Button>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </ScrollArea>
                 </div>
               )}
             </div>
-            <div className="flex justify-end gap-2">
+
+            <div className="flex flex-wrap justify-end gap-2 border-t pt-4">
+              {(isFixMode || aiSheetTab === 'assistant') && (
+                <Button
+                  variant="outline"
+                  onClick={handleResetAISession}
+                  disabled={isGenerating}
+                >
+                  Reset Session
+                </Button>
+              )}
               <Button
                 variant="outline"
-                onClick={() => setShowAIDialog(false)}
+                onClick={() => {
+                  setShowAIDialog(false)
+                  setIsFixMode(false)
+                }}
                 disabled={isGenerating}
               >
-                Cancel
+                Close
               </Button>
-              <Button
-                onClick={handleGenerateSQL}
-                disabled={!naturalLanguagePrompt.trim() || isGenerating}
-              >
-                {isGenerating ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    <Wand2 className="h-4 w-4 mr-2" />
-                    Generate SQL
-                  </>
-                )}
-              </Button>
+              {!isFixMode && aiSheetTab === 'assistant' && (
+                <Button
+                  onClick={handleGenerateSQL}
+                  disabled={!naturalLanguagePrompt.trim() || isGenerating}
+                >
+                  {isGenerating ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Wand2 className="h-4 w-4 mr-2" />
+                      Generate SQL
+                    </>
+                  )}
+                </Button>
+              )}
             </div>
-          </DialogContent>
-        </Dialog>
+          </SheetContent>
+        </Sheet>
       )}
+
+      <Dialog
+        open={!!renameSessionId}
+        onOpenChange={(open) => {
+          if (!open) {
+            closeRenameDialog()
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rename Memory Session</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input
+              autoFocus
+              value={renameTitle}
+              onChange={(e) => setRenameTitle(e.target.value)}
+              placeholder="Session title"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={closeRenameDialog}>
+              Cancel
+            </Button>
+            <Button onClick={handleConfirmRename} disabled={!renameTitle.trim()}>
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {!activeConnection?.isConnected && (
         <div className="border-b bg-muted/20 p-2 text-sm text-muted-foreground">
@@ -935,7 +1249,7 @@ export function QueryEditor({ mode: propMode = 'single' }: QueryEditorProps = {}
               size="sm"
               onClick={handleFixSQL}
               disabled={isGenerating}
-              className="text-orange-600 hover:text-orange-700 border-orange-200 hover:border-orange-300"
+              className="text-accent-foreground hover:text-accent-foreground/80 border-accent hover:border-accent"
             >
               {isGenerating ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -958,94 +1272,17 @@ export function QueryEditor({ mode: propMode = 'single' }: QueryEditorProps = {}
         </div>
       </div>
 
-      {/* AI Suggestions Panel */}
-      {aiEnabled && showAIPanel && suggestions.length > 0 && (
-        <div className="border-b bg-green-50 dark:bg-green-950/20 p-3">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-green-800 dark:text-green-200">
-                AI Suggestions
-              </span>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowAIPanel(false)}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-
-          <div className="space-y-2">
-            {suggestions.slice(0, 3).map((suggestion) => (
-              <div
-                key={suggestion.id}
-                className="p-3 border rounded-lg bg-white dark:bg-gray-800 cursor-pointer hover:shadow-sm transition-shadow"
-                onClick={() => handleApplySuggestion(suggestion.query)}
-              >
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-muted-foreground">
-                      {suggestion.provider} • {suggestion.model}
-                    </span>
-                    <span className="text-xs px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded">
-                      {Math.round(suggestion.confidence * 100)}% confidence
-                    </span>
-                  </div>
-                  <span className="text-xs text-muted-foreground">
-                    {suggestion.timestamp.toLocaleTimeString()}
-                  </span>
-                </div>
-
-                <div className="text-sm mb-2 text-gray-700 dark:text-gray-300">
-                  {suggestion.explanation}
-                </div>
-
-                <code className="block p-2 bg-gray-100 dark:bg-gray-700 rounded text-xs font-mono text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
-                  {suggestion.query}
-                </code>
-
-                <div className="mt-2 flex justify-end">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleApplySuggestion(suggestion.query)
-                    }}
-                  >
-                    Apply
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {suggestions.length > 3 && (
-            <div className="mt-2 text-center">
-              <span className="text-xs text-muted-foreground">
-                {suggestions.length - 3} more suggestions available
-              </span>
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Editor */}
       <div className="flex-1 min-h-0 overflow-hidden">
         <CodeMirrorEditor
           ref={editorRef}
           value={editorContent}
-          onChange={handleEditorChange}
-          onMount={handleEditorDidMount}
-          theme={theme === 'dark' ? 'dark' : 'light'}
+            onChange={handleEditorChange}
+            onMount={handleEditorDidMount}
+            theme={theme === 'dark' ? 'dark' : 'light'}
           height="100%"
-          connections={connections.map(conn => ({
-            ...conn,
-            isConnected: conn.isConnected || false,
-            sessionId: conn.sessionId || undefined
-          }))}
-          schemas={multiDBSchemas}
+          connections={codeMirrorConnections}
+          schemas={editorSchemas}
           mode={mode}
           columnLoader={columnLoader}
           className="h-full"
@@ -1064,4 +1301,6 @@ export function QueryEditor({ mode: propMode = 'single' }: QueryEditorProps = {}
       )}
     </div>
   )
-}
+})
+
+QueryEditor.displayName = 'QueryEditor'

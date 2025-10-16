@@ -108,7 +108,8 @@ func (p *QueryParser) Parse(query string) (*ParsedQuery, error) {
 // extractConnectionRefs extracts @connection.schema.table references from SQL
 func (p *QueryParser) extractConnectionRefs(query string) ([]ConnectionRef, error) {
 	// Pattern: @connection_alias.schema.table or @connection_alias.table
-	pattern := regexp.MustCompile(`@(\w+)\.(?:(\w+)\.)?(\w+)`)
+	// Note: [\w-]+ allows hyphens in connection names (e.g., @Prod-Leviosa)
+	pattern := regexp.MustCompile(`@([\w-]+)\.(?:([\w-]+)\.)?([\w-]+)`)
 	
 	matches := pattern.FindAllStringSubmatch(query, -1)
 	refs := make([]ConnectionRef, 0, len(matches))

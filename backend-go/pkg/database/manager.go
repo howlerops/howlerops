@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -35,6 +36,7 @@ func (a *databaseAdapter) Execute(ctx context.Context, query string, args ...int
 // Manager manages multiple database connections
 type Manager struct {
 	connections      map[string]Database
+	connectionNames  map[string]string // name -> sessionId mapping for multi-DB queries
 	mu               sync.RWMutex
 	logger           *logrus.Logger
 	multiQueryParser *multiquery.QueryParser
@@ -46,9 +48,10 @@ type Manager struct {
 // NewManager creates a new database manager
 func NewManager(logger *logrus.Logger) *Manager {
 	return &Manager{
-		connections: make(map[string]Database),
-		logger:      logger,
-		schemaCache: NewSchemaCache(logger),
+		connections:     make(map[string]Database),
+		connectionNames: make(map[string]string),
+		logger:          logger,
+		schemaCache:     NewSchemaCache(logger),
 	}
 }
 
@@ -56,6 +59,7 @@ func NewManager(logger *logrus.Logger) *Manager {
 func NewManagerWithConfig(logger *logrus.Logger, mqConfig *multiquery.Config) *Manager {
 	m := &Manager{
 		connections:      make(map[string]Database),
+		connectionNames:  make(map[string]string),
 		logger:           logger,
 		schemaCache:      NewSchemaCache(logger),
 		multiQueryConfig: mqConfig,
@@ -76,6 +80,40 @@ func (m *Manager) CreateConnection(ctx context.Context, config ConnectionConfig)
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	aliasTargets := make(map[string]struct{})
+	displayName := strings.TrimSpace(config.Database)
+	if displayName != "" {
+		aliasTargets[displayName] = struct{}{}
+	}
+
+	if config.Parameters != nil {
+		if alias, ok := config.Parameters["alias"]; ok {
+			if trimmed := strings.TrimSpace(alias); trimmed != "" {
+				displayName = trimmed
+				aliasTargets[trimmed] = struct{}{}
+			}
+			delete(config.Parameters, "alias")
+		}
+
+		if slug, ok := config.Parameters["alias_slug"]; ok {
+			if trimmed := strings.TrimSpace(slug); trimmed != "" {
+				aliasTargets[trimmed] = struct{}{}
+			}
+			delete(config.Parameters, "alias_slug")
+		}
+
+		if lower, ok := config.Parameters["alias_lower"]; ok {
+			if trimmed := strings.TrimSpace(lower); trimmed != "" {
+				aliasTargets[trimmed] = struct{}{}
+			}
+			delete(config.Parameters, "alias_lower")
+		}
+
+		if len(config.Parameters) == 0 {
+			config.Parameters = nil
+		}
+	}
+
 	// Create database instance based on type
 	db, err := m.createDatabaseInstance(config)
 	if err != nil {
@@ -93,9 +131,17 @@ func (m *Manager) CreateConnection(ctx context.Context, config ConnectionConfig)
 	// Store the database instance
 	m.connections[connectionID] = db
 
+	// Store name-to-sessionId mapping for multi-DB queries
+	for alias := range aliasTargets {
+		if alias != "" {
+			m.connectionNames[alias] = connectionID
+		}
+	}
+
 	// Create connection metadata
 	connection := &Connection{
 		ID:        connectionID,
+		Name:      displayName,
 		Config:    config,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
@@ -106,6 +152,7 @@ func (m *Manager) CreateConnection(ctx context.Context, config ConnectionConfig)
 		"connection_id": connectionID,
 		"type":          config.Type,
 		"database":      config.Database,
+		"alias":         displayName,
 	}).Info("Database connection created successfully")
 
 	return connection, nil
@@ -122,6 +169,25 @@ func (m *Manager) GetConnection(connectionID string) (Database, error) {
 	}
 
 	return db, nil
+}
+
+// resolveConnectionID resolves a connection identifier (name or sessionId) to a sessionId
+// This enables multi-DB queries to use @connectionName.table syntax
+func (m *Manager) resolveConnectionID(identifier string) (string, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	// Try direct lookup first (sessionId)
+	if _, exists := m.connections[identifier]; exists {
+		return identifier, nil
+	}
+
+	// Try name resolution
+	if sessionID, exists := m.connectionNames[identifier]; exists {
+		return sessionID, nil
+	}
+
+	return "", fmt.Errorf("connection not found: %s", identifier)
 }
 
 // ListConnections returns all active connections
@@ -155,8 +221,16 @@ func (m *Manager) RemoveConnection(connectionID string) error {
 		}).Error("Failed to disconnect database")
 	}
 
-	// Remove from map
+	// Remove from connections map
 	delete(m.connections, connectionID)
+
+	// Remove from connectionNames map (find and delete the reverse mapping)
+	for name, sessID := range m.connectionNames {
+		if sessID == connectionID {
+			delete(m.connectionNames, name)
+			break
+		}
+	}
 
 	m.logger.WithFields(logrus.Fields{
 		"connection_id": connectionID,
@@ -440,7 +514,17 @@ func (m *Manager) ExecuteMultiQuery(ctx context.Context, query string, options *
 	m.mu.RLock()
 	connections := make(map[string]multiquery.Database)
 	for _, connID := range parsed.RequiredConnections {
-		if db, exists := m.connections[connID]; exists {
+		// Resolve connection name to sessionId
+		resolvedID := connID
+		// Try direct lookup first (sessionId)
+		if _, exists := m.connections[connID]; !exists {
+			// Try name resolution
+			if sessionID, exists := m.connectionNames[connID]; exists {
+				resolvedID = sessionID
+			}
+		}
+
+		if db, exists := m.connections[resolvedID]; exists {
 			connections[connID] = &databaseAdapter{db: db}
 		}
 	}
@@ -501,7 +585,19 @@ func (m *Manager) GetMultiConnectionSchema(ctx context.Context, connectionIDs []
 
 	// Fetch schema for each connection
 	for _, connID := range connectionIDs {
-		db, exists := m.connections[connID]
+		// Resolve connection name to sessionId
+		resolvedID := connID
+		// Try direct lookup first (sessionId)
+		if _, exists := m.connections[connID]; !exists {
+			// Try name resolution
+			if sessionID, exists := m.connectionNames[connID]; exists {
+				resolvedID = sessionID
+			} else {
+				return nil, fmt.Errorf("connection not found: %s", connID)
+			}
+		}
+
+		db, exists := m.connections[resolvedID]
 		if !exists {
 			return nil, fmt.Errorf("connection not found: %s", connID)
 		}
@@ -591,7 +687,19 @@ func (m *Manager) validateConnections(connectionIDs []string) error {
 	defer m.mu.RUnlock()
 
 	for _, connID := range connectionIDs {
+		// Resolve connection name to sessionId
+		resolvedID := connID
+		// Try direct lookup first (sessionId)
 		if _, exists := m.connections[connID]; !exists {
+			// Try name resolution
+			if sessionID, exists := m.connectionNames[connID]; exists {
+				resolvedID = sessionID
+			} else {
+				return fmt.Errorf("connection not found: %s", connID)
+			}
+		}
+
+		if _, exists := m.connections[resolvedID]; !exists {
 			return fmt.Errorf("connection not found: %s", connID)
 		}
 	}

@@ -47,7 +47,7 @@ export function applyWailsClipboardFix() {
         if (nativeWriteText) {
           await nativeWriteText(text);
         }
-      } catch (err) {
+      } catch {
         // Use fallback storage
         fallbackClipboard = text;
         // Try legacy method as fallback
@@ -60,7 +60,7 @@ export function applyWailsClipboardFix() {
           textArea.select();
           document.execCommand('copy');
           document.body.removeChild(textArea);
-        } catch (e) {
+        } catch {
           // Silently fail
         }
       }
@@ -72,7 +72,7 @@ export function applyWailsClipboardFix() {
         if (nativeReadText) {
           return await nativeReadText();
         }
-      } catch (err) {
+      } catch {
         // Return fallback clipboard content
         return fallbackClipboard;
       }
@@ -80,26 +80,22 @@ export function applyWailsClipboardFix() {
     };
 
     // Override write (for rich content)
-    if (originalClipboard.write) {
+    if (nativeWrite) {
       window.navigator.clipboard.write = async function(data: ClipboardItems): Promise<void> {
         try {
-          if (nativeWrite) {
-            await nativeWrite(data);
-          }
-        } catch (err) {
+          await nativeWrite(data);
+        } catch {
           // Silently fail for rich content
         }
       };
     }
 
     // Override read
-    if (originalClipboard.read) {
+    if (nativeRead) {
       window.navigator.clipboard.read = async function(): Promise<ClipboardItems> {
         try {
-          if (nativeRead) {
-            return await nativeRead();
-          }
-        } catch (err) {
+          return await nativeRead();
+        } catch {
           // Return empty clipboard items
           return [];
         }
@@ -115,7 +111,7 @@ export function applyWailsClipboardFix() {
     if (command === 'copy' || command === 'cut' || command === 'paste') {
       try {
         return originalExecCommand.call(document, command, showUI, value);
-      } catch (err) {
+      } catch {
         // Fail silently
         return false;
       }
@@ -126,29 +122,25 @@ export function applyWailsClipboardFix() {
 
   // Fix 3: Add global error handler to catch any remaining clipboard errors
   const originalConsoleError = console.error;
-  console.error = function(...args: any[]) {
-    // Filter out clipboard permission errors
+  console.error = function(...args: unknown[]) {
+    // Filter out clipboard permission errors ONLY
     const errorString = args.join(' ');
-    if (errorString.includes('NotAllowedError') &&
-        (errorString.includes('clipboard') || errorString.includes('clipboardService'))) {
-      // Log as debug instead of error
-      console.debug('Clipboard access blocked (expected in WAILS):', ...args);
+    const isClipboardError = errorString.includes('NotAllowedError') &&
+        (errorString.includes('clipboard') || errorString.includes('clipboardService'));
+    
+    if (isClipboardError) {
+      // Silently ignore clipboard errors in WAILS
       return;
     }
-    // Pass through other errors
+    
+    // Pass through ALL other errors unchanged
     originalConsoleError.apply(console, args);
   };
 
-  // Fix 4: Patch Monaco's clipboard service if it's loaded
-  if ((window as any).monaco?.editor) {
-    const monaco = (window as any).monaco;
-
-    // Disable clipboard features in Monaco defaults
-    if (monaco.editor.EditorOptions) {
-      monaco.editor.EditorOptions.copyWithSyntaxHighlighting = { defaultValue: false };
-      monaco.editor.EditorOptions.emptySelectionClipboard = { defaultValue: false };
-    }
-  }
+  // Fix 4: Monaco clipboard service patch
+  // Note: Monaco EditorOptions are read-only and modifying them causes infinite reloads.
+  // The clipboard API overrides above are sufficient for handling clipboard operations.
+  // Monaco will gracefully handle clipboard failures through our overridden APIs.
 
   console.debug('WAILS clipboard fixes applied successfully');
 }

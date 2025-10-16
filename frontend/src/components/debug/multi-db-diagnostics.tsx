@@ -3,11 +3,21 @@ import { useConnectionStore } from '@/store/connection-store'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { CheckCircle, XCircle, Clock, RefreshCw, Bug, ChevronDown, ChevronRight } from 'lucide-react'
+import { CheckCircle, XCircle, RefreshCw, Bug, ChevronDown, ChevronRight } from 'lucide-react'
+
+interface SchemaNode {
+  name: string;
+  type: string;
+}
+
+interface Column {
+  name: string;
+  type: string;
+}
 
 interface DiagnosticProps {
-  multiDBSchemas: Map<string, any[]>
-  columnCache: Map<string, any[]>
+  multiDBSchemas: Map<string, SchemaNode[]>
+  columnCache: Map<string, Column[]>
   onRefreshSchemas: () => void
   onTestAutocomplete: () => void
 }
@@ -29,6 +39,7 @@ export function MultiDBDiagnostics({
   // Auto-expand if there are issues
   useEffect(() => {
     if (connections.length > 0 && connectedCount === 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setExpanded(true)
     }
     if (connections.length > 1 && totalSchemas === 0) {
@@ -41,14 +52,14 @@ export function MultiDBDiagnostics({
   }
 
   return (
-    <Card className="mb-4 border-orange-500">
+    <Card className="mb-4 border-accent">
       <CardHeader 
         className="cursor-pointer hover:bg-accent/50 transition-colors"
         onClick={() => setExpanded(!expanded)}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Bug className="h-5 w-5 text-orange-500" />
+            <Bug className="h-5 w-5 text-accent-foreground" />
             <CardTitle className="text-sm">Multi-DB Diagnostics</CardTitle>
             {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
           </div>
@@ -79,9 +90,9 @@ export function MultiDBDiagnostics({
                   <div key={conn.id} className="flex items-center justify-between p-2 border rounded text-sm">
                     <div className="flex items-center gap-2">
                       {conn.isConnected ? (
-                        <CheckCircle className="h-4 w-4 text-green-500" />
+                        <CheckCircle className="h-4 w-4 text-primary" />
                       ) : (
-                        <XCircle className="h-4 w-4 text-red-500" />
+                        <XCircle className="h-4 w-4 text-destructive" />
                       )}
                       <span className="font-medium">{conn.name || 'Unnamed'}</span>
                       <Badge variant="outline" className="text-xs">
@@ -107,11 +118,11 @@ export function MultiDBDiagnostics({
           <div>
             <h4 className="text-sm font-semibold mb-2">Multi-DB Schemas</h4>
             {totalSchemas === 0 ? (
-              <div className="p-3 border border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20 rounded">
-                <p className="text-sm text-yellow-700 dark:text-yellow-400">
+              <div className="p-3 border border-accent bg-yellow-50 dark:bg-accent/10/20 rounded">
+                <p className="text-sm text-accent-foreground dark:text-accent-foreground">
                   ⚠️ No schemas loaded. Multi-DB autocomplete will not work.
                 </p>
-                <p className="text-xs text-yellow-600 dark:text-yellow-500 mt-1">
+                <p className="text-xs text-accent-foreground dark:text-accent-foreground mt-1">
                   Expected: Map with connection names/IDs as keys
                 </p>
               </div>
@@ -137,9 +148,9 @@ export function MultiDBDiagnostics({
                     
                     {schemaDetails[key] && (
                       <div className="px-4 pb-2 space-y-1 text-xs">
-                        {schemas.map((schema: any, idx: number) => {
+                        {schemas.map((schema: SchemaNode, idx: number) => {
                           const tableCount = schema.children?.length || 0
-                          const columnCount = schema.children?.reduce((sum: number, table: any) => 
+                          const columnCount = schema.children?.reduce((sum: number, table: SchemaNode) => 
                             sum + (table.children?.length || 0), 0) || 0
                           
                           return (
@@ -274,9 +285,9 @@ function HealthCheckItem({
     <div className="flex items-center justify-between p-2 bg-accent/20 rounded">
       <div className="flex items-center gap-2">
         {status ? (
-          <CheckCircle className="h-3 w-3 text-green-500" />
+          <CheckCircle className="h-3 w-3 text-primary" />
         ) : (
-          <XCircle className="h-3 w-3 text-red-500" />
+          <XCircle className="h-3 w-3 text-destructive" />
         )}
         <span>{label}</span>
       </div>

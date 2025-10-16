@@ -113,16 +113,49 @@ export class WailsApiClient {
   // Connection methods
   async createConnection(data: unknown) {
     try {
+      const request = (data || {}) as {
+        type?: string
+        host?: string
+        port?: number
+        database?: string
+        username?: string
+        password?: string
+        ssl_mode?: string
+        connection_timeout?: number
+        parameters?: Record<string, string>
+        name?: string
+      }
+
+      const parameters: Record<string, string> = {
+        ...(request.parameters ?? {})
+      }
+
+      const aliasSource = parameters.alias || request.name
+      if (aliasSource && aliasSource.trim().length > 0) {
+        const alias = aliasSource.trim()
+        parameters.alias = alias
+
+        const slug = alias.replace(/[^\w-]/g, '-')
+        if (slug && slug !== alias && !parameters.alias_slug) {
+          parameters.alias_slug = slug
+        }
+
+        const lower = alias.toLowerCase()
+        if (lower !== alias && !parameters.alias_lower) {
+          parameters.alias_lower = lower
+        }
+      }
+
       const result = await App.CreateConnection({
-        type: data.type,
-        host: data.host,
-        port: data.port,
-        database: data.database,
-        username: data.username,
-        password: data.password,
-        sslMode: data.ssl_mode || 'disable',
-        connectionTimeout: data.connection_timeout || 30,
-        parameters: data.parameters || {}
+        type: request.type,
+        host: request.host,
+        port: request.port,
+        database: request.database,
+        username: request.username,
+        password: request.password,
+        sslMode: request.ssl_mode || 'disable',
+        connectionTimeout: request.connection_timeout || 30,
+        parameters
       })
 
       return {
@@ -228,6 +261,11 @@ export class WailsApiClient {
 
   async executeQuery(connectionId: string, sql: string, options?: unknown) {
     try {
+      // Check if query contains @ syntax for multi-database queries
+      if (sql.includes('@')) {
+        return await this.executeMultiDatabaseQuery(sql, options)
+      }
+
       const result = await App.ExecuteQuery({
         connectionId,
         query: sql,
@@ -267,6 +305,53 @@ export class WailsApiClient {
         },
         success: false,
         message: error instanceof Error ? error.message : 'Query execution failed'
+      }
+    }
+  }
+
+  async executeMultiDatabaseQuery(sql: string, options?: unknown) {
+    try {
+      const result = await App.ExecuteMultiDatabaseQuery({
+        query: sql,
+        timeout: options?.timeout || 30, // timeout in seconds
+        strategy: 'federated',
+        limit: options?.limit || 1000
+      })
+
+      const hasError = typeof result.error === 'string' ? result.error.length > 0 : Boolean(result.error)
+      const success = !hasError
+
+      return {
+        data: {
+          queryId: `query-${Date.now()}`,
+          success,
+          columns: result.columns || [],
+          rows: result.rows || [],
+          rowCount: result.rowCount || 0,
+          stats: {
+            duration: result.duration,
+            affectedRows: 0
+          },
+          warnings: [],
+          editable: null,
+          connectionsUsed: result.connectionsUsed || []
+        },
+        success,
+        message: hasError ? result.error : undefined
+      }
+    } catch (error) {
+      return {
+        data: {
+          queryId: `query-${Date.now()}`,
+          success: false,
+          columns: [],
+          rows: [],
+          rowCount: 0,
+          stats: {},
+          warnings: []
+        },
+        success: false,
+        message: error instanceof Error ? error.message : 'Multi-database query execution failed'
       }
     }
   }

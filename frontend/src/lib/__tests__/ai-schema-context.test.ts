@@ -3,16 +3,21 @@
  */
 
 import { AISchemaContextBuilder } from '../ai-schema-context'
+import type { DatabaseConnection } from '@/store/connection-store'
+import type { SchemaNode } from '@/hooks/use-schema-introspection'
+
+// Type for connection info
+type ConnectionInfo = Pick<DatabaseConnection, 'id' | 'name' | 'database' | 'isConnected'>
 
 describe('AISchemaContextBuilder', () => {
-  const mockSingleDBConnection = {
+  const mockSingleDBConnection: ConnectionInfo = {
     id: 'conn1',
     name: 'ProductionDB',
     database: 'ecommerce',
     isConnected: true
   }
 
-  const mockMultiDBConnections = [
+  const mockMultiDBConnections: ConnectionInfo[] = [
     {
       id: 'conn1',
       name: 'Production',
@@ -33,7 +38,7 @@ describe('AISchemaContextBuilder', () => {
     }
   ]
 
-  const mockSchemas = [
+  const mockSchemas: SchemaNode[] = [
     {
       name: 'public',
       type: 'schema' as const,
@@ -61,7 +66,7 @@ describe('AISchemaContextBuilder', () => {
     }
   ]
 
-  const mockAnalyticsSchemas = [
+  const mockAnalyticsSchemas: SchemaNode[] = [
     {
       name: 'metrics',
       type: 'schema' as const,
@@ -82,7 +87,7 @@ describe('AISchemaContextBuilder', () => {
   describe('buildSingleDatabaseContext', () => {
     it('should build context for single database mode', () => {
       const context = AISchemaContextBuilder.buildSingleDatabaseContext(
-        mockSingleDBConnection as any,
+        mockSingleDBConnection,
         mockSchemas
       )
 
@@ -95,7 +100,7 @@ describe('AISchemaContextBuilder', () => {
 
     it('should generate single database SQL examples', () => {
       const context = AISchemaContextBuilder.buildSingleDatabaseContext(
-        mockSingleDBConnection as any,
+        mockSingleDBConnection,
         mockSchemas
       )
 
@@ -114,7 +119,7 @@ describe('AISchemaContextBuilder', () => {
       ])
 
       const context = AISchemaContextBuilder.buildMultiDatabaseContext(
-        mockMultiDBConnections as any,
+        mockMultiDBConnections,
         schemasMap,
         'conn1'
       )
@@ -133,7 +138,7 @@ describe('AISchemaContextBuilder', () => {
       ])
 
       const context = AISchemaContextBuilder.buildMultiDatabaseContext(
-        mockMultiDBConnections as any,
+        mockMultiDBConnections,
         schemasMap,
         'conn1'
       )
@@ -150,7 +155,7 @@ describe('AISchemaContextBuilder', () => {
       ])
 
       const context = AISchemaContextBuilder.buildMultiDatabaseContext(
-        mockMultiDBConnections as any,
+        mockMultiDBConnections,
         schemasMap
       )
 
@@ -162,7 +167,7 @@ describe('AISchemaContextBuilder', () => {
   describe('generateAIPrompt', () => {
     it('should generate prompt for single database mode', () => {
       const context = AISchemaContextBuilder.buildSingleDatabaseContext(
-        mockSingleDBConnection as any,
+        mockSingleDBConnection,
         mockSchemas
       )
 
@@ -186,7 +191,7 @@ describe('AISchemaContextBuilder', () => {
       ])
 
       const context = AISchemaContextBuilder.buildMultiDatabaseContext(
-        mockMultiDBConnections as any,
+        mockMultiDBConnections,
         schemasMap
       )
 
@@ -206,7 +211,7 @@ describe('AISchemaContextBuilder', () => {
   describe('generateCompactSchemaContext', () => {
     it('should generate compact context for single database', () => {
       const context = AISchemaContextBuilder.buildSingleDatabaseContext(
-        mockSingleDBConnection as any,
+        mockSingleDBConnection,
         mockSchemas
       )
 
@@ -226,7 +231,7 @@ describe('AISchemaContextBuilder', () => {
       ])
 
       const context = AISchemaContextBuilder.buildMultiDatabaseContext(
-        mockMultiDBConnections as any,
+        mockMultiDBConnections,
         schemasMap
       )
 
@@ -257,7 +262,7 @@ describe('AISchemaContextBuilder', () => {
       ]
 
       const context = AISchemaContextBuilder.buildSingleDatabaseContext(
-        mockSingleDBConnection as any,
+        mockSingleDBConnection,
         largeTableSchema
       )
 
