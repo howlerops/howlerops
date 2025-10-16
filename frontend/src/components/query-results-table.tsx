@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
-import { Database, Clock, Save, AlertCircle, Download, Search } from 'lucide-react'
+import { Database, Clock, Save, AlertCircle, Download, Search, Inbox } from 'lucide-react'
 
 import { EditableTable } from './editable-table/editable-table'
 import { Button } from './ui/button'
@@ -638,21 +638,31 @@ export const QueryResultsTable = ({
 
   return (
     <div className="flex flex-1 min-h-0 flex-col">
-      <EditableTable
-        data={rows as TableRow[]}
-        columns={tableColumns}
-        onDirtyChange={handleDirtyChange}
-        enableMultiSelect={false}
-        enableGlobalFilter={false}
-        enableExport={true}
-        loading={saving}
-        className="flex-1 min-h-0"
-        height="100%"
-        onExport={handleExport}
-        onCellEdit={handleCellEdit}
-        toolbar={renderToolbar}
-        footer={null}
-      />
+      {rows.length === 0 ? (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center text-muted-foreground">
+            <Inbox className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <p className="text-lg font-medium mb-1">No results found</p>
+            <p className="text-sm">Your query returned 0 rows</p>
+          </div>
+        </div>
+      ) : (
+        <EditableTable
+          data={rows as TableRow[]}
+          columns={tableColumns}
+          onDirtyChange={handleDirtyChange}
+          enableMultiSelect={false}
+          enableGlobalFilter={false}
+          enableExport={true}
+          loading={saving}
+          className="flex-1 min-h-0"
+          height="100%"
+          onExport={handleExport}
+          onCellEdit={handleCellEdit}
+          toolbar={renderToolbar}
+          footer={null}
+        />
+      )}
 
       <div className="flex-shrink-0 border-t border-border bg-muted/40 px-4 py-2 text-xs text-muted-foreground flex items-center justify-between">
         <div className="flex items-center gap-4">

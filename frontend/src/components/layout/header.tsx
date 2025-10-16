@@ -2,7 +2,6 @@ import { Link, useLocation } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { useTheme } from "@/hooks/use-theme"
-import { useConnectionStore } from "@/store/connection-store"
 import { useQueryStore } from "@/store/query-store"
 import { Moon, Sun, Plus, Settings } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -13,7 +12,6 @@ export function Header() {
   const location = useLocation()
   const navigate = useNavigate()
   const { theme, setTheme } = useTheme()
-  const { activeConnection } = useConnectionStore()
   const { createTab } = useQueryStore()
 
   const toggleTheme = () => {
@@ -60,16 +58,6 @@ export function Header() {
         </div>
 
         <div className="ml-auto flex items-center space-x-4">
-          <div className="text-sm text-muted-foreground">
-            {activeConnection ? (
-              <span className="flex items-center space-x-2">
-                <div className="h-2 w-2 rounded-full bg-primary" />
-                <span>{activeConnection.name}</span>
-              </span>
-            ) : (
-              <span>No connection</span>
-            )}
-          </div>
 
           <Button variant="outline" size="sm" onClick={handleNewQuery}>
             <Plus className="h-4 w-4 mr-2" />

@@ -878,57 +878,64 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
             className="w-[600px] sm:max-w-[600px] m-4 h-[calc(100vh-2rem)] rounded-xl shadow-2xl border overflow-y-auto flex flex-col"
           >
             <SheetHeader className="space-y-4 border-b pb-4">
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <SheetTitle className="flex items-center gap-2">
-                    <Sparkles className="h-5 w-5 text-primary" />
-                    {isFixMode ? 'AI Query Fixer' : 'AI SQL Assistant'}
-                  </SheetTitle>
-                  <SheetDescription className="mt-2 text-left">
-                    {isFixMode ? (
-                      <>
-                        The AI will analyze the error and suggest fixes for your query.
-                        {lastExecutionError && (
-                          <Alert variant="destructive" className="mt-2">
-                            <AlertCircle className="h-4 w-4" />
-                            <AlertTitle>Query Error</AlertTitle>
-                            <AlertDescription className="text-xs whitespace-pre-wrap">
-                              {lastExecutionError}
-                            </AlertDescription>
-                          </Alert>
-                        )}
-                      </>
-                    ) : (
-                      <>
-                        Describe what you want to query in natural language, and I'll generate the SQL for you.
-
-                        {mode === 'multi' ? (
-                          <Alert className="mt-2">
-                            <Network className="h-4 w-4" />
-                            <AlertTitle>Multi-Database Mode Active</AlertTitle>
-                            <AlertDescription>
-                              The AI can generate queries across multiple databases. Use @connectionName.table syntax in your descriptions.
-                            </AlertDescription>
-                          </Alert>
-                        ) : (
-                          <Alert className="mt-2">
-                            <Database className="h-4 w-4" />
-                            <AlertTitle>Single Database Mode</AlertTitle>
-                            <AlertDescription>
-                              💡 Tip: Mention multiple databases or "compare" to trigger multi-database mode automatically.
-                            </AlertDescription>
-                          </Alert>
-                        )}
-                      </>
-                    )}
-                  </SheetDescription>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-3 pr-10">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Sparkles className="h-5 w-5 text-primary flex-shrink-0" />
+                    <SheetTitle className="truncate">
+                      {isFixMode ? 'AI Query Fixer' : 'AI SQL Assistant'}
+                    </SheetTitle>
+                  </div>
+                  {!isFixMode && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleCreateMemorySession}
+                      className="h-8 px-2 text-xs"
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      New Session
+                    </Button>
+                  )}
                 </div>
-                {!isFixMode && (
-                  <Button size="sm" onClick={handleCreateMemorySession}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    New Session
-                  </Button>
-                )}
+                <SheetDescription className="mt-2 text-left">
+                  {isFixMode ? (
+                    <>
+                      The AI will analyze the error and suggest fixes for your query.
+                      {lastExecutionError && (
+                        <Alert variant="destructive" className="mt-2">
+                          <AlertCircle className="h-4 w-4" />
+                          <AlertTitle>Query Error</AlertTitle>
+                          <AlertDescription className="text-xs whitespace-pre-wrap">
+                            {lastExecutionError}
+                          </AlertDescription>
+                        </Alert>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      Describe what you want to query in natural language, and I'll generate the SQL for you.
+
+                      {mode === 'multi' ? (
+                        <Alert className="mt-2">
+                          <Network className="h-4 w-4" />
+                          <AlertTitle>Multi-Database Mode Active</AlertTitle>
+                          <AlertDescription>
+                            The AI can generate queries across multiple databases. Use @connectionName.table syntax in your descriptions.
+                          </AlertDescription>
+                        </Alert>
+                      ) : (
+                        <Alert className="mt-2">
+                          <Database className="h-4 w-4" />
+                          <AlertTitle>Single Database Mode</AlertTitle>
+                          <AlertDescription>
+                            💡 Tip: Mention multiple databases or "compare" to trigger multi-database mode automatically.
+                          </AlertDescription>
+                        </Alert>
+                      )}
+                    </>
+                  )}
+                </SheetDescription>
               </div>
               {!isFixMode && (
                 <Tabs
@@ -950,7 +957,7 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
 
             <div className="flex-1 overflow-hidden">
               {isFixMode || aiSheetTab === 'assistant' ? (
-                <div className="grid h-full gap-4 py-4 pr-2 overflow-y-auto">
+                <div className="grid h-full gap-4 py-4 overflow-y-auto">
                   {!isFixMode && (
                     <>
                       <div className="space-y-2">
@@ -1273,13 +1280,13 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
       </div>
 
       {/* Editor */}
-      <div className="flex-1 min-h-0 overflow-hidden">
+      <div className="flex-1 min-h-0 overflow-y-auto">
         <CodeMirrorEditor
           ref={editorRef}
           value={editorContent}
-            onChange={handleEditorChange}
-            onMount={handleEditorDidMount}
-            theme={theme === 'dark' ? 'dark' : 'light'}
+          onChange={handleEditorChange}
+          onMount={handleEditorDidMount}
+          theme={theme === 'dark' ? 'dark' : 'light'}
           height="100%"
           connections={codeMirrorConnections}
           schemas={editorSchemas}
