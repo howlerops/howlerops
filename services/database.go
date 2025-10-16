@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
@@ -15,12 +16,14 @@ import (
 
 // DatabaseService wraps the backend database manager for Wails
 type DatabaseService struct {
-	manager  *database.Manager
-	logger   *logrus.Logger
-	ctx      context.Context
-	mu       sync.RWMutex
-	streams  map[string]*QueryStream
-	streamID int64
+	manager      *database.Manager
+	logger       *logrus.Logger
+	ctx          context.Context
+	mu           sync.RWMutex
+	streams      map[string]*QueryStream
+	streamID     int64
+	metadataJobs map[string]*EditableMetadataJob
+	metadataMu   sync.RWMutex
 }
 
 // QueryStream represents an active query stream
@@ -35,6 +38,19 @@ type QueryStream struct {
 	BatchSize  int
 	TotalRows  int64
 	cancel     context.CancelFunc
+}
+
+// EditableMetadataJob tracks asynchronous editable metadata generation
+type EditableMetadataJob struct {
+	ID           string                          `json:"id"`
+	ConnectionID string                          `json:"connectionId"`
+	Query        string                          `json:"-"`
+	Columns      []string                        `json:"-"`
+	Status       string                          `json:"status"`
+	Metadata     *database.EditableQueryMetadata `json:"metadata,omitempty"`
+	Error        string                          `json:"error,omitempty"`
+	CreatedAt    time.Time                       `json:"createdAt"`
+	CompletedAt  *time.Time                      `json:"completedAt,omitempty"`
 }
 
 // StreamUpdate represents a streaming query update
@@ -63,9 +79,10 @@ func NewDatabaseService(logger *logrus.Logger) *DatabaseService {
 
 	manager := database.NewManagerWithConfig(logger, multiQueryConfig)
 	return &DatabaseService{
-		manager: manager,
-		logger:  logger,
-		streams: make(map[string]*QueryStream),
+		manager:      manager,
+		logger:       logger,
+		streams:      make(map[string]*QueryStream),
+		metadataJobs: make(map[string]*EditableMetadataJob),
 	}
 }
 
@@ -188,6 +205,11 @@ func (s *DatabaseService) ExecuteQuery(connectionID, query string, options *data
 		return nil, err
 	}
 
+	if result != nil && result.Editable != nil && result.Editable.Pending {
+		jobID := s.startEditableMetadataJob(connectionID, db, query, result.Columns, result.Editable)
+		result.Editable.JobID = jobID
+	}
+
 	// Emit query executed event
 	runtime.EventsEmit(s.ctx, "query:executed", map[string]interface{}{
 		"connectionId": connectionID,
@@ -204,6 +226,145 @@ func (s *DatabaseService) ExecuteQuery(connectionID, query string, options *data
 	}).Info("Query executed successfully")
 
 	return result, nil
+}
+
+func (s *DatabaseService) startEditableMetadataJob(connectionID string, db database.Database, query string, columns []string, meta *database.EditableQueryMetadata) string {
+	jobID := uuid.NewString()
+	columnCopy := append([]string(nil), columns...)
+	job := &EditableMetadataJob{
+		ID:           jobID,
+		ConnectionID: connectionID,
+		Query:        query,
+		Columns:      columnCopy,
+		Status:       "pending",
+		CreatedAt:    time.Now(),
+	}
+
+	s.metadataMu.Lock()
+	s.metadataJobs[jobID] = job
+	s.pruneCompletedMetadataJobsLocked()
+	s.metadataMu.Unlock()
+
+	if meta != nil {
+		meta.JobID = jobID
+		meta.Pending = true
+	}
+
+	go s.computeEditableMetadataJob(jobID, connectionID, db, query, columnCopy)
+
+	return jobID
+}
+
+func (s *DatabaseService) computeEditableMetadataJob(jobID, connectionID string, db database.Database, query string, columns []string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	metadata, err := db.ComputeEditableMetadata(ctx, query, columns)
+	completedAt := time.Now()
+
+	s.metadataMu.Lock()
+	job, exists := s.metadataJobs[jobID]
+	if !exists {
+		s.metadataMu.Unlock()
+		return
+	}
+
+	if err != nil {
+		job.Status = "failed"
+		job.Error = err.Error()
+		if metadata != nil {
+			metadata.Pending = false
+			metadata.JobID = jobID
+		}
+		job.Metadata = metadata
+	} else {
+		job.Status = "completed"
+		job.Error = ""
+		if metadata != nil {
+			metadata.Pending = false
+			metadata.JobID = jobID
+		}
+		job.Metadata = metadata
+	}
+	job.CompletedAt = &completedAt
+
+	// Copy data for use outside the lock
+	status := job.Status
+	jobError := job.Error
+	payloadMetadata := cloneEditableMetadata(job.Metadata)
+	s.metadataMu.Unlock()
+
+	eventPayload := map[string]interface{}{
+		"jobId":        jobID,
+		"connectionId": connectionID,
+		"status":       status,
+	}
+	if payloadMetadata != nil {
+		eventPayload["metadata"] = payloadMetadata
+	}
+	if jobError != "" {
+		eventPayload["error"] = jobError
+	}
+
+	runtime.EventsEmit(s.ctx, "query:editableMetadata", eventPayload)
+}
+
+func (s *DatabaseService) GetEditableMetadataJob(jobID string) (*EditableMetadataJob, error) {
+	s.metadataMu.RLock()
+	job, exists := s.metadataJobs[jobID]
+	s.metadataMu.RUnlock()
+
+	if !exists {
+		return nil, fmt.Errorf("metadata job not found: %s", jobID)
+	}
+
+	return cloneEditableMetadataJob(job), nil
+}
+
+func (s *DatabaseService) pruneCompletedMetadataJobsLocked() {
+	cutoff := time.Now().Add(-10 * time.Minute)
+	for id, job := range s.metadataJobs {
+		if job.CompletedAt != nil && job.CompletedAt.Before(cutoff) {
+			delete(s.metadataJobs, id)
+		}
+	}
+}
+
+func cloneEditableMetadataJob(job *EditableMetadataJob) *EditableMetadataJob {
+	if job == nil {
+		return nil
+	}
+
+	clone := &EditableMetadataJob{
+		ID:           job.ID,
+		ConnectionID: job.ConnectionID,
+		Query:        job.Query,
+		Columns:      append([]string(nil), job.Columns...),
+		Status:       job.Status,
+		Error:        job.Error,
+		CreatedAt:    job.CreatedAt,
+	}
+
+	if job.CompletedAt != nil {
+		completed := *job.CompletedAt
+		clone.CompletedAt = &completed
+	}
+
+	clone.Metadata = cloneEditableMetadata(job.Metadata)
+
+	return clone
+}
+
+func cloneEditableMetadata(meta *database.EditableQueryMetadata) *database.EditableQueryMetadata {
+	if meta == nil {
+		return nil
+	}
+
+	clone := *meta
+	clone.PrimaryKeys = append([]string(nil), meta.PrimaryKeys...)
+	clone.Columns = append([]database.EditableColumn(nil), meta.Columns...)
+
+	return &clone
 }
 
 // UpdateRow persists modifications to a single row in the result set

@@ -101,6 +101,15 @@ func (p *huggingFaceProvider) FixSQL(ctx context.Context, req *SQLRequest) (*SQL
 	return p.ollama.FixSQL(ctx, req)
 }
 
+// Chat handles generic conversational interactions using Hugging Face models via Ollama
+func (p *huggingFaceProvider) Chat(ctx context.Context, req *ChatRequest) (*ChatResponse, error) {
+	if err := p.ensureModelAvailable(ctx, req.Model); err != nil {
+		return nil, fmt.Errorf("model availability check failed: %w", err)
+	}
+
+	return p.ollama.Chat(ctx, req)
+}
+
 // HealthCheck checks if the Hugging Face provider (via Ollama) is available
 func (p *huggingFaceProvider) HealthCheck(ctx context.Context) (*HealthStatus, error) {
 	// Check Ollama status first

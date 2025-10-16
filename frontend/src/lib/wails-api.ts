@@ -309,6 +309,23 @@ export class WailsApiClient {
     }
   }
 
+  async getEditableMetadata(jobId: string) {
+    try {
+      const result = await App.GetEditableMetadata(jobId)
+      return {
+        data: result,
+        success: true,
+        message: 'Editable metadata retrieved successfully'
+      }
+    } catch (error) {
+      return {
+        data: null,
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to fetch editable metadata'
+      }
+    }
+  }
+
   async executeMultiDatabaseQuery(sql: string, options?: unknown) {
     try {
       const result = await App.ExecuteMultiDatabaseQuery({
@@ -404,6 +421,9 @@ export const wailsEndpoints = {
   queries: {
     execute: async (connectionId: string, sql: string, options?: unknown) => {
       return wailsApiClient.executeQuery(connectionId, sql, options)
+    },
+    getEditableMetadata: async (jobId: string) => {
+      return wailsApiClient.getEditableMetadata(jobId)
     },
     updateRow: async (payload: unknown) => {
       return wailsApiClient.updateQueryRow(payload)

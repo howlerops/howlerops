@@ -80,6 +80,23 @@ func (s *Service) FixQueryWithRequest(ctx context.Context, req *SQLRequest) (*SQ
 	}, nil
 }
 
+// Chat handles a generic conversational request
+func (s *Service) Chat(ctx context.Context, req *ChatRequest) (*ChatResponse, error) {
+	internalReq := s.toInternalChatRequest(req)
+	resp, err := s.internal.Chat(ctx, internalReq)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ChatResponse{
+		Content:    resp.Content,
+		Provider:   string(resp.Provider),
+		Model:      resp.Model,
+		TokensUsed: resp.TokensUsed,
+		Metadata:   resp.Metadata,
+	}, nil
+}
+
 func (s *Service) toInternalRequest(req *SQLRequest) *ai.SQLRequest {
 	if req == nil {
 		return &ai.SQLRequest{}
@@ -94,6 +111,28 @@ func (s *Service) toInternalRequest(req *SQLRequest) *ai.SQLRequest {
 		Model:       req.Model,
 		MaxTokens:   req.MaxTokens,
 		Temperature: req.Temperature,
+	}
+}
+
+func (s *Service) toInternalChatRequest(req *ChatRequest) *ai.ChatRequest {
+	if req == nil {
+		return &ai.ChatRequest{}
+	}
+
+	metadata := req.Metadata
+	if metadata == nil {
+		metadata = make(map[string]string)
+	}
+
+	return &ai.ChatRequest{
+		Prompt:      req.Prompt,
+		Context:     req.Context,
+		System:      req.System,
+		Provider:    ai.Provider(req.Provider),
+		Model:       req.Model,
+		MaxTokens:   req.MaxTokens,
+		Temperature: req.Temperature,
+		Metadata:    metadata,
 	}
 }
 

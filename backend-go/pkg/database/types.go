@@ -142,6 +142,7 @@ type Database interface {
 	Execute(ctx context.Context, query string, args ...interface{}) (*QueryResult, error)
 	ExecuteStream(ctx context.Context, query string, batchSize int, callback func([][]interface{}) error, args ...interface{}) error
 	ExplainQuery(ctx context.Context, query string, args ...interface{}) (string, error)
+	ComputeEditableMetadata(ctx context.Context, query string, columns []string) (*EditableQueryMetadata, error)
 
 	// Schema operations
 	GetSchemas(ctx context.Context) ([]string, error)
@@ -217,6 +218,8 @@ type EditableQueryMetadata struct {
 	Table       string           `json:"table,omitempty"`
 	PrimaryKeys []string         `json:"primary_keys,omitempty"`
 	Columns     []EditableColumn `json:"columns,omitempty"`
+	Pending     bool             `json:"pending,omitempty"`
+	JobID       string           `json:"job_id,omitempty"`
 }
 
 // UpdateRowParams describes the data required to persist edits back to the source table

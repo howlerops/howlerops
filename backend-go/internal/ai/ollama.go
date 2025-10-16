@@ -20,6 +20,8 @@ type OllamaProvider struct {
 	logger *logrus.Logger
 }
 
+const defaultOllamaSystemPrompt = "You are an expert SQL developer. Generate clean, efficient SQL queries and provide clear explanations. Always format your responses as valid JSON when requested."
+
 // Ollama API structures
 type ollamaGenerateRequest struct {
 	Model    string                 `json:"model"`
@@ -110,7 +112,7 @@ func NewOllamaProvider(config *OllamaConfig, logger *logrus.Logger) (AIProvider,
 func (p *OllamaProvider) GenerateSQL(ctx context.Context, req *SQLRequest) (*SQLResponse, error) {
 	prompt := p.buildGeneratePrompt(req)
 
-	response, err := p.callOllama(ctx, req.Model, prompt, req.MaxTokens, req.Temperature)
+	response, err := p.callOllama(ctx, req.Model, prompt, defaultOllamaSystemPrompt, req.MaxTokens, req.Temperature)
 	if err != nil {
 		return nil, err
 	}
@@ -122,12 +124,59 @@ func (p *OllamaProvider) GenerateSQL(ctx context.Context, req *SQLRequest) (*SQL
 func (p *OllamaProvider) FixSQL(ctx context.Context, req *SQLRequest) (*SQLResponse, error) {
 	prompt := p.buildFixPrompt(req)
 
-	response, err := p.callOllama(ctx, req.Model, prompt, req.MaxTokens, req.Temperature)
+	response, err := p.callOllama(ctx, req.Model, prompt, defaultOllamaSystemPrompt, req.MaxTokens, req.Temperature)
 	if err != nil {
 		return nil, err
 	}
 
 	return p.parseResponse(response, req)
+}
+
+// Chat handles generic conversational interactions using Ollama
+func (p *OllamaProvider) Chat(ctx context.Context, req *ChatRequest) (*ChatResponse, error) {
+	if req == nil {
+		return nil, fmt.Errorf("request cannot be nil")
+	}
+
+	systemPrompt := req.System
+	if systemPrompt == "" {
+		systemPrompt = "You are a helpful assistant for SQL Studio. Provide concise, accurate answers and offer practical guidance when relevant."
+	}
+
+	var promptBuilder strings.Builder
+	if req.Context != "" {
+		promptBuilder.WriteString("Context:\n")
+		promptBuilder.WriteString(req.Context)
+		promptBuilder.WriteString("\n\n")
+	}
+	promptBuilder.WriteString(req.Prompt)
+
+	response, err := p.callOllama(ctx, req.Model, promptBuilder.String(), systemPrompt, req.MaxTokens, req.Temperature)
+	if err != nil {
+		return nil, err
+	}
+
+	content := strings.TrimSpace(response.Response)
+	if content == "" {
+		return nil, fmt.Errorf("empty response from Ollama")
+	}
+
+	tokensUsed := response.PromptEvalCount + response.EvalCount
+	metadata := map[string]string{
+		"model":        response.Model,
+		"total_time":   fmt.Sprintf("%d", response.TotalDuration),
+		"load_time":    fmt.Sprintf("%d", response.LoadDuration),
+		"eval_count":   fmt.Sprintf("%d", response.EvalCount),
+		"prompt_count": fmt.Sprintf("%d", response.PromptEvalCount),
+	}
+
+	return &ChatResponse{
+		Content:    content,
+		Provider:   ProviderOllama,
+		Model:      req.Model,
+		TokensUsed: tokensUsed,
+		Metadata:   metadata,
+	}, nil
 }
 
 // HealthCheck checks if the Ollama service is available
@@ -321,7 +370,7 @@ func (p *OllamaProvider) PullModel(ctx context.Context, modelName string) error 
 }
 
 // callOllama makes a request to the Ollama API
-func (p *OllamaProvider) callOllama(ctx context.Context, model, prompt string, maxTokens int, temperature float64) (*ollamaGenerateResponse, error) {
+func (p *OllamaProvider) callOllama(ctx context.Context, model, prompt string, systemPrompt string, maxTokens int, temperature float64) (*ollamaGenerateResponse, error) {
 	// Check if model exists, try to pull if auto-pull is enabled
 	models, err := p.GetModels(ctx)
 	if err != nil {
@@ -357,7 +406,7 @@ func (p *OllamaProvider) callOllama(ctx context.Context, model, prompt string, m
 	requestBody := ollamaGenerateRequest{
 		Model:   model,
 		Prompt:  prompt,
-		System:  "You are an expert SQL developer. Generate clean, efficient SQL queries and provide clear explanations. Always format your responses as valid JSON when requested.",
+		System:  systemPrompt,
 		Stream:  false,
 		Options: options,
 	}

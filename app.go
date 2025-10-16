@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -66,6 +67,17 @@ type QueryResponse struct {
 	Duration string                          `json:"duration"`
 	Error    string                          `json:"error,omitempty"`
 	Editable *database.EditableQueryMetadata `json:"editable,omitempty"`
+}
+
+// EditableMetadataJobResponse represents the status of an editable metadata background job
+type EditableMetadataJobResponse struct {
+	ID           string                          `json:"id"`
+	ConnectionID string                          `json:"connectionId"`
+	Status       string                          `json:"status"`
+	Metadata     *database.EditableQueryMetadata `json:"metadata,omitempty"`
+	Error        string                          `json:"error,omitempty"`
+	CreatedAt    string                          `json:"createdAt"`
+	CompletedAt  string                          `json:"completedAt,omitempty"`
 }
 
 // QueryRowUpdateRequest represents an inline edit save request
@@ -204,6 +216,27 @@ type FixSQLRequest struct {
 	MaxTokens    int     `json:"maxTokens,omitempty"`
 	Temperature  float64 `json:"temperature,omitempty"`
 	Context      string  `json:"context,omitempty"`
+}
+
+// GenericChatRequest represents a generic AI chat request
+type GenericChatRequest struct {
+	Prompt      string            `json:"prompt"`
+	Context     string            `json:"context,omitempty"`
+	System      string            `json:"system,omitempty"`
+	Provider    string            `json:"provider,omitempty"`
+	Model       string            `json:"model,omitempty"`
+	MaxTokens   int               `json:"maxTokens,omitempty"`
+	Temperature float64           `json:"temperature,omitempty"`
+	Metadata    map[string]string `json:"metadata,omitempty"`
+}
+
+// GenericChatResponse represents a generic AI chat response
+type GenericChatResponse struct {
+	Content    string            `json:"content"`
+	Provider   string            `json:"provider"`
+	Model      string            `json:"model"`
+	TokensUsed int               `json:"tokensUsed,omitempty"`
+	Metadata   map[string]string `json:"metadata,omitempty"`
 }
 
 // AIMemoryMessagePayload represents a single conversational turn stored for memory
@@ -370,11 +403,11 @@ func (a *App) initializeStorageManager(ctx context.Context) error {
 	storageConfig := &storage.Config{
 		Mode: storage.ModeSolo,
 		Local: storage.LocalStorageConfig{
-			DataDir:    getEnvOrDefault("HOWLEROPS_DATA_DIR", "~/.howlerops"),
-			Database:   "local.db",
-			VectorsDB:  "vectors.db",
-			UserID:     userID,
-			VectorSize: vectorSize,
+			DataDir:         getEnvOrDefault("HOWLEROPS_DATA_DIR", "~/.howlerops"),
+			Database:        "local.db",
+			VectorsDB:       "vectors.db",
+			UserID:          userID,
+			VectorSize:      vectorSize,
 			VectorStoreType: vectorStoreType,
 		},
 		UserID: userID,
@@ -627,6 +660,38 @@ func (a *App) ExecuteQuery(req QueryRequest) (*QueryResponse, error) {
 	}, nil
 }
 
+// GetEditableMetadata returns the status of an editable metadata job
+func (a *App) GetEditableMetadata(jobID string) (*EditableMetadataJobResponse, error) {
+	if strings.TrimSpace(jobID) == "" {
+		return nil, fmt.Errorf("jobId is required")
+	}
+
+	job, err := a.databaseService.GetEditableMetadataJob(jobID)
+	if err != nil {
+		return nil, err
+	}
+
+	response := &EditableMetadataJobResponse{
+		ID:           job.ID,
+		ConnectionID: job.ConnectionID,
+		Status:       job.Status,
+		Metadata:     job.Metadata,
+		Error:        job.Error,
+		CreatedAt:    job.CreatedAt.Format(time.RFC3339Nano),
+	}
+
+	if job.Metadata != nil {
+		job.Metadata.JobID = job.ID
+		job.Metadata.Pending = job.Status == "pending"
+	}
+
+	if job.CompletedAt != nil {
+		response.CompletedAt = job.CompletedAt.Format(time.RFC3339Nano)
+	}
+
+	return response, nil
+}
+
 // UpdateQueryRow persists edits made to a query result row
 func (a *App) UpdateQueryRow(req QueryRowUpdateRequest) (*QueryRowUpdateResponse, error) {
 	if req.ConnectionID == "" {
@@ -864,6 +929,14 @@ func (a *App) GetTempDir() string {
 
 func (a *App) CreateTempFile(content, prefix, suffix string) (string, error) {
 	return a.fileService.CreateTempFile(content, prefix, suffix)
+}
+
+func (a *App) GetDownloadsPath() (string, error) {
+	return a.fileService.GetDownloadsPath()
+}
+
+func (a *App) SaveToDownloads(filename, content string) (string, error) {
+	return a.fileService.SaveToDownloads(filename, content)
 }
 
 // Keyboard Service Methods
@@ -1143,31 +1216,19 @@ func (a *App) GenerateSQLFromNaturalLanguage(req NLQueryRequest) (*GeneratedSQLR
 		schemaContext += "4. Cross-database JOINs are supported\n"
 		schemaContext += "5. Ensure connection names match exactly (case-sensitive)\n"
 	} else if req.ConnectionID != "" {
-		// Single database mode: get schema for specific connection
-		schemas, err := a.databaseService.GetSchemas(req.ConnectionID)
-		if err == nil && len(schemas) > 0 {
-			// Build schema context with table details
-			schemaContext = "Database Schema Information:\n"
-			for _, schema := range schemas {
-				// Get tables for each schema
-				tables, err := a.databaseService.GetTables(req.ConnectionID, schema)
-				if err == nil && len(tables) > 0 {
-					schemaContext += fmt.Sprintf("\nSchema: %s\n", schema)
-					schemaContext += "Tables: "
-					for i, table := range tables {
-						if i > 0 {
-							schemaContext += ", "
-						}
-						schemaContext += table.Name
-					}
-					schemaContext += "\n"
-				}
-			}
+		// Single database mode: build detailed schema context for the active connection
+		detailedContext := a.buildDetailedSchemaContext(req.ConnectionID)
+
+		if detailedContext != "" {
+			schemaContext = detailedContext
 		}
 
 		// Add custom context if provided
 		if req.Context != "" {
-			schemaContext += "\n" + req.Context
+			if schemaContext != "" {
+				schemaContext += "\n\n"
+			}
+			schemaContext += req.Context
 		}
 	} else {
 		// No connection specified, use provided context only
@@ -1200,12 +1261,259 @@ func (a *App) GenerateSQLFromNaturalLanguage(req NLQueryRequest) (*GeneratedSQLR
 		return nil, fmt.Errorf("failed to generate SQL: %w", err)
 	}
 
+	sanitizeSQLResponse(result)
+
 	return &GeneratedSQLResponse{
-		SQL:         result.SQL,
+		SQL:         strings.TrimSpace(result.SQL),
 		Confidence:  result.Confidence,
 		Explanation: result.Explanation,
 		Warnings:    []string{}, // TODO: Add warnings if confidence is low
 	}, nil
+}
+
+// GenericChat handles generic conversational AI requests without SQL-specific expectations
+func (a *App) GenericChat(req GenericChatRequest) (*GenericChatResponse, error) {
+	a.logger.WithFields(logrus.Fields{
+		"hasContext": req.Context != "",
+		"provider":  req.Provider,
+		"model":     req.Model,
+	}).Info("Handling generic AI chat request")
+
+	if a.aiService == nil {
+		return nil, fmt.Errorf("AI service not configured. Set OPENAI_API_KEY or ANTHROPIC_API_KEY environment variable and restart the app")
+	}
+
+	chatReq := &ai.ChatRequest{
+		Prompt:      req.Prompt,
+		Context:     req.Context,
+		System:      req.System,
+		Provider:    req.Provider,
+		Model:       req.Model,
+		MaxTokens:   req.MaxTokens,
+		Temperature: req.Temperature,
+		Metadata:    req.Metadata,
+	}
+
+	response, err := a.aiService.Chat(a.ctx, chatReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate chat response: %w", err)
+	}
+
+	return &GenericChatResponse{
+		Content:    response.Content,
+		Provider:   response.Provider,
+		Model:      response.Model,
+		TokensUsed: response.TokensUsed,
+		Metadata:   response.Metadata,
+	}, nil
+}
+
+// buildDetailedSchemaContext constructs a concise schema summary with column details for a connection.
+func (a *App) buildDetailedSchemaContext(connectionID string) string {
+	const (
+		maxTablesPerSchema = 10
+		maxTotalTables     = 40
+		maxColumnsPerTable = 25
+	)
+
+	schemas, err := a.databaseService.GetSchemas(connectionID)
+	if err != nil {
+		a.logger.WithError(err).WithField("connection_id", connectionID).
+			Warn("Failed to load schemas for AI context")
+		return ""
+	}
+
+	if len(schemas) == 0 {
+		return ""
+	}
+
+	sort.Strings(schemas)
+
+	var builder strings.Builder
+	builder.WriteString("Database Schema Information:\n")
+
+	totalTables := 0
+	for _, schemaName := range schemas {
+		if totalTables >= maxTotalTables {
+			break
+		}
+
+		tables, err := a.databaseService.GetTables(connectionID, schemaName)
+		if err != nil {
+			a.logger.WithError(err).WithFields(logrus.Fields{
+				"connection_id": connectionID,
+				"schema":        schemaName,
+			}).Warn("Failed to load tables for AI context")
+			continue
+		}
+
+		if len(tables) == 0 {
+			continue
+		}
+
+		builder.WriteString(fmt.Sprintf("\nSchema: %s\n", schemaName))
+
+		tableLimit := len(tables)
+		if tableLimit > maxTablesPerSchema {
+			tableLimit = maxTablesPerSchema
+		}
+
+		for i := 0; i < tableLimit && totalTables < maxTotalTables; i++ {
+			table := tables[i]
+			tableType := strings.ToLower(table.Type)
+			if tableType == "" {
+				tableType = "table"
+			}
+
+			builder.WriteString(fmt.Sprintf("Table: %s (%s)\n", table.Name, tableType))
+
+			structure, err := a.databaseService.GetTableStructure(connectionID, schemaName, table.Name)
+			if err != nil {
+				a.logger.WithError(err).WithFields(logrus.Fields{
+					"connection_id": connectionID,
+					"schema":        schemaName,
+					"table":         table.Name,
+				}).Debug("Failed to load table structure for AI context")
+				totalTables++
+				continue
+			}
+
+			if structure != nil && len(structure.Columns) > 0 {
+				columns := formatColumnsForAI(structure.Columns, maxColumnsPerTable)
+				builder.WriteString("Columns: " + strings.Join(columns, ", ") + "\n")
+			}
+
+			totalTables++
+		}
+
+		if len(tables) > tableLimit {
+			builder.WriteString(fmt.Sprintf("... %d more tables in schema %s omitted for brevity\n", len(tables)-tableLimit, schemaName))
+		}
+	}
+
+	return strings.TrimSpace(builder.String())
+}
+
+// formatColumnsForAI shortens column metadata for prompt consumption.
+func formatColumnsForAI(columns []database.ColumnInfo, maxColumns int) []string {
+	formatted := make([]string, 0, len(columns))
+
+	for _, column := range columns {
+		columnType := strings.ToLower(column.DataType)
+		if columnType == "" {
+			columnType = "unknown"
+		}
+
+		attributes := make([]string, 0, 3)
+		if column.PrimaryKey {
+			attributes = append(attributes, "pk")
+		}
+		if column.Unique {
+			attributes = append(attributes, "unique")
+		}
+		if !column.Nullable {
+			attributes = append(attributes, "not null")
+		}
+
+		if len(attributes) > 0 {
+			columnType = fmt.Sprintf("%s %s", columnType, strings.Join(attributes, "/"))
+		}
+
+		formatted = append(formatted, fmt.Sprintf("%s (%s)", column.Name, columnType))
+
+		if maxColumns > 0 && len(formatted) >= maxColumns {
+			break
+		}
+	}
+
+	if maxColumns > 0 && len(columns) > maxColumns {
+		formatted = append(formatted, "... additional columns omitted")
+	}
+
+	return formatted
+}
+
+// sanitizeSQLResponse removes duplicate SQL blocks and strips code from explanations to reduce UI noise.
+func sanitizeSQLResponse(resp *ai.SQLResponse) {
+	if resp == nil {
+		return
+	}
+
+	resp.SQL = deduplicateSequentialSQL(resp.SQL)
+	resp.SQL = strings.TrimSpace(resp.SQL)
+
+	resp.Explanation = sanitizeExplanation(resp.Explanation, resp.SQL)
+}
+
+// deduplicateSequentialSQL collapses responses where the model repeats the same SQL twice.
+func deduplicateSequentialSQL(sql string) string {
+	trimmed := strings.TrimSpace(sql)
+	if trimmed == "" {
+		return trimmed
+	}
+
+	halfStart := len(trimmed) / 2
+	for i := halfStart; i < len(trimmed); i++ {
+		if trimmed[i] != '\n' && trimmed[i] != '\r' {
+			continue
+		}
+
+		first := strings.TrimSpace(trimmed[:i])
+		second := strings.TrimSpace(trimmed[i:])
+		if first != "" && first == second {
+			return first
+		}
+	}
+
+	return trimmed
+}
+
+// sanitizeExplanation strips code blocks and duplicate SQL from the explanation text.
+func sanitizeExplanation(explanation string, sql string) string {
+	if explanation == "" {
+		return ""
+	}
+
+	cleaned := removeCodeBlocks(explanation)
+
+	if sql != "" {
+		cleaned = strings.ReplaceAll(cleaned, sql, "")
+		// Also remove compressed versions of the SQL where extra whitespace may have been collapsed.
+		compressedSQL := strings.Join(strings.Fields(sql), " ")
+		if compressedSQL != "" {
+			cleaned = strings.ReplaceAll(cleaned, compressedSQL, "")
+		}
+	}
+
+	return strings.TrimSpace(cleaned)
+}
+
+// removeCodeBlocks removes fenced code blocks (``` ... ```) from a string.
+func removeCodeBlocks(text string) string {
+	result := text
+
+	for {
+		start := strings.Index(result, "```")
+		if start == -1 {
+			break
+		}
+
+		end := strings.Index(result[start+3:], "```")
+		if end == -1 {
+			// Unclosed code block; drop everything after start
+			result = result[:start]
+			break
+		}
+
+		closing := start + 3 + end + 3
+		if closing > len(result) {
+			closing = len(result)
+		}
+
+		result = result[:start] + result[closing:]
+	}
+
+	return strings.TrimSpace(result)
 }
 
 // FixSQLError attempts to fix a SQL error

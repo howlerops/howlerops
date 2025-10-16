@@ -4,6 +4,12 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
   Sheet,
   SheetContent,
   SheetDescription,
@@ -23,7 +29,7 @@ import { useQueryStore, type QueryTab } from "@/store/query-store"
 import { useConnectionStore } from "@/store/connection-store"
 import { useTheme } from "@/hooks/use-theme"
 import { useAIConfig, useAIGeneration } from "@/store/ai-store"
-import { Play, Square, Plus, X, Wand2, AlertCircle, Loader2, Network, Database, Bug, Sparkles, Users, Pencil, Trash2 } from "lucide-react"
+import { Play, Square, Plus, X, Wand2, AlertCircle, Loader2, Network, Database, Bug, Sparkles, Users, Pencil, Trash2, ChevronDown, MessageCircle } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AISchemaDisplay } from "@/components/ai-schema-display"
 import { cn } from "@/lib/utils"
@@ -36,6 +42,7 @@ import { ModeSwitcher } from "@/components/mode-switcher"
 import { useQueryMode } from "@/hooks/use-query-mode"
 import { MultiDBConnectionSelector } from "@/components/multi-db-connection-selector"
 import { AISuggestionCard } from "@/components/ai-suggestion-card"
+import { GenericChatSidebar } from "@/components/generic-chat-sidebar"
 
 
 export interface QueryEditorProps {
@@ -87,6 +94,7 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
   const [editorContent, setEditorContent] = useState("")
   const [naturalLanguagePrompt, setNaturalLanguagePrompt] = useState("")
   const [showAIDialog, setShowAIDialog] = useState(false)
+  const [aiSidebarMode, setAISidebarMode] = useState<'sql' | 'generic'>('sql')
   const [lastExecutionError, setLastExecutionError] = useState<string | null>(null)
   const [lastConnectionError, setLastConnectionError] = useState<string | null>(null)
   const [appliedSuggestionId, setAppliedSuggestionId] = useState<string | null>(null)
@@ -721,17 +729,51 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
           </div>
 
           <div className="flex items-center gap-2">
-            {/* AI Assistant Button */}
+            {/* AI Assistant Mode Selector */}
             {aiEnabled && (
-              <Button
-                variant={showAIDialog ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setShowAIDialog(true)}
-                title="AI SQL Assistant (Natural Language to SQL)"
-              >
-                <Sparkles className="h-4 w-4" />
-                <span className="ml-1 text-xs hidden sm:inline">AI Assistant</span>
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant={showAIDialog ? "default" : "ghost"}
+                    size="sm"
+                    className="gap-2"
+                  >
+                    {aiSidebarMode === 'generic' ? (
+                      <MessageCircle className="h-4 w-4" />
+                    ) : (
+                      <Sparkles className="h-4 w-4" />
+                    )}
+                    <span className="hidden text-xs sm:inline">
+                      {aiSidebarMode === 'generic' ? 'Generic Chat' : 'AI Assistant'}
+                    </span>
+                    <ChevronDown className="h-3 w-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setAISidebarMode('sql')
+                      setIsFixMode(false)
+                      setAISheetTab('assistant')
+                      setShowAIDialog(true)
+                    }}
+                  >
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    SQL Assistant
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setAISidebarMode('generic')
+                      setIsFixMode(false)
+                      setAISheetTab('assistant')
+                      setShowAIDialog(true)
+                    }}
+                  >
+                    <MessageCircle className="mr-2 h-4 w-4" />
+                    Generic Chat
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
 
             {/* Diagnostics Toggle Button */}
@@ -871,7 +913,7 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
       </div>
 
       {/* AI Assistant Drawer */}
-      {aiEnabled && (
+      {aiEnabled && aiSidebarMode === 'sql' && (
         <Sheet open={showAIDialog} onOpenChange={setShowAIDialog}>
           <SheetContent
             side="right"
@@ -1189,6 +1231,15 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
             </div>
           </SheetContent>
         </Sheet>
+      )}
+
+      {aiEnabled && aiSidebarMode === 'generic' && (
+        <GenericChatSidebar
+          open={showAIDialog}
+          onClose={() => setShowAIDialog(false)}
+          connections={editorConnections}
+          schemasMap={editorSchemas}
+        />
       )}
 
       <Dialog

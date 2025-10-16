@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
-import { Database, Clock, Save, AlertCircle, Download, Search, Inbox } from 'lucide-react'
+import { Database, Clock, Save, AlertCircle, Download, Search, Inbox, Loader2 } from 'lucide-react'
 
 import { EditableTable } from './editable-table/editable-table'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
 import { TableColumn, ExportOptions, TableRow } from '../types/table'
 import { QueryEditableMetadata, QueryResultRow, useQueryStore } from '../store/query-store'
 import { wailsEndpoints } from '../lib/wails-api'
 import type { EditableTableContext } from '../types/table'
+import { toast } from '../hooks/use-toast'
 
 interface QueryResultsTableProps {
   resultId: string
@@ -32,7 +34,7 @@ interface ToolbarProps {
   canSave: boolean
   saving: boolean
   onSave: () => void
-  onExport: (options: ExportOptions) => void
+  onExport: (options: ExportOptions) => Promise<void>
   metadata?: QueryEditableMetadata | null
   saveError?: string | null
   saveSuccess?: string | null
@@ -71,46 +73,54 @@ const serialiseCsvValue = (value: unknown): string => {
   return stringValue
 }
 
-const ExportButton = ({ context, onExport }: { context: EditableTableContext; onExport: (options: ExportOptions) => void }) => {
-  const [showExportMenu, setShowExportMenu] = useState(false)
+const ExportButton = ({ context, onExport }: { context: EditableTableContext; onExport: (options: ExportOptions) => Promise<void> }) => {
+  const [showExportDialog, setShowExportDialog] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
   const [exportOptions, setExportOptions] = useState<ExportOptions>({
     format: 'csv',
     includeHeaders: true,
     selectedOnly: false,
   })
 
-  const handleExport = (format: ExportOptions['format']) => {
-    const options: ExportOptions = { ...exportOptions, format }
-    onExport(options)
-    setShowExportMenu(false)
+  const handleExport = async () => {
+    setIsExporting(true)
+    try {
+      await onExport(exportOptions)
+      setShowExportDialog(false)
+    } finally {
+      setIsExporting(false)
+    }
   }
 
   return (
-    <div className="relative">
+    <>
       <Button
         variant="outline"
         size="sm"
-        onClick={() => setShowExportMenu(!showExportMenu)}
+        onClick={() => setShowExportDialog(true)}
         className="gap-2"
       >
         <Download className="h-4 w-4" />
         Export
       </Button>
 
-      {showExportMenu && (
-        <div className="absolute right-0 top-full mt-1 w-64 bg-white border border-gray-300 rounded-md shadow-lg z-50">
-          <div className="p-3">
-            <h3 className="font-medium text-gray-900 mb-3">Export Options</h3>
+      <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Export Data</DialogTitle>
+            <DialogDescription>
+              Configure export options and download to your Downloads folder.
+            </DialogDescription>
+          </DialogHeader>
 
+          <div className="grid gap-4 py-4">
             {/* Format selection */}
-            <div className="mb-3">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Format
-              </label>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Format</label>
               <select
                 value={exportOptions.format}
                 onChange={(e) => setExportOptions(prev => ({ ...prev, format: e.target.value as 'csv' | 'json' }))}
-                className="w-full px-3 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
               >
                 <option value="csv">CSV</option>
                 <option value="json">JSON</option>
@@ -118,50 +128,57 @@ const ExportButton = ({ context, onExport }: { context: EditableTableContext; on
             </div>
 
             {/* Options */}
-            <div className="space-y-2 mb-3">
-              <label className="flex items-center">
+            <div className="space-y-3">
+              <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={exportOptions.includeHeaders}
                   onChange={(e) => setExportOptions(prev => ({ ...prev, includeHeaders: e.target.checked }))}
-                  className="rounded border-gray-300 focus:ring-2 focus:ring-blue-500"
+                  className="rounded border-input focus:ring-2 focus:ring-ring"
                 />
-                <span className="ml-2 text-sm text-gray-700">Include headers</span>
+                <span className="text-sm">Include headers</span>
               </label>
               {context.state.selectedRows.length > 0 && (
-                <label className="flex items-center">
+                <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={exportOptions.selectedOnly}
                     onChange={(e) => setExportOptions(prev => ({ ...prev, selectedOnly: e.target.checked }))}
-                    className="rounded border-gray-300 focus:ring-2 focus:ring-blue-500"
+                    className="rounded border-input focus:ring-2 focus:ring-ring"
                   />
-                  <span className="ml-2 text-sm text-gray-700">
+                  <span className="text-sm">
                     Selected only ({context.state.selectedRows.length} rows)
                   </span>
                 </label>
               )}
             </div>
-
-            {/* Export buttons */}
-            <div className="flex gap-2">
-              <button
-                onClick={() => handleExport(exportOptions.format)}
-                className="flex-1 px-3 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors text-sm"
-              >
-                Export
-              </button>
-              <button
-                onClick={() => setShowExportMenu(false)}
-                className="px-3 py-2 border border-border rounded hover:bg-muted/50 transition-colors text-sm"
-              >
-                Cancel
-              </button>
-            </div>
           </div>
-        </div>
-      )}
-    </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowExportDialog(false)}
+              disabled={isExporting}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleExport} disabled={isExporting}>
+              {isExporting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Exporting...
+                </>
+              ) : (
+                <>
+                  <Download className="h-4 w-4 mr-2" />
+                  Export to Downloads
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
 
@@ -375,7 +392,7 @@ export const QueryResultsTable = ({
   //   URL.revokeObjectURL(url)
   // }, [columns, resolveCurrentRows])
 
-  const handleExport = useCallback((options: ExportOptions) => {
+  const handleExport = useCallback(async (options: ExportOptions) => {
     const currentRows = resolveCurrentRows()
     let dataToExport = currentRows
 
@@ -385,29 +402,51 @@ export const QueryResultsTable = ({
       dataToExport = currentRows.filter(row => selectedIds.includes(row.__rowId!))
     }
 
+    const timestamp = Date.now()
+    let filename: string
+    let content: string
+
     if (options.format === 'csv') {
+      filename = `query-results-${timestamp}.csv`
       const header = options.includeHeaders ? columns.join(',') : ''
       const records = dataToExport.map((row) =>
         columns.map((column) => serialiseCsvValue(row[column])).join(',')
       )
+      content = options.includeHeaders ? [header, ...records].join('\n') : records.join('\n')
+    } else {
+      filename = `query-results-${timestamp}.json`
+      content = JSON.stringify(dataToExport, null, 2)
+    }
 
-      const csv = options.includeHeaders ? [header, ...records].join('\n') : records.join('\n')
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    try {
+      // Import the Wails function
+      const { SaveToDownloads } = await import('../../wailsjs/go/main/App')
+      const filePath = await SaveToDownloads(filename, content)
+      
+      // Show success notification with file path
+      toast({
+        title: 'Export successful',
+        description: `File saved to: ${filePath}`,
+        variant: 'default',
+      })
+    } catch (error) {
+      console.error('Failed to save file to Downloads:', error)
+      
+      // Show error and fallback to browser download
+      toast({
+        title: 'Export failed',
+        description: 'Falling back to browser download',
+        variant: 'destructive',
+      })
+      
+      // Fallback to browser download if Wails method fails
+      const blob = new Blob([content], { 
+        type: options.format === 'csv' ? 'text/csv;charset=utf-8;' : 'application/json;charset=utf-8;'
+      })
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      link.setAttribute('download', `query-results-${Date.now()}.csv`)
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
-    } else if (options.format === 'json') {
-      const json = JSON.stringify(dataToExport, null, 2)
-      const blob = new Blob([json], { type: 'application/json;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.setAttribute('download', `query-results-${Date.now()}.json`)
+      link.setAttribute('download', filename)
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)

@@ -14,9 +14,10 @@ import (
 
 // SQLiteDatabase implements the Database interface for SQLite
 type SQLiteDatabase struct {
-	pool   *ConnectionPool
-	config ConnectionConfig
-	logger *logrus.Logger
+	pool           *ConnectionPool
+	config         ConnectionConfig
+	logger         *logrus.Logger
+	structureCache *tableStructureCache
 }
 
 // NewSQLiteDatabase creates a new SQLite database instance
@@ -27,9 +28,10 @@ func NewSQLiteDatabase(config ConnectionConfig, logger *logrus.Logger) (*SQLiteD
 	}
 
 	return &SQLiteDatabase{
-		pool:   pool,
-		config: config,
-		logger: logger,
+		pool:           pool,
+		config:         config,
+		logger:         logger,
+		structureCache: newTableStructureCache(10 * time.Minute),
 	}, nil
 }
 
@@ -45,6 +47,7 @@ func (s *SQLiteDatabase) Connect(ctx context.Context, config ConnectionConfig) e
 		s.pool.Close()
 	}
 	s.pool = pool
+	s.structureCache = newTableStructureCache(10 * time.Minute)
 
 	return nil
 }
@@ -181,72 +184,91 @@ func (s *SQLiteDatabase) executeSelect(ctx context.Context, db *sql.DB, query st
 
 	result.RowCount = int64(len(result.Rows))
 	result.Duration = time.Since(start)
-	result.Editable = s.buildEditableMetadata(ctx, query, columns)
+	if metadata, ready, err := s.computeEditableMetadata(ctx, query, columns, false); err == nil {
+		if metadata != nil {
+			if !ready {
+				metadata.Pending = true
+				if metadata.Reason == "" {
+					metadata.Reason = "Loading editable metadata"
+				}
+			}
+			result.Editable = metadata
+		}
+	} else {
+		meta := newEditableMetadata(columns)
+		meta.Reason = "Failed to prepare editable metadata"
+		result.Editable = meta
+	}
 
 	return result, nil
 }
 
-func (s *SQLiteDatabase) buildEditableMetadata(ctx context.Context, query string, columns []string) *EditableQueryMetadata {
-	metadata := &EditableQueryMetadata{
-		Enabled: false,
-		Columns: make([]EditableColumn, 0, len(columns)),
-	}
-
-	// Default columns (read-only) in case we early-return
-	for _, col := range columns {
-		metadata.Columns = append(metadata.Columns, EditableColumn{
-			Name:       col,
-			ResultName: col,
-			Editable:   false,
-			PrimaryKey: false,
-		})
-	}
+func (s *SQLiteDatabase) computeEditableMetadata(ctx context.Context, query string, columns []string, allowFetch bool) (*EditableQueryMetadata, bool, error) {
+	metadata := newEditableMetadata(columns)
 
 	query = strings.TrimSpace(query)
 	if query == "" {
 		metadata.Reason = "Empty query"
-		return metadata
+		return metadata, true, nil
 	}
 
 	schema, table, reason, ok := parseSimpleSelect(query)
 	if !ok {
 		metadata.Reason = reason
-		return metadata
+		return metadata, true, nil
 	}
 
-	// SQLite doesn't have schemas, use "main" as default
+	if table == "" {
+		metadata.Reason = "Unable to identify target table"
+		return metadata, true, nil
+	}
+
 	if schema == "" {
 		schema = "main"
 	}
 
-	// Get table structure to determine editable columns
-	tableStructure, err := s.GetTableStructure(ctx, schema, table)
+	metadata.Schema = schema
+	metadata.Table = table
+
+	structure, ok, err := s.ensureTableStructure(ctx, schema, table, allowFetch)
 	if err != nil {
 		metadata.Reason = fmt.Sprintf("Failed to get table structure: %v", err)
-		return metadata
+		return metadata, true, err
 	}
 
-	// Build column metadata
+	if !ok {
+		metadata.Pending = true
+		if metadata.Reason == "" {
+			metadata.Reason = "Loading table metadata"
+		}
+		return metadata, false, nil
+	}
+
+	columnMap := make(map[string]ColumnInfo, len(structure.Columns))
+	primaryKeys := make([]string, 0)
+	for _, col := range structure.Columns {
+		columnMap[strings.ToLower(col.Name)] = col
+		if col.PrimaryKey {
+			primaryKeys = append(primaryKeys, col.Name)
+		}
+	}
+
+	if len(primaryKeys) == 0 {
+		metadata.Reason = "Table does not have a primary key"
+		return metadata, true, nil
+	}
+
 	editableColumns := make([]EditableColumn, 0, len(columns))
 	for _, col := range columns {
-		var columnInfo *ColumnInfo
-		for _, colInfo := range tableStructure.Columns {
-			if strings.EqualFold(colInfo.Name, col) {
-				columnInfo = &colInfo
-				break
-			}
-		}
-
-		if columnInfo != nil {
+		if colInfo, exists := columnMap[strings.ToLower(col)]; exists {
 			editableColumns = append(editableColumns, EditableColumn{
-				Name:       columnInfo.Name,
-				ResultName: columnInfo.Name,
-				DataType:   columnInfo.DataType,
-				Editable:   true, // SQLite allows editing most columns
-				PrimaryKey: columnInfo.PrimaryKey,
+				Name:       colInfo.Name,
+				ResultName: colInfo.Name,
+				DataType:   colInfo.DataType,
+				Editable:   true,
+				PrimaryKey: colInfo.PrimaryKey,
 			})
 		} else {
-			// Column not found in table structure, mark as read-only
 			editableColumns = append(editableColumns, EditableColumn{
 				Name:       col,
 				ResultName: col,
@@ -256,26 +278,74 @@ func (s *SQLiteDatabase) buildEditableMetadata(ctx context.Context, query string
 		}
 	}
 
-	// Collect primary keys
-	var primaryKeys []string
-	for _, col := range tableStructure.Columns {
-		if col.PrimaryKey {
-			primaryKeys = append(primaryKeys, col.Name)
-		}
-	}
-
-	if len(primaryKeys) == 0 {
-		metadata.Reason = "Table does not have a primary key"
-		return metadata
-	}
-
 	metadata.Enabled = true
-	metadata.Schema = schema
-	metadata.Table = table
 	metadata.PrimaryKeys = primaryKeys
 	metadata.Columns = editableColumns
+	metadata.Pending = false
+	metadata.Reason = ""
 
-	return metadata
+	return metadata, true, nil
+}
+
+func (s *SQLiteDatabase) ensureTableStructure(ctx context.Context, schema, table string, allowFetch bool) (*TableStructure, bool, error) {
+	if structure, ok := s.structureCache.get(schema, table); ok {
+		return structure, true, nil
+	}
+
+	if !allowFetch {
+		return nil, false, nil
+	}
+
+	structure, err := s.loadTableStructure(ctx, schema, table)
+	if err != nil {
+		return nil, false, err
+	}
+
+	s.structureCache.set(schema, table, structure)
+	return cloneTableStructure(structure), true, nil
+}
+
+func (s *SQLiteDatabase) loadTableStructure(ctx context.Context, schema, table string) (*TableStructure, error) {
+	db, err := s.pool.Get(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	structure := &TableStructure{}
+
+	tableInfo, err := s.getTableInfo(ctx, db, table)
+	if err != nil {
+		return nil, err
+	}
+	structure.Table = *tableInfo
+
+	columns, err := s.getTableColumns(ctx, db, table)
+	if err != nil {
+		return nil, err
+	}
+	structure.Columns = columns
+
+	indexes, err := s.getTableIndexes(ctx, db, table)
+	if err != nil {
+		return nil, err
+	}
+	structure.Indexes = indexes
+
+	foreignKeys, err := s.getTableForeignKeys(ctx, db, table)
+	if err != nil {
+		return nil, err
+	}
+	structure.ForeignKeys = foreignKeys
+
+	return structure, nil
+}
+
+func (s *SQLiteDatabase) ComputeEditableMetadata(ctx context.Context, query string, columns []string) (*EditableQueryMetadata, error) {
+	metadata, _, err := s.computeEditableMetadata(ctx, query, columns, true)
+	if metadata != nil {
+		metadata.Pending = false
+	}
+	return metadata, err
 }
 
 // executeNonSelect handles INSERT, UPDATE, DELETE, DDL queries
@@ -446,42 +516,21 @@ func (s *SQLiteDatabase) GetTables(ctx context.Context, schema string) ([]TableI
 
 // GetTableStructure returns detailed structure information for a table
 func (s *SQLiteDatabase) GetTableStructure(ctx context.Context, schema, table string) (*TableStructure, error) {
-	db, err := s.pool.Get(ctx)
+	if schema == "" {
+		schema = "main"
+	}
+
+	if structure, ok := s.structureCache.get(schema, table); ok {
+		return structure, nil
+	}
+
+	structure, err := s.loadTableStructure(ctx, schema, table)
 	if err != nil {
 		return nil, err
 	}
 
-	structure := &TableStructure{}
-
-	// Get table info
-	tableInfo, err := s.getTableInfo(ctx, db, table)
-	if err != nil {
-		return nil, err
-	}
-	structure.Table = *tableInfo
-
-	// Get columns
-	columns, err := s.getTableColumns(ctx, db, table)
-	if err != nil {
-		return nil, err
-	}
-	structure.Columns = columns
-
-	// Get indexes
-	indexes, err := s.getTableIndexes(ctx, db, table)
-	if err != nil {
-		return nil, err
-	}
-	structure.Indexes = indexes
-
-	// Get foreign keys
-	foreignKeys, err := s.getTableForeignKeys(ctx, db, table)
-	if err != nil {
-		return nil, err
-	}
-	structure.ForeignKeys = foreignKeys
-
-	return structure, nil
+	s.structureCache.set(schema, table, structure)
+	return cloneTableStructure(structure), nil
 }
 
 // Helper methods for getting table structure details
@@ -823,4 +872,3 @@ func (t *SQLiteTransaction) Commit() error {
 func (t *SQLiteTransaction) Rollback() error {
 	return t.tx.Rollback()
 }
-

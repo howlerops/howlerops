@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
 import { wailsEndpoints } from '@/lib/wails-api'
+import { EventsOn } from '../../wailsjs/runtime/runtime'
 import { useConnectionStore, type DatabaseConnection } from './connection-store'
 
 export interface QueryTab {
@@ -30,6 +31,9 @@ export interface QueryEditableMetadata {
   table?: string
   primaryKeys: string[]
   columns: QueryEditableColumn[]
+  pending?: boolean
+  jobId?: string
+  job_id?: string
 }
 
 export interface QueryResultRow extends Record<string, unknown> {
@@ -62,14 +66,104 @@ interface QueryState {
   updateTab: (id: string, updates: Partial<QueryTab>) => void
   setActiveTab: (id: string) => void
   executeQuery: (tabId: string, query: string, connectionId?: string | null) => Promise<void>
-  addResult: (result: Omit<QueryResult, 'id' | 'timestamp'>) => void
+  addResult: (result: Omit<QueryResult, 'id' | 'timestamp'>) => QueryResult
   clearResults: (tabId: string) => void
   updateResultRows: (resultId: string, rows: QueryResultRow[], newOriginalRows?: Record<string, QueryResultRow>) => void
+  updateResultEditable: (resultId: string, metadata: QueryEditableMetadata | null) => void
 }
 
 interface NormalisedRowsResult {
   rows: QueryResultRow[]
   originalRows: Record<string, QueryResultRow>
+}
+
+const MAX_EDITABLE_METADATA_ATTEMPTS = 20
+const editableMetadataTimers = new Map<string, ReturnType<typeof setTimeout>>()
+const editableMetadataTargets = new Map<string, string>()
+
+function cleanupEditableMetadataJob(jobId: string) {
+  const timer = editableMetadataTimers.get(jobId)
+  if (timer) {
+    clearTimeout(timer)
+    editableMetadataTimers.delete(jobId)
+  }
+  editableMetadataTargets.delete(jobId)
+}
+
+function transformEditableColumn(raw: unknown): QueryEditableColumn {
+  if (!raw || typeof raw !== 'object') {
+    return {
+      name: '',
+      resultName: '',
+      dataType: '',
+      editable: false,
+      primaryKey: false,
+    }
+  }
+
+  const column = raw as Record<string, unknown>
+  const name = typeof column.name === 'string'
+    ? column.name
+    : typeof column.Name === 'string'
+      ? column.Name
+      : ''
+
+  const resultName = typeof column.resultName === 'string'
+    ? column.resultName
+    : typeof column.result_name === 'string'
+      ? column.result_name
+      : name
+
+  return {
+    name,
+    resultName,
+    dataType: typeof column.dataType === 'string'
+      ? column.dataType
+      : typeof column.data_type === 'string'
+        ? column.data_type
+        : '',
+    editable: Boolean(column.editable),
+    primaryKey: Boolean(column.primaryKey ?? column.primary_key),
+  }
+}
+
+function transformEditableMetadata(raw: unknown): QueryEditableMetadata | null {
+  if (!raw || typeof raw !== 'object') {
+    return null
+  }
+
+  const metadataRaw = raw as Record<string, unknown>
+
+  const primaryKeys = Array.isArray(metadataRaw.primaryKeys)
+    ? metadataRaw.primaryKeys.filter((value): value is string => typeof value === 'string')
+    : Array.isArray(metadataRaw.primary_keys)
+      ? metadataRaw.primary_keys.filter((value): value is string => typeof value === 'string')
+      : []
+
+  const metadata: QueryEditableMetadata = {
+    enabled: Boolean(metadataRaw.enabled),
+    reason: typeof metadataRaw.reason === 'string' ? metadataRaw.reason : undefined,
+    schema: typeof metadataRaw.schema === 'string' ? metadataRaw.schema : undefined,
+    table: typeof metadataRaw.table === 'string' ? metadataRaw.table : undefined,
+    primaryKeys,
+    columns: Array.isArray(metadataRaw.columns) ? metadataRaw.columns.map(transformEditableColumn) : [],
+    pending: Boolean(metadataRaw.pending),
+    jobId: (metadataRaw.jobId as string | undefined) ?? (metadataRaw.job_id as string | undefined),
+    job_id: (metadataRaw.job_id as string | undefined) ?? (metadataRaw.jobId as string | undefined),
+  }
+
+  if (!metadata.primaryKeys.length && Array.isArray(metadataRaw.primary_keys)) {
+    metadata.primaryKeys = metadataRaw.primary_keys.filter((value): value is string => typeof value === 'string')
+  }
+
+  if (!metadata.jobId && metadata.job_id) {
+    metadata.jobId = metadata.job_id
+  }
+  if (!metadata.job_id && metadata.jobId) {
+    metadata.job_id = metadata.jobId
+  }
+
+  return metadata
 }
 
 function generateRowId(): string {
@@ -197,8 +291,129 @@ function parseDurationMs(duration?: string): number {
 }
 
 export const useQueryStore = create<QueryState>()(
-  devtools(
-    (set, get) => ({
+  devtools((set, get) => {
+    const scheduleEditablePoll = (jobId: string, resultId: string, attempt = 0) => {
+      const resultExists = get().results.some(result => result.id === resultId)
+      if (!resultExists) {
+        cleanupEditableMetadataJob(jobId)
+        return
+      }
+
+      const delay = Math.min(1000, 250 * Math.max(1, attempt + 1))
+
+      const timer = window.setTimeout(async () => {
+        try {
+          const response = await wailsEndpoints.queries.getEditableMetadata(jobId)
+
+          if (!response.success || !response.data) {
+            if (attempt + 1 >= MAX_EDITABLE_METADATA_ATTEMPTS) {
+              cleanupEditableMetadataJob(jobId)
+              get().updateResultEditable(resultId, {
+                enabled: false,
+                reason: response.message || 'Editable metadata unavailable',
+                schema: undefined,
+                table: undefined,
+                primaryKeys: [],
+                columns: [],
+                pending: false,
+                jobId,
+                job_id: jobId,
+              })
+              return
+            }
+
+            scheduleEditablePoll(jobId, resultId, attempt + 1)
+            return
+          }
+
+          const jobData = response.data as { status?: string; metadata?: unknown; error?: string; id?: string }
+          const status = (jobData.status || '').toLowerCase()
+
+          if (status === 'completed' && jobData.metadata) {
+            const metadata = transformEditableMetadata(jobData.metadata)
+            if (metadata) {
+              metadata.pending = false
+              metadata.jobId = metadata.jobId || jobData.id || jobId
+              metadata.job_id = metadata.jobId
+            }
+
+            cleanupEditableMetadataJob(jobId)
+            get().updateResultEditable(resultId, metadata)
+            return
+          }
+
+          if (status === 'failed') {
+            const metadata = transformEditableMetadata(jobData.metadata) || {
+              enabled: false,
+              reason: jobData.error || 'Editable metadata unavailable',
+              schema: undefined,
+              table: undefined,
+              primaryKeys: [],
+              columns: [],
+              pending: false,
+              jobId: jobData.id || jobId,
+              job_id: jobData.id || jobId,
+            }
+
+            metadata.pending = false
+            metadata.reason = jobData.error || metadata.reason
+            metadata.jobId = metadata.jobId || jobData.id || jobId
+            metadata.job_id = metadata.jobId
+
+            cleanupEditableMetadataJob(jobId)
+            get().updateResultEditable(resultId, metadata)
+            return
+          }
+
+          if (attempt + 1 >= MAX_EDITABLE_METADATA_ATTEMPTS) {
+            const fallback = transformEditableMetadata(jobData.metadata) || {
+              enabled: false,
+              primaryKeys: [],
+              columns: [],
+            } as QueryEditableMetadata
+
+            fallback.pending = false
+            fallback.reason = jobData.error || fallback.reason || 'Editable metadata timed out'
+            fallback.jobId = fallback.jobId || jobData.id || jobId
+            fallback.job_id = fallback.jobId
+
+            cleanupEditableMetadataJob(jobId)
+            get().updateResultEditable(resultId, fallback)
+            return
+          }
+
+          scheduleEditablePoll(jobId, resultId, attempt + 1)
+        } catch (pollError) {
+          if (attempt + 1 >= MAX_EDITABLE_METADATA_ATTEMPTS) {
+            cleanupEditableMetadataJob(jobId)
+            get().updateResultEditable(resultId, {
+              enabled: false,
+              reason: pollError instanceof Error ? pollError.message : 'Editable metadata unavailable',
+              schema: undefined,
+              table: undefined,
+              primaryKeys: [],
+              columns: [],
+              pending: false,
+              jobId,
+              job_id: jobId,
+            })
+            return
+          }
+
+          scheduleEditablePoll(jobId, resultId, attempt + 1)
+        }
+      }, delay)
+
+      const existingTimer = editableMetadataTimers.get(jobId)
+      if (existingTimer) {
+        clearTimeout(existingTimer)
+      }
+
+      editableMetadataTimers.set(jobId, timer)
+      editableMetadataTargets.set(jobId, resultId)
+    }
+
+    return {
       tabs: [],
       activeTabId: null,
       results: [],
@@ -354,11 +569,13 @@ export const useQueryStore = create<QueryState>()(
             rows = [],
             rowCount = 0,
             stats = {},
-            editable = null,
+            editable: rawEditable = null,
           } = response.data
-          const { rows: normalisedRows, originalRows } = normaliseRows(columns, rows, editable)
 
-          get().addResult({
+          const editableMetadata = transformEditableMetadata(rawEditable)
+          const { rows: normalisedRows, originalRows } = normaliseRows(columns, rows, editableMetadata)
+
+          const savedResult = get().addResult({
             tabId,
             columns,
             rows: normalisedRows,
@@ -366,10 +583,15 @@ export const useQueryStore = create<QueryState>()(
             rowCount: rowCount || normalisedRows.length,
             executionTime: parseDurationMs(stats.duration),
             error: undefined,
-            editable,
+            editable: editableMetadata,
             query,
             connectionId,
           })
+
+          const jobId = editableMetadata?.jobId || editableMetadata?.job_id
+          if (editableMetadata?.pending && jobId) {
+            scheduleEditablePoll(jobId, savedResult.id)
+          }
 
           get().updateTab(tabId, {
             lastExecuted: new Date(),
@@ -403,6 +625,8 @@ export const useQueryStore = create<QueryState>()(
         set((state) => ({
           results: [...state.results, newResult].slice(-20),
         }))
+
+        return newResult
       },
 
       clearResults: (tabId) => {
@@ -426,9 +650,206 @@ export const useQueryStore = create<QueryState>()(
           }),
         }))
       },
-    }),
-    {
-      name: 'query-store',
+
+      updateResultEditable: (resultId, metadata) => {
+        set((state) => ({
+          results: state.results.map((result) => {
+            if (result.id !== resultId) {
+              return result
+            }
+
+            const normalizedMetadata = metadata
+              ? {
+                  ...metadata,
+                  primaryKeys: [...(metadata.primaryKeys || [])],
+                  columns: (metadata.columns || []).map((column) => ({ ...column })),
+                  jobId: metadata.jobId || metadata.job_id,
+                  job_id: metadata.jobId || metadata.job_id,
+                }
+              : null
+
+            let updatedRows = result.rows
+            let updatedOriginalRows = result.originalRows
+
+            if (normalizedMetadata && !normalizedMetadata.pending && normalizedMetadata.primaryKeys.length > 0) {
+              const columnLookup: Record<string, string> = {}
+              result.columns.forEach((name) => {
+                columnLookup[name.toLowerCase()] = name
+              })
+
+              const pkColumns = normalizedMetadata.primaryKeys.map((pk) => columnLookup[pk.toLowerCase()] ?? pk)
+
+              const recomputedRows: QueryResultRow[] = []
+              const recomputedOriginal: Record<string, QueryResultRow> = {}
+
+              result.rows.forEach((row, index) => {
+                const existingOriginal = result.originalRows[row.__rowId] ?? row
+                const nextRow: QueryResultRow = { ...row }
+
+                let rowId = ''
+                if (pkColumns.length > 0) {
+                  const parts: string[] = []
+                  let allPresent = true
+                  pkColumns.forEach((pkColumn) => {
+                    const value = nextRow[pkColumn]
+                    if (value === undefined) {
+                      allPresent = false
+                    } else {
+                      const serialised = value === null || value === undefined ? 'NULL' : String(value)
+                      parts.push(`${pkColumn}:${serialised}`)
+                    }
+                  })
+                  if (allPresent && parts.length > 0) {
+                    rowId = parts.join('|')
+                  }
+                }
+
+                if (!rowId) {
+                  rowId = `${generateRowId()}-${index}`
+                }
+
+                nextRow.__rowId = rowId
+                recomputedRows.push(nextRow)
+                recomputedOriginal[rowId] = { ...(existingOriginal as QueryResultRow), __rowId: rowId }
+              })
+
+              updatedRows = recomputedRows
+              updatedOriginalRows = recomputedOriginal
+            }
+
+            return {
+              ...result,
+              editable: normalizedMetadata,
+              rows: updatedRows,
+              originalRows: updatedOriginalRows,
+            }
+          }),
+        }))
+      },
     }
-  )
+  }, {
+    name: 'query-store',
+  })
 )
+
+if (typeof window !== 'undefined') {
+  EventsOn('query:editableMetadata', (payload: unknown) => {
+    try {
+      const data = (payload ?? {}) as Record<string, unknown>
+      const jobId = (data.jobId as string) ?? (data.job_id as string)
+      if (!jobId) {
+        return
+      }
+
+      const resultId = editableMetadataTargets.get(jobId)
+      if (!resultId) {
+        // Nothing to update; ensure we clear any timers
+        cleanupEditableMetadataJob(jobId)
+        return
+      }
+
+      const status = String(data.status ?? '').toLowerCase()
+      const metadataPayload = data.metadata
+      const errorMessage = (data.error as string) || ''
+
+      const store = useQueryStore.getState()
+      const resultExists = store.results.some(result => result.id === resultId)
+      if (!resultExists) {
+        cleanupEditableMetadataJob(jobId)
+        return
+      }
+
+      const applyMetadata = (metadata: QueryEditableMetadata | null) => {
+        cleanupEditableMetadataJob(jobId)
+        store.updateResultEditable(resultId, metadata)
+      }
+
+      if (status === 'completed') {
+        const metadata = transformEditableMetadata(metadataPayload)
+        if (metadata) {
+          metadata.pending = false
+          metadata.jobId = metadata.jobId || jobId
+          metadata.job_id = metadata.jobId
+        }
+        applyMetadata(metadata ?? {
+          enabled: false,
+          reason: 'Editable metadata unavailable',
+          schema: undefined,
+          table: undefined,
+          primaryKeys: [],
+          columns: [],
+          pending: false,
+          jobId,
+          job_id: jobId,
+        })
+        return
+      }
+
+      if (status === 'failed') {
+        const metadata = transformEditableMetadata(metadataPayload) ?? {
+          enabled: false,
+          reason: errorMessage || 'Editable metadata unavailable',
+          schema: undefined,
+          table: undefined,
+          primaryKeys: [],
+          columns: [],
+          pending: false,
+          jobId,
+          job_id: jobId,
+        }
+
+        metadata.pending = false
+        metadata.reason = errorMessage || metadata.reason
+        metadata.jobId = metadata.jobId || jobId
+        metadata.job_id = metadata.jobId
+
+        applyMetadata(metadata)
+        return
+      }
+
+      if (status === 'pending') {
+        // Update the UI to reflect pending status but keep polling as fallback
+        const metadata = transformEditableMetadata(metadataPayload) ?? {
+          enabled: false,
+          reason: errorMessage || 'Loading editable metadata',
+          schema: undefined,
+          table: undefined,
+          primaryKeys: [],
+          columns: [],
+          pending: true,
+          jobId,
+          job_id: jobId,
+        }
+
+        metadata.pending = true
+        metadata.reason = errorMessage || metadata.reason || 'Loading editable metadata'
+        metadata.jobId = metadata.jobId || jobId
+        metadata.job_id = metadata.jobId
+
+        store.updateResultEditable(resultId, metadata)
+        editableMetadataTargets.set(jobId, resultId)
+        return
+      }
+
+      // Unknown status, treat as failure but keep fallback polling just in case
+      const metadata = transformEditableMetadata(metadataPayload) ?? {
+        enabled: false,
+        reason: errorMessage || 'Editable metadata unavailable',
+        schema: undefined,
+        table: undefined,
+        primaryKeys: [],
+        columns: [],
+        pending: false,
+        jobId,
+        job_id: jobId,
+      }
+      metadata.pending = false
+      metadata.jobId = metadata.jobId || jobId
+      metadata.job_id = metadata.jobId
+
+      applyMetadata(metadata)
+    } catch (eventError) {
+      console.error('Failed to process editable metadata event:', eventError)
+    }
+  })
+}

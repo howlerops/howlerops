@@ -408,10 +408,28 @@ export const useAIMemoryStore = create<AIMemoryStore>()(
       name: 'ai-memory-store',
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
-        sessions: state.sessions,
         activeSessionId: state.activeSessionId,
         maxContextTokens: state.maxContextTokens,
       }),
+      version: 1,
+      migrate: (persistedState: unknown, version: number) => {
+        if (version !== 0 || typeof persistedState !== 'object' || !persistedState) {
+          return persistedState
+        }
+
+        const record = persistedState as { state?: Partial<AIMemoryStore> }
+        if (!record.state || !record.state.sessions) {
+          return persistedState
+        }
+
+        return {
+          ...record,
+          state: {
+            ...record.state,
+            sessions: {},
+          },
+        }
+      },
     },
   ),
 )

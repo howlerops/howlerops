@@ -67,6 +67,17 @@ export interface AIActions {
   testConnection: (provider: string) => Promise<boolean>
   generateSQL: (prompt: string, schema?: string, mode?: 'single' | 'multi', connections?: DatabaseConnection[], schemasMap?: Map<string, SchemaNode[]>) => Promise<string>
   fixSQL: (query: string, error: string, schema?: string, mode?: 'single' | 'multi', connections?: DatabaseConnection[], schemasMap?: Map<string, SchemaNode[]>) => Promise<string>
+  sendGenericMessage: (prompt: string, options?: {
+    context?: string
+    systemPrompt?: string
+    metadata?: Record<string, string>
+  }) => Promise<{
+    content: string
+    provider: string
+    model: string
+    tokensUsed: number
+    metadata?: Record<string, string>
+  }>
   resetConfig: () => void
   resetSession: () => void
   hydrateMemoriesFromBackend: () => Promise<void>
@@ -89,7 +100,7 @@ const defaultConfig: AIConfig = {
   temperature: 0.1,
   autoFixEnabled: true,
   suggestionThreshold: 0.7,
-  syncMemories: false,
+  syncMemories: true,
 }
 
 const defaultState: AIState = {
@@ -710,6 +721,110 @@ export const useAIStore = create<AIState & AIActions>()(
         }
       },
 
+      sendGenericMessage: async (prompt: string, options?: {
+        context?: string
+        systemPrompt?: string
+        metadata?: Record<string, string>
+      }) => {
+        const { config, setIsGenerating, setLastError } = get()
+        const memoryStore = useAIMemoryStore.getState()
+
+        if (!config.enabled) {
+          throw new Error('AI features are disabled')
+        }
+
+        const provider = (config.provider || 'openai').toLowerCase()
+        let sessionId = memoryStore.ensureActiveSession({
+          title: `Chat Session ${new Date().toLocaleString()}`,
+          metadata: {
+            chatType: 'generic',
+          },
+        })
+
+        const activeSession = memoryStore.sessions[sessionId]
+        if (activeSession?.metadata?.chatType !== 'generic') {
+          sessionId = memoryStore.startNewSession({
+            title: `Chat Session ${new Date().toLocaleString()}`,
+            metadata: { chatType: 'generic' },
+          })
+          memoryStore.setActiveSession(sessionId)
+        }
+
+        setIsGenerating(true)
+        setLastError(null)
+
+        try {
+          const baseContext = options?.context?.trim() ?? ''
+          const memoryContext = memoryStore.buildContext({
+            sessionId,
+            provider,
+            model: config.selectedModel,
+            maxTokens: config.maxTokens,
+          })
+
+          let combinedContext = baseContext
+          if (memoryContext) {
+            combinedContext = combinedContext
+              ? `${combinedContext}\n\n---\n\nConversation Memory:\n${memoryContext}`
+              : `Conversation Memory:\n${memoryContext}`
+          }
+
+          memoryStore.recordMessage({
+            sessionId,
+            role: 'user',
+            content: prompt,
+            metadata: {
+              type: 'chat:user',
+              provider,
+            },
+          })
+
+          const { GenericChat } = await import('../../wailsjs/go/main/App')
+          const response = await GenericChat({
+            prompt,
+            context: combinedContext,
+            system: options?.systemPrompt,
+            provider,
+            model: config.selectedModel,
+            maxTokens: config.maxTokens,
+            temperature: config.temperature,
+            metadata: {
+              sessionId,
+              chatType: 'generic',
+              ...options?.metadata,
+            },
+          })
+
+          const assistantContent = response?.content ?? ''
+
+          memoryStore.recordMessage({
+            sessionId,
+            role: 'assistant',
+            content: assistantContent,
+            metadata: {
+              type: 'chat:assistant',
+              provider: response?.provider || provider,
+              tokensUsed: response?.tokensUsed ?? 0,
+            },
+          })
+
+          return {
+            content: assistantContent,
+            provider: response?.provider || provider,
+            model: response?.model || config.selectedModel,
+            tokensUsed: response?.tokensUsed ?? 0,
+            metadata: response?.metadata,
+          }
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+          setLastError(errorMessage)
+          throw error
+        } finally {
+          void get().persistMemoriesIfEnabled()
+          setIsGenerating(false)
+        }
+      },
+
       resetConfig: () => {
         set({ config: defaultConfig })
         SecureStorage.getInstance().clear()
@@ -788,6 +903,28 @@ export const useAIStore = create<AIState & AIActions>()(
         },
         memoriesHydrated: state.memoriesHydrated,
       }),
+      version: 1,
+      migrate: (persistedState: unknown) => {
+        if (typeof persistedState !== 'object' || !persistedState) {
+          return persistedState
+        }
+
+        const record = persistedState as { state?: { config?: Partial<AIConfig> } }
+        if (!record.state?.config || record.state.config.syncMemories !== undefined) {
+          return persistedState
+        }
+
+        return {
+          ...record,
+          state: {
+            ...record.state,
+            config: {
+              ...record.state.config,
+              syncMemories: true,
+            },
+          },
+        }
+      },
     },
   ),
 )
@@ -828,6 +965,7 @@ export const useAIConfig = () => {
 export const useAIGeneration = () => {
   const generateSQL = useAIStore(state => state.generateSQL)
   const fixSQL = useAIStore(state => state.fixSQL)
+  const sendGenericMessage = useAIStore(state => state.sendGenericMessage)
   const isGenerating = useAIStore(state => state.isGenerating)
   const lastError = useAIStore(state => state.lastError)
   const suggestions = useAIStore(state => state.suggestions)
@@ -840,6 +978,7 @@ export const useAIGeneration = () => {
   return {
     generateSQL,
     fixSQL,
+    sendGenericMessage,
     isGenerating,
     lastError,
     suggestions,

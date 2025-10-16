@@ -70,12 +70,33 @@ type SQLRequest struct {
 	Temperature float64 `json:"temperature,omitempty"`
 }
 
+// ChatRequest represents a generic chat interaction request
+type ChatRequest struct {
+	Prompt      string            `json:"prompt"`
+	Context     string            `json:"context,omitempty"`
+	System      string            `json:"system,omitempty"`
+	Provider    string            `json:"provider"`
+	Model       string            `json:"model"`
+	MaxTokens   int               `json:"maxTokens,omitempty"`
+	Temperature float64           `json:"temperature,omitempty"`
+	Metadata    map[string]string `json:"metadata,omitempty"`
+}
+
 // SQLResponse represents a generated SQL query response
 type SQLResponse struct {
 	SQL         string  `json:"sql"`
 	Confidence  float64 `json:"confidence"`
 	Explanation string  `json:"explanation"`
 	TokensUsed  int     `json:"tokensUsed"`
+}
+
+// ChatResponse represents a chat interaction response
+type ChatResponse struct {
+	Content    string            `json:"content"`
+	Provider   string            `json:"provider"`
+	Model      string            `json:"model"`
+	TokensUsed int               `json:"tokensUsed"`
+	Metadata   map[string]string `json:"metadata,omitempty"`
 }
 
 // OptimizationResponse represents a query optimization response

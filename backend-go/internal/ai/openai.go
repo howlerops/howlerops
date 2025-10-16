@@ -266,18 +266,25 @@ func (p *openaiProvider) ValidateConfig(config interface{}) error {
 
 // callOpenAI makes a request to the OpenAI API
 func (p *openaiProvider) callOpenAI(ctx context.Context, model, prompt string, maxTokens int, temperature float64) (*openaiChatResponse, error) {
-	requestBody := openaiChatRequest{
-		Model: model,
-		Messages: []openaiChatMessage{
-			{
-				Role:    "system",
-				Content: "You are an expert SQL developer. Generate clean, efficient SQL queries and provide clear explanations.",
-			},
-			{
-				Role:    "user",
-				Content: prompt,
-			},
+	messages := []openaiChatMessage{
+		{
+			Role:    "system",
+			Content: "You are an expert SQL developer. Generate clean, efficient SQL queries and provide clear explanations.",
 		},
+		{
+			Role:    "user",
+			Content: prompt,
+		},
+	}
+
+	return p.callOpenAIWithMessages(ctx, model, messages, maxTokens, temperature)
+}
+
+// callOpenAIWithMessages makes a chat completion request with explicit messages
+func (p *openaiProvider) callOpenAIWithMessages(ctx context.Context, model string, messages []openaiChatMessage, maxTokens int, temperature float64) (*openaiChatResponse, error) {
+	requestBody := openaiChatRequest{
+		Model:       model,
+		Messages:    messages,
 		MaxTokens:   maxTokens,
 		Temperature: temperature,
 		Stream:      false,
@@ -324,6 +331,57 @@ func (p *openaiProvider) callOpenAI(ctx context.Context, model, prompt string, m
 	}
 
 	return &chatResp, nil
+}
+
+// Chat handles generic conversational interactions
+func (p *openaiProvider) Chat(ctx context.Context, req *ChatRequest) (*ChatResponse, error) {
+	if req == nil {
+		return nil, fmt.Errorf("request cannot be nil")
+	}
+
+	systemPrompt := req.System
+	if systemPrompt == "" {
+		systemPrompt = "You are a helpful assistant for SQL Studio. Provide concise, accurate answers. Use Markdown formatting when it improves clarity."
+	}
+
+	messages := []openaiChatMessage{
+		{Role: "system", Content: systemPrompt},
+	}
+
+	if req.Context != "" {
+		messages = append(messages, openaiChatMessage{
+			Role:    "system",
+			Content: fmt.Sprintf("Additional context:\n%s", req.Context),
+		})
+	}
+
+	messages = append(messages, openaiChatMessage{
+		Role:    "user",
+		Content: req.Prompt,
+	})
+
+	response, err := p.callOpenAIWithMessages(ctx, req.Model, messages, req.MaxTokens, req.Temperature)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(response.Choices) == 0 {
+		return nil, fmt.Errorf("no response choices returned")
+	}
+
+	content := strings.TrimSpace(response.Choices[0].Message.Content)
+	metadata := map[string]string{}
+	if response.Choices[0].FinishReason != "" {
+		metadata["finish_reason"] = response.Choices[0].FinishReason
+	}
+
+	return &ChatResponse{
+		Content:    content,
+		Provider:   ProviderOpenAI,
+		Model:      req.Model,
+		TokensUsed: response.Usage.TotalTokens,
+		Metadata:   metadata,
+	}, nil
 }
 
 // buildGeneratePrompt builds a prompt for SQL generation

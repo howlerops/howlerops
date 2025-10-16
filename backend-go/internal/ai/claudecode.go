@@ -164,6 +164,66 @@ func (p *ClaudeCodeProvider) FixSQL(ctx context.Context, query string, errorMsg 
 	}, nil
 }
 
+// Chat handles generic conversational interactions using Claude Code
+func (p *ClaudeCodeProvider) Chat(ctx context.Context, prompt string, options ...GenerateOption) (*ChatResponse, error) {
+	opts := &GenerateOptions{
+		Model:       p.config.Model,
+		MaxTokens:   p.config.MaxTokens,
+		Temperature: p.config.Temperature,
+	}
+
+	for _, opt := range options {
+		opt(opts)
+	}
+
+	var systemPrompt string
+	if opts.Context != nil {
+		systemPrompt = opts.Context["system"]
+	}
+	if systemPrompt == "" {
+		systemPrompt = "You are a helpful assistant for SQL Studio. Provide concise, accurate answers and actionable guidance."
+	}
+
+	var fullPrompt strings.Builder
+	if opts.Context != nil {
+		if ctxText := opts.Context["context"]; ctxText != "" {
+			fullPrompt.WriteString("Context:\n")
+			fullPrompt.WriteString(ctxText)
+			fullPrompt.WriteString("\n\n")
+		}
+	}
+	fullPrompt.WriteString(prompt)
+
+	startTime := time.Now()
+
+	model := claudecode.ModelOpus
+	result, err := p.client.LaunchAndWait(claudecode.SessionConfig{
+		Query:        fullPrompt.String(),
+		Model:        model,
+		OutputFormat: claudecode.OutputText,
+		SystemPrompt: systemPrompt,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("claude code error: %w", err)
+	}
+
+	tokensUsed := 0
+	if result.Usage != nil {
+		tokensUsed = result.Usage.OutputTokens
+	}
+
+	return &ChatResponse{
+		Content:    strings.TrimSpace(result.Result),
+		Provider:   ProviderClaudeCode,
+		Model:      opts.Model,
+		TokensUsed: tokensUsed,
+		TimeTaken:  time.Since(startTime),
+		Metadata: map[string]string{
+			"model": string(model),
+		},
+	}, nil
+}
+
 // GetHealth returns the health status of the Claude Code provider
 func (p *ClaudeCodeProvider) GetHealth(ctx context.Context) (*HealthStatus, error) {
 	startTime := time.Now()
