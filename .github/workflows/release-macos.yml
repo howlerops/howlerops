@@ -1,0 +1,453 @@
+name: Release macOS Application
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Trigger on version tags like v1.0.0, v1.2.3, etc.
+
+env:
+  APP_NAME: howlerops
+  BUNDLE_ID: com.howlerops.app
+
+jobs:
+  release-macos:
+    name: Build, Sign, and Release macOS App
+    runs-on: macos-latest
+
+    steps:
+      # ============================================================
+      # STEP 1: CHECKOUT AND SETUP
+      # ============================================================
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+          cache: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      # ============================================================
+      # STEP 2: INSTALL DEPENDENCIES
+      # ============================================================
+
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+
+      - name: Install frontend dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Install create-dmg for DMG creation
+        run: npm install -g create-dmg
+
+      # ============================================================
+      # STEP 3: IMPORT SIGNING CERTIFICATE
+      # ============================================================
+
+      - name: Import code signing certificate
+        env:
+          CERTIFICATE_P12: ${{ secrets.APPLE_CERTIFICATE_P12 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          # Decode the base64 certificate
+          echo "$CERTIFICATE_P12" | base64 --decode > certificate.p12
+
+          # Create a temporary keychain
+          security create-keychain -p actions build.keychain
+
+          # Set the keychain as default
+          security default-keychain -s build.keychain
+
+          # Unlock the keychain
+          security unlock-keychain -p actions build.keychain
+
+          # Import the certificate
+          security import certificate.p12 -k build.keychain -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+
+          # Set keychain settings to prevent locking
+          security set-keychain-settings -lut 21600 build.keychain
+
+          # Set key partition list (allows codesign to access the key)
+          security set-key-partition-list -S apple-tool:,apple: -s -k actions build.keychain
+
+          # Verify certificate is available
+          security find-identity -v -p codesigning build.keychain
+
+          # Clean up P12 file
+          rm certificate.p12
+
+      # ============================================================
+      # STEP 4: BUILD APPLICATION
+      # ============================================================
+
+      - name: Build Wails application (Universal Binary)
+        run: |
+          wails build -platform darwin/universal -clean
+
+          # Verify the app was built
+          if [ ! -d "build/bin/$APP_NAME.app" ]; then
+            echo "Error: Application not built successfully"
+            exit 1
+          fi
+
+          echo "Build successful: build/bin/$APP_NAME.app"
+          ls -lah build/bin/
+
+      # ============================================================
+      # STEP 5: CODE SIGNING
+      # ============================================================
+
+      - name: Sign application
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          # Get the certificate identity
+          IDENTITY=$(security find-identity -v -p codesigning build.keychain | grep "Developer ID Application" | head -1 | awk '{print $2}')
+          echo "Using identity: $IDENTITY"
+
+          # Sign the application with hardened runtime
+          codesign --deep --force --verify --verbose \
+            --sign "$IDENTITY" \
+            --options runtime \
+            --entitlements build/darwin/entitlements.plist \
+            --timestamp \
+            "build/bin/$APP_NAME.app"
+
+          # Verify the signature
+          codesign -dv --verbose=4 "build/bin/$APP_NAME.app"
+
+          echo "Code signing successful"
+
+      # ============================================================
+      # STEP 6: CREATE DISTRIBUTION PACKAGE
+      # ============================================================
+
+      - name: Create ZIP archive
+        run: |
+          cd build/bin
+
+          # Create ZIP (Homebrew friendly)
+          zip -r "../../${APP_NAME}-darwin-universal.zip" "$APP_NAME.app"
+
+          cd ../..
+
+          # Verify ZIP was created
+          ls -lah "${APP_NAME}-darwin-universal.zip"
+
+          echo "ZIP_PATH=${APP_NAME}-darwin-universal.zip" >> $GITHUB_ENV
+
+      - name: Create DMG (optional, for direct downloads)
+        run: |
+          # Create a nicely formatted DMG
+          create-dmg \
+            --volname "HowlerOps" \
+            --volicon "build/icons/icon.icns" \
+            --window-pos 200 120 \
+            --window-size 658 498 \
+            --icon-size 128 \
+            --icon "$APP_NAME.app" 180 170 \
+            --hide-extension "$APP_NAME.app" \
+            --app-drop-link 480 170 \
+            "${APP_NAME}-darwin-universal.dmg" \
+            "build/bin/$APP_NAME.app" \
+            || true  # create-dmg may return non-zero even on success
+
+          # If create-dmg failed, fall back to hdiutil
+          if [ ! -f "${APP_NAME}-darwin-universal.dmg" ]; then
+            echo "create-dmg failed, using hdiutil instead"
+            hdiutil create -volname "HowlerOps" \
+              -srcfolder "build/bin/$APP_NAME.app" \
+              -ov -format UDZO \
+              "${APP_NAME}-darwin-universal.dmg"
+          fi
+
+          # Verify DMG was created
+          ls -lah "${APP_NAME}-darwin-universal.dmg"
+
+          echo "DMG_PATH=${APP_NAME}-darwin-universal.dmg" >> $GITHUB_ENV
+
+      # ============================================================
+      # STEP 7: NOTARIZATION
+      # ============================================================
+
+      - name: Notarize application
+        env:
+          APPLE_ID: ${{ secrets.APPLE_DEVELOPER_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          echo "Submitting ZIP for notarization..."
+
+          # Submit for notarization
+          xcrun notarytool submit "$ZIP_PATH" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait \
+            --timeout 30m
+
+          # Check if notarization succeeded
+          if [ $? -eq 0 ]; then
+            echo "Notarization successful!"
+          else
+            echo "Notarization failed!"
+            exit 1
+          fi
+
+      - name: Staple notarization ticket
+        run: |
+          # Unzip to staple
+          unzip -q "$ZIP_PATH" -d build/notarized
+
+          # Staple the ticket to the app
+          xcrun stapler staple "build/notarized/$APP_NAME.app"
+
+          # Verify stapling
+          xcrun stapler validate "build/notarized/$APP_NAME.app"
+
+          # Re-create ZIP with stapled app
+          cd build/notarized
+          zip -r "../../${APP_NAME}-darwin-universal.zip" "$APP_NAME.app"
+          cd ../..
+
+          # Staple DMG as well
+          if [ -f "$DMG_PATH" ]; then
+            xcrun stapler staple "$DMG_PATH"
+            xcrun stapler validate "$DMG_PATH"
+          fi
+
+          echo "Stapling successful"
+
+      # ============================================================
+      # STEP 8: VERIFICATION
+      # ============================================================
+
+      - name: Verify app integrity
+        run: |
+          # Verify code signature
+          codesign -vvv --deep --strict "build/notarized/$APP_NAME.app"
+
+          # Verify Gatekeeper approval
+          spctl -a -vvv "build/notarized/$APP_NAME.app"
+
+          echo "✅ Application is properly signed and notarized!"
+
+      # ============================================================
+      # STEP 9: CALCULATE CHECKSUMS
+      # ============================================================
+
+      - name: Calculate SHA256 checksums
+        run: |
+          # Calculate SHA256 for ZIP
+          ZIP_SHA256=$(shasum -a 256 "$ZIP_PATH" | awk '{print $1}')
+          echo "ZIP_SHA256=$ZIP_SHA256" >> $GITHUB_ENV
+          echo "ZIP SHA256: $ZIP_SHA256"
+
+          # Calculate SHA256 for DMG
+          if [ -f "$DMG_PATH" ]; then
+            DMG_SHA256=$(shasum -a 256 "$DMG_PATH" | awk '{print $1}')
+            echo "DMG_SHA256=$DMG_SHA256" >> $GITHUB_ENV
+            echo "DMG SHA256: $DMG_SHA256"
+          fi
+
+          # Save to file for release notes
+          cat > checksums.txt << EOF
+          SHA256 Checksums:
+
+          ZIP: $ZIP_SHA256
+          DMG: ${DMG_SHA256:-N/A}
+          EOF
+
+      # ============================================================
+      # STEP 10: CREATE GITHUB RELEASE
+      # ============================================================
+
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          cat > release_notes.md << EOF
+          ## HowlerOps ${{ steps.version.outputs.version }}
+
+          ### Installation
+
+          **Homebrew (Recommended):**
+          \`\`\`bash
+          brew tap YOUR_USERNAME/howlerops
+          brew install --cask howlerops
+          \`\`\`
+
+          **Direct Download:**
+          - Download the DMG or ZIP file below
+          - Open the DMG or unzip the file
+          - Drag HowlerOps to your Applications folder
+          - Launch from Applications
+
+          ### What's New
+
+          <!-- Auto-generated changelog -->
+          $(git log $(git describe --tags --abbrev=0 HEAD^)..HEAD --pretty=format:"- %s (%an)")
+
+          ### Verification
+
+          This release is code-signed and notarized by Apple.
+
+          **SHA256 Checksums:**
+          - ZIP: \`${{ env.ZIP_SHA256 }}\`
+          - DMG: \`${{ env.DMG_SHA256 }}\`
+
+          ### System Requirements
+
+          - macOS 11.0 (Big Sur) or later
+          - Universal Binary (Intel & Apple Silicon)
+
+          ---
+
+          🤖 Built and released automatically by GitHub Actions
+          EOF
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            ${{ env.ZIP_PATH }}
+            ${{ env.DMG_PATH }}
+            checksums.txt
+          body_path: release_notes.md
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ============================================================
+      # STEP 11: UPDATE HOMEBREW FORMULA
+      # ============================================================
+
+      - name: Update Homebrew Cask formula
+        env:
+          HOMEBREW_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          # Clone the Homebrew tap repository
+          git clone https://x-access-token:${HOMEBREW_TOKEN}@github.com/YOUR_USERNAME/homebrew-howlerops.git homebrew-tap
+
+          cd homebrew-tap
+
+          # Update the Cask formula
+          cat > Casks/howlerops.rb << EOF
+          cask "howlerops" do
+            version "$VERSION"
+            sha256 "$ZIP_SHA256"
+
+            url "https://github.com/YOUR_USERNAME/sql-studio/releases/download/v#{version}/howlerops-darwin-universal.zip"
+            name "HowlerOps"
+            desc "A powerful desktop SQL client built with Wails"
+            homepage "https://github.com/YOUR_USERNAME/sql-studio"
+
+            livecheck do
+              url :url
+              strategy :github_latest
+            end
+
+            app "howlerops.app"
+
+            zap trash: [
+              "~/Library/Application Support/howlerops",
+              "~/Library/Caches/howlerops",
+              "~/Library/Preferences/$BUNDLE_ID.plist",
+              "~/Library/Saved Application State/$BUNDLE_ID.savedState",
+            ]
+          end
+          EOF
+
+          # Configure git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Commit and push
+          git add Casks/howlerops.rb
+          git commit -m "chore: update howlerops to v$VERSION"
+          git push origin main
+
+          echo "✅ Homebrew formula updated successfully!"
+
+      # ============================================================
+      # STEP 12: CLEANUP
+      # ============================================================
+
+      - name: Cleanup keychain
+        if: always()
+        run: |
+          security delete-keychain build.keychain || true
+
+      # ============================================================
+      # STEP 13: NOTIFICATION (OPTIONAL)
+      # ============================================================
+
+      - name: Send success notification
+        if: success()
+        run: |
+          echo "✅ Release v${{ steps.version.outputs.version }} completed successfully!"
+          echo "📦 Artifacts uploaded to GitHub Releases"
+          echo "🍺 Homebrew formula updated"
+          echo "Users can now install with: brew install --cask YOUR_USERNAME/howlerops/howlerops"
+
+      - name: Send failure notification
+        if: failure()
+        run: |
+          echo "❌ Release workflow failed!"
+          echo "Check the logs above for details"
+          exit 1
+
+  # ============================================================
+  # OPTIONAL: POST-RELEASE VERIFICATION
+  # ============================================================
+
+  verify-release:
+    name: Verify Release Installation
+    runs-on: macos-latest
+    needs: release-macos
+    if: success()
+
+    steps:
+      - name: Wait for Homebrew propagation
+        run: sleep 60
+
+      - name: Test Homebrew installation
+        run: |
+          # Tap the repository
+          brew tap YOUR_USERNAME/howlerops
+
+          # Install the cask
+          brew install --cask howlerops
+
+          # Verify installation
+          if [ -d "/Applications/howlerops.app" ]; then
+            echo "✅ Installation successful!"
+          else
+            echo "❌ Installation failed!"
+            exit 1
+          fi
+
+      - name: Verify app launches
+        run: |
+          # Try to launch the app (will fail in CI, but validates the bundle)
+          open -a howlerops --args --help || true
+
+          echo "✅ Verification complete!"

@@ -262,7 +262,7 @@ export class WailsApiClient {
   async executeQuery(connectionId: string, sql: string, options?: unknown) {
     try {
       // Check if query contains @ syntax for multi-database queries
-      if (sql.includes('@')) {
+      if (shouldUseMultiDatabasePath(sql)) {
         return await this.executeMultiDatabaseQuery(sql, options)
       }
 
@@ -387,6 +387,27 @@ export class WailsApiClient {
       }
     }
   }
+}
+
+const multiDbPattern = /@[\w-]+\./i
+const singleQuotedString = /'(?:''|[^'])*'/g
+const doubleQuotedString = /"(?:\\"|[^"])*"/g
+const backtickQuotedString = /`(?:``|[^`])*`/g
+
+function stripQuotedLiterals(sql: string): string {
+  return sql
+    .replace(singleQuotedString, "''")
+    .replace(doubleQuotedString, '""')
+    .replace(backtickQuotedString, '``')
+}
+
+function shouldUseMultiDatabasePath(sql: string): boolean {
+  if (!sql.includes('@')) {
+    return false
+  }
+
+  const sanitized = stripQuotedLiterals(sql)
+  return multiDbPattern.test(sanitized)
 }
 
 // Create singleton instance
