@@ -1,9 +1,18 @@
 import { Link, useLocation } from "react-router-dom"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Switch } from "@/components/ui/switch"
 import { useTheme } from "@/hooks/use-theme"
 import { useQueryStore } from "@/store/query-store"
-import { Moon, Sun, Plus, Settings } from "lucide-react"
+import { useConnectionStore } from "@/store/connection-store"
+import { useAIConfig } from "@/store/ai-store"
+import { useAIQueryAgentStore } from "@/store/ai-query-agent-store"
+import { Moon, Sun, Plus, Settings, Sparkles, Database } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useNavigate } from "react-router-dom"
 import { HowlerOpsIcon } from "@/components/ui/howlerops-icon"
@@ -13,13 +22,37 @@ export function Header() {
   const navigate = useNavigate()
   const { theme, setTheme } = useTheme()
   const { createTab } = useQueryStore()
+  const setActiveTab = useQueryStore(state => state.setActiveTab)
+  const { activeConnection } = useConnectionStore()
+  const { config: aiConfig } = useAIConfig()
+  const createAgentSession = useAIQueryAgentStore(state => state.createSession)
+  const setActiveAgentSession = useAIQueryAgentStore(state => state.setActiveSession)
 
   const toggleTheme = () => {
     setTheme(theme === "light" ? "dark" : "light")
   }
 
-  const handleNewQuery = () => {
-    createTab()
+  const handleNewSqlTab = () => {
+    const tabId = createTab('New Query', {
+      type: 'sql',
+      connectionId: activeConnection?.id,
+    })
+    setActiveTab(tabId)
+  }
+
+  const handleNewAiTab = () => {
+    const sessionId = createAgentSession({
+      title: `AI Query ${new Date().toLocaleTimeString()}`,
+      provider: aiConfig.provider,
+      model: aiConfig.selectedModel,
+    })
+    const tabId = createTab('AI Query Agent', {
+      type: 'ai',
+      connectionId: activeConnection?.id,
+      aiSessionId: sessionId,
+    })
+    setActiveAgentSession(sessionId)
+    setActiveTab(tabId)
   }
 
   return (
@@ -59,10 +92,24 @@ export function Header() {
 
         <div className="ml-auto flex items-center space-x-4">
 
-          <Button variant="outline" size="sm" onClick={handleNewQuery}>
-            <Plus className="h-4 w-4 mr-2" />
-            New Query
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Plus className="h-4 w-4 mr-2" />
+                New Query
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleNewSqlTab}>
+                <Database className="h-4 w-4 mr-2" />
+                SQL Editor Tab
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleNewAiTab}>
+                <Sparkles className="h-4 w-4 mr-2" />
+                AI Query Agent
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           <Button
             variant="ghost"

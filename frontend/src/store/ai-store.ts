@@ -164,6 +164,7 @@ const deserializeMemorySessions = (payload: WailsMemorySession[]): MemorySession
 class SecureStorage {
   private static instance: SecureStorage
   private keyPrefix = 'ai-secure-'
+  private fallback = new Map<string, string>()
 
   static getInstance(): SecureStorage {
     if (!SecureStorage.instance) {
@@ -175,7 +176,13 @@ class SecureStorage {
   async setItem(key: string, value: string): Promise<void> {
     try {
       sessionStorage.setItem(this.keyPrefix + key, value)
+      this.fallback.delete(this.keyPrefix + key)
     } catch (error) {
+      this.fallback.set(this.keyPrefix + key, value)
+      if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+        console.warn('Session storage quota exceeded; falling back to in-memory secure storage')
+        return
+      }
       console.error('Failed to store secure item:', error)
       throw new Error('Failed to store secure data')
     }
@@ -183,11 +190,14 @@ class SecureStorage {
 
   async getItem(key: string): Promise<string | null> {
     try {
-      return sessionStorage.getItem(this.keyPrefix + key)
+      const value = sessionStorage.getItem(this.keyPrefix + key)
+      if (value !== null) {
+        return value
+      }
     } catch (error) {
       console.error('Failed to retrieve secure item:', error)
-      return null
     }
+    return this.fallback.get(this.keyPrefix + key) ?? null
   }
 
   async removeItem(key: string): Promise<void> {
@@ -196,6 +206,7 @@ class SecureStorage {
     } catch (error) {
       console.error('Failed to remove secure item:', error)
     }
+    this.fallback.delete(this.keyPrefix + key)
   }
 
   async clear(): Promise<void> {
@@ -205,6 +216,7 @@ class SecureStorage {
     } catch (error) {
       console.error('Failed to clear secure storage:', error)
     }
+    this.fallback.clear()
   }
 }
 
