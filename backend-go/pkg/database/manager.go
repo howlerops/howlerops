@@ -342,6 +342,8 @@ func (m *Manager) createDatabaseInstance(config ConnectionConfig) (Database, err
 		return NewTiDBDatabase(config, m.logger)
 	case Elasticsearch, OpenSearch:
 		return NewElasticsearchDatabase(config, m.logger)
+	case MongoDB:
+		return NewMongoDBDatabase(config, m.logger)
 	default:
 		return nil, fmt.Errorf("unsupported database type: %s", config.Type)
 	}
@@ -420,6 +422,8 @@ func (f *Factory) CreateDatabase(config ConnectionConfig) (Database, error) {
 		return NewTiDBDatabase(config, f.logger)
 	case Elasticsearch, OpenSearch:
 		return NewElasticsearchDatabase(config, f.logger)
+	case MongoDB:
+		return NewMongoDBDatabase(config, f.logger)
 	default:
 		return nil, fmt.Errorf("unsupported database type: %s", config.Type)
 	}
@@ -446,6 +450,12 @@ func (f *Factory) ValidateConfig(config ConnectionConfig) error {
 		if config.Username == "" {
 			return fmt.Errorf("username is required for %s", config.Type)
 		}
+	case MongoDB:
+		if config.Host == "" {
+			return fmt.Errorf("host is required for %s", config.Type)
+		}
+		// Port defaults to 27017 if not specified
+		// Username is optional for MongoDB (can use unauthenticated access)
 	case Elasticsearch, OpenSearch:
 		if config.Host == "" {
 			return fmt.Errorf("host is required for %s", config.Type)
@@ -493,6 +503,11 @@ func (f *Factory) GetDefaultConfig(dbType DatabaseType) ConnectionConfig {
 		config.Port = 4000
 		config.Parameters["parseTime"] = "true"
 		config.Parameters["loc"] = "UTC"
+	case MongoDB:
+		config.Host = "localhost"
+		config.Port = 27017
+		config.SSLMode = "disable"
+		config.Database = "test"
 	case Elasticsearch, OpenSearch:
 		config.Host = "localhost"
 		config.Port = 9200
