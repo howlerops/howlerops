@@ -10,7 +10,7 @@ interface TableNodeData extends TableConfig {
   isSelected?: boolean
 }
 
-export function TableNode({ data, selected }: NodeProps<TableNodeData>) {
+function TableNodeComponent({ data, selected }: NodeProps<TableNodeData>) {
   const { name, schema, columns, schemaColor, isHighlighted, isSelected } = data
 
   return (
@@ -88,4 +88,6 @@ export function TableNode({ data, selected }: NodeProps<TableNodeData>) {
     </div>
   )
 }
+
+export const TableNode = React.memo(TableNodeComponent)
 

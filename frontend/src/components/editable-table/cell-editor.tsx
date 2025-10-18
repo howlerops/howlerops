@@ -22,6 +22,12 @@ export const CellEditor: React.FC<CellEditorProps> = ({
   const [error, setError] = useState<string>();
 
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(null);
+  const onChangeRef = useRef(onChange);
+
+  // Keep onChange ref up to date
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
 
   // Focus the input when the editor is mounted
   useEffect(() => {
@@ -46,11 +52,10 @@ export const CellEditor: React.FC<CellEditorProps> = ({
       options,
     });
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsValid(validationResult.isValid);
     setError(validationResult.error);
-    onChange(parsedValue);
-  }, [localValue, type, validation, required, options, onChange]);
+    onChangeRef.current(parsedValue);
+  }, [localValue, type, validation, required, options]);
 
   const handleKeyDown = useCallback((event: React.KeyboardEvent) => {
     switch (event.key) {

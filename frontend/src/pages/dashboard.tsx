@@ -3,7 +3,7 @@ import { QueryEditor, type QueryEditorHandle } from "@/components/query-editor"
 import { ResultsPanel } from "@/components/results-panel"
 import { useQueryMode } from "@/hooks/use-query-mode"
 
-const MIN_PANEL_FRACTION = 0.2
+const MIN_PANEL_FRACTION = 0.02
 
 export function Dashboard() {
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -46,7 +46,7 @@ export function Dashboard() {
       className="flex flex-1 h-full min-h-0 w-full flex-col overflow-hidden"
     >
       <div
-        className="flex min-h-[240px] flex-col border-b overflow-hidden"
+        className="flex min-h-[200px] flex-col border-b overflow-hidden"
         style={{ flexGrow: editorFraction, flexShrink: 1, flexBasis: 0 }}
       >
         <QueryEditor ref={queryEditorRef} mode={mode} />
@@ -63,7 +63,7 @@ export function Dashboard() {
       </div>
 
       <div
-        className="flex min-h-[180px] flex-col overflow-hidden"
+        className="flex min-h-[64px] flex-col overflow-hidden"
         style={{ flexGrow: 1 - editorFraction, flexShrink: 1, flexBasis: 0 }}
       >
         <ResultsPanel onFixWithAI={handleFixWithAI} />

@@ -1,19 +1,27 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"embed"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
+	"os/exec"
+	"regexp"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
+	"unicode"
 
+	"github.com/creack/pty"
 	"github.com/sirupsen/logrus"
-	"github.com/wailsapp/wails/v2/pkg/runtime"
+	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"github.com/sql-studio/backend-go/pkg/ai"
 	"github.com/sql-studio/backend-go/pkg/database"
@@ -35,6 +43,7 @@ type App struct {
 	fileService      *services.FileService
 	keyboardService  *services.KeyboardService
 	aiService        *ai.Service
+	aiConfig         *ai.RuntimeConfig
 	embeddingService rag.EmbeddingService
 }
 
@@ -358,6 +367,7 @@ func NewApp() *App {
 		databaseService: databaseService,
 		fileService:     fileService,
 		keyboardService: keyboardService,
+		aiConfig:        ai.DefaultRuntimeConfig(),
 	}
 }
 
@@ -376,14 +386,10 @@ func (a *App) OnStartup(ctx context.Context) {
 		// Continue without storage - graceful degradation
 	}
 
-	// Initialize AI service if available (graceful degradation)
-	a.initializeAIService(ctx)
-	a.initializeEmbeddingService(ctx)
-
 	a.logger.Info("HowlerOps desktop application started")
 
 	// Emit app ready event
-	runtime.EventsEmit(ctx, "app:startup-complete")
+	wailsRuntime.EventsEmit(ctx, "app:startup-complete")
 }
 
 // initializeStorageManager initializes the storage manager for local data
@@ -451,50 +457,97 @@ func (a *App) initializeStorageManager(ctx context.Context) error {
 	return nil
 }
 
-// initializeAIService initializes the AI service if configured
-// This is optional and will gracefully degrade if not available
-func (a *App) initializeAIService(ctx context.Context) {
-	// Try to initialize AI service (loads config from environment variables)
-	aiService, err := ai.NewService(a.logger)
-	if err != nil {
-		a.logger.WithError(err).Warn("AI service not available - configure API keys via environment variables")
-		a.logger.Info("Set OPENAI_API_KEY or ANTHROPIC_API_KEY to enable AI features")
-		return
+// hasConfiguredProvider returns true if the current AI config has at least one provider enabled.
+func (a *App) hasConfiguredProvider() bool {
+	if a.aiConfig == nil {
+		return false
 	}
 
-	// Start the AI service
-	if err := aiService.Start(ctx); err != nil {
-		a.logger.WithError(err).Warn("Failed to start AI service")
-		return
+	if a.aiConfig.OpenAI.APIKey != "" {
+		return true
 	}
 
-	a.aiService = aiService
-	a.logger.Info("AI service initialized successfully")
+	if a.aiConfig.Anthropic.APIKey != "" {
+		return true
+	}
 
-	// Check which providers have API keys
-	if os.Getenv("OPENAI_API_KEY") != "" {
-		a.logger.Info("OpenAI provider enabled")
+	if a.aiConfig.Codex.APIKey != "" {
+		return true
 	}
-	if os.Getenv("ANTHROPIC_API_KEY") != "" {
-		a.logger.Info("Anthropic provider enabled")
+
+	if a.aiConfig.Ollama.Endpoint != "" {
+		return true
 	}
-	if os.Getenv("OLLAMA_ENDPOINT") != "" || true {
-		a.logger.Info("Ollama provider available (default: http://localhost:11434)")
+
+	if a.aiConfig.HuggingFace.Endpoint != "" {
+		return true
 	}
+
+	if a.aiConfig.ClaudeCode.ClaudePath != "" {
+		return true
+	}
+
+	return false
 }
 
-// initializeEmbeddingService initializes the embedding service used for AI memory recall
-func (a *App) initializeEmbeddingService(ctx context.Context) {
-	apiKey := os.Getenv("OPENAI_API_KEY")
-	if apiKey == "" {
-		a.logger.Warn("Embedding service disabled: OPENAI_API_KEY not set")
+// applyAIConfiguration rebuilds the AI service using the current runtime configuration.
+func (a *App) applyAIConfiguration() error {
+	if a.ctx == nil {
+		return fmt.Errorf("application context not initialised")
+	}
+
+	if a.aiConfig == nil {
+		a.aiConfig = ai.DefaultRuntimeConfig()
+	}
+
+	if !a.hasConfiguredProvider() {
+		a.logger.Info("No AI providers configured; AI features remain disabled")
+		if a.aiService != nil {
+			if err := a.aiService.Stop(a.ctx); err != nil {
+				a.logger.WithError(err).Warn("Failed to stop existing AI service")
+			}
+			a.aiService = nil
+		}
+		a.embeddingService = nil
+		return fmt.Errorf("no AI providers configured")
+	}
+
+	// Shut down any existing instance before reconfiguring
+	if a.aiService != nil {
+		if err := a.aiService.Stop(a.ctx); err != nil {
+			a.logger.WithError(err).Warn("Failed to stop existing AI service during reconfiguration")
+		}
+		a.aiService = nil
+	}
+
+	service, err := ai.NewServiceWithConfig(a.aiConfig, a.logger)
+	if err != nil {
+		return fmt.Errorf("failed to create AI service: %w", err)
+	}
+
+	if err := service.Start(a.ctx); err != nil {
+		return fmt.Errorf("failed to start AI service: %w", err)
+	}
+
+	a.aiService = service
+	a.logger.Info("AI service configured successfully")
+
+	a.rebuildEmbeddingService()
+	return nil
+}
+
+// rebuildEmbeddingService establishes the embedding service if OpenAI credentials are available.
+func (a *App) rebuildEmbeddingService() {
+	a.embeddingService = nil
+
+	if a.aiConfig == nil || a.aiConfig.OpenAI.APIKey == "" {
 		return
 	}
 
-	model := getEnvOrDefault("OPENAI_EMBED_MODEL", "text-embedding-3-small")
-	provider := rag.NewOpenAIEmbeddingProvider(apiKey, model, a.logger)
+	model := "text-embedding-3-small"
+	provider := rag.NewOpenAIEmbeddingProvider(a.aiConfig.OpenAI.APIKey, model, a.logger)
 	a.embeddingService = rag.NewEmbeddingService(provider, a.logger)
-	a.logger.WithField("model", model).Info("Embedding service initialized")
+	a.logger.WithField("model", model).Info("Embedding service initialised")
 }
 
 // getEnvOrDefault gets environment variable or returns default value
@@ -529,7 +582,7 @@ func (a *App) OnShutdown(ctx context.Context) {
 	}
 
 	// Emit shutdown event
-	runtime.EventsEmit(ctx, "app:shutdown")
+	wailsRuntime.EventsEmit(ctx, "app:shutdown")
 }
 
 // CreateConnection creates a new database connection
@@ -797,8 +850,8 @@ func (a *App) WriteFile(filePath, content string) error {
 
 // ShowInfoDialog shows an information dialog
 func (a *App) ShowInfoDialog(title, message string) {
-	runtime.MessageDialog(a.ctx, runtime.MessageDialogOptions{
-		Type:    runtime.InfoDialog,
+	wailsRuntime.MessageDialog(a.ctx, wailsRuntime.MessageDialogOptions{
+		Type:    wailsRuntime.InfoDialog,
 		Title:   title,
 		Message: message,
 	})
@@ -806,8 +859,8 @@ func (a *App) ShowInfoDialog(title, message string) {
 
 // ShowErrorDialog shows an error dialog
 func (a *App) ShowErrorDialog(title, message string) {
-	runtime.MessageDialog(a.ctx, runtime.MessageDialogOptions{
-		Type:    runtime.ErrorDialog,
+	wailsRuntime.MessageDialog(a.ctx, wailsRuntime.MessageDialogOptions{
+		Type:    wailsRuntime.ErrorDialog,
 		Title:   title,
 		Message: message,
 	})
@@ -815,8 +868,8 @@ func (a *App) ShowErrorDialog(title, message string) {
 
 // ShowQuestionDialog shows a question dialog and returns the result
 func (a *App) ShowQuestionDialog(title, message string) (bool, error) {
-	result, err := runtime.MessageDialog(a.ctx, runtime.MessageDialogOptions{
-		Type:    runtime.QuestionDialog,
+	result, err := wailsRuntime.MessageDialog(a.ctx, wailsRuntime.MessageDialogOptions{
+		Type:    wailsRuntime.QuestionDialog,
 		Title:   title,
 		Message: message,
 	})
@@ -1007,9 +1060,812 @@ type AITestRequest struct {
 
 // AITestResponse represents an AI provider test response
 type AITestResponse struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
-	Error   string `json:"error,omitempty"`
+	Success  bool              `json:"success"`
+	Message  string            `json:"message"`
+	Error    string            `json:"error,omitempty"`
+	Metadata map[string]string `json:"metadata,omitempty"`
+}
+
+var (
+	loginURLRegex       = regexp.MustCompile(`https?://[^\s]+`)
+	loginCodeRegex      = regexp.MustCompile(`(?i)(?:code|token|key)[^A-Z0-9]*([A-Z0-9-]{4,})`)
+	loginCodeValueRegex = regexp.MustCompile(`^[A-Z0-9-]{4,}$`)
+	ansiEscapeRegex     = regexp.MustCompile(`\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b[@-Z\\-_]`)
+	emailRegex          = regexp.MustCompile(`[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}`)
+	oscHyperlinkRegex   = regexp.MustCompile(`\x1b]8;;([^\x07\x1b]*)(?:\x07|\x1b\\)([^\x1b]*?)(?:\x1b]8;;(?:\x07|\x1b\\))`)
+)
+
+type deviceLoginResult struct {
+	Link             string
+	UserCode         string
+	DeviceCode       string
+	Message          string
+	RawOutput        string
+	OriginalOutput   string
+	Err              error
+	expectUserCode   bool
+	expectDeviceCode bool
+}
+
+func startLoginStream(cmd *exec.Cmd) (io.ReadCloser, func(), func([]byte), bool, error) {
+	if runtime.GOOS == "windows" {
+		reader, cleanup, writeFn, err := startPipeStream(cmd)
+		return reader, cleanup, writeFn, false, err
+	}
+
+	ptmx, err := pty.Start(cmd)
+	if err != nil {
+		reader, cleanup, writeFn, pipeErr := startPipeStream(cmd)
+		if pipeErr != nil {
+			return nil, nil, nil, false, pipeErr
+		}
+		return reader, cleanup, writeFn, false, nil
+	}
+
+	cleanup := func() {
+		_ = ptmx.Close()
+	}
+
+	writeFn := func(data []byte) {
+		_, _ = ptmx.Write(data)
+	}
+
+	return ptmx, cleanup, writeFn, true, nil
+}
+
+func startPipeStream(cmd *exec.Cmd) (io.ReadCloser, func(), func([]byte), error) {
+	pipeReader, pipeWriter := io.Pipe()
+	cmd.Stdout = pipeWriter
+	cmd.Stderr = pipeWriter
+
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		stdin = nil
+	}
+
+	cleanup := func() {
+		_ = pipeReader.Close()
+		_ = pipeWriter.Close()
+		if stdin != nil {
+			_ = stdin.Close()
+		}
+	}
+
+	writeFn := func(data []byte) {
+		if stdin != nil {
+			_, _ = stdin.Write(data)
+		}
+	}
+
+	return pipeReader, cleanup, writeFn, nil
+}
+
+func stripANSICodes(input string) string {
+	if input == "" {
+		return ""
+	}
+	expanded := expandOSC8Links(input)
+	return ansiEscapeRegex.ReplaceAllString(expanded, "")
+}
+
+func expandOSC8Links(input string) string {
+	if input == "" {
+		return ""
+	}
+	return oscHyperlinkRegex.ReplaceAllStringFunc(input, func(match string) string {
+		subs := oscHyperlinkRegex.FindStringSubmatch(match)
+		if len(subs) < 3 {
+			return ""
+		}
+		url := strings.TrimSpace(subs[1])
+		text := strings.TrimSpace(subs[2])
+		if text == "" || text == url {
+			return url
+		}
+		return fmt.Sprintf("%s (%s)", text, url)
+	})
+}
+
+func updateLoginInfoFromLine(line string, info *deviceLoginResult) {
+	clean := stripANSICodes(line)
+	trimmed := strings.TrimSpace(clean)
+	if trimmed == "" {
+		return
+	}
+
+	lower := strings.ToLower(trimmed)
+
+	if info.Link == "" {
+		if match := loginURLRegex.FindString(trimmed); match != "" {
+			info.Link = strings.TrimRight(match, ".,\"')")
+		}
+	}
+
+	if (strings.Contains(lower, "code") || strings.Contains(lower, "token")) && info.UserCode == "" {
+		if m := loginCodeRegex.FindStringSubmatch(strings.ReplaceAll(strings.ToUpper(trimmed), " ", "")); len(m) > 1 {
+			info.UserCode = strings.Trim(m[1], ".\"')")
+			info.expectUserCode = false
+		} else {
+			info.expectUserCode = true
+		}
+	} else {
+		tryAssignPendingCode(trimmed, &info.UserCode, &info.expectUserCode)
+	}
+
+	if strings.Contains(lower, "device") && info.DeviceCode == "" {
+		if m := loginCodeRegex.FindStringSubmatch(strings.ReplaceAll(strings.ToUpper(trimmed), " ", "")); len(m) > 1 {
+			info.DeviceCode = strings.Trim(m[1], ".\"')")
+			info.expectDeviceCode = false
+		} else {
+			info.expectDeviceCode = true
+		}
+	} else {
+		tryAssignPendingCode(trimmed, &info.DeviceCode, &info.expectDeviceCode)
+	}
+
+	if info.Message == "" && (strings.Contains(lower, "visit") || strings.Contains(lower, "open")) && strings.Contains(lower, "http") {
+		info.Message = trimmed
+	}
+
+	if strings.HasPrefix(trimmed, "{") {
+		applyLoginJSON([]byte(trimmed), info)
+	}
+}
+
+func applyLoginJSON(data []byte, info *deviceLoginResult) {
+	var payload map[string]interface{}
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return
+	}
+
+	if info.Link == "" {
+		if v, ok := payload["verification_uri_complete"].(string); ok && v != "" {
+			info.Link = v
+		} else if v, ok := payload["verification_uri"].(string); ok && v != "" {
+			info.Link = v
+		} else if v, ok := payload["login_url"].(string); ok && v != "" {
+			info.Link = v
+		}
+	}
+
+	if info.UserCode == "" {
+		if v, ok := payload["user_code"].(string); ok && v != "" {
+			info.UserCode = v
+		} else if v, ok := payload["code"].(string); ok && v != "" {
+			info.UserCode = v
+		}
+	}
+
+	if info.DeviceCode == "" {
+		if v, ok := payload["device_code"].(string); ok && v != "" {
+			info.DeviceCode = v
+		}
+	}
+
+	if info.Message == "" {
+		if v, ok := payload["message"].(string); ok && v != "" {
+			info.Message = v
+		}
+	}
+}
+
+func tryAssignPendingCode(trimmed string, target *string, pending *bool) {
+	if !*pending || *target != "" {
+		return
+	}
+
+	token := strings.TrimSpace(strings.ToUpper(trimmed))
+	token = strings.Trim(token, ".\"')")
+	if token == "" {
+		return
+	}
+
+	if loginCodeValueRegex.MatchString(token) {
+		*target = token
+		*pending = false
+	}
+}
+
+func isUnknownOptionError(message string) bool {
+	if message == "" {
+		return false
+	}
+
+	lower := strings.ToLower(message)
+	return strings.Contains(lower, "unknown option") ||
+		strings.Contains(lower, "unknown flag") ||
+		strings.Contains(lower, "flag provided but not defined") ||
+		strings.Contains(lower, "did you mean")
+}
+
+func parseClaudeWhoAmIPlain(output string) *AITestResponse {
+	clean := strings.TrimSpace(stripANSICodes(output))
+	if clean == "" {
+		return &AITestResponse{
+			Success: true,
+			Message: "Claude CLI responded successfully. Complete the login flow if prompted.",
+		}
+	}
+
+	lower := strings.ToLower(clean)
+
+	metadata := map[string]string{
+		"raw_output": clean,
+	}
+
+	if strings.Contains(lower, "not logged") || strings.Contains(lower, "please run") && strings.Contains(lower, "login") {
+		return &AITestResponse{
+			Success:  false,
+			Error:    "Claude CLI is not logged in. Run 'claude login' to link your account.",
+			Metadata: metadata,
+		}
+	}
+
+	if email := emailRegex.FindString(clean); email != "" {
+		metadata["email"] = email
+		return &AITestResponse{
+			Success:  true,
+			Message:  fmt.Sprintf("Claude CLI authenticated as %s", email),
+			Metadata: metadata,
+		}
+	}
+
+	if strings.Contains(lower, "logged in") || strings.Contains(lower, "authenticated") {
+		return &AITestResponse{
+			Success:  true,
+			Message:  clean,
+			Metadata: metadata,
+		}
+	}
+
+	return &AITestResponse{
+		Success:  true,
+		Message:  clean,
+		Metadata: metadata,
+	}
+}
+
+func parseClaudeWhoAmIOutput(output string) *AITestResponse {
+	clean := strings.TrimSpace(stripANSICodes(output))
+	if clean == "" {
+		return &AITestResponse{
+			Success: true,
+			Message: "Claude CLI responded successfully. Complete the login flow if prompted.",
+		}
+	}
+
+	var whoami struct {
+		LoggedIn bool `json:"loggedIn"`
+		Account  struct {
+			Email string `json:"email"`
+		} `json:"account"`
+	}
+
+	if err := json.Unmarshal([]byte(clean), &whoami); err == nil {
+		metadata := map[string]string{
+			"raw_output": clean,
+		}
+
+		if whoami.Account.Email != "" {
+			metadata["email"] = whoami.Account.Email
+		}
+
+		if !whoami.LoggedIn {
+			return &AITestResponse{
+				Success:  false,
+				Error:    "Claude CLI is not logged in. Run 'claude login' to link your account.",
+				Metadata: metadata,
+			}
+		}
+
+		message := "Claude CLI authenticated"
+		if whoami.Account.Email != "" {
+			message = fmt.Sprintf("Claude CLI authenticated as %s", whoami.Account.Email)
+		}
+
+		return &AITestResponse{
+			Success:  true,
+			Message:  message,
+			Metadata: metadata,
+		}
+	}
+
+	return parseClaudeWhoAmIPlain(clean)
+}
+
+func buildLoginMessage(defaultMessage string, result deviceLoginResult) string {
+	message := strings.TrimSpace(result.Message)
+	if message == "" {
+		message = strings.TrimSpace(defaultMessage)
+	}
+
+	var lines []string
+	if message != "" {
+		lines = append(lines, message)
+	}
+
+	if result.Link != "" && !strings.Contains(strings.ToLower(message), "http") {
+		lines = append(lines, fmt.Sprintf("Verification URL: %s", result.Link))
+	}
+
+	if result.UserCode != "" {
+		lines = append(lines, fmt.Sprintf("Code: %s", result.UserCode))
+	}
+
+	if result.DeviceCode != "" && strings.ToUpper(result.DeviceCode) != strings.ToUpper(result.UserCode) {
+		lines = append(lines, fmt.Sprintf("Device Code: %s", result.DeviceCode))
+	}
+
+	seen := map[string]struct{}{}
+	dedup := make([]string, 0, len(lines))
+	for _, line := range lines {
+		key := strings.ToLower(strings.TrimSpace(line))
+		if key == "" {
+			continue
+		}
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		dedup = append(dedup, line)
+	}
+
+	if len(dedup) == 0 {
+		return defaultMessage
+	}
+
+	return strings.Join(dedup, "\n")
+}
+
+func sanitizeLoginOutput(output string) string {
+	if output == "" {
+		return ""
+	}
+
+	lines := strings.Split(output, "\n")
+	filtered := make([]string, 0, len(lines))
+
+	seen := map[string]struct{}{}
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(stripANSICodes(line))
+		if trimmed == "" {
+			continue
+		}
+
+		if isDecorativeLoginLine(trimmed) {
+			continue
+		}
+
+		key := strings.ToLower(trimmed)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+
+		filtered = append(filtered, trimmed)
+	}
+
+	return strings.Join(filtered, "\n")
+}
+
+func isDecorativeLoginLine(line string) bool {
+	if line == "" {
+		return true
+	}
+
+	trimmed := strings.TrimSpace(line)
+	if trimmed == "" {
+		return true
+	}
+
+	isDecorativeChars := true
+	for _, r := range trimmed {
+		switch r {
+		case '│', '╭', '╰', '─', '╮', '╯', '╲', '╱', '╳', '┼', '┌', '┐', '└', '┘', '━', '┃', '┏', '┓', '┗', '┛', '╸', '╹', '╺', '╻':
+			continue
+		case ' ', '\t':
+			continue
+		default:
+			isDecorativeChars = false
+			break
+		}
+	}
+	if isDecorativeChars {
+		return true
+	}
+
+	lower := strings.ToLower(trimmed)
+	if strings.Contains(lower, "/help") ||
+		strings.Contains(lower, "/status") ||
+		strings.Contains(lower, "cwd:") ||
+		strings.Contains(lower, "welcome to claude code") ||
+		strings.Contains(lower, "mcp server needs auth") ||
+		strings.Contains(lower, "? for shortcuts") ||
+		strings.Contains(lower, "for shortcuts") && strings.Contains(lower, "/ide") ||
+		strings.Contains(lower, "hatching") ||
+		strings.Contains(lower, "beaming") ||
+		strings.HasPrefix(lower, "try \"") ||
+		strings.HasPrefix(lower, ">") && !strings.Contains(lower, "http") && !strings.Contains(lower, "code") && !strings.Contains(lower, "device") ||
+		strings.HasPrefix(lower, "·") && !strings.Contains(lower, "http") && !strings.Contains(lower, "code") && !strings.Contains(lower, "device") ||
+		strings.EqualFold(trimmed, "code") {
+		return true
+	}
+
+	return false
+}
+
+func ensureLoginInfoFromRaw(raw string, info *deviceLoginResult) {
+	if raw == "" || info == nil {
+		return
+	}
+
+	lines := strings.Split(raw, "\n")
+	for _, line := range lines {
+		clean := strings.TrimSpace(stripANSICodes(line))
+		if clean == "" {
+			continue
+		}
+		updateLoginInfoFromLine(clean, info)
+		if info.Link != "" && info.UserCode != "" && info.DeviceCode != "" {
+			break
+		}
+	}
+
+	if info.Link == "" {
+		if url := extractLoginURL(raw); url != "" {
+			info.Link = url
+		}
+	}
+}
+
+func extractLoginURL(text string) string {
+	if text == "" {
+		return ""
+	}
+	if match := loginURLRegex.FindString(text); match != "" {
+		return strings.TrimRight(match, ".,\"')")
+	}
+	return ""
+}
+
+func (a *App) runClaudeLoginJSON(binaryPath string, defaultMessage string) (*AITestResponse, bool) {
+	baseCtx := a.ctx
+	if baseCtx == nil {
+		baseCtx = context.Background()
+	}
+
+	ctx, cancel := context.WithTimeout(baseCtx, 2*time.Minute)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, binaryPath, "/login", "--json")
+	cmd.Env = os.Environ()
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		message := strings.TrimSpace(stderr.String())
+		if message == "" {
+			message = err.Error()
+		}
+		if isUnknownOptionError(message) || strings.Contains(strings.ToLower(message), "unknown command") {
+			return nil, false
+		}
+		return &AITestResponse{
+			Success: false,
+			Error:   fmt.Sprintf("Claude CLI JSON login failed: %s", message),
+		}, true
+	}
+
+	output := strings.TrimSpace(stdout.String())
+	if output == "" {
+		return &AITestResponse{
+			Success: false,
+			Error:   "Claude CLI JSON login returned no data",
+		}, true
+	}
+
+	var payload map[string]interface{}
+	if err := json.Unmarshal([]byte(output), &payload); err != nil {
+		metadata := map[string]string{"raw_output": output}
+		return &AITestResponse{
+			Success:  false,
+			Error:    fmt.Sprintf("Failed to parse Claude CLI JSON login output: %v", err),
+			Metadata: metadata,
+		}, true
+	}
+
+	info := deviceLoginResult{OriginalOutput: output, RawOutput: output}
+	applyLoginJSON([]byte(output), &info)
+	ensureLoginInfoFromRaw(output, &info)
+
+	message := buildLoginMessage(defaultMessage, info)
+	if message == "" {
+		message = defaultMessage
+	}
+
+	metadata := loginMetadata(info)
+	if metadata == nil {
+		metadata = map[string]string{}
+	}
+	metadata["raw_output"] = output
+
+	return &AITestResponse{
+		Success:  true,
+		Message:  message,
+		Metadata: metadata,
+	}, true
+}
+
+func (a *App) runDeviceLoginCommand(binaryPath string, args []string, provider string, defaultMessage string) *AITestResponse {
+	baseCtx := a.ctx
+	if baseCtx == nil {
+		baseCtx = context.Background()
+	}
+
+	ctx, cancel := context.WithTimeout(baseCtx, 5*time.Minute)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, binaryPath, args...)
+	cmd.Env = os.Environ()
+
+	reader, cleanupStream, writeInput, alreadyStarted, err := startLoginStream(cmd)
+	if err != nil {
+		a.logger.WithError(err).WithField("provider", provider).Error("Failed to configure login stream")
+		return &AITestResponse{Success: false, Error: "unable to prepare login stream"}
+	}
+
+	if !alreadyStarted {
+		if err := cmd.Start(); err != nil {
+			if cleanupStream != nil {
+				cleanupStream()
+			}
+			a.logger.WithError(err).WithField("provider", provider).Error("Failed to start login command")
+			return &AITestResponse{Success: false, Error: fmt.Sprintf("unable to start %s login: %v", provider, err)}
+		}
+	}
+
+	if writeInput != nil {
+		go func() {
+			time.Sleep(500 * time.Millisecond)
+			writeInput([]byte("\n"))
+		}()
+	}
+
+	resultChan := make(chan deviceLoginResult, 1)
+	infoLatest := &deviceLoginResult{}
+
+	var cleanupOnce sync.Once
+	cleanup := func() {
+		cleanupOnce.Do(func() {
+			if cleanupStream != nil {
+				cleanupStream()
+			}
+		})
+	}
+
+	go func() {
+		defer cleanup()
+
+		var builder strings.Builder
+		var rawAll strings.Builder
+		info := deviceLoginResult{}
+		sent := false
+		residual := ""
+		buf := make([]byte, 2048)
+
+		emit := func(text string) {
+			clean := strings.TrimSpace(stripANSICodes(text))
+			if clean == "" {
+				return
+			}
+
+			if rawAll.Len() > 0 {
+				rawAll.WriteString("\n")
+			}
+			rawAll.WriteString(clean)
+			updateLoginInfoFromLine(clean, &info)
+			info.OriginalOutput = rawAll.String()
+			*infoLatest = info
+
+			if isDecorativeLoginLine(clean) {
+				return
+			}
+
+			keep := false
+			for _, r := range clean {
+				if unicode.IsLetter(r) || unicode.IsDigit(r) {
+					keep = true
+					break
+				}
+			}
+			if !keep && !strings.Contains(clean, "http") {
+				return
+			}
+
+			lower := strings.ToLower(clean)
+			if strings.HasPrefix(clean, "╭") ||
+				strings.HasPrefix(clean, "╰") ||
+				strings.HasPrefix(clean, "│") ||
+				strings.HasPrefix(clean, "─") {
+				if !(strings.Contains(lower, "http") ||
+					strings.Contains(lower, "code") ||
+					strings.Contains(lower, "token") ||
+					strings.Contains(lower, "visit") ||
+					strings.Contains(lower, "open")) {
+					return
+				}
+			}
+
+			if builder.Len() > 0 {
+				builder.WriteString("\n")
+			}
+			builder.WriteString(clean)
+			info.RawOutput = builder.String()
+			*infoLatest = info
+			if !sent && (info.Link != "" || info.UserCode != "" || info.DeviceCode != "") {
+				select {
+				case resultChan <- info:
+					sent = true
+				default:
+				}
+			}
+		}
+
+		for {
+			n, err := reader.Read(buf)
+			if n > 0 {
+				chunk := string(buf[:n])
+				cleanChunk := stripANSICodes(chunk)
+				if cleanChunk != "" {
+					residual += cleanChunk
+				}
+
+				normalized := strings.ReplaceAll(residual, "\r\n", "\n")
+				normalized = strings.ReplaceAll(normalized, "\r", "\n")
+				parts := strings.Split(normalized, "\n")
+				if !strings.HasSuffix(normalized, "\n") {
+					residual = parts[len(parts)-1]
+					parts = parts[:len(parts)-1]
+				} else {
+					residual = ""
+				}
+
+				for _, line := range parts {
+					emit(line)
+				}
+			}
+
+			if err != nil {
+				if strings.TrimSpace(residual) != "" {
+					emit(residual)
+					residual = ""
+				}
+
+				if err != io.EOF {
+					info.Err = err
+					info.RawOutput = builder.String()
+					*infoLatest = info
+				}
+				break
+			}
+		}
+
+		if waitErr := cmd.Wait(); waitErr != nil {
+			info.Err = waitErr
+		}
+
+		info.OriginalOutput = rawAll.String()
+		info.RawOutput = builder.String()
+		*infoLatest = info
+
+		if !sent {
+			select {
+			case resultChan <- info:
+			default:
+			}
+		}
+	}()
+
+	var result deviceLoginResult
+	select {
+	case result = <-resultChan:
+	case <-time.After(120 * time.Second):
+		_ = cmd.Process.Kill()
+		info := *infoLatest
+		if info.Message == "" {
+			info.Message = "Login command timed out before producing instructions"
+		}
+		cleanup()
+		return &AITestResponse{
+			Success:  false,
+			Error:    info.Message,
+			Metadata: loginMetadata(info),
+		}
+	case <-ctx.Done():
+		_ = cmd.Process.Kill()
+		info := *infoLatest
+		if info.Message == "" {
+			info.Message = "Login command cancelled"
+		}
+		cleanup()
+		return &AITestResponse{
+			Success:  false,
+			Error:    info.Message,
+			Metadata: loginMetadata(info),
+		}
+	}
+
+	if cmd.ProcessState == nil {
+		_ = cmd.Process.Kill()
+	}
+
+	originalRaw := result.OriginalOutput
+	if originalRaw == "" {
+		originalRaw = result.RawOutput
+	}
+
+	sanitizedOutput := sanitizeLoginOutput(originalRaw)
+	result.RawOutput = sanitizedOutput
+	ensureLoginInfoFromRaw(originalRaw, &result)
+	if result.Link == "" {
+		ensureLoginInfoFromRaw(result.RawOutput, &result)
+	}
+
+	message := buildLoginMessage(defaultMessage, result)
+	if message == "" && result.RawOutput != "" {
+		message = result.RawOutput
+	}
+
+	result.RawOutput = message
+	metadata := loginMetadata(result)
+
+	if result.Link == "" {
+		if a.logger != nil {
+			a.logger.WithFields(logrus.Fields{
+				"provider":         provider,
+				"raw_output":       originalRaw,
+				"sanitized_output": sanitizedOutput,
+			}).Warn("Claude login output missing verification URL")
+		}
+	}
+
+	if result.Err != nil && result.Link == "" && result.UserCode == "" && result.DeviceCode == "" {
+		errMsg := result.Err.Error()
+		if message != "" {
+			errMsg = message
+		}
+		cleanup()
+		return &AITestResponse{Success: false, Error: errMsg, Metadata: metadata}
+	}
+
+	cleanup()
+	return &AITestResponse{Success: true, Message: message, Metadata: metadata}
+}
+
+func loginMetadata(info deviceLoginResult) map[string]string {
+	metadata := map[string]string{}
+	if info.Link != "" {
+		metadata["verification_url"] = info.Link
+	}
+	if info.UserCode != "" {
+		metadata["user_code"] = info.UserCode
+	}
+	if info.DeviceCode != "" {
+		metadata["device_code"] = info.DeviceCode
+	}
+	if info.RawOutput != "" {
+		metadata["raw_output"] = info.RawOutput
+	}
+	if info.OriginalOutput != "" {
+		metadata["original_raw_output"] = info.OriginalOutput
+	}
+	if len(metadata) == 0 {
+		return nil
+	}
+	return metadata
 }
 
 // TestOpenAIConnection tests OpenAI provider connection
@@ -1120,19 +1976,91 @@ func (a *App) TestClaudeCodeConnection(binaryPath, model string) *AITestResponse
 		binaryPath = "claude"
 	}
 
-	// For now, just check if the binary path looks reasonable
-	// TODO: Implement actual Claude CLI check
-	if strings.Contains(binaryPath, "claude") || binaryPath == "claude" {
+	baseCtx := a.ctx
+	if baseCtx == nil {
+		baseCtx = context.Background()
+	}
+
+	ctx, cancel := context.WithTimeout(baseCtx, 30*time.Second)
+	defer cancel()
+
+	runCommand := func(args ...string) (string, string, error) {
+		cmd := exec.CommandContext(ctx, binaryPath, args...)
+		cmd.Env = os.Environ()
+
+		var stdout bytes.Buffer
+		var stderr bytes.Buffer
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+
+		err := cmd.Run()
+		return strings.TrimSpace(stdout.String()), strings.TrimSpace(stderr.String()), err
+	}
+
+	output, errMsg, err := runCommand("whoami", "--json")
+	if err != nil && isUnknownOptionError(errMsg) {
+		output, errMsg, err = runCommand("whoami", "--format", "json")
+	}
+
+	if err != nil && isUnknownOptionError(errMsg) {
+		plainOutput, plainErrMsg, plainErr := runCommand("whoami")
+		if plainErr != nil && strings.TrimSpace(plainOutput) == "" {
+			if plainErrMsg == "" {
+				plainErrMsg = plainErr.Error()
+			}
+			return &AITestResponse{
+				Success: false,
+				Error:   fmt.Sprintf("Claude CLI check failed: %s", plainErrMsg),
+			}
+		}
+		return parseClaudeWhoAmIOutput(plainOutput)
+	}
+
+	if err != nil {
+		if output != "" {
+			return parseClaudeWhoAmIOutput(output)
+		}
+
+		if errMsg == "" {
+			errMsg = err.Error()
+		}
+
 		return &AITestResponse{
-			Success: true,
-			Message: "Claude Code connection test successful",
+			Success: false,
+			Error:   fmt.Sprintf("Claude CLI check failed: %s", errMsg),
 		}
 	}
 
-	return &AITestResponse{
-		Success: false,
-		Error:   "Claude CLI not found or invalid path",
+	return parseClaudeWhoAmIOutput(output)
+}
+
+// StartClaudeCodeLogin begins the Claude CLI login flow.
+func (a *App) StartClaudeCodeLogin(binaryPath string) *AITestResponse {
+	a.logger.WithField("binaryPath", binaryPath).Info("Launching Claude CLI login flow")
+
+	if binaryPath == "" {
+		binaryPath = "claude"
 	}
+
+	defaultMessage := "Open the link and authorise Claude Code using the displayed code."
+	if response, handled := a.runClaudeLoginJSON(binaryPath, defaultMessage); handled {
+		if response != nil {
+			return response
+		}
+	}
+
+	return a.runDeviceLoginCommand(binaryPath, []string{"/login"}, "claudecode", defaultMessage)
+}
+
+// StartCodexLogin begins the OpenAI CLI login flow for Codex access.
+func (a *App) StartCodexLogin(binaryPath string) *AITestResponse {
+	a.logger.WithField("binaryPath", binaryPath).Info("Launching OpenAI CLI login flow")
+
+	if binaryPath == "" {
+		binaryPath = "openai"
+	}
+
+	return a.runDeviceLoginCommand(binaryPath, []string{"login"}, "codex", "Open the link and authorise OpenAI using the displayed code.")
 }
 
 // TestCodexConnection tests Codex provider connection
@@ -1160,9 +2088,15 @@ func (a *App) TestCodexConnection(apiKey, model, organization string) *AITestRes
 
 	// For now, return success for valid-looking keys
 	// TODO: Implement actual API call to OpenAI Codex
+	metadata := map[string]string{}
+	if organization != "" {
+		metadata["organization"] = organization
+	}
+
 	return &AITestResponse{
-		Success: true,
-		Message: "Codex connection test successful",
+		Success:  true,
+		Message:  "Codex connection test successful",
+		Metadata: metadata,
 	}
 }
 
@@ -1195,7 +2129,13 @@ func (a *App) GenerateSQLFromNaturalLanguage(req NLQueryRequest) (*GeneratedSQLR
 	}).Info("Generating SQL from natural language")
 
 	if a.aiService == nil {
-		return nil, fmt.Errorf("AI service not configured. Set OPENAI_API_KEY or ANTHROPIC_API_KEY environment variable and restart the app")
+		if err := a.applyAIConfiguration(); err != nil {
+			return nil, fmt.Errorf("AI service not configured: %w", err)
+		}
+	}
+
+	if a.aiService == nil {
+		return nil, fmt.Errorf("AI service not available")
 	}
 
 	// Build comprehensive schema context
@@ -1275,12 +2215,18 @@ func (a *App) GenerateSQLFromNaturalLanguage(req NLQueryRequest) (*GeneratedSQLR
 func (a *App) GenericChat(req GenericChatRequest) (*GenericChatResponse, error) {
 	a.logger.WithFields(logrus.Fields{
 		"hasContext": req.Context != "",
-		"provider":  req.Provider,
-		"model":     req.Model,
+		"provider":   req.Provider,
+		"model":      req.Model,
 	}).Info("Handling generic AI chat request")
 
 	if a.aiService == nil {
-		return nil, fmt.Errorf("AI service not configured. Set OPENAI_API_KEY or ANTHROPIC_API_KEY environment variable and restart the app")
+		if err := a.applyAIConfiguration(); err != nil {
+			return nil, fmt.Errorf("AI service not configured: %w", err)
+		}
+	}
+
+	if a.aiService == nil {
+		return nil, fmt.Errorf("AI service not available")
 	}
 
 	chatReq := &ai.ChatRequest{
@@ -1533,7 +2479,13 @@ func (a *App) OptimizeQuery(query string, connectionID string) (*OptimizationRes
 	}).Info("Optimizing query")
 
 	if a.aiService == nil {
-		return nil, fmt.Errorf("AI service not configured. Set OPENAI_API_KEY or ANTHROPIC_API_KEY environment variable")
+		if err := a.applyAIConfiguration(); err != nil {
+			return nil, fmt.Errorf("AI service not configured: %w", err)
+		}
+	}
+
+	if a.aiService == nil {
+		return nil, fmt.Errorf("AI service not available")
 	}
 
 	result, err := a.aiService.OptimizeQuery(a.ctx, query)
@@ -1560,7 +2512,13 @@ func (a *App) FixSQLErrorWithOptions(req FixSQLRequest) (*FixedSQLResponse, erro
 	}).Info("Fixing SQL error with options")
 
 	if a.aiService == nil {
-		return nil, fmt.Errorf("AI service not configured. Set OPENAI_API_KEY or ANTHROPIC_API_KEY environment variable")
+		if err := a.applyAIConfiguration(); err != nil {
+			return nil, fmt.Errorf("AI service not configured: %w", err)
+		}
+	}
+
+	if a.aiService == nil {
+		return nil, fmt.Errorf("AI service not available")
 	}
 
 	if strings.TrimSpace(req.Query) == "" {
@@ -1899,14 +2857,37 @@ func (a *App) GetAIProviderStatus() (map[string]ProviderStatus, error) {
 	a.logger.Debug("Getting AI provider status")
 
 	if a.aiService == nil {
-		return map[string]ProviderStatus{
-			"openai":      {Name: "OpenAI", Available: false, Error: "Not configured - set OPENAI_API_KEY"},
-			"anthropic":   {Name: "Anthropic", Available: false, Error: "Not configured - set ANTHROPIC_API_KEY"},
-			"claudecode":  {Name: "Claude Code", Available: false, Error: "Not configured"},
-			"codex":       {Name: "Codex", Available: false, Error: "Not configured"},
-			"ollama":      {Name: "Ollama", Available: false, Error: "Not configured"},
-			"huggingface": {Name: "HuggingFace", Available: false, Error: "Not configured"},
-		}, nil
+		statuses := map[string]ProviderStatus{
+			"openai":      {Name: "OpenAI", Available: false, Error: "Configure this provider in Settings"},
+			"anthropic":   {Name: "Anthropic", Available: false, Error: "Configure this provider in Settings"},
+			"claudecode":  {Name: "Claude Code", Available: false, Error: "Configure this provider in Settings"},
+			"codex":       {Name: "Codex", Available: false, Error: "Configure this provider in Settings"},
+			"ollama":      {Name: "Ollama", Available: false, Error: "Configure this provider in Settings"},
+			"huggingface": {Name: "HuggingFace", Available: false, Error: "Configure this provider in Settings"},
+		}
+
+		if a.aiConfig != nil {
+			if a.aiConfig.OpenAI.APIKey != "" {
+				statuses["openai"] = ProviderStatus{Name: "OpenAI", Available: true}
+			}
+			if a.aiConfig.Anthropic.APIKey != "" {
+				statuses["anthropic"] = ProviderStatus{Name: "Anthropic", Available: true}
+			}
+			if a.aiConfig.Codex.APIKey != "" {
+				statuses["codex"] = ProviderStatus{Name: "Codex", Available: true}
+			}
+			if a.aiConfig.ClaudeCode.ClaudePath != "" {
+				statuses["claudecode"] = ProviderStatus{Name: "Claude Code", Available: true}
+			}
+			if a.aiConfig.Ollama.Endpoint != "" {
+				statuses["ollama"] = ProviderStatus{Name: "Ollama", Available: true}
+			}
+			if a.aiConfig.HuggingFace.Endpoint != "" {
+				statuses["huggingface"] = ProviderStatus{Name: "HuggingFace", Available: true}
+			}
+		}
+
+		return statuses, nil
 	}
 
 	// Get provider statuses from AI service
@@ -1944,154 +2925,107 @@ func (a *App) GetAIProviderStatus() (map[string]ProviderStatus, error) {
 func (a *App) ConfigureAIProvider(config ProviderConfig) error {
 	a.logger.WithField("provider", config.Provider).Info("Configuring AI provider")
 
-	// Set environment variables based on provider configuration
-	// This allows the AI service to pick them up
-	switch strings.ToLower(config.Provider) {
+	if a.aiConfig == nil {
+		a.aiConfig = ai.DefaultRuntimeConfig()
+	}
+
+	provider := strings.ToLower(config.Provider)
+
+	switch provider {
 	case "openai":
-		if config.APIKey != "" {
-			os.Setenv("OPENAI_API_KEY", config.APIKey)
+		a.aiConfig.OpenAI.APIKey = strings.TrimSpace(config.APIKey)
+		if config.Endpoint != "" {
+			a.aiConfig.OpenAI.BaseURL = strings.TrimSpace(config.Endpoint)
 		}
 		if config.Model != "" {
-			os.Setenv("OPENAI_MODEL", config.Model)
+			a.aiConfig.DefaultProvider = ai.ProviderOpenAI
 		}
-		os.Setenv("AI_DEFAULT_PROVIDER", "openai")
 
 	case "anthropic":
-		if config.APIKey != "" {
-			os.Setenv("ANTHROPIC_API_KEY", config.APIKey)
+		a.aiConfig.Anthropic.APIKey = strings.TrimSpace(config.APIKey)
+		if config.Endpoint != "" {
+			a.aiConfig.Anthropic.BaseURL = strings.TrimSpace(config.Endpoint)
 		}
 		if config.Model != "" {
-			os.Setenv("ANTHROPIC_MODEL", config.Model)
+			a.aiConfig.DefaultProvider = ai.ProviderAnthropic
 		}
-		os.Setenv("AI_DEFAULT_PROVIDER", "anthropic")
 
 	case "ollama":
-		if config.Endpoint != "" {
-			os.Setenv("OLLAMA_ENDPOINT", config.Endpoint)
+		a.aiConfig.Ollama.Endpoint = strings.TrimSpace(config.Endpoint)
+		if config.Model != "" && !containsModel(a.aiConfig.Ollama.Models, config.Model) {
+			a.aiConfig.Ollama.Models = append([]string{config.Model}, a.aiConfig.Ollama.Models...)
 		}
-		if config.Model != "" {
-			os.Setenv("OLLAMA_MODEL", config.Model)
-		}
-		os.Setenv("AI_DEFAULT_PROVIDER", "ollama")
-
-	case "claudecode":
-		if config.Options != nil {
-			if binaryPath, ok := config.Options["binary_path"]; ok {
-				os.Setenv("CLAUDE_BINARY_PATH", binaryPath)
-			}
-		}
-		if config.Model != "" {
-			os.Setenv("CLAUDE_MODEL", config.Model)
-		}
-		os.Setenv("AI_DEFAULT_PROVIDER", "claudecode")
-
-	case "codex":
-		if config.APIKey != "" {
-			os.Setenv("OPENAI_API_KEY", config.APIKey) // Codex uses OpenAI API
-		}
-		if config.Model != "" {
-			os.Setenv("CODEX_MODEL", config.Model)
-		}
-		os.Setenv("AI_DEFAULT_PROVIDER", "codex")
+		a.aiConfig.DefaultProvider = ai.ProviderOllama
 
 	case "huggingface":
-		if config.Endpoint != "" {
-			os.Setenv("HUGGINGFACE_ENDPOINT", config.Endpoint)
+		a.aiConfig.HuggingFace.Endpoint = strings.TrimSpace(config.Endpoint)
+		if config.Model != "" && !containsModel(a.aiConfig.HuggingFace.Models, config.Model) {
+			a.aiConfig.HuggingFace.Models = append([]string{config.Model}, a.aiConfig.HuggingFace.Models...)
 		}
+		a.aiConfig.DefaultProvider = ai.ProviderHuggingFace
+
+	case "claudecode":
+		claudePath := ""
+		if config.Options != nil {
+			claudePath = strings.TrimSpace(config.Options["binary_path"])
+		}
+		if claudePath == "" {
+			claudePath = "claude"
+		}
+		a.aiConfig.ClaudeCode.ClaudePath = claudePath
 		if config.Model != "" {
-			os.Setenv("HUGGINGFACE_MODEL", config.Model)
+			a.aiConfig.ClaudeCode.Model = config.Model
 		}
-		os.Setenv("AI_DEFAULT_PROVIDER", "huggingface")
+		a.aiConfig.DefaultProvider = ai.ProviderClaudeCode
+
+	case "codex":
+		a.aiConfig.Codex.APIKey = strings.TrimSpace(config.APIKey)
+		if config.Model != "" {
+			a.aiConfig.Codex.Model = config.Model
+		}
+		if config.Endpoint != "" {
+			a.aiConfig.Codex.BaseURL = strings.TrimSpace(config.Endpoint)
+		}
+		if config.Options != nil {
+			if org, ok := config.Options["organization"]; ok {
+				a.aiConfig.Codex.Organization = strings.TrimSpace(org)
+			}
+		}
+		a.aiConfig.DefaultProvider = ai.ProviderCodex
+
+	default:
+		return fmt.Errorf("unknown AI provider: %s", config.Provider)
 	}
 
-	// Reinitialize AI service with new configuration
-	aiService, err := ai.NewService(a.logger)
-	if err != nil {
-		return fmt.Errorf("failed to initialize AI service with new config: %w", err)
+	if err := a.applyAIConfiguration(); err != nil {
+		return fmt.Errorf("failed to apply AI configuration: %w", err)
 	}
-
-	// Start the new AI service
-	if err := aiService.Start(a.ctx); err != nil {
-		return fmt.Errorf("failed to start AI service: %w", err)
-	}
-
-	// Stop old service if it exists
-	if a.aiService != nil {
-		_ = a.aiService.Stop(a.ctx)
-	}
-
-	// Replace with new service
-	a.aiService = aiService
-
-	a.logger.WithFields(logrus.Fields{
-		"provider": config.Provider,
-		"model":    config.Model,
-	}).Info("AI provider configured successfully")
 
 	return nil
 }
 
-// TestAIProvider tests a provider configuration without saving it
-func (a *App) TestAIProvider(config ProviderConfig) (*ProviderStatus, error) {
-	a.logger.WithField("provider", config.Provider).Info("Testing AI provider")
+func containsModel(models []string, candidate string) bool {
+	candidate = strings.TrimSpace(strings.ToLower(candidate))
+	if candidate == "" {
+		return false
+	}
 
-	// Temporarily set environment variables for testing
-	oldEnv := make(map[string]string)
-
-	switch strings.ToLower(config.Provider) {
-	case "openai":
-		if oldKey := os.Getenv("OPENAI_API_KEY"); oldKey != "" {
-			oldEnv["OPENAI_API_KEY"] = oldKey
+	for _, model := range models {
+		if strings.TrimSpace(strings.ToLower(model)) == candidate {
+			return true
 		}
-		os.Setenv("OPENAI_API_KEY", config.APIKey)
-		defer func() {
-			if old, ok := oldEnv["OPENAI_API_KEY"]; ok {
-				os.Setenv("OPENAI_API_KEY", old)
-			}
-		}()
-
-	case "anthropic":
-		if oldKey := os.Getenv("ANTHROPIC_API_KEY"); oldKey != "" {
-			oldEnv["ANTHROPIC_API_KEY"] = oldKey
-		}
-		os.Setenv("ANTHROPIC_API_KEY", config.APIKey)
-		defer func() {
-			if old, ok := oldEnv["ANTHROPIC_API_KEY"]; ok {
-				os.Setenv("ANTHROPIC_API_KEY", old)
-			}
-		}()
 	}
 
-	// Try to create a test AI service
-	testService, err := ai.NewService(a.logger)
-	if err != nil {
-		return &ProviderStatus{
-			Name:      config.Provider,
-			Available: false,
-			Error:     err.Error(),
-		}, nil
-	}
-	defer testService.Stop(a.ctx)
-
-	// Start it to verify connection
-	if err := testService.Start(a.ctx); err != nil {
-		return &ProviderStatus{
-			Name:      config.Provider,
-			Available: false,
-			Error:     err.Error(),
-		}, nil
-	}
-
-	return &ProviderStatus{
-		Name:      config.Provider,
-		Available: true,
-		Error:     "",
-	}, nil
+	return false
 }
 
-// GetAIConfiguration returns the current AI configuration
+// GetAIConfiguration returns the currently active AI provider configuration with masked secrets.
 func (a *App) GetAIConfiguration() (ProviderConfig, error) {
-	provider := strings.ToLower(os.Getenv("AI_DEFAULT_PROVIDER"))
+	if a.aiConfig == nil {
+		return ProviderConfig{}, fmt.Errorf("AI configuration not initialised")
+	}
+
+	provider := strings.ToLower(string(a.aiConfig.DefaultProvider))
 	if provider == "" {
 		provider = "openai"
 	}
@@ -2102,30 +3036,171 @@ func (a *App) GetAIConfiguration() (ProviderConfig, error) {
 
 	switch provider {
 	case "openai":
-		config.APIKey = maskAPIKey(os.Getenv("OPENAI_API_KEY"))
-		config.Model = getEnvOrDefault("OPENAI_MODEL", "gpt-4o-mini")
+		config.APIKey = maskSecret(a.aiConfig.OpenAI.APIKey)
+		config.Endpoint = a.aiConfig.OpenAI.BaseURL
+		if len(a.aiConfig.OpenAI.Models) > 0 {
+			config.Model = a.aiConfig.OpenAI.Models[0]
+		}
 
 	case "anthropic":
-		config.APIKey = maskAPIKey(os.Getenv("ANTHROPIC_API_KEY"))
-		config.Model = getEnvOrDefault("ANTHROPIC_MODEL", "claude-3-5-sonnet-20241022")
+		config.APIKey = maskSecret(a.aiConfig.Anthropic.APIKey)
+		config.Endpoint = a.aiConfig.Anthropic.BaseURL
+		if len(a.aiConfig.Anthropic.Models) > 0 {
+			config.Model = a.aiConfig.Anthropic.Models[0]
+		}
+
+	case "codex":
+		config.APIKey = maskSecret(a.aiConfig.Codex.APIKey)
+		config.Endpoint = a.aiConfig.Codex.BaseURL
+		config.Model = a.aiConfig.Codex.Model
+		config.Options = map[string]string{
+			"organization": a.aiConfig.Codex.Organization,
+		}
+
+	case "claudecode":
+		config.Endpoint = a.aiConfig.ClaudeCode.ClaudePath
+		config.Model = a.aiConfig.ClaudeCode.Model
 
 	case "ollama":
-		config.Endpoint = getEnvOrDefault("OLLAMA_ENDPOINT", "http://localhost:11434")
-		config.Model = getEnvOrDefault("OLLAMA_MODEL", "sqlcoder:7b")
+		config.Endpoint = a.aiConfig.Ollama.Endpoint
+		if len(a.aiConfig.Ollama.Models) > 0 {
+			config.Model = a.aiConfig.Ollama.Models[0]
+		}
+
+	case "huggingface":
+		config.Endpoint = a.aiConfig.HuggingFace.Endpoint
+		config.Model = a.aiConfig.HuggingFace.RecommendedModel
 	}
 
 	return config, nil
 }
 
-// maskAPIKey masks an API key for display
-func maskAPIKey(key string) string {
-	if key == "" {
+func maskSecret(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
 		return ""
 	}
-	if len(key) <= 8 {
-		return "****"
+
+	if len(value) <= 8 {
+		return "********"
 	}
-	return key[:4] + "****" + key[len(key)-4:]
+
+	return fmt.Sprintf("%s****%s", value[:4], value[len(value)-4:])
+}
+
+// TestAIProvider tests a provider configuration without saving it
+func (a *App) TestAIProvider(config ProviderConfig) (*ProviderStatus, error) {
+	a.logger.WithField("provider", config.Provider).Info("Testing AI provider")
+
+	testConfig := ai.DefaultRuntimeConfig()
+	provider := strings.ToLower(config.Provider)
+
+	switch provider {
+	case "openai":
+		testConfig.OpenAI.APIKey = strings.TrimSpace(config.APIKey)
+		if config.Endpoint != "" {
+			testConfig.OpenAI.BaseURL = strings.TrimSpace(config.Endpoint)
+		}
+		testConfig.DefaultProvider = ai.ProviderOpenAI
+
+	case "anthropic":
+		testConfig.Anthropic.APIKey = strings.TrimSpace(config.APIKey)
+		if config.Endpoint != "" {
+			testConfig.Anthropic.BaseURL = strings.TrimSpace(config.Endpoint)
+		}
+		testConfig.DefaultProvider = ai.ProviderAnthropic
+
+	case "ollama":
+		testConfig.Ollama.Endpoint = strings.TrimSpace(config.Endpoint)
+		testConfig.DefaultProvider = ai.ProviderOllama
+
+	case "huggingface":
+		testConfig.HuggingFace.Endpoint = strings.TrimSpace(config.Endpoint)
+		testConfig.DefaultProvider = ai.ProviderHuggingFace
+
+	case "claudecode":
+		path := ""
+		if config.Options != nil {
+			path = strings.TrimSpace(config.Options["binary_path"])
+		}
+		if path == "" {
+			path = "claude"
+		}
+		testConfig.ClaudeCode.ClaudePath = path
+		if config.Model != "" {
+			testConfig.ClaudeCode.Model = config.Model
+		}
+		testConfig.DefaultProvider = ai.ProviderClaudeCode
+
+	case "codex":
+		testConfig.Codex.APIKey = strings.TrimSpace(config.APIKey)
+		if config.Endpoint != "" {
+			testConfig.Codex.BaseURL = strings.TrimSpace(config.Endpoint)
+		}
+		if config.Model != "" {
+			testConfig.Codex.Model = config.Model
+		}
+		if config.Options != nil {
+			if org, ok := config.Options["organization"]; ok {
+				testConfig.Codex.Organization = strings.TrimSpace(org)
+			}
+		}
+		testConfig.DefaultProvider = ai.ProviderCodex
+
+	default:
+		return nil, fmt.Errorf("unknown AI provider: %s", config.Provider)
+	}
+
+	// Remove other providers to avoid validation noise
+	if provider != "openai" {
+		testConfig.OpenAI.APIKey = ""
+	}
+	if provider != "anthropic" {
+		testConfig.Anthropic.APIKey = ""
+	}
+	if provider != "codex" {
+		testConfig.Codex.APIKey = ""
+		testConfig.Codex.Organization = ""
+	}
+	if provider != "claudecode" {
+		testConfig.ClaudeCode.ClaudePath = ""
+	}
+	if provider != "ollama" {
+		testConfig.Ollama.Endpoint = ""
+	}
+	if provider != "huggingface" {
+		testConfig.HuggingFace.Endpoint = ""
+	}
+
+	testService, err := ai.NewServiceWithConfig(testConfig, a.logger)
+	if err != nil {
+		return &ProviderStatus{
+			Name:      config.Provider,
+			Available: false,
+			Error:     err.Error(),
+		}, nil
+	}
+
+	defer func() {
+		_ = testService.Stop(a.ctx)
+	}()
+
+	if err := testService.Start(a.ctx); err != nil {
+		return &ProviderStatus{
+			Name:      config.Provider,
+			Available: false,
+			Error:     err.Error(),
+		}, nil
+	}
+
+	status := &ProviderStatus{
+		Name:      config.Provider,
+		Available: true,
+		Error:     "",
+		Model:     config.Model,
+	}
+
+	return status, nil
 }
 
 // ===============================

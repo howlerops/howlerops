@@ -6,8 +6,8 @@ import (
 	"time"
 )
 
-// LoadConfig loads AI configuration from environment variables and defaults
-func LoadConfig() (*Config, error) {
+// DefaultConfig returns the baseline AI configuration without reading environment variables.
+func DefaultConfig() *Config {
 	config := &Config{
 		DefaultProvider: ProviderOpenAI,
 		MaxTokens:       2048,
@@ -16,24 +16,22 @@ func LoadConfig() (*Config, error) {
 		RateLimitPerMin: 60,
 	}
 
-	// OpenAI Configuration
 	config.OpenAI = OpenAIConfig{
-		APIKey:  os.Getenv("OPENAI_API_KEY"),
-		BaseURL: getEnvWithDefault("OPENAI_BASE_URL", "https://api.openai.com/v1"),
+		APIKey:  "",
+		BaseURL: "https://api.openai.com/v1",
 		Models: []string{
 			"gpt-4o-mini",
 			"gpt-4o",
 			"gpt-4-turbo",
 			"gpt-3.5-turbo",
 		},
-		OrgID: os.Getenv("OPENAI_ORG_ID"),
+		OrgID: "",
 	}
 
-	// Anthropic Configuration
 	config.Anthropic = AnthropicConfig{
-		APIKey:  os.Getenv("ANTHROPIC_API_KEY"),
-		BaseURL: getEnvWithDefault("ANTHROPIC_BASE_URL", "https://api.anthropic.com"),
-		Version: getEnvWithDefault("ANTHROPIC_VERSION", "2023-06-01"),
+		APIKey:  "",
+		BaseURL: "https://api.anthropic.com",
+		Version: "2023-06-01",
 		Models: []string{
 			"claude-3-5-sonnet-20241022",
 			"claude-3-5-haiku-20241022",
@@ -41,12 +39,11 @@ func LoadConfig() (*Config, error) {
 		},
 	}
 
-	// Ollama Configuration
 	config.Ollama = OllamaConfig{
-		Endpoint:        getEnvWithDefault("OLLAMA_ENDPOINT", "http://localhost:11434"),
+		Endpoint:        "",
 		PullTimeout:     10 * time.Minute,
 		GenerateTimeout: 2 * time.Minute,
-		AutoPullModels:  getEnvBool("OLLAMA_AUTO_PULL", true),
+		AutoPullModels:  true,
 		Models: []string{
 			"sqlcoder:7b",
 			"codellama:7b",
@@ -55,12 +52,11 @@ func LoadConfig() (*Config, error) {
 		},
 	}
 
-	// Hugging Face Configuration
 	config.HuggingFace = HuggingFaceConfig{
-		Endpoint:         getEnvWithDefault("HUGGINGFACE_ENDPOINT", "http://localhost:11434"),
+		Endpoint:         "",
 		PullTimeout:      10 * time.Minute,
 		GenerateTimeout:  2 * time.Minute,
-		AutoPullModels:   getEnvBool("HUGGINGFACE_AUTO_PULL", true),
+		AutoPullModels:   true,
 		RecommendedModel: "sqlcoder:7b",
 		Models: []string{
 			"sqlcoder:7b",
@@ -70,18 +66,65 @@ func LoadConfig() (*Config, error) {
 		},
 	}
 
-	// Claude Code Configuration
-	claudePath := os.Getenv("CLAUDE_CLI_PATH")
-	if claudePath == "" {
-		claudePath = "claude"
+	config.ClaudeCode = ClaudeCodeConfig{
+		ClaudePath:  "",
+		Model:       "opus",
+		MaxTokens:   4096,
+		Temperature: 0.7,
 	}
 
-	config.ClaudeCode = ClaudeCodeConfig{
-		ClaudePath:  claudePath,
-		Model:       getEnvWithDefault("CLAUDE_CODE_MODEL", "opus"),
-		MaxTokens:   getEnvIntWithDefault("CLAUDE_CODE_MAX_TOKENS", 4096),
-		Temperature: getEnvFloatWithDefault("CLAUDE_CODE_TEMPERATURE", 0.7),
+	config.Codex = CodexConfig{
+		APIKey:       "",
+		Organization: "",
+		BaseURL:      "https://api.openai.com/v1",
+		Model:        "code-davinci-002",
+		MaxTokens:    2048,
+		Temperature:  0.0,
 	}
+
+	return config
+}
+
+// LoadConfig loads AI configuration from environment variables and defaults
+func LoadConfig() (*Config, error) {
+	config := DefaultConfig()
+
+	if value := os.Getenv("OPENAI_API_KEY"); value != "" {
+		config.OpenAI.APIKey = value
+	}
+	config.OpenAI.BaseURL = getEnvWithDefault("OPENAI_BASE_URL", config.OpenAI.BaseURL)
+	if value := os.Getenv("OPENAI_ORG_ID"); value != "" {
+		config.OpenAI.OrgID = value
+	}
+
+	if value := os.Getenv("ANTHROPIC_API_KEY"); value != "" {
+		config.Anthropic.APIKey = value
+	}
+	config.Anthropic.BaseURL = getEnvWithDefault("ANTHROPIC_BASE_URL", config.Anthropic.BaseURL)
+	config.Anthropic.Version = getEnvWithDefault("ANTHROPIC_VERSION", config.Anthropic.Version)
+
+	config.Ollama.Endpoint = getEnvWithDefault("OLLAMA_ENDPOINT", config.Ollama.Endpoint)
+	config.Ollama.AutoPullModels = getEnvBool("OLLAMA_AUTO_PULL", config.Ollama.AutoPullModels)
+
+	config.HuggingFace.Endpoint = getEnvWithDefault("HUGGINGFACE_ENDPOINT", config.HuggingFace.Endpoint)
+	config.HuggingFace.AutoPullModels = getEnvBool("HUGGINGFACE_AUTO_PULL", config.HuggingFace.AutoPullModels)
+
+	if value := os.Getenv("CLAUDE_CLI_PATH"); value != "" {
+		config.ClaudeCode.ClaudePath = value
+	}
+	config.ClaudeCode.Model = getEnvWithDefault("CLAUDE_CODE_MODEL", config.ClaudeCode.Model)
+	config.ClaudeCode.MaxTokens = getEnvIntWithDefault("CLAUDE_CODE_MAX_TOKENS", config.ClaudeCode.MaxTokens)
+	config.ClaudeCode.Temperature = getEnvFloatWithDefault("CLAUDE_CODE_TEMPERATURE", config.ClaudeCode.Temperature)
+
+	if value := os.Getenv("CODEX_API_KEY"); value != "" {
+		config.Codex.APIKey = value
+	}
+	if value := os.Getenv("CODEX_ORGANIZATION"); value != "" {
+		config.Codex.Organization = value
+	}
+	config.Codex.BaseURL = getEnvWithDefault("CODEX_BASE_URL", config.Codex.BaseURL)
+	config.Codex.Model = getEnvWithDefault("CODEX_MODEL", config.Codex.Model)
+	config.Codex.MaxTokens = getEnvIntWithDefault("CODEX_MAX_TOKENS", config.Codex.MaxTokens)
 
 	// Override default provider if specified
 	if provider := os.Getenv("AI_DEFAULT_PROVIDER"); provider != "" {
@@ -169,6 +212,33 @@ func ValidateConfig(config *Config) error {
 		}
 		if config.Ollama.GenerateTimeout <= 0 {
 			return fmt.Errorf("ollama generate_timeout must be positive")
+		}
+	}
+
+	if config.HuggingFace.Endpoint != "" {
+		hasProvider = true
+		if config.HuggingFace.PullTimeout <= 0 {
+			return fmt.Errorf("huggingface pull_timeout must be positive")
+		}
+		if config.HuggingFace.GenerateTimeout <= 0 {
+			return fmt.Errorf("huggingface generate_timeout must be positive")
+		}
+	}
+
+	if config.ClaudeCode.ClaudePath != "" {
+		hasProvider = true
+		if config.ClaudeCode.Model == "" {
+			return fmt.Errorf("claudecode model is required when claude path is configured")
+		}
+	}
+
+	if config.Codex.APIKey != "" {
+		hasProvider = true
+		if config.Codex.Model == "" {
+			return fmt.Errorf("codex model is required when api_key is provided")
+		}
+		if config.Codex.BaseURL == "" {
+			return fmt.Errorf("codex base_url is required when api_key is provided")
 		}
 	}
 

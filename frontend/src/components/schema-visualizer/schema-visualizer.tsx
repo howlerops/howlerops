@@ -32,9 +32,11 @@ import {
 } from 'lucide-react'
 
 import { TableNode } from './table-node'
+import { SchemaErrorBoundary } from './schema-error-boundary'
 import { LayoutEngine } from '@/lib/schema-layout'
 import { SchemaConfigBuilder } from '@/lib/schema-config'
 import { SchemaNode } from '@/hooks/use-schema-introspection'
+import { useDebounce } from '@/hooks/use-debounce'
 import {
   SchemaConfig,
   LayoutAlgorithm,
@@ -43,10 +45,6 @@ import {
   SchemaVisualizerNode,
   SchemaVisualizerEdge,
 } from '@/types/schema-visualizer'
-
-const nodeTypes = {
-  table: TableNode,
-}
 
 interface SchemaVisualizerProps {
   schema: SchemaNode[]
@@ -57,13 +55,19 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState([])
   const [edges, setEdges, onEdgesChange] = useEdgesState([])
   const [schemaConfig, setSchemaConfig] = useState<SchemaConfig | null>(null)
+
+  // Memoize nodeTypes to prevent unnecessary re-renders
+  const nodeTypes = useMemo(() => ({
+    table: TableNode,
+  }), [])
   
   // UI State
-  const [searchTerm, setSearchTerm] = useState('')
+  const [searchInput, setSearchInput] = useState('')
+  const debouncedSearchTerm = useDebounce(searchInput, 300) // 300ms delay
   const [selectedSchemas, setSelectedSchemas] = useState<string[]>([])
   const [showForeignKeys, setShowForeignKeys] = useState(true)
   const [showPrimaryKeys, setShowPrimaryKeys] = useState(true)
-  const [layoutAlgorithm, setLayoutAlgorithm] = useState<LayoutAlgorithm>('force')
+  const [layoutAlgorithm, setLayoutAlgorithm] = useState<LayoutAlgorithm>('hierarchical')
   const [isFullscreen, setIsFullscreen] = useState(true)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
@@ -74,7 +78,7 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
         try {
           const config = await SchemaConfigBuilder.fromSchemaNodes(schema)
           setSchemaConfig(config)
-          
+
           console.log('Schema config created:', {
             tables: config.tables.length,
             edges: config.edges.length,
@@ -86,17 +90,33 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
               label: e.label
             }))
           })
-          
+
           const { nodes: flowNodes, edges: flowEdges } = SchemaConfigBuilder.toReactFlowNodes(config)
           setNodes(flowNodes)
           setEdges(flowEdges)
-          
+
           console.log('ReactFlow nodes and edges:', {
             nodes: flowNodes.length,
             edges: flowEdges.length,
             edgeTypes: flowEdges.map(e => e.type)
           })
-          
+
+          // Smart layout selection based on table count
+          const tableCount = config.tables.length
+          if (tableCount < 50) {
+            setLayoutAlgorithm('hierarchical')
+          } else if (tableCount < 200) {
+            setLayoutAlgorithm('grid')
+            // Show warning for large schemas
+            if (tableCount > 100) {
+              console.info(`Large schema detected: ${tableCount} tables. Consider using filters to improve performance.`)
+            }
+          } else {
+            setLayoutAlgorithm('grid')
+            setSidebarCollapsed(false) // Force sidebar open for filtering
+            console.warn(`Very large schema: ${tableCount} tables. Please use filters before visualizing.`)
+          }
+
           // Extract unique schemas for filtering
           const uniqueSchemas = [...new Set(config.tables.map(table => table.schema))]
           setSelectedSchemas(uniqueSchemas)
@@ -111,47 +131,56 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
 
   // Filter options
   const filterOptions: FilterOptions = useMemo(() => ({ // eslint-disable-line @typescript-eslint/no-unused-vars
-    searchTerm,
+    searchTerm: debouncedSearchTerm,
     selectedSchemas,
     showForeignKeys,
     showPrimaryKeys,
-  }), [searchTerm, selectedSchemas, showForeignKeys, showPrimaryKeys])
+  }), [debouncedSearchTerm, selectedSchemas, showForeignKeys, showPrimaryKeys])
+
+  // Create node lookup map for performance
+  const nodeMap = useMemo(() => {
+    const map = new Map()
+    nodes.forEach(node => map.set(node.id, node))
+    return map
+  }, [nodes])
 
   // Apply filters
   const filteredNodes = useMemo(() => {
     return nodes.filter((node) => {
       const tableData = node.data as { name: string; schema: string; columns: Array<{ name: string }> }
-      
-      // Search filter
-      if (searchTerm) {
-        const matchesTable = tableData.name.toLowerCase().includes(searchTerm.toLowerCase())
+
+      // Search filter (using debounced term)
+      if (debouncedSearchTerm) {
+        const searchLower = debouncedSearchTerm.toLowerCase()
+        const matchesTable = tableData.name.toLowerCase().includes(searchLower)
         const matchesColumn = tableData.columns.some((col) =>
-          col.name.toLowerCase().includes(searchTerm.toLowerCase())
+          col.name.toLowerCase().includes(searchLower)
         )
         if (!matchesTable && !matchesColumn) return false
       }
-      
+
       // Schema filter
       if (selectedSchemas.length > 0 && !selectedSchemas.includes(tableData.schema)) {
         return false
       }
-      
+
       return true
     })
-  }, [nodes, searchTerm, selectedSchemas])
+  }, [nodes, debouncedSearchTerm, selectedSchemas])
+
+  // Create filtered nodes Set for O(1) lookup
+  const filteredNodeIds = useMemo(() => {
+    return new Set(filteredNodes.map(n => n.id))
+  }, [filteredNodes])
 
   const filteredEdges = useMemo(() => {
     if (!showForeignKeys) return []
-    
+
+    // Use Set for O(1) lookup instead of O(n) includes()
     return edges.filter((edge) => {
-      const sourceNode = nodes.find(n => n.id === edge.source)
-      const targetNode = nodes.find(n => n.id === edge.target)
-      
-      return sourceNode && targetNode &&
-        filteredNodes.includes(sourceNode) &&
-        filteredNodes.includes(targetNode)
+      return filteredNodeIds.has(edge.source) && filteredNodeIds.has(edge.target)
     })
-  }, [edges, filteredNodes, showForeignKeys, nodes])
+  }, [edges, filteredNodeIds, showForeignKeys])
 
   // Layout functions
   const applyLayout = useCallback((algorithm: LayoutAlgorithm) => {
@@ -235,9 +264,23 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
     )
   }
 
+  // Show performance warning for large schemas
+  const showPerformanceWarning = schemaConfig && schemaConfig.tables.length > 100
+
   return (
     <div className={`fixed inset-0 bg-background z-50 ${isFullscreen ? '' : 'p-4'}`}>
       <div className="h-full flex flex-col">
+        {/* Performance Warning Banner */}
+        {showPerformanceWarning && filteredNodes.length > 50 && (
+          <div className="bg-yellow-500/10 border-b border-yellow-500/20 px-4 py-2">
+            <p className="text-sm text-yellow-700 dark:text-yellow-400">
+              ⚠️ Large schema detected ({schemaConfig?.tables.length} tables).
+              Use filters to reduce visible tables for better performance.
+              Currently showing {filteredNodes.length} tables.
+            </p>
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
           <div className="flex items-center space-x-4">
@@ -245,6 +288,11 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
             <Badge variant="secondary">
               {filteredNodes.length} table{filteredNodes.length !== 1 ? 's' : ''}
             </Badge>
+            {schemaConfig && schemaConfig.tables.length !== filteredNodes.length && (
+              <Badge variant="outline">
+                {schemaConfig.tables.length} total
+              </Badge>
+            )}
           </div>
           
           <div className="flex items-center space-x-2">
@@ -280,8 +328,8 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
                   <Input
                     id="search"
                     placeholder="Search tables or columns..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
                     className="pl-10"
                   />
                 </div>
@@ -386,6 +434,7 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
               onEdgesChange={onEdgesChange}
               onConnect={onConnect}
               nodeTypes={nodeTypes}
+              onlyRenderVisibleElements={true}
               fitView
               attributionPosition="bottom-left"
             >
@@ -400,11 +449,13 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
   )
 }
 
-// Wrapper with ReactFlowProvider
+// Wrapper with ReactFlowProvider and Error Boundary
 export function SchemaVisualizerWrapper(props: SchemaVisualizerProps) {
   return (
-    <ReactFlowProvider>
-      <SchemaVisualizer {...props} />
-    </ReactFlowProvider>
+    <SchemaErrorBoundary onReset={() => window.location.reload()}>
+      <ReactFlowProvider>
+        <SchemaVisualizer {...props} />
+      </ReactFlowProvider>
+    </SchemaErrorBoundary>
   )
 }
