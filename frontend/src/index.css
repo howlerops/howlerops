@@ -17,6 +17,9 @@
   * {
     border-color: var(--color-border);
   }
+  html {
+    font-size: 12px; /* 25% smaller than default 16px */
+  }
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
