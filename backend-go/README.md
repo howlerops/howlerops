@@ -8,6 +8,9 @@ A high-performance, production-ready backend for HowlerOps built with Go and gRP
 - **PostgreSQL** - Full support with connection pooling
 - **MySQL/MariaDB** - Optimized for performance
 - **SQLite** - Perfect for development and embedded use
+- **ClickHouse** - High-performance analytics database
+- **TiDB** - MySQL-compatible distributed SQL database
+- **Elasticsearch/OpenSearch** - Full-text search and analytics via SQL API
 
 ### Core Capabilities
 - **gRPC Services** - High-performance API with Protocol Buffers
@@ -208,6 +211,45 @@ database: "/path/to/database.db"
 parameters:
   cache: shared
   mode: rwc
+```
+
+#### ClickHouse
+```yaml
+type: clickhouse
+host: localhost
+port: 9000
+database: mydb
+username: user
+password: pass
+ssl_mode: disable  # disable, require, skip-verify
+parameters:
+  dial_timeout: 30s
+```
+
+#### TiDB
+```yaml
+type: tidb
+host: localhost
+port: 4000
+database: mydb
+username: user
+password: pass
+parameters:
+  parseTime: "true"
+  loc: "UTC"
+```
+
+#### Elasticsearch/OpenSearch
+```yaml
+type: elasticsearch  # or opensearch
+host: localhost
+port: 9200
+database: default  # logical name for the connection
+username: elastic  # optional
+password: pass     # optional
+ssl_mode: disable  # disable, require, skip-verify
+parameters:
+  api_key: "base64-encoded-key"  # alternative to username/password
 ```
 
 ## Monitoring and Observability
