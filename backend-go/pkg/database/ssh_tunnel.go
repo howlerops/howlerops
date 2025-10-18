@@ -6,12 +6,12 @@ import (
 	"io"
 	"io/ioutil"
 	"net"
-	"os"
 	"sync"
 	"time"
 
 	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/knownhosts"
 )
 
 // SSHTunnel represents an active SSH tunnel
@@ -240,23 +240,12 @@ func (m *SSHTunnelManager) buildSSHConfig(config *SSHTunnelConfig) (*ssh.ClientC
 
 // loadKnownHosts loads known hosts from a file
 func (m *SSHTunnelManager) loadKnownHosts(path string) (ssh.HostKeyCallback, error) {
-	file, err := os.Open(path)
+	// Use knownhosts.New which returns a HostKeyCallback
+	callback, err := knownhosts.New(path)
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
-
-	data, err := ioutil.ReadAll(file)
-	if err != nil {
-		return nil, err
-	}
-
-	knownHosts, err := ssh.ParseKnownHosts(data)
-	if err != nil {
-		return nil, err
-	}
-
-	return knownHosts, nil
+	return callback, nil
 }
 
 // allocateLocalPort finds an available local port and creates a listener
