@@ -3,6 +3,7 @@
 # Variables
 GO := go
 NPM := npm
+export PATH := $(shell go env GOPATH)/bin:$(PATH)
 WAILS := wails
 BINARY_NAME := howlerops
 BUILD_DIR := ./build/bin
@@ -263,13 +264,9 @@ docker-compose-down:
 
 ## install: Install Wails and project dependencies
 .PHONY: install
-install:
-	@echo "$(COLOR_BLUE)Installing Wails CLI...$(COLOR_RESET)"
-	@go install github.com/wailsapp/wails/v2/cmd/wails@latest
-	@echo "$(COLOR_BLUE)Checking Wails doctor...$(COLOR_RESET)"
-	@$(WAILS) doctor
-	@echo "$(COLOR_BLUE)Installing project dependencies...$(COLOR_RESET)"
-	@make deps
+install: deps
+	@echo "$(COLOR_BLUE)Running Wails doctor...$(COLOR_RESET)"
+	@$(shell go env GOPATH)/bin/wails doctor
 	@echo "$(COLOR_GREEN)✓ Installation complete$(COLOR_RESET)"
 
 ## uninstall: Uninstall the binary from system
