@@ -336,6 +336,10 @@ func (m *Manager) createDatabaseInstance(config ConnectionConfig) (Database, err
 		return NewMySQLDatabase(config, m.logger)
 	case SQLite:
 		return NewSQLiteDatabase(config, m.logger)
+	case ClickHouse:
+		return NewClickHouseDatabase(config, m.logger)
+	case TiDB:
+		return NewTiDBDatabase(config, m.logger)
 	default:
 		return nil, fmt.Errorf("unsupported database type: %s", config.Type)
 	}
@@ -408,6 +412,10 @@ func (f *Factory) CreateDatabase(config ConnectionConfig) (Database, error) {
 		return NewMySQLDatabase(config, f.logger)
 	case SQLite:
 		return NewSQLiteDatabase(config, f.logger)
+	case ClickHouse:
+		return NewClickHouseDatabase(config, f.logger)
+	case TiDB:
+		return NewTiDBDatabase(config, f.logger)
 	default:
 		return nil, fmt.Errorf("unsupported database type: %s", config.Type)
 	}
@@ -483,6 +491,11 @@ func (f *Factory) GetSupportedTypes() []DatabaseType {
 		MySQL,
 		MariaDB,
 		SQLite,
+		ClickHouse,
+		TiDB,
+		Elasticsearch,
+		OpenSearch,
+		MongoDB,
 	}
 }
 
