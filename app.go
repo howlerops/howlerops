@@ -1994,6 +1994,68 @@ func (a *App) TestOllamaConnection(endpoint, model string) *AITestResponse {
 	}
 }
 
+// detectClaudeCredentials checks for Claude Code credentials in standard locations
+func detectClaudeCredentials() (bool, string) {
+	// Check environment variable first
+	if token := os.Getenv("CLAUDE_CODE_OAUTH_TOKEN"); token != "" {
+		return true, "credentials found in CLAUDE_CODE_OAUTH_TOKEN"
+	}
+
+	// Check ~/.claude/.credentials.json
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return false, ""
+	}
+
+	credPath := homeDir + "/.claude/.credentials.json"
+	if data, err := os.ReadFile(credPath); err == nil {
+		var creds struct {
+			ClaudeAiOauth struct {
+				AccessToken string `json:"accessToken"`
+				ExpiresAt   int64  `json:"expiresAt"`
+			} `json:"claudeAiOauth"`
+		}
+		if json.Unmarshal(data, &creds) == nil && creds.ClaudeAiOauth.AccessToken != "" {
+			// Check if token is not expired
+			if creds.ClaudeAiOauth.ExpiresAt > time.Now().Unix() {
+				return true, "credentials found in ~/.claude/.credentials.json"
+			}
+			return false, "credentials expired in ~/.claude/.credentials.json"
+		}
+	}
+
+	return false, ""
+}
+
+// detectCodexCredentials checks for OpenAI Codex credentials in standard locations
+func detectCodexCredentials() (string, string) {
+	// Check environment variables first
+	if apiKey := os.Getenv("OPENAI_API_KEY"); apiKey != "" {
+		return apiKey, "from OPENAI_API_KEY environment variable"
+	}
+	if apiKey := os.Getenv("CODEX_API_KEY"); apiKey != "" {
+		return apiKey, "from CODEX_API_KEY environment variable"
+	}
+
+	// Check ~/.codex/auth.json
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", ""
+	}
+
+	authPath := homeDir + "/.codex/auth.json"
+	if data, err := os.ReadFile(authPath); err == nil {
+		var auth struct {
+			ApiKey string `json:"api_key"`
+		}
+		if json.Unmarshal(data, &auth) == nil && auth.ApiKey != "" {
+			return auth.ApiKey, "from ~/.codex/auth.json"
+		}
+	}
+
+	return "", ""
+}
+
 // TestClaudeCodeConnection tests Claude Code provider connection
 func (a *App) TestClaudeCodeConnection(binaryPath, model string) *AITestResponse {
 	a.logger.WithFields(logrus.Fields{
@@ -2001,6 +2063,14 @@ func (a *App) TestClaudeCodeConnection(binaryPath, model string) *AITestResponse
 		"binaryPath": binaryPath,
 		"model":      model,
 	}).Info("Testing Claude Code connection")
+
+	// First check for detected credentials
+	hasCredentials, credsSource := detectClaudeCredentials()
+	if !hasCredentials && credsSource != "" {
+		a.logger.WithField("source", credsSource).Warn("Claude Code credentials detected but invalid")
+	} else if hasCredentials {
+		a.logger.WithField("source", credsSource).Info("Claude Code credentials detected")
+	}
 
 	if binaryPath == "" {
 		binaryPath = "claude"
@@ -2101,10 +2171,17 @@ func (a *App) TestCodexConnection(apiKey, model, organization string) *AITestRes
 		"organization": organization,
 	}).Info("Testing Codex connection")
 
+	// Try to detect credentials from global paths if not provided
 	if apiKey == "" {
-		return &AITestResponse{
-			Success: false,
-			Error:   "Codex API key is required",
+		detectedKey, source := detectCodexCredentials()
+		if detectedKey != "" {
+			apiKey = detectedKey
+			a.logger.WithField("source", source).Info("Using detected Codex credentials")
+		} else {
+			return &AITestResponse{
+				Success: false,
+				Error:   "Codex API key is required. Please set OPENAI_API_KEY environment variable or create ~/.codex/auth.json, or log in via 'openai login' CLI command.",
+			}
 		}
 	}
 

@@ -5,11 +5,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useTheme } from "@/hooks/use-theme"
-import { ArrowLeft, Brain, Key, Server, AlertTriangle, Download, Play, CheckCircle, Copy, ExternalLink } from "lucide-react"
+import { ArrowLeft, Brain, Key, Server, AlertTriangle, Download, Play, CheckCircle } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { useEffect, useState, useRef } from "react"
 import { useAIConfig } from "@/store/ai-store"
-import { launchClaudeCodeLogin, launchCodexLogin } from "@/lib/wails-ai-api"
 import { useOllamaDetection } from "@/hooks/use-ollama-detection"
 import { useToast } from "@/hooks/use-toast"
 
@@ -32,21 +31,8 @@ export function Settings() {
     codex: false
   })
   const hasAutoTestedLocalRef = useRef(false)
-  type LoginDetails = { type: 'success' | 'error'; message: string; link?: string; code?: string; raw?: string }
 
   const [testMessage, setTestMessage] = useState<{provider: string, message: string, type: 'success' | 'error'} | null>(null)
-  const [claudeLoginDetails, setClaudeLoginDetails] = useState<LoginDetails | null>(null)
-  const [codexLoginDetails, setCodexLoginDetails] = useState<LoginDetails | null>(null)
-  const [isClaudeLoggingIn, setIsClaudeLoggingIn] = useState(false)
-  const [isCodexLoggingIn, setIsCodexLoggingIn] = useState(false)
-
-  const copyToClipboard = async (value: string) => {
-    try {
-      await navigator.clipboard.writeText(value)
-    } catch (error) {
-      console.error('Failed to copy to clipboard', error)
-    }
-  }
 
   const handleAiConfigChange = (key: string, value: string | number | boolean) => {
     updateConfig({ [key]: value })
@@ -65,20 +51,11 @@ export function Settings() {
       if (recommendedModel) {
         updateConfig({ selectedModel: recommendedModel })
       }
-
-      setClaudeLoginDetails(null)
-      setCodexLoginDetails(null)
     }
   }
 
   const handleTestConnection = async (provider: string) => {
     setTestMessage(null) // Clear previous message
-    if (provider === 'claudecode') {
-      setClaudeLoginDetails(null)
-    }
-    if (provider === 'codex') {
-      setCodexLoginDetails(null)
-    }
     try {
       const success = await testConnection(provider)
       if (success) {
@@ -109,74 +86,6 @@ export function Settings() {
       })
       // Clear error message after 5 seconds (shorter since we also have dialog)
       setTimeout(() => setTestMessage(null), 5000)
-    }
-  }
-
-  const handleClaudeLogin = async () => {
-    setClaudeLoginDetails(null)
-    setIsClaudeLoggingIn(true)
-    try {
-      const response = await launchClaudeCodeLogin(aiConfig.claudeCodePath || 'claude')
-      if (response.success) {
-        const link = response.metadata?.verification_url
-        const code = response.metadata?.user_code ?? response.metadata?.device_code
-        const raw = response.metadata?.raw_output
-        setClaudeLoginDetails({
-          type: 'success',
-          message: response.message || 'Follow the link to complete the Claude login.',
-          link,
-          code,
-          raw,
-        })
-        await testConnection('claudecode').catch(() => undefined)
-      } else {
-        setClaudeLoginDetails({
-          type: 'error',
-          message: response.error || response.message || 'Claude login failed.',
-          raw: response.metadata?.raw_output,
-        })
-      }
-    } catch (error) {
-      setClaudeLoginDetails({
-        type: 'error',
-        message: error instanceof Error ? error.message : 'Claude login failed.',
-      })
-    } finally {
-      setIsClaudeLoggingIn(false)
-    }
-  }
-
-  const handleCodexLogin = async () => {
-    setCodexLoginDetails(null)
-    setIsCodexLoggingIn(true)
-    try {
-      const response = await launchCodexLogin('openai')
-      if (response.success) {
-        const link = response.metadata?.verification_url
-        const code = response.metadata?.user_code ?? response.metadata?.device_code
-        const raw = response.metadata?.raw_output
-        setCodexLoginDetails({
-          type: 'success',
-          message: response.message || 'Follow the link to complete the OpenAI login.',
-          link,
-          code,
-          raw,
-        })
-        await testConnection('codex').catch(() => undefined)
-      } else {
-        setCodexLoginDetails({
-          type: 'error',
-          message: response.error || response.message || 'Codex login failed.',
-          raw: response.metadata?.raw_output,
-        })
-      }
-    } catch (error) {
-      setCodexLoginDetails({
-        type: 'error',
-        message: error instanceof Error ? error.message : 'Codex login failed.',
-      })
-    } finally {
-      setIsCodexLoggingIn(false)
     }
   }
 
@@ -796,18 +705,13 @@ You can also start it manually by running: ollama serve`)
                         >
                           {connectionStatus.claudecode === 'testing' ? 'Testing...' : 'Test'}
                         </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={handleClaudeLogin}
-                          disabled={isClaudeLoggingIn}
-                        >
-                          {isClaudeLoggingIn ? 'Launching...' : 'Log In'}
-                        </Button>
                         {connectionStatus.claudecode === 'connected' && (
                           <CheckCircle className="h-5 w-5 text-green-500" />
                         )}
                       </div>
+                      <p className="text-xs text-muted-foreground">
+                        To authenticate, run <code className="bg-muted px-1 rounded">claude login</code> in your terminal. The app will automatically detect your credentials from <code className="bg-muted px-1 rounded">~/.claude/.credentials.json</code> or the <code className="bg-muted px-1 rounded">CLAUDE_CODE_OAUTH_TOKEN</code> environment variable.
+                      </p>
                       {testMessage && testMessage.provider === 'claudecode' && (
                         <div className={`mt-2 p-2 rounded text-sm ${
                           testMessage.type === 'success'
@@ -817,52 +721,6 @@ You can also start it manually by running: ollama serve`)
                           {testMessage.type === 'success' ? '✅' : '❌'} {testMessage.message}
                         </div>
                       )}
-                      {claudeLoginDetails && (
-                        <div className={`mt-2 space-y-2 rounded border p-3 text-sm ${
-                          claudeLoginDetails.type === 'success'
-                            ? 'border-green-200 dark:border-green-800 bg-green-100/60 dark:bg-green-900/10 text-green-900 dark:text-green-200'
-                            : 'border-red-200 dark:border-red-800 bg-red-100/60 dark:bg-red-900/10 text-red-900 dark:text-red-200'
-                        }`}>
-                          <div className="flex items-start gap-2">
-                            <span>{claudeLoginDetails.type === 'success' ? '✅' : '❌'}</span>
-                            <span>{claudeLoginDetails.message}</span>
-                          </div>
-                          {claudeLoginDetails.link && (
-                            <div className="flex items-center gap-2 text-xs">
-                              <span className="font-semibold uppercase tracking-wide text-muted-foreground">Link</span>
-                              <Button variant="link" size="sm" asChild>
-                                <a href={claudeLoginDetails.link} target="_blank" rel="noreferrer">
-                                  Open verification page
-                                  <ExternalLink className="ml-1 h-3 w-3" />
-                                </a>
-                              </Button>
-                            </div>
-                          )}
-                          {claudeLoginDetails.code && (
-                            <div className="flex items-center gap-2 text-xs">
-                              <span className="font-semibold uppercase tracking-wide text-muted-foreground">Code</span>
-                              <code className="rounded bg-muted px-2 py-1 text-sm font-mono">{claudeLoginDetails.code}</code>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7"
-                                onClick={() => copyToClipboard(claudeLoginDetails.code!)}
-                                title="Copy code"
-                              >
-                                <Copy className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          )}
-                          {claudeLoginDetails.raw && (
-                            <pre className="mt-2 max-h-40 overflow-y-auto whitespace-pre-wrap rounded bg-muted/40 p-2 text-xs text-muted-foreground">
-                              {claudeLoginDetails.raw}
-                            </pre>
-                          )}
-                        </div>
-                      )}
-                      <p className="text-xs text-muted-foreground">
-                        Uses Claude Code CLI for local AI assistance. Install from claude.ai/code
-                      </p>
                     </div>
 
                     <div className="space-y-2">
@@ -885,12 +743,12 @@ You can also start it manually by running: ollama serve`)
                         <AlertTriangle className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5" />
                         <div className="text-sm text-blue-800 dark:text-blue-200">
                           <p className="font-medium">About Claude Code</p>
-                          <p className="mt-1">Claude Code runs locally using the Claude CLI. Make sure you have:</p>
-                          <ul className="list-disc list-inside mt-1 space-y-0.5">
-                            <li>Installed Claude Code from claude.ai/code</li>
-                            <li>Signed in with your Claude account</li>
-                            <li>The claude command available in your PATH</li>
-                          </ul>
+                          <p className="mt-1">Claude Code runs locally using the Claude CLI. To set up:</p>
+                          <ol className="list-decimal list-inside mt-1 space-y-0.5">
+                            <li>Install Claude Code from <a href="https://claude.ai/code" target="_blank" rel="noreferrer" className="underline">claude.ai/code</a></li>
+                            <li>Run <code className="bg-blue-100 dark:bg-blue-900/30 px-1 rounded">claude login</code> in your terminal</li>
+                            <li>Click "Test" above to verify the connection</li>
+                          </ol>
                         </div>
                       </div>
                     </div>
@@ -906,12 +764,12 @@ You can also start it manually by running: ollama serve`)
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="codex-api-key">API Key</Label>
+                      <Label htmlFor="codex-api-key">API Key (optional)</Label>
                       <div className="flex gap-2">
                         <Input
                           id="codex-api-key"
                           type={showApiKeys.codex ? "text" : "password"}
-                          placeholder="sk-..."
+                          placeholder="Leave empty to use global credentials"
                           value={aiConfig.codexApiKey}
                           onChange={(e) => handleAiConfigChange('codexApiKey', e.target.value)}
                         />
@@ -930,18 +788,13 @@ You can also start it manually by running: ollama serve`)
                         >
                           {connectionStatus.codex === 'testing' ? 'Testing...' : 'Test'}
                         </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={handleCodexLogin}
-                          disabled={isCodexLoggingIn}
-                        >
-                          {isCodexLoggingIn ? 'Launching...' : 'Log In'}
-                        </Button>
                         {connectionStatus.codex === 'connected' && (
                           <CheckCircle className="h-5 w-5 text-green-500" />
                         )}
                       </div>
+                      <p className="text-xs text-muted-foreground">
+                        Leave empty to automatically use credentials from <code className="bg-muted px-1 rounded">~/.codex/auth.json</code>, <code className="bg-muted px-1 rounded">OPENAI_API_KEY</code>, or <code className="bg-muted px-1 rounded">CODEX_API_KEY</code> environment variable. Authenticate via <code className="bg-muted px-1 rounded">openai login</code> CLI command.
+                      </p>
                       {testMessage && testMessage.provider === 'codex' && (
                         <div className={`mt-2 p-2 rounded text-sm ${
                           testMessage.type === 'success'
@@ -949,49 +802,6 @@ You can also start it manually by running: ollama serve`)
                             : 'bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-200 border border-red-200 dark:border-red-800'
                         }`}>
                           {testMessage.type === 'success' ? '✅' : '❌'} {testMessage.message}
-                        </div>
-                      )}
-                      {codexLoginDetails && (
-                        <div className={`mt-2 space-y-2 rounded border p-3 text-sm ${
-                          codexLoginDetails.type === 'success'
-                            ? 'border-green-200 dark:border-green-800 bg-green-100/60 dark:bg-green-900/10 text-green-900 dark:text-green-200'
-                            : 'border-red-200 dark:border-red-800 bg-red-100/60 dark:bg-red-900/10 text-red-900 dark:text-red-200'
-                        }`}>
-                          <div className="flex items-start gap-2">
-                            <span>{codexLoginDetails.type === 'success' ? '✅' : '❌'}</span>
-                            <span>{codexLoginDetails.message}</span>
-                          </div>
-                          {codexLoginDetails.link && (
-                            <div className="flex items-center gap-2 text-xs">
-                              <span className="font-semibold uppercase tracking-wide text-muted-foreground">Link</span>
-                              <Button variant="link" size="sm" asChild>
-                                <a href={codexLoginDetails.link} target="_blank" rel="noreferrer">
-                                  Open verification page
-                                  <ExternalLink className="ml-1 h-3 w-3" />
-                                </a>
-                              </Button>
-                            </div>
-                          )}
-                          {codexLoginDetails.code && (
-                            <div className="flex items-center gap-2 text-xs">
-                              <span className="font-semibold uppercase tracking-wide text-muted-foreground">Code</span>
-                              <code className="rounded bg-muted px-2 py-1 text-sm font-mono">{codexLoginDetails.code}</code>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7"
-                                onClick={() => copyToClipboard(codexLoginDetails.code!)}
-                                title="Copy code"
-                              >
-                                <Copy className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          )}
-                          {codexLoginDetails.raw && (
-                            <pre className="mt-2 max-h-40 overflow-y-auto whitespace-pre-wrap rounded bg-muted/40 p-2 text-xs text-muted-foreground">
-                              {codexLoginDetails.raw}
-                            </pre>
-                          )}
                         </div>
                       )}
                     </div>
@@ -1027,12 +837,13 @@ You can also start it manually by running: ollama serve`)
                         <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5" />
                         <div className="text-sm text-amber-800 dark:text-amber-200">
                           <p className="font-medium">Codex Access Required</p>
-                          <p className="mt-1">OpenAI Codex requires special access. Make sure you have:</p>
-                          <ul className="list-disc list-inside mt-1 space-y-0.5">
-                            <li>Applied for Codex access through OpenAI</li>
-                            <li>Received API access approval</li>
-                            <li>A valid API key with Codex permissions</li>
-                          </ul>
+                          <p className="mt-1">OpenAI Codex requires special access. To set up:</p>
+                          <ol className="list-decimal list-inside mt-1 space-y-0.5">
+                            <li>Apply for Codex access through OpenAI</li>
+                            <li>Run <code className="bg-amber-100 dark:bg-amber-900/30 px-1 rounded">openai login</code> in your terminal, or</li>
+                            <li>Set your API key in the field above or via environment variables</li>
+                            <li>Click "Test" to verify the connection</li>
+                          </ol>
                         </div>
                       </div>
                     </div>
