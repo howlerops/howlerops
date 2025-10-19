@@ -1627,15 +1627,45 @@ func (a *App) runDeviceLoginCommand(binaryPath string, args []string, provider s
 		}
 	}
 
-	if writeInput != nil {
-		go func() {
-			time.Sleep(500 * time.Millisecond)
-			writeInput([]byte("\n"))
-		}()
-	}
-
 	resultChan := make(chan deviceLoginResult, 1)
 	infoLatest := &deviceLoginResult{}
+
+	// Handle interactive prompts (like Claude CLI trust prompt) and login confirmation
+	if writeInput != nil {
+		go func() {
+			trustPromptHandled := false
+
+			// Check for trust prompt every 200ms for up to 5 seconds
+			for i := 0; i < 25; i++ {
+				time.Sleep(200 * time.Millisecond)
+
+				currentOutput := ""
+				if infoLatest != nil {
+					currentOutput = strings.ToLower(infoLatest.OriginalOutput)
+				}
+
+				// Detect Claude CLI trust prompt
+				if !trustPromptHandled && strings.Contains(currentOutput, "do you trust the files") {
+					a.logger.Debug("Detected Claude CLI trust prompt, sending 'y' response")
+					writeInput([]byte("y\n"))
+					trustPromptHandled = true
+					// Wait a bit more for the verification URL to appear
+					time.Sleep(1 * time.Second)
+					break
+				}
+
+				// If we see a verification URL, we're past any prompts
+				if strings.Contains(currentOutput, "http") && strings.Contains(currentOutput, "claude.ai") {
+					break
+				}
+			}
+
+			// Send final confirmation if needed
+			if !trustPromptHandled {
+				writeInput([]byte("\n"))
+			}
+		}()
+	}
 
 	var cleanupOnce sync.Once
 	cleanup := func() {
