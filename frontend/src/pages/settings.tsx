@@ -11,14 +11,20 @@ import { useEffect, useState, useRef } from "react"
 import { useAIConfig } from "@/store/ai-store"
 import { launchClaudeCodeLogin, launchCodexLogin } from "@/lib/wails-ai-api"
 import { useOllamaDetection } from "@/hooks/use-ollama-detection"
+import { useToast } from "@/hooks/use-toast"
 
 export function Settings() {
   const { theme, setTheme } = useTheme()
   const navigate = useNavigate()
+  const { toast } = useToast()
 
   // AI Configuration
   const { config: aiConfig, updateConfig, testConnection, connectionStatus } = useAIConfig()
   const ollamaDetection = useOllamaDetection(aiConfig.provider === 'ollama')
+
+  // Track initial config to detect changes
+  const initialConfigRef = useRef(aiConfig)
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
 
   const [showApiKeys, setShowApiKeys] = useState({
     openai: false,
@@ -198,6 +204,32 @@ export function Settings() {
       hasAutoTestedLocalRef.current = false
     }
   }, [aiConfig.provider, testConnection])
+
+  // Detect changes in config
+  useEffect(() => {
+    const hasChanges = JSON.stringify(initialConfigRef.current) !== JSON.stringify(aiConfig)
+    setHasUnsavedChanges(hasChanges)
+  }, [aiConfig])
+
+  // Handle save button click
+  const handleSaveSettings = () => {
+    try {
+      // Settings are already auto-saved via updateConfig, so just update the initial ref
+      initialConfigRef.current = aiConfig
+      setHasUnsavedChanges(false)
+
+      toast({
+        title: "Settings saved",
+        description: "Your settings have been saved successfully.",
+      })
+    } catch (error) {
+      toast({
+        title: "Error saving settings",
+        description: error instanceof Error ? error.message : "Failed to save settings",
+        variant: "destructive",
+      })
+    }
+  }
 
   return (
     <div className="flex flex-1 h-full min-h-0 w-full flex-col overflow-y-auto">
@@ -1198,7 +1230,7 @@ You can also start it manually by running: ollama serve`)
           <Button variant="outline" onClick={() => navigate(-1)}>
             Cancel
           </Button>
-          <Button>
+          <Button onClick={handleSaveSettings} disabled={!hasUnsavedChanges}>
             Save Settings
           </Button>
         </div>
