@@ -28,7 +28,9 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { useQueryStore, type QueryTab } from "@/store/query-store"
 import { useConnectionStore } from "@/store/connection-store"
 import { useTheme } from "@/hooks/use-theme"
-import { useAIConfig, useAIGeneration } from "@/store/ai-store"
+import { useAIConfig, useAIGeneration, useAIStore } from "@/store/ai-store"
+import { useAIQueryAgentStore } from "@/store/ai-query-agent-store"
+import { AIQueryTabView } from "@/components/ai-query-tab"
 import { Play, Square, Plus, X, Wand2, AlertCircle, Loader2, Network, Database, Bug, Sparkles, Users, Pencil, Trash2, ChevronDown, MessageCircle } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AISchemaDisplay } from "@/components/ai-schema-display"
@@ -62,7 +64,8 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
     connectToDatabase,
     isConnecting,
     getFilteredConnections,
-    activeEnvironmentFilter
+    activeEnvironmentFilter,
+    setActiveConnection: setGlobalActiveConnection,
   } = useConnectionStore()
   const {
     tabs,
@@ -120,6 +123,15 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
     Object.values(memorySessionsMap).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)),
     [memorySessionsMap]
   )
+
+  const createAgentSession = useAIQueryAgentStore(state => state.createSession)
+  const ensureAgentSession = useAIQueryAgentStore(state => state.ensureSession)
+  const setActiveAgentSession = useAIQueryAgentStore(state => state.setActiveSession)
+  const syncAgentFromMemory = useAIQueryAgentStore(state => state.syncFromMemoryStore)
+  const agentHydrated = useAIQueryAgentStore(state => state.isHydrated)
+  const renameAgentSession = useAIQueryAgentStore(state => state.renameSession)
+
+  const memoriesHydrated = useAIStore(state => state.memoriesHydrated)
 
   // Diagnostics panel state
   const [showDiagnostics, setShowDiagnostics] = useState(false)
@@ -193,6 +205,13 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
     [editorConnections]
   )
 
+  const aiTabConnections = useMemo(() => {
+    if (filteredConnections.length > 0) {
+      return filteredConnections
+    }
+    return connections
+  }, [filteredConnections, connections])
+
   const activeTab = tabs.find(tab => tab.id === activeTabId)
 
   // Remove automatic tab creation - let users create tabs manually
@@ -210,6 +229,12 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
       console.error('Failed to hydrate AI memories:', error)
     })
   }, [aiEnabled, aiConfig.syncMemories, hydrateMemoriesFromBackend])
+
+  useEffect(() => {
+    if (memoriesHydrated && !agentHydrated) {
+      syncAgentFromMemory()
+    }
+  }, [memoriesHydrated, agentHydrated, syncAgentFromMemory])
 
   // Keyboard shortcut for diagnostics panel (Ctrl/Cmd+Shift+D)
   useEffect(() => {
@@ -445,30 +470,150 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
 
   // Removed handleSaveTab - not currently used
 
-  const handleCreateTab = () => {
-    // If no default connection and multiple connections, tab will be created without connection
-    // User will see a prompt to select one via the tab connection dropdown
-    createTab()
-  }
+  const handleCreateSqlTab = useCallback(() => {
+    const tabId = createTab('New Query', {
+      type: 'sql',
+      connectionId: activeConnection?.id,
+    })
+    setActiveTab(tabId)
+    if (activeConnection) {
+      setGlobalActiveConnection(activeConnection)
+    }
+  }, [createTab, activeConnection, setActiveTab, setGlobalActiveConnection])
+
+  const handleCreateAiTab = useCallback(() => {
+    const sessionId = createAgentSession({
+      title: `AI Query ${new Date().toLocaleTimeString()}`,
+      provider: aiConfig.provider,
+      model: aiConfig.selectedModel,
+    })
+
+    const tabId = createTab('AI Query Agent', {
+      type: 'ai',
+      connectionId: activeConnection?.id,
+      aiSessionId: sessionId,
+    })
+
+    updateTab(tabId, {
+      connectionId: activeConnection?.id,
+      selectedConnectionIds: activeConnection?.id ? [activeConnection.id] : [],
+    })
+
+    setActiveTab(tabId)
+    setActiveAgentSession(sessionId)
+    if (activeConnection) {
+      setGlobalActiveConnection(activeConnection)
+    }
+  }, [createAgentSession, aiConfig.provider, aiConfig.selectedModel, createTab, activeConnection, updateTab, setActiveTab, setActiveAgentSession, setGlobalActiveConnection])
+
+  const handleUseSQLFromAgent = useCallback((sql: string, connectionId?: string) => {
+    const targetConnectionId = connectionId ?? activeConnection?.id ?? undefined
+    const tabId = createTab('AI Generated Query', {
+      type: 'sql',
+      connectionId: targetConnectionId,
+    })
+
+    updateTab(tabId, {
+      content: sql,
+      isDirty: true,
+      connectionId: targetConnectionId,
+      selectedConnectionIds: targetConnectionId ? [targetConnectionId] : [],
+    })
+
+    setActiveTab(tabId)
+    setEditorContent(sql)
+    if (targetConnectionId) {
+      const connection = useConnectionStore.getState().connections.find(conn => conn.id === targetConnectionId)
+      if (connection) {
+        setGlobalActiveConnection(connection)
+      }
+    }
+  }, [createTab, activeConnection?.id, updateTab, setActiveTab, setEditorContent, setGlobalActiveConnection])
+
+  useEffect(() => {
+    const isTypingTarget = (target: EventTarget | null) => {
+      if (!(target instanceof HTMLElement)) {
+        return false
+      }
+      const tag = target.tagName.toLowerCase()
+      return tag === 'input' || tag === 'textarea' || target.isContentEditable
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (isTypingTarget(event.target)) {
+        return
+      }
+
+      const modifierPressed = event.metaKey || event.ctrlKey
+      if (!modifierPressed || !event.shiftKey) {
+        return
+      }
+
+      const key = event.key.toLowerCase()
+      if (key === 'n') {
+        event.preventDefault()
+        handleCreateSqlTab()
+      } else if (key === 'g') {
+        event.preventDefault()
+        handleCreateAiTab()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [handleCreateSqlTab, handleCreateAiTab])
+
+  useEffect(() => {
+    if (!activeTabId) {
+      return
+    }
+
+    const tab = tabs.find(t => t.id === activeTabId)
+    if (!tab || tab.type !== 'ai') {
+      return
+    }
+
+    if (tab.aiSessionId) {
+      ensureAgentSession(tab.aiSessionId)
+      setActiveAgentSession(tab.aiSessionId)
+    } else {
+      const sessionId = createAgentSession({
+        title: tab.title,
+        provider: aiConfig.provider,
+        model: aiConfig.selectedModel,
+      })
+      updateTab(tab.id, { aiSessionId: sessionId })
+      setActiveAgentSession(sessionId)
+    }
+  }, [activeTabId, tabs, aiConfig.provider, aiConfig.selectedModel, createAgentSession, ensureAgentSession, setActiveAgentSession, updateTab])
 
   const handleTabConnectionChange = async (tabId: string, connectionId: string) => {
     // Clear any previous connection errors
     setLastConnectionError(null)
     
     // Update the tab's connection ID
-    updateTab(tabId, { connectionId })
+    updateTab(tabId, { connectionId, selectedConnectionIds: [connectionId] })
     
-    // Check if the connection is already established
     const connection = connections.find(conn => conn.id === connectionId)
-    if (connection && !connection.isConnected) {
+    if (!connection) {
+      setGlobalActiveConnection(null)
+      return
+    }
+
+    if (!connection.isConnected) {
       try {
-        // Automatically connect to the database
         await connectToDatabase(connectionId)
       } catch (error) {
         console.error('Failed to connect to database:', error)
         const errorMessage = error instanceof Error ? error.message : 'Failed to connect to database'
         setLastConnectionError(errorMessage)
+        return
       }
+    }
+
+    const updatedConnection = useConnectionStore.getState().connections.find(conn => conn.id === connectionId)
+    if (updatedConnection && updatedConnection.isConnected) {
+      setGlobalActiveConnection(updatedConnection)
     }
   }
   
@@ -663,10 +808,24 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
         <div className="text-center">
           <h3 className="text-lg font-medium mb-2">No query tabs open</h3>
           <p className="text-mute mb-4">Create a new tab to start writing SQL queries</p>
-          <Button onClick={handleCreateTab}>
-            <Plus className="h-4 w-4 mr-2" />
-            New Query
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                New Query
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={handleCreateSqlTab}>
+                <Database className="h-4 w-4 mr-2" />
+                SQL Editor Tab
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleCreateAiTab}>
+                <Sparkles className="h-4 w-4 mr-2" />
+                AI Query Agent
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     )
@@ -686,6 +845,7 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
   }
 
   const editorSchemas = mode === 'multi' ? multiDBSchemas : singleConnectionSchemas
+  const isAiTab = !!activeTab && activeTab.type === 'ai'
 
   return (
     <div className="flex-1 flex h-full min-h-0 w-full flex-col">
@@ -901,17 +1061,41 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
           </Tabs>
         </div>
 
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleCreateTab}
-          className="ml-2"
-        >
-          <Plus className="h-4 w-4" />
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="ml-2"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={handleCreateSqlTab}>
+              <Database className="h-4 w-4 mr-2" />
+              SQL Editor Tab
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleCreateAiTab}>
+              <Sparkles className="h-4 w-4 mr-2" />
+              AI Query Agent
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         </div>
       </div>
 
+      {isAiTab && activeTab ? (
+        <AIQueryTabView
+          tab={activeTab}
+          connections={aiTabConnections}
+          schemasMap={editorSchemas}
+          onSelectConnection={(connectionId) => handleTabConnectionChange(activeTab.id, connectionId)}
+          onUseSQL={handleUseSQLFromAgent}
+          onRenameSession={renameAgentSession}
+        />
+      ) : (
+        <>
       {/* AI Assistant Drawer */}
       {aiEnabled && aiSidebarMode === 'sql' && (
         <Sheet open={showAIDialog} onOpenChange={setShowAIDialog}>
@@ -1356,6 +1540,8 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
           onSelectionChange={(connectionIds) => handleMultiDBConnectionsChange(activeTab.id, connectionIds)}
           filteredConnections={getFilteredConnections()}
         />
+      )}
+        </>
       )}
     </div>
   )

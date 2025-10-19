@@ -12,18 +12,21 @@ import (
 
 // ConnectionPool manages database connections with pooling
 type ConnectionPool struct {
-	config ConnectionConfig
-	db     *sql.DB
-	mu     sync.RWMutex
-	closed bool
-	logger *logrus.Logger
+	config        ConnectionConfig
+	db            *sql.DB
+	mu            sync.RWMutex
+	closed        bool
+	logger        *logrus.Logger
+	sshTunnel     *SSHTunnel
+	tunnelManager *SSHTunnelManager
 }
 
 // NewConnectionPool creates a new connection pool
 func NewConnectionPool(config ConnectionConfig, logger *logrus.Logger) (*ConnectionPool, error) {
 	pool := &ConnectionPool{
-		config: config,
-		logger: logger,
+		config:        config,
+		logger:        logger,
+		tunnelManager: NewSSHTunnelManager(logger),
 	}
 
 	if err := pool.connect(); err != nil {
@@ -35,6 +38,31 @@ func NewConnectionPool(config ConnectionConfig, logger *logrus.Logger) (*Connect
 
 // connect establishes the database connection
 func (p *ConnectionPool) connect() error {
+	// Establish SSH tunnel if configured
+	if p.config.UseTunnel && p.config.SSHTunnel != nil {
+		ctx := context.Background()
+		tunnel, err := p.tunnelManager.EstablishTunnel(
+			ctx,
+			p.config.SSHTunnel,
+			p.config.Host,
+			p.config.Port,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to establish SSH tunnel: %w", err)
+		}
+
+		p.sshTunnel = tunnel
+
+		// Replace host and port with tunnel's local endpoint
+		p.config.Host = "127.0.0.1"
+		p.config.Port = tunnel.GetLocalPort()
+
+		p.logger.WithFields(logrus.Fields{
+			"local_port": tunnel.GetLocalPort(),
+			"remote":     fmt.Sprintf("%s:%d", p.sshTunnel.remoteHost, p.sshTunnel.remotePort),
+		}).Info("Database connection will use SSH tunnel")
+	}
+
 	dsn, err := p.buildDSN()
 	if err != nil {
 		return fmt.Errorf("failed to build DSN: %w", err)
@@ -100,6 +128,10 @@ func (p *ConnectionPool) buildDSN() (string, error) {
 		return p.buildMySQLDSN(), nil
 	case SQLite:
 		return p.buildSQLiteDSN(), nil
+	case ClickHouse:
+		return p.buildClickHouseDSN(), nil
+	case TiDB:
+		return p.buildTiDBDSN(), nil
 	default:
 		return "", fmt.Errorf("unsupported database type: %s", p.config.Type)
 	}
@@ -195,6 +227,96 @@ func (p *ConnectionPool) buildSQLiteDSN() string {
 	return dsn
 }
 
+// buildClickHouseDSN builds ClickHouse DSN
+func (p *ConnectionPool) buildClickHouseDSN() string {
+	// ClickHouse DSN format: clickhouse://username:password@host:port/database?param=value
+	dsn := fmt.Sprintf("clickhouse://%s:%s@%s:%d/%s",
+		p.config.Username, p.config.Password, p.config.Host, p.config.Port, p.config.Database)
+
+	params := make(map[string]string)
+
+	// Add connection timeout
+	if p.config.ConnectionTimeout > 0 {
+		params["dial_timeout"] = fmt.Sprintf("%ds", int(p.config.ConnectionTimeout.Seconds()))
+	}
+
+	// Add SSL/TLS configuration
+	if p.config.SSLMode != "" && p.config.SSLMode != "disable" {
+		params["secure"] = "true"
+		if p.config.SSLMode == "skip-verify" {
+			params["skip_verify"] = "true"
+		}
+	}
+
+	// Add custom parameters
+	for key, value := range p.config.Parameters {
+		params[key] = value
+	}
+
+	// Build parameter string
+	if len(params) > 0 {
+		dsn += "?"
+		first := true
+		for key, value := range params {
+			if !first {
+				dsn += "&"
+			}
+			dsn += fmt.Sprintf("%s=%s", key, value)
+			first = false
+		}
+	}
+
+	return dsn
+}
+
+// buildTiDBDSN builds TiDB DSN (uses MySQL format)
+func (p *ConnectionPool) buildTiDBDSN() string {
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s",
+		p.config.Username, p.config.Password, p.config.Host, p.config.Port, p.config.Database)
+
+	params := make(map[string]string)
+
+	// Set default parameters
+	params["parseTime"] = "true"
+	params["loc"] = "UTC"
+
+	if p.config.ConnectionTimeout > 0 {
+		params["timeout"] = p.config.ConnectionTimeout.String()
+	}
+
+	// Add SSL configuration
+	if p.config.SSLMode != "" {
+		switch p.config.SSLMode {
+		case "disable":
+			params["tls"] = "false"
+		case "require":
+			params["tls"] = "true"
+		default:
+			params["tls"] = "preferred"
+		}
+	}
+
+	// Add custom parameters (including TiDB-specific ones)
+	for key, value := range p.config.Parameters {
+		params[key] = value
+	}
+
+	// Build parameter string
+	var paramStr string
+	first := true
+	for key, value := range params {
+		if first {
+			paramStr += "?"
+			first = false
+		} else {
+			paramStr += "&"
+		}
+		paramStr += fmt.Sprintf("%s=%s", key, value)
+	}
+
+	return dsn + paramStr
+}
+
 // getConnectionTimeout returns the connection timeout or a default value
 func (p *ConnectionPool) getConnectionTimeout() time.Duration {
 	if p.config.ConnectionTimeout > 0 {
@@ -211,6 +333,10 @@ func driverNameForType(dbType DatabaseType) (string, error) {
 		return "mysql", nil
 	case SQLite:
 		return "sqlite3", nil
+	case ClickHouse:
+		return "clickhouse", nil
+	case TiDB:
+		return "mysql", nil // TiDB uses MySQL driver
 	default:
 		return "", fmt.Errorf("unsupported database type: %s", dbType)
 	}
@@ -243,16 +369,31 @@ func (p *ConnectionPool) Close() error {
 
 	p.closed = true
 
+	var lastErr error
+
+	// Close database connection first
 	if p.db != nil {
-		err := p.db.Close()
-		p.logger.WithFields(logrus.Fields{
-			"type":     p.config.Type,
-			"database": p.config.Database,
-		}).Info("Database connection pool closed")
-		return err
+		if err := p.db.Close(); err != nil {
+			lastErr = err
+			p.logger.WithError(err).Error("Failed to close database connection")
+		}
 	}
 
-	return nil
+	// Close SSH tunnel if it exists
+	if p.sshTunnel != nil {
+		if err := p.tunnelManager.CloseTunnel(p.sshTunnel); err != nil {
+			lastErr = err
+			p.logger.WithError(err).Error("Failed to close SSH tunnel")
+		}
+		p.sshTunnel = nil
+	}
+
+	p.logger.WithFields(logrus.Fields{
+		"type":     p.config.Type,
+		"database": p.config.Database,
+	}).Info("Database connection pool closed")
+
+	return lastErr
 }
 
 // Stats returns connection pool statistics

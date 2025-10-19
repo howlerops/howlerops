@@ -2,6 +2,7 @@ package ai
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/sirupsen/logrus"
 	"github.com/sql-studio/backend-go/internal/ai"
@@ -13,6 +14,26 @@ type Service struct {
 	logger   *logrus.Logger
 }
 
+// RuntimeConfig re-exports the internal AI configuration type for callers.
+type RuntimeConfig = ai.Config
+
+// Provider re-exports the provider identifier type.
+type Provider = ai.Provider
+
+const (
+	ProviderOpenAI      = ai.ProviderOpenAI
+	ProviderAnthropic   = ai.ProviderAnthropic
+	ProviderOllama      = ai.ProviderOllama
+	ProviderHuggingFace = ai.ProviderHuggingFace
+	ProviderClaudeCode  = ai.ProviderClaudeCode
+	ProviderCodex       = ai.ProviderCodex
+)
+
+// DefaultRuntimeConfig provides the baseline AI configuration without environment overrides.
+func DefaultRuntimeConfig() *RuntimeConfig {
+	return ai.DefaultConfig()
+}
+
 // NewService creates a new AI service using environment variable configuration
 func NewService(logger *logrus.Logger) (*Service, error) {
 	// Load config from environment variables (handled by internal package)
@@ -22,6 +43,27 @@ func NewService(logger *logrus.Logger) (*Service, error) {
 	}
 
 	internal, err := ai.NewService(internalConfig, logger)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Service{
+		internal: internal,
+		logger:   logger,
+	}, nil
+}
+
+// NewServiceWithConfig creates a new AI service using the provided configuration.
+func NewServiceWithConfig(config *RuntimeConfig, logger *logrus.Logger) (*Service, error) {
+	if config == nil {
+		return nil, fmt.Errorf("config cannot be nil")
+	}
+
+	if err := ai.ValidateConfig(config); err != nil {
+		return nil, err
+	}
+
+	internal, err := ai.NewService(config, logger)
 	if err != nil {
 		return nil, err
 	}

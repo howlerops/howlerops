@@ -1,17 +1,66 @@
 import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
 import { wailsEndpoints } from '@/lib/wails-api'
+import { DatabaseType, SSHAuthMethod } from '@/generated/database'
+
+export type DatabaseTypeString =
+  | 'postgresql'
+  | 'mysql'
+  | 'sqlite'
+  | 'mssql'
+  | 'mariadb'
+  | 'elasticsearch'
+  | 'opensearch'
+  | 'clickhouse'
+  | 'mongodb'
+  | 'tidb'
+
+export interface SSHTunnelConfig {
+  host: string
+  port: number
+  user: string
+  authMethod: SSHAuthMethod
+  password?: string
+  privateKey?: string
+  privateKeyPath?: string
+  knownHostsPath?: string
+  strictHostKeyChecking: boolean
+  timeoutSeconds: number
+  keepAliveIntervalSeconds: number
+}
+
+export interface VPCConfig {
+  vpcId: string
+  subnetId: string
+  securityGroupIds: string[]
+  privateLinkService?: string
+  endpointServiceName?: string
+  customConfig?: Record<string, string>
+}
 
 export interface DatabaseConnection {
   id: string
   sessionId?: string
   name: string
-  type: 'postgresql' | 'mysql' | 'sqlite' | 'mssql'
+  type: DatabaseTypeString
   host?: string
   port?: number
   database: string
   username?: string
   password?: string
+  sslMode?: string
+
+  // SSH Tunnel
+  useTunnel?: boolean
+  sshTunnel?: SSHTunnelConfig
+
+  // VPC
+  useVpc?: boolean
+  vpcConfig?: VPCConfig
+
+  // Database-specific parameters
+  parameters?: Record<string, string>
+
   isConnected: boolean
   lastUsed?: Date
   environments?: string[] // Environment tags like "local", "dev", "prod"

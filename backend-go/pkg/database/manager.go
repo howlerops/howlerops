@@ -336,6 +336,14 @@ func (m *Manager) createDatabaseInstance(config ConnectionConfig) (Database, err
 		return NewMySQLDatabase(config, m.logger)
 	case SQLite:
 		return NewSQLiteDatabase(config, m.logger)
+	case ClickHouse:
+		return NewClickHouseDatabase(config, m.logger)
+	case TiDB:
+		return NewTiDBDatabase(config, m.logger)
+	case Elasticsearch, OpenSearch:
+		return NewElasticsearchDatabase(config, m.logger)
+	case MongoDB:
+		return NewMongoDBDatabase(config, m.logger)
 	default:
 		return nil, fmt.Errorf("unsupported database type: %s", config.Type)
 	}
@@ -408,6 +416,14 @@ func (f *Factory) CreateDatabase(config ConnectionConfig) (Database, error) {
 		return NewMySQLDatabase(config, f.logger)
 	case SQLite:
 		return NewSQLiteDatabase(config, f.logger)
+	case ClickHouse:
+		return NewClickHouseDatabase(config, f.logger)
+	case TiDB:
+		return NewTiDBDatabase(config, f.logger)
+	case Elasticsearch, OpenSearch:
+		return NewElasticsearchDatabase(config, f.logger)
+	case MongoDB:
+		return NewMongoDBDatabase(config, f.logger)
 	default:
 		return nil, fmt.Errorf("unsupported database type: %s", config.Type)
 	}
@@ -424,7 +440,7 @@ func (f *Factory) ValidateConfig(config ConnectionConfig) error {
 	}
 
 	switch config.Type {
-	case PostgreSQL, MySQL, MariaDB:
+	case PostgreSQL, MySQL, MariaDB, ClickHouse, TiDB:
 		if config.Host == "" {
 			return fmt.Errorf("host is required for %s", config.Type)
 		}
@@ -434,6 +450,17 @@ func (f *Factory) ValidateConfig(config ConnectionConfig) error {
 		if config.Username == "" {
 			return fmt.Errorf("username is required for %s", config.Type)
 		}
+	case MongoDB:
+		if config.Host == "" {
+			return fmt.Errorf("host is required for %s", config.Type)
+		}
+		// Port defaults to 27017 if not specified
+		// Username is optional for MongoDB (can use unauthenticated access)
+	case Elasticsearch, OpenSearch:
+		if config.Host == "" {
+			return fmt.Errorf("host is required for %s", config.Type)
+		}
+		// Port defaults to 9200 if not specified
 	case SQLite:
 		// SQLite only needs database file path
 		if config.Database == "" {
@@ -467,6 +494,25 @@ func (f *Factory) GetDefaultConfig(dbType DatabaseType) ConnectionConfig {
 		config.Port = 3306
 		config.Parameters["parseTime"] = "true"
 		config.Parameters["loc"] = "UTC"
+	case ClickHouse:
+		config.Host = "localhost"
+		config.Port = 9000
+		config.SSLMode = "disable"
+	case TiDB:
+		config.Host = "localhost"
+		config.Port = 4000
+		config.Parameters["parseTime"] = "true"
+		config.Parameters["loc"] = "UTC"
+	case MongoDB:
+		config.Host = "localhost"
+		config.Port = 27017
+		config.SSLMode = "disable"
+		config.Database = "test"
+	case Elasticsearch, OpenSearch:
+		config.Host = "localhost"
+		config.Port = 9200
+		config.SSLMode = "disable"
+		config.Database = "default"
 	case SQLite:
 		config.Database = ":memory:"
 		config.Parameters["cache"] = "shared"
@@ -483,6 +529,11 @@ func (f *Factory) GetSupportedTypes() []DatabaseType {
 		MySQL,
 		MariaDB,
 		SQLite,
+		ClickHouse,
+		TiDB,
+		Elasticsearch,
+		OpenSearch,
+		MongoDB,
 	}
 }
 

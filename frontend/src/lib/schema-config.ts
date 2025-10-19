@@ -162,18 +162,52 @@ export class SchemaConfigBuilder {
         }
       }
 
+      // Find the actual column IDs from the table configs
+      const sourceTable = config.tables.find(t => t.id === edge.source)
+      const targetTable = config.tables.find(t => t.id === edge.target)
+
+      let sourceHandle = undefined
+      let targetHandle = undefined
+
+      // Try to find column by ID first, then by name
+      if (sourceTable) {
+        const sourceColumn = sourceTable.columns.find(c =>
+          c.id === edge.sourceKey || c.name === edge.sourceKey
+        )
+        if (sourceColumn) {
+          sourceHandle = `${sourceColumn.id}-source`
+        }
+      }
+
+      if (targetTable) {
+        const targetColumn = targetTable.columns.find(c =>
+          c.id === edge.targetKey || c.name === edge.targetKey
+        )
+        if (targetColumn) {
+          targetHandle = `${targetColumn.id}-target`
+        }
+      }
+
+      // Skip this edge if we can't find valid handles
+      if (!sourceHandle || !targetHandle) {
+        console.warn(`Skipping edge ${edge.id}: Cannot find handle for source "${edge.sourceKey}" or target "${edge.targetKey}"`)
+        return null
+      }
+
       return {
         id: edge.id,
         source: edge.source,
         target: edge.target,
-        sourceHandle: `${edge.sourceKey}-source`,
-        targetHandle: `${edge.targetKey}-target`,
+        sourceHandle,
+        targetHandle,
+        type: 'smoothstep',
+        animated: edge.relation === 'hasMany',
         style: edgeStyle,
         markerEnd,
         label: edge.label,
         data: edge,
       }
-    })
+    }).filter(edge => edge !== null) // Remove any edges that couldn't be mapped
 
     return { nodes, edges }
   }

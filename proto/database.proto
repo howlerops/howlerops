@@ -27,6 +27,43 @@ enum DatabaseType {
   DATABASE_TYPE_MYSQL = 2;
   DATABASE_TYPE_SQLITE = 3;
   DATABASE_TYPE_MARIADB = 4;
+  DATABASE_TYPE_ELASTICSEARCH = 5;
+  DATABASE_TYPE_OPENSEARCH = 6;
+  DATABASE_TYPE_CLICKHOUSE = 7;
+  DATABASE_TYPE_MONGODB = 8;
+  DATABASE_TYPE_TIDB = 9;
+}
+
+// SSH authentication methods
+enum SSHAuthMethod {
+  SSH_AUTH_METHOD_UNSPECIFIED = 0;
+  SSH_AUTH_METHOD_PASSWORD = 1;
+  SSH_AUTH_METHOD_PRIVATE_KEY = 2;
+}
+
+// SSH tunnel configuration for bastion host connections
+message SSHTunnelConfig {
+  string host = 1;
+  int32 port = 2;
+  string user = 3;
+  SSHAuthMethod auth_method = 4;
+  string password = 5;
+  string private_key = 6;
+  string private_key_path = 7;
+  string known_hosts_path = 8;
+  bool strict_host_key_checking = 9;
+  int32 timeout_seconds = 10;
+  int32 keep_alive_interval_seconds = 11;
+}
+
+// VPC configuration for private connections
+message VPCConfig {
+  string vpc_id = 1;
+  string subnet_id = 2;
+  repeated string security_group_ids = 3;
+  string private_link_service = 4;
+  string endpoint_service_name = 5;
+  map<string, string> custom_config = 6;
 }
 
 // Connection configuration
@@ -43,6 +80,10 @@ message ConnectionConfig {
   int32 max_connections = 10;
   int32 max_idle_connections = 11;
   map<string, string> parameters = 12;
+  bool use_tunnel = 13;
+  SSHTunnelConfig ssh_tunnel = 14;
+  bool use_vpc = 15;
+  VPCConfig vpc_config = 16;
 }
 
 // Database connection

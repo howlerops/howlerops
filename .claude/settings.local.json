@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(make:*)",
+      "Bash(lsof:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(go build:*)",
+      "Bash(go get:*)",
+      "Bash(go test:*)",
+      "Bash(npm run type-check:*)",
+      "Bash(npm run typecheck:*)",
+      "Bash(npm run build:*)",
+      "WebSearch",
+      "Bash(wails build:*)",
+      "WebFetch(domain:wails.io)",
+      "Bash(md5:*)",
+      "Bash(iconutil:*)",
+      "Bash(sips:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

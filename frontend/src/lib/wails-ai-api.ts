@@ -1,7 +1,7 @@
 // Wails AI API integration
 // This module provides AI testing functionality through Wails runtime bindings
 
-import { TestOpenAIConnection, TestAnthropicConnection, TestOllamaConnection, TestClaudeCodeConnection, TestCodexConnection, TestHuggingFaceConnection, ShowNotification } from '../../wailsjs/go/main/App'
+import { TestOpenAIConnection, TestAnthropicConnection, TestOllamaConnection, TestClaudeCodeConnection, TestCodexConnection, TestHuggingFaceConnection, ShowNotification, StartClaudeCodeLogin, StartCodexLogin } from '../../wailsjs/go/main/App'
 import { main } from '../../wailsjs/go/models'
 import { toast } from '@/hooks/use-toast'
 
@@ -68,6 +68,32 @@ export async function testAIProviderConnection(params: AITestParams): Promise<AI
       success: false,
       message: '',
       error: error instanceof Error ? error.message : 'Unknown error occurred'
+    }
+  }
+}
+
+export async function launchClaudeCodeLogin(binaryPath: string): Promise<AITestResponse> {
+  try {
+    return await StartClaudeCodeLogin(binaryPath)
+  } catch (error) {
+    console.error('Claude login failed:', error)
+    return {
+      success: false,
+      message: '',
+      error: error instanceof Error ? error.message : 'Unable to launch Claude login',
+    }
+  }
+}
+
+export async function launchCodexLogin(binaryPath: string): Promise<AITestResponse> {
+  try {
+    return await StartCodexLogin(binaryPath)
+  } catch (error) {
+    console.error('Codex login failed:', error)
+    return {
+      success: false,
+      message: '',
+      error: error instanceof Error ? error.message : 'Unable to launch Codex login',
     }
   }
 }

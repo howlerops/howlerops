@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { testAIProviderConnection, showHybridNotification } from '@/lib/wails-ai-api'
-import { LoadAIMemorySessions, SaveAIMemorySessions, RecallAIMemorySessions, DeleteAIMemorySession } from '../../wailsjs/go/main/App'
+import { LoadAIMemorySessions, SaveAIMemorySessions, RecallAIMemorySessions, DeleteAIMemorySession, ConfigureAIProvider } from '../../wailsjs/go/main/App'
 import { main as wailsModels } from '../../wailsjs/go/models'
 import type { SchemaNode } from '@/hooks/use-schema-introspection'
 import type { DatabaseConnection } from '@/store/connection-store'
@@ -11,6 +11,55 @@ import { useAIMemoryStore, estimateTokens as estimateMemoryTokens, type AIMemory
 function normalizeEndpoint(endpoint: string | undefined): string {
   if (!endpoint) return 'http://localhost:11434'
   return endpoint.replace(/\/+$/, '') // Remove trailing slashes
+}
+
+function buildProviderConfig(provider: string, config: AIConfig) {
+  const payload: {
+    provider: string
+    apiKey?: string
+    endpoint?: string
+    model?: string
+    options?: Record<string, string>
+  } = {
+    provider,
+    model: config.selectedModel || undefined,
+  }
+
+  switch (provider) {
+    case 'openai':
+      payload.apiKey = config.openaiApiKey
+      break
+
+    case 'anthropic':
+      payload.apiKey = config.anthropicApiKey
+      break
+
+    case 'ollama':
+      payload.endpoint = normalizeEndpoint(config.ollamaEndpoint)
+      break
+
+    case 'huggingface':
+      payload.endpoint = normalizeEndpoint(config.huggingfaceEndpoint || config.ollamaEndpoint)
+      break
+
+    case 'claudecode': {
+      const binaryPath = config.claudeCodePath || 'claude'
+      payload.model = config.selectedModel || 'opus'
+      payload.options = { binary_path: binaryPath }
+      break
+    }
+
+    case 'codex': {
+      payload.apiKey = config.codexApiKey
+      payload.model = config.selectedModel || 'code-davinci-002'
+      if (config.codexOrganization) {
+        payload.options = { organization: config.codexOrganization }
+      }
+      break
+    }
+  }
+
+  return payload
 }
 
 export interface AIConfig {
@@ -55,6 +104,7 @@ export interface AIState {
     codex: 'connected' | 'disconnected' | 'testing' | 'error'
   }
   memoriesHydrated: boolean
+  providerSynced: boolean
 }
 
 export interface AIActions {
@@ -65,6 +115,7 @@ export interface AIActions {
   setLastError: (error: string | null) => void
   setConnectionStatus: (provider: string, status: string) => void
   testConnection: (provider: string) => Promise<boolean>
+  ensureProviderConfigured: () => Promise<void>
   generateSQL: (prompt: string, schema?: string, mode?: 'single' | 'multi', connections?: DatabaseConnection[], schemasMap?: Map<string, SchemaNode[]>) => Promise<string>
   fixSQL: (query: string, error: string, schema?: string, mode?: 'single' | 'multi', connections?: DatabaseConnection[], schemasMap?: Map<string, SchemaNode[]>) => Promise<string>
   sendGenericMessage: (prompt: string, options?: {
@@ -117,6 +168,7 @@ const defaultState: AIState = {
     codex: 'disconnected',
   },
   memoriesHydrated: false,
+  providerSynced: false,
 }
 
 type WailsMemorySession = InstanceType<typeof wailsModels.AIMemorySession>
@@ -164,6 +216,7 @@ const deserializeMemorySessions = (payload: WailsMemorySession[]): MemorySession
 class SecureStorage {
   private static instance: SecureStorage
   private keyPrefix = 'ai-secure-'
+  private fallback = new Map<string, string>()
 
   static getInstance(): SecureStorage {
     if (!SecureStorage.instance) {
@@ -175,7 +228,13 @@ class SecureStorage {
   async setItem(key: string, value: string): Promise<void> {
     try {
       sessionStorage.setItem(this.keyPrefix + key, value)
+      this.fallback.delete(this.keyPrefix + key)
     } catch (error) {
+      this.fallback.set(this.keyPrefix + key, value)
+      if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+        console.warn('Session storage quota exceeded; falling back to in-memory secure storage')
+        return
+      }
       console.error('Failed to store secure item:', error)
       throw new Error('Failed to store secure data')
     }
@@ -183,11 +242,14 @@ class SecureStorage {
 
   async getItem(key: string): Promise<string | null> {
     try {
-      return sessionStorage.getItem(this.keyPrefix + key)
+      const value = sessionStorage.getItem(this.keyPrefix + key)
+      if (value !== null) {
+        return value
+      }
     } catch (error) {
       console.error('Failed to retrieve secure item:', error)
-      return null
     }
+    return this.fallback.get(this.keyPrefix + key) ?? null
   }
 
   async removeItem(key: string): Promise<void> {
@@ -196,6 +258,7 @@ class SecureStorage {
     } catch (error) {
       console.error('Failed to remove secure item:', error)
     }
+    this.fallback.delete(this.keyPrefix + key)
   }
 
   async clear(): Promise<void> {
@@ -205,6 +268,7 @@ class SecureStorage {
     } catch (error) {
       console.error('Failed to clear secure storage:', error)
     }
+    this.fallback.clear()
   }
 }
 
@@ -283,6 +347,7 @@ export const useAIStore = create<AIState & AIActions>()(
         const previousConfig = get().config
         set(state => ({
           config: { ...state.config, ...configUpdate },
+          providerSynced: false,
         }))
 
         if (configUpdate.syncMemories !== undefined && configUpdate.syncMemories !== previousConfig.syncMemories) {
@@ -398,6 +463,10 @@ export const useAIStore = create<AIState & AIActions>()(
           const response = await testAIProviderConnection(testParams)
 
           if (response.success) {
+            const providerConfig = buildProviderConfig(provider, config)
+            await ConfigureAIProvider(providerConfig)
+            set({ providerSynced: true })
+
             setConnectionStatus(provider, 'connected')
 
             // Show success notification using hybrid approach (toast + optional dialog)
@@ -416,12 +485,38 @@ export const useAIStore = create<AIState & AIActions>()(
         } catch (error) {
           console.error(`${provider} connection test failed:`, error)
           setConnectionStatus(provider, 'error')
+          set({ providerSynced: false })
 
           // Show error notification using hybrid approach (toast + dialog for errors)
           const errorMessage = error instanceof Error ? error.message : 'Connection test failed'
           await showHybridNotification('Connection Test Failed', errorMessage, true, true)
 
           throw error // Re-throw so the frontend can handle it
+        }
+      },
+
+      ensureProviderConfigured: async () => {
+        const { config, providerSynced } = get()
+        if (providerSynced || !config.enabled) {
+          return
+        }
+
+        const providerConfig = buildProviderConfig(config.provider, config)
+
+        // Skip if provider requires credentials that are missing
+        if ((config.provider === 'openai' && !providerConfig.apiKey) ||
+            (config.provider === 'anthropic' && !providerConfig.apiKey) ||
+            (config.provider === 'codex' && !providerConfig.apiKey)) {
+          return
+        }
+
+        try {
+          await ConfigureAIProvider(providerConfig)
+          set({ providerSynced: true })
+        } catch (error) {
+          console.error('Failed to configure AI provider', error)
+          set({ providerSynced: false })
+          throw error
         }
       },
 
@@ -442,6 +537,8 @@ export const useAIStore = create<AIState & AIActions>()(
         setLastError(null)
 
         try {
+          await get().ensureProviderConfigured()
+
           // Import Wails bindings
           const { GenerateSQLFromNaturalLanguage } = await import('../../wailsjs/go/main/App')
           const { AISchemaContextBuilder } = await import('@/lib/ai-schema-context')
@@ -625,6 +722,8 @@ export const useAIStore = create<AIState & AIActions>()(
         setLastError(null)
 
         try {
+          await get().ensureProviderConfigured()
+
           // Import Wails bindings
           const { FixSQLErrorWithOptions } = await import('../../wailsjs/go/main/App')
           const { AISchemaContextBuilder } = await import('@/lib/ai-schema-context')
@@ -754,6 +853,8 @@ export const useAIStore = create<AIState & AIActions>()(
         setLastError(null)
 
         try {
+          await get().ensureProviderConfigured()
+
           const baseContext = options?.context?.trim() ?? ''
           const memoryContext = memoryStore.buildContext({
             sessionId,

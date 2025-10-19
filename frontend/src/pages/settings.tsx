@@ -10,14 +10,20 @@ import { useNavigate } from "react-router-dom"
 import { useEffect, useState, useRef } from "react"
 import { useAIConfig } from "@/store/ai-store"
 import { useOllamaDetection } from "@/hooks/use-ollama-detection"
+import { useToast } from "@/hooks/use-toast"
 
 export function Settings() {
   const { theme, setTheme } = useTheme()
   const navigate = useNavigate()
+  const { toast } = useToast()
 
   // AI Configuration
   const { config: aiConfig, updateConfig, testConnection, connectionStatus } = useAIConfig()
   const ollamaDetection = useOllamaDetection(aiConfig.provider === 'ollama')
+
+  // Track initial config to detect changes
+  const initialConfigRef = useRef(aiConfig)
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
 
   const [showApiKeys, setShowApiKeys] = useState({
     openai: false,
@@ -25,6 +31,7 @@ export function Settings() {
     codex: false
   })
   const hasAutoTestedLocalRef = useRef(false)
+
   const [testMessage, setTestMessage] = useState<{provider: string, message: string, type: 'success' | 'error'} | null>(null)
 
   const handleAiConfigChange = (key: string, value: string | number | boolean) => {
@@ -106,6 +113,32 @@ export function Settings() {
       hasAutoTestedLocalRef.current = false
     }
   }, [aiConfig.provider, testConnection])
+
+  // Detect changes in config
+  useEffect(() => {
+    const hasChanges = JSON.stringify(initialConfigRef.current) !== JSON.stringify(aiConfig)
+    setHasUnsavedChanges(hasChanges)
+  }, [aiConfig])
+
+  // Handle save button click
+  const handleSaveSettings = () => {
+    try {
+      // Settings are already auto-saved via updateConfig, so just update the initial ref
+      initialConfigRef.current = aiConfig
+      setHasUnsavedChanges(false)
+
+      toast({
+        title: "Settings saved",
+        description: "Your settings have been saved successfully.",
+      })
+    } catch (error) {
+      toast({
+        title: "Error saving settings",
+        description: error instanceof Error ? error.message : "Failed to save settings",
+        variant: "destructive",
+      })
+    }
+  }
 
   return (
     <div className="flex flex-1 h-full min-h-0 w-full flex-col overflow-y-auto">
@@ -676,6 +709,9 @@ You can also start it manually by running: ollama serve`)
                           <CheckCircle className="h-5 w-5 text-green-500" />
                         )}
                       </div>
+                      <p className="text-xs text-muted-foreground">
+                        To authenticate, run <code className="bg-muted px-1 rounded">claude login</code> in your terminal. The app will automatically detect your credentials from <code className="bg-muted px-1 rounded">~/.claude/.credentials.json</code> or the <code className="bg-muted px-1 rounded">CLAUDE_CODE_OAUTH_TOKEN</code> environment variable.
+                      </p>
                       {testMessage && testMessage.provider === 'claudecode' && (
                         <div className={`mt-2 p-2 rounded text-sm ${
                           testMessage.type === 'success'
@@ -685,9 +721,6 @@ You can also start it manually by running: ollama serve`)
                           {testMessage.type === 'success' ? '✅' : '❌'} {testMessage.message}
                         </div>
                       )}
-                      <p className="text-xs text-muted-foreground">
-                        Uses Claude Code CLI for local AI assistance. Install from claude.ai/code
-                      </p>
                     </div>
 
                     <div className="space-y-2">
@@ -710,12 +743,12 @@ You can also start it manually by running: ollama serve`)
                         <AlertTriangle className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5" />
                         <div className="text-sm text-blue-800 dark:text-blue-200">
                           <p className="font-medium">About Claude Code</p>
-                          <p className="mt-1">Claude Code runs locally using the Claude CLI. Make sure you have:</p>
-                          <ul className="list-disc list-inside mt-1 space-y-0.5">
-                            <li>Installed Claude Code from claude.ai/code</li>
-                            <li>Signed in with your Claude account</li>
-                            <li>The claude command available in your PATH</li>
-                          </ul>
+                          <p className="mt-1">Claude Code runs locally using the Claude CLI. To set up:</p>
+                          <ol className="list-decimal list-inside mt-1 space-y-0.5">
+                            <li>Install Claude Code from <a href="https://claude.ai/code" target="_blank" rel="noreferrer" className="underline">claude.ai/code</a></li>
+                            <li>Run <code className="bg-blue-100 dark:bg-blue-900/30 px-1 rounded">claude login</code> in your terminal</li>
+                            <li>Click "Test" above to verify the connection</li>
+                          </ol>
                         </div>
                       </div>
                     </div>
@@ -731,12 +764,12 @@ You can also start it manually by running: ollama serve`)
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="codex-api-key">API Key</Label>
+                      <Label htmlFor="codex-api-key">API Key (optional)</Label>
                       <div className="flex gap-2">
                         <Input
                           id="codex-api-key"
                           type={showApiKeys.codex ? "text" : "password"}
-                          placeholder="sk-..."
+                          placeholder="Leave empty to use global credentials"
                           value={aiConfig.codexApiKey}
                           onChange={(e) => handleAiConfigChange('codexApiKey', e.target.value)}
                         />
@@ -759,6 +792,9 @@ You can also start it manually by running: ollama serve`)
                           <CheckCircle className="h-5 w-5 text-green-500" />
                         )}
                       </div>
+                      <p className="text-xs text-muted-foreground">
+                        Leave empty to automatically use credentials from <code className="bg-muted px-1 rounded">~/.codex/auth.json</code>, <code className="bg-muted px-1 rounded">OPENAI_API_KEY</code>, or <code className="bg-muted px-1 rounded">CODEX_API_KEY</code> environment variable. Authenticate via <code className="bg-muted px-1 rounded">openai login</code> CLI command.
+                      </p>
                       {testMessage && testMessage.provider === 'codex' && (
                         <div className={`mt-2 p-2 rounded text-sm ${
                           testMessage.type === 'success'
@@ -801,12 +837,13 @@ You can also start it manually by running: ollama serve`)
                         <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5" />
                         <div className="text-sm text-amber-800 dark:text-amber-200">
                           <p className="font-medium">Codex Access Required</p>
-                          <p className="mt-1">OpenAI Codex requires special access. Make sure you have:</p>
-                          <ul className="list-disc list-inside mt-1 space-y-0.5">
-                            <li>Applied for Codex access through OpenAI</li>
-                            <li>Received API access approval</li>
-                            <li>A valid API key with Codex permissions</li>
-                          </ul>
+                          <p className="mt-1">OpenAI Codex requires special access. To set up:</p>
+                          <ol className="list-decimal list-inside mt-1 space-y-0.5">
+                            <li>Apply for Codex access through OpenAI</li>
+                            <li>Run <code className="bg-amber-100 dark:bg-amber-900/30 px-1 rounded">openai login</code> in your terminal, or</li>
+                            <li>Set your API key in the field above or via environment variables</li>
+                            <li>Click "Test" to verify the connection</li>
+                          </ol>
                         </div>
                       </div>
                     </div>
@@ -1004,7 +1041,7 @@ You can also start it manually by running: ollama serve`)
           <Button variant="outline" onClick={() => navigate(-1)}>
             Cancel
           </Button>
-          <Button>
+          <Button onClick={handleSaveSettings} disabled={!hasUnsavedChanges}>
             Save Settings
           </Button>
         </div>

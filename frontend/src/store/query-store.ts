@@ -4,9 +4,12 @@ import { wailsEndpoints } from '@/lib/wails-api'
 import { EventsOn } from '../../wailsjs/runtime/runtime'
 import { useConnectionStore, type DatabaseConnection } from './connection-store'
 
+export type QueryTabType = 'sql' | 'ai'
+
 export interface QueryTab {
   id: string
   title: string
+  type: QueryTabType
   content: string
   isDirty: boolean
   isExecuting: boolean
@@ -14,6 +17,7 @@ export interface QueryTab {
   connectionId?: string // Per-tab connection support (single-DB mode)
   selectedConnectionIds?: string[] // Multi-select connections (multi-DB mode)
   environmentSnapshot?: string | null // Capture environment filter at creation
+  aiSessionId?: string
 }
 
 export interface QueryEditableColumn {
@@ -61,7 +65,7 @@ interface QueryState {
   results: QueryResult[]
 
   // Actions
-  createTab: (title?: string) => string
+  createTab: (title?: string, options?: { connectionId?: string; type?: QueryTabType; aiSessionId?: string }) => string
   closeTab: (id: string) => void
   updateTab: (id: string, updates: Partial<QueryTab>) => void
   setActiveTab: (id: string) => void
@@ -418,51 +422,40 @@ export const useQueryStore = create<QueryState>()(
       activeTabId: null,
       results: [],
 
-      createTab: (title = 'New Query', connectionId?: string) => {
-        // Determine initial connection for the tab
-        let initialConnectionId = connectionId
+      createTab: (title = 'New Query', options?: { connectionId?: string; type?: QueryTabType; aiSessionId?: string }) => {
+        const desiredType = options?.type ?? 'sql'
+        let initialConnectionId = options?.connectionId
         let environmentSnapshot: string | null = null
-        
+
         if (!initialConnectionId) {
-          // Get connection store state directly (avoid circular import)
           const connectionState = window.__connectionStore?.getState?.()
-          
           if (connectionState) {
             const { connections, activeConnection, activeEnvironmentFilter } = connectionState
-            
-            // Capture the current environment filter
             environmentSnapshot = activeEnvironmentFilter
-            
+
             if (activeConnection) {
-              // Use active connection
               initialConnectionId = activeConnection.id
-              console.log(`📝 New tab using active connection: ${activeConnection.name}`)
             } else if (connections.length > 0) {
-              // Use first connected connection
               const firstConnected = connections.find((c: DatabaseConnection) => c.isConnected)
               if (firstConnected) {
                 initialConnectionId = firstConnected.id
-                console.log(`📝 New tab using first connected: ${firstConnected.name}`)
-              } else {
-                // No connected connections → leave as undefined, UI will prompt user
-                console.log(`📝 New tab created with no connection - user must select`)
               }
             }
-            // If connections.length === 0, initialConnectionId remains undefined
           }
         }
-        
+
         const newTab: QueryTab = {
           id: crypto.randomUUID(),
           title,
+          type: desiredType,
           content: '',
           isDirty: false,
           isExecuting: false,
           connectionId: initialConnectionId,
-          environmentSnapshot, // Store current environment filter
+          selectedConnectionIds: initialConnectionId ? [initialConnectionId] : [],
+          environmentSnapshot,
+          aiSessionId: options?.aiSessionId,
         }
-        
-        console.log(`📝 New tab created with environment: ${environmentSnapshot || 'All'}`)
 
         set((state) => ({
           tabs: [...state.tabs, newTab],
@@ -491,9 +484,18 @@ export const useQueryStore = create<QueryState>()(
 
       updateTab: (id, updates) => {
         set((state) => ({
-          tabs: state.tabs.map((tab) =>
-            tab.id === id ? { ...tab, ...updates } : tab
-          ),
+          tabs: state.tabs.map((tab) => {
+            if (tab.id !== id) {
+              return tab
+            }
+
+            return {
+              ...tab,
+              ...updates,
+              type: tab.type,
+              aiSessionId: tab.aiSessionId,
+            }
+          }),
         }))
       },
 
@@ -502,11 +504,15 @@ export const useQueryStore = create<QueryState>()(
       },
 
       executeQuery: async (tabId, query, connectionId) => {
+        const tab = get().tabs.find(t => t.id === tabId)
+        if (!tab || tab.type !== 'sql') {
+          return
+        }
+
         get().updateTab(tabId, { isExecuting: true })
 
         // Use tab's connection if no connectionId provided
-        const tab = get().tabs.find(t => t.id === tabId)
-        const effectiveConnectionId = connectionId || tab?.connectionId
+        const effectiveConnectionId = connectionId || tab.connectionId
 
         if (!effectiveConnectionId) {
           get().addResult({
