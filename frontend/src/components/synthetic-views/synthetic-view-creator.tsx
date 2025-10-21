@@ -20,10 +20,55 @@ interface SourceDefinition {
   table: string
 }
 
+interface SyntheticViewIRJoin {
+  type: string
+  table: {
+    schema: string
+    table: string
+    connection: string
+  }
+  on: {
+    type: string
+    column: string
+    operator: string
+    value: string
+  }
+}
+
+interface SyntheticViewIR {
+  from: {
+    schema: string
+    table: string
+    connection: string
+  } | null
+  joins: SyntheticViewIRJoin[]
+  select: Array<{
+    column: string
+    alias: string
+  }>
+}
+
+interface SyntheticViewOptions {
+  rowLimitDefault: number
+  materializeTemp: boolean
+}
+
+interface SyntheticViewConfig {
+  id: string
+  name: string
+  description: string
+  version: string
+  columns: ColumnDefinition[]
+  sources: SourceDefinition[]
+  ir: SyntheticViewIR
+  compiledDuckDBSQL: string
+  options: SyntheticViewOptions
+}
+
 interface SyntheticViewCreatorProps {
-  onSave?: (viewDef: any) => void
+  onSave?: (viewDef: SyntheticViewConfig) => void
   onCancel?: () => void
-  initialView?: any
+  initialView?: SyntheticViewConfig | null
 }
 
 export const SyntheticViewCreator: React.FC<SyntheticViewCreatorProps> = ({
@@ -109,7 +154,7 @@ export const SyntheticViewCreator: React.FC<SyntheticViewCreatorProps> = ({
       setLoading(true)
       setError(null)
 
-      const viewDef = {
+      const viewDef: SyntheticViewConfig = {
         id: initialView?.id || `view_${Date.now()}`,
         name: name.trim(),
         description: description.trim(),
@@ -122,7 +167,7 @@ export const SyntheticViewCreator: React.FC<SyntheticViewCreatorProps> = ({
             table: sources[0].table,
             connection: sources[0].connectionIdOrName
           } : null,
-          joins: sources.slice(1).map((source, index) => ({
+          joins: sources.slice(1).map((source) => ({
             type: 'inner',
             table: {
               schema: source.schema,

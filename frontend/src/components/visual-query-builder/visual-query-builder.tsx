@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Database, Table, Filter, ArrowUpDown, Code, AlertCircle, Link } from 'lucide-react'
-import { VisualQueryBuilderProps, VisualQueryState, ConnectionInfo, SchemaInfo, TableInfo, ColumnInfo } from './types'
+import { VisualQueryBuilderProps, VisualQueryState, TableInfo, ColumnInfo } from './types'
 import { QueryIR, TableRef, SelectItem, OrderBy } from '@/lib/query-ir'
 import { createMultiConnectionExecutor, MergedResult } from '@/lib/multi-connection-executor'
 import { SourcePicker } from './source-picker'
@@ -37,7 +37,6 @@ export function VisualQueryBuilder({
     offset: undefined
   })
 
-  const [selectedTable, setSelectedTable] = useState<TableInfo | null>(null)
   const [tableColumns, setTableColumns] = useState<ColumnInfo[]>([])
   const [activeTab, setActiveTab] = useState('source')
   const [manualSQL, setManualSQL] = useState('')
@@ -66,16 +65,15 @@ export function VisualQueryBuilder({
       loadTableColumns(queryState.from)
     } else {
       setTableColumns([])
-      setSelectedTable(null)
     }
-  }, [queryState.from, schemas])
+  }, [queryState.from, loadTableColumns])
 
   // Load table columns from schema
   const loadTableColumns = useCallback(async (table: TableRef) => {
     // Find table in schemas
     let foundTable: TableInfo | null = null
     
-    for (const [connectionId, connectionSchemas] of schemas) {
+    for (const connectionSchemas of schemas.values()) {
       for (const schema of connectionSchemas) {
         if (schema.name === table.schema) {
           const tableInfo = schema.tables.find(t => t.name === table.table)
@@ -89,10 +87,8 @@ export function VisualQueryBuilder({
     }
 
     if (foundTable) {
-      setSelectedTable(foundTable)
       setTableColumns(foundTable.columns)
     } else {
-      setSelectedTable(null)
       setTableColumns([])
     }
   }, [schemas])
@@ -127,7 +123,7 @@ export function VisualQueryBuilder({
   }
 
   // Handle where clause changes
-  const handleWhereChange = (where: any) => {
+  const handleWhereChange = (where: QueryIR['where']) => {
     setQueryState(prev => ({
       ...prev,
       where
@@ -224,11 +220,6 @@ export function VisualQueryBuilder({
       onQueryChange(queryIR)
     }
   }, [queryState, generateQueryIR, onQueryChange])
-
-  // Get connection info
-  const getConnectionInfo = (connectionId: string): ConnectionInfo | undefined => {
-    return connections.find(conn => conn.id === connectionId)
-  }
 
   // Check if query is valid
   const isQueryValid = queryState.from && queryState.select.length > 0

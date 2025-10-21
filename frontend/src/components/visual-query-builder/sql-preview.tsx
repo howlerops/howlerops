@@ -3,7 +3,7 @@
  * Shows generated SQL and handles manual SQL editing
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -19,27 +19,22 @@ export function SqlPreview({
   manualSQL,
   onSQLChange
 }: SqlPreviewProps) {
-  const [generatedSQL, setGeneratedSQL] = useState('')
   const [isManualMode, setIsManualMode] = useState(false)
-  const [hasChanges, setHasChanges] = useState(false)
-
-  // Generate SQL from IR
-  useEffect(() => {
+  const generatedSQL = useMemo(() => {
     try {
-      const sql = generateSQL(queryIR, dialect)
-      setGeneratedSQL(sql)
-      
-      // Check if manual SQL differs from generated
-      if (manualSQL && manualSQL.trim() !== sql.trim()) {
-        setHasChanges(true)
-      } else {
-        setHasChanges(false)
-      }
+      return generateSQL(queryIR, dialect)
     } catch (error) {
       console.error('Failed to generate SQL:', error)
-      setGeneratedSQL('-- Error generating SQL')
+      return '-- Error generating SQL'
     }
-  }, [queryIR, dialect, manualSQL])
+  }, [queryIR, dialect])
+
+  const hasChanges = useMemo(() => {
+    if (!manualSQL) {
+      return false
+    }
+    return manualSQL.trim() !== generatedSQL.trim()
+  }, [manualSQL, generatedSQL])
 
   // Handle manual SQL toggle
   const handleManualToggle = () => {

@@ -69,11 +69,6 @@ export function useMultiConnectionSchema(): UseMultiConnectionSchemaReturn {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Load connections on mount
-  useEffect(() => {
-    refreshConnections();
-  }, []);
-
   /**
    * Refresh the list of available connections
    */
@@ -92,6 +87,11 @@ export function useMultiConnectionSchema(): UseMultiConnectionSchemaReturn {
       setIsLoading(false);
     }
   }, []);
+
+  // Load connections on mount
+  useEffect(() => {
+    refreshConnections();
+  }, [refreshConnections]);
 
   /**
    * Load schemas for specified connections
@@ -155,4 +155,3 @@ export function useMultiConnectionSchema(): UseMultiConnectionSchemaReturn {
 }
 
 export default useMultiConnectionSchema;
-

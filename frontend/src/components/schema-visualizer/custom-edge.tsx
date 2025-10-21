@@ -6,7 +6,7 @@ import {
   getSmoothStepPath,
 } from 'reactflow'
 import { EdgeConfig } from '@/types/schema-visualizer'
-import { edgeDesignSystem, getCardinalitySymbol, getRelationshipPattern } from '@/lib/edge-design-tokens'
+import { edgeDesignSystem, getCardinalitySymbol } from '@/lib/edge-design-tokens'
 
 interface CustomEdgeData {
   data?: EdgeConfig

@@ -2,6 +2,63 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { useConnectionStore } from '@/store/connection-store'
 import { wailsEndpoints } from '@/lib/wails-api'
 
+interface SyntheticViewColumn {
+  name: string
+  type?: string
+  [key: string]: unknown
+}
+
+interface SyntheticViewDefinition {
+  name: string
+  columns?: SyntheticViewColumn[]
+  [key: string]: unknown
+}
+
+const normaliseSyntheticColumn = (column: unknown): SyntheticViewColumn | null => {
+  if (!column || typeof column !== 'object') {
+    return null
+  }
+
+  const candidate = column as Record<string, unknown>
+  const name = typeof candidate.name === 'string' ? candidate.name : undefined
+  if (!name) {
+    return null
+  }
+
+  const type = typeof candidate.type === 'string' ? candidate.type : undefined
+
+  return {
+    ...candidate,
+    name,
+    ...(type ? { type } : {}),
+  }
+}
+
+const normaliseSyntheticView = (view: unknown): SyntheticViewDefinition | null => {
+  if (!view || typeof view !== 'object') {
+    return null
+  }
+
+  const candidate = view as Record<string, unknown>
+  const name = typeof candidate.name === 'string' ? candidate.name : undefined
+  if (!name) {
+    return null
+  }
+
+  let columns: SyntheticViewColumn[] | undefined
+  if (Array.isArray(candidate.columns)) {
+    columns = candidate.columns
+      .map(normaliseSyntheticColumn)
+      .filter((column): column is SyntheticViewColumn => column !== null)
+  }
+
+  return {
+    ...candidate,
+    name,
+    ...(columns ? { columns } : {}),
+  }
+}
+
 export interface SchemaNode {
   id: string
   name: string
@@ -154,12 +211,14 @@ export function useSchemaIntrospection() {
       const schemasResponse = await wailsEndpoints.schema.databases(connectionId)
       
       // Also fetch synthetic views
-      let syntheticViews: any[] = []
+      let syntheticViews: SyntheticViewDefinition[] = []
       try {
         const { GetSyntheticSchema } = await import('../../wailsjs/go/main/App')
-        const syntheticSchema = await GetSyntheticSchema()
-        if (syntheticSchema && syntheticSchema.views) {
+        const syntheticSchema = await GetSyntheticSchema() as { views?: unknown }
+        if (syntheticSchema && Array.isArray(syntheticSchema.views)) {
           syntheticViews = syntheticSchema.views
+            .map(normaliseSyntheticView)
+            .filter((view): view is SyntheticViewDefinition => view !== null)
         }
       } catch (err) {
         console.warn('Failed to load synthetic views:', err)
@@ -242,7 +301,7 @@ export function useSchemaIntrospection() {
             id: `synthetic.${view.name}.${index}`,
             name: view.name,
             type: 'table' as const,
-            children: view.columns?.map((col: any, colIndex: number) => ({
+            children: view.columns?.map((col, colIndex) => ({
               id: `synthetic.${view.name}.${col.name}.${colIndex}`,
               name: col.name,
               type: 'column' as const,

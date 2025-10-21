@@ -184,6 +184,7 @@ export function ResultsPanel({ onFixWithAI }: ResultsPanelProps = {}) {
               executionTimeMs={latestResult.executionTime}
               rowCount={latestResult.rowCount}
               executedAt={latestResult.timestamp}
+              affectedRows={latestResult.affectedRows}
             />
           )}
         </TabsContent>
@@ -280,7 +281,14 @@ export function ResultsPanel({ onFixWithAI }: ResultsPanelProps = {}) {
                         <span className="text-destructive">Error: {result.error}</span>
                       ) : (
                         <span className="text-primary">
-                          Query executed successfully. {result.rowCount} rows affected.
+                          {(() => {
+                            const hasTabularData = result.columns.length > 0
+                            const count = hasTabularData ? result.rowCount : result.affectedRows
+                            const formattedCount = count.toLocaleString()
+                            const noun = count === 1 ? 'row' : 'rows'
+                            const verb = hasTabularData ? 'returned' : 'affected'
+                            return `Query executed successfully. ${formattedCount} ${noun} ${verb}.`
+                          })()}
                         </span>
                       )}
                     </div>
@@ -312,8 +320,14 @@ export function ResultsPanel({ onFixWithAI }: ResultsPanelProps = {}) {
                   <div className="font-medium">{latestResult.executionTime.toFixed(2)}ms</div>
                 </div>
                 <div>
-                  <span className="text-xs text-muted-foreground">Rows Returned</span>
-                  <div className="font-medium">{latestResult.rowCount}</div>
+                  <span className="text-xs text-muted-foreground">
+                    {latestResult.columns.length > 0 ? 'Rows Returned' : 'Rows Affected'}
+                  </span>
+                  <div className="font-medium">
+                    {latestResult.columns.length > 0
+                      ? latestResult.rowCount
+                      : latestResult.affectedRows}
+                  </div>
                 </div>
                 <div>
                   <span className="text-xs text-muted-foreground">Status</span>

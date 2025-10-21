@@ -3,17 +3,88 @@
  * Handles WHERE clause construction with typed inputs
  */
 
-import { useState, useCallback } from 'react'
+import { useState, useEffect, startTransition } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Plus, X, Trash2, And, Or, Not } from 'lucide-react'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { Plus, X, Trash2 } from 'lucide-react'
 import { FilterEditorProps, ColumnInfo, FilterCondition, FilterGroup } from './types'
 import { FilterOperator } from '@/workers/types'
 import { typeRegistry } from '@/lib/type-registry'
 import { Expr, Predicate, Group } from '@/lib/query-ir'
+
+const convertConditionToExpr = (condition: FilterCondition | FilterGroup): Expr => {
+  if ('column' in condition) {
+    return {
+      column: condition.column,
+      operator: condition.operator,
+      value: condition.value,
+      not: condition.not,
+    } as Predicate
+  }
+
+  return {
+    operator: condition.operator,
+    conditions: condition.conditions
+      .map(convertConditionToExpr)
+      .filter((child): child is Expr => Boolean(child)),
+    not: condition.not,
+  } as Group
+}
+
+const convertConditionsToExpr = (conditions: (FilterCondition | FilterGroup)[]): Expr | undefined => {
+  if (conditions.length === 0) {
+    return undefined
+  }
+
+  if (conditions.length === 1) {
+    return convertConditionToExpr(conditions[0])
+  }
+
+  return {
+    operator: 'AND',
+    conditions: conditions.map(convertConditionToExpr),
+  } as Group
+}
+
+const buildConditionsFromExpr = (
+  expr: Expr,
+  startId = 1
+): { conditions: (FilterCondition | FilterGroup)[]; nextId: number } => {
+  let nextId = startId
+
+  const createId = (prefix: 'condition' | 'group') => {
+    const id = `${prefix}-${nextId}`
+    nextId += 1
+    return id
+  }
+
+  const convert = (node: Expr): FilterCondition | FilterGroup => {
+    if ('column' in node) {
+      return {
+        id: createId('condition'),
+        column: node.column,
+        operator: node.operator,
+        value: node.value,
+        not: node.not,
+      }
+    }
+
+    return {
+      id: createId('group'),
+      operator: node.operator,
+      conditions: node.conditions.map(convert),
+      not: node.not,
+    }
+  }
+
+  const root = convert(expr)
+  return {
+    conditions: [root],
+    nextId,
+  }
+}
 
 export function FilterEditor({
   columns,
@@ -23,72 +94,25 @@ export function FilterEditor({
   const [conditions, setConditions] = useState<(FilterCondition | FilterGroup)[]>([])
   const [nextId, setNextId] = useState(1)
 
-  // Convert Expr to UI state
-  const exprToConditions = useCallback((expr: Expr): (FilterCondition | FilterGroup)[] => {
-    if ('column' in expr) {
-      // Predicate
-      return [{
-        id: `condition-${nextId}`,
-        column: expr.column,
-        operator: expr.operator,
-        value: expr.value,
-        not: expr.not
-      }]
-    } else if ('operator' in expr) {
-      // Group
-      return [{
-        id: `group-${nextId}`,
-        operator: expr.operator,
-        conditions: expr.conditions.flatMap(condition => exprToConditions(condition)),
-        not: expr.not
-      }]
-    }
-    return []
-  }, [nextId])
-
-  // Convert UI state to Expr
-  const conditionsToExpr = useCallback((conditions: (FilterCondition | FilterGroup)[]): Expr | undefined => {
-    if (conditions.length === 0) return undefined
-    if (conditions.length === 1) {
-      const condition = conditions[0]
-      if ('column' in condition) {
-        return {
-          column: condition.column,
-          operator: condition.operator,
-          value: condition.value,
-          not: condition.not
-        } as Predicate
-      } else {
-        return {
-          operator: condition.operator,
-          conditions: conditionsToExpr(condition.conditions) ? [conditionsToExpr(condition.conditions)!] : [],
-          not: condition.not
-        } as Group
+  useEffect(() => {
+    startTransition(() => {
+      if (!where) {
+        setConditions([])
+        setNextId(1)
+        return
       }
-    }
-    
-    // Multiple conditions - wrap in AND group
-    return {
-      operator: 'AND',
-      conditions: conditions.map(condition => {
-        if ('column' in condition) {
-          return {
-            column: condition.column,
-            operator: condition.operator,
-            value: condition.value,
-            not: condition.not
-          } as Predicate
-        } else {
-          return {
-            operator: condition.operator,
-            conditions: conditionsToExpr(condition.conditions) ? [conditionsToExpr(condition.conditions)!] : [],
-            not: condition.not
-          } as Group
-        }
-      })
-    } as Group
-  }, [])
 
+      const { conditions: initialConditions, nextId: generatedNextId } = buildConditionsFromExpr(where)
+      setConditions(initialConditions)
+      setNextId(generatedNextId)
+    })
+  }, [where])
+
+  useEffect(() => {
+    onWhereChange(convertConditionsToExpr(conditions))
+  }, [conditions, onWhereChange])
+
+  // Convert Expr to UI state
   // Add new condition
   const addCondition = () => {
     const newCondition: FilterCondition = {

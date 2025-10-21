@@ -16,7 +16,7 @@ import {
   startCompletion,
   acceptCompletion
 } from '@codemirror/autocomplete'
-import { defaultKeymap, historyKeymap, history } from '@codemirror/commands'
+import { defaultKeymap, historyKeymap, history, indentMore } from '@codemirror/commands'
 import { searchKeymap } from '@codemirror/search'
 import { oneDark } from '@codemirror/theme-one-dark'
 
@@ -391,7 +391,14 @@ export function createSQLExtensions(
       // Tab key accepts completion if available, otherwise indents
       {
         key: 'Tab',
-        run: acceptCompletion
+        run: (view) => {
+          // Try to accept completion first
+          if (acceptCompletion(view)) {
+            return true
+          }
+          // Otherwise, indent
+          return indentMore(view)
+        }
       },
       ...defaultKeymap,
       ...historyKeymap,

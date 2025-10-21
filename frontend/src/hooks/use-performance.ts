@@ -164,11 +164,13 @@ export const useRenderPerformance = (componentName: string, enabled = false) => 
 
     renderStartRef.current = performance.now();
     renderCountRef.current++;
+    const renderCountSnapshot = renderCountRef.current;
 
     return () => {
-      if (renderStartRef.current) {
-        const renderTime = performance.now() - renderStartRef.current;
-        console.log(`${componentName} render #${renderCountRef.current}: ${renderTime.toFixed(2)}ms`);
+      const renderStart = renderStartRef.current;
+      if (renderStart) {
+        const renderTime = performance.now() - renderStart;
+        console.log(`${componentName} render #${renderCountSnapshot}: ${renderTime.toFixed(2)}ms`);
       }
     };
   });

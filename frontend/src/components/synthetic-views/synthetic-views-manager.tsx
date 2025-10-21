@@ -3,12 +3,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Plus, Edit, Trash2, Eye, Database, Lock, Calendar } from 'lucide-react'
-import { cn } from '@/lib/utils'
 
 interface ViewDefinition {
   id: string
@@ -45,9 +41,7 @@ export const SyntheticViewsManager: React.FC<SyntheticViewsManagerProps> = ({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
-  const [showEditDialog, setShowEditDialog] = useState(false)
   const [selectedView, setSelectedView] = useState<ViewDefinition | null>(null)
-  const [editingView, setEditingView] = useState<ViewDefinition | null>(null)
 
   // Load synthetic views
   const loadViews = async () => {
@@ -73,6 +67,9 @@ export const SyntheticViewsManager: React.FC<SyntheticViewsManagerProps> = ({
       const { GetSyntheticView } = await import('../../wailsjs/go/main/App')
       const view = await GetSyntheticView(viewId)
       setSelectedView(view)
+      if (onViewSelect) {
+        onViewSelect(view)
+      }
     } catch (err) {
       console.error('Failed to load view details:', err)
       setError(err instanceof Error ? err.message : 'Failed to load view details')
@@ -106,9 +103,10 @@ export const SyntheticViewsManager: React.FC<SyntheticViewsManagerProps> = ({
     try {
       const { GetSyntheticView } = await import('../../wailsjs/go/main/App')
       const viewDetails = await GetSyntheticView(view.id)
-      setEditingView(viewDetails)
-      setShowEditDialog(true)
-    } catch (err) {
+      if (onViewEdit) {
+        onViewEdit(viewDetails)
+      }
+  } catch (err) {
       console.error('Failed to load view for editing:', err)
       setError(err instanceof Error ? err.message : 'Failed to load view for editing')
     }

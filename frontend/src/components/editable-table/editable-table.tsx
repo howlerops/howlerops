@@ -173,6 +173,8 @@ export const EditableTable: React.FC<EditableTableProps> = ({
     return baseColumns;
   }, [tableColumns, data, enableMultiSelect, enableColumnResizing, state, actions]);
 
+  // TanStack Table returns mutable helpers; safe to instantiate per render.
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data,
     columns,

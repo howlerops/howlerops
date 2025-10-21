@@ -51,6 +51,7 @@ export interface QueryResult {
   rows: QueryResultRow[]
   originalRows: Record<string, QueryResultRow>
   rowCount: number
+  affectedRows: number
   executionTime: number
   error?: string
   timestamp: Date
@@ -523,6 +524,7 @@ export const useQueryStore = create<QueryState>()(
             rows: [],
             originalRows: {},
             rowCount: 0,
+            affectedRows: 0,
             executionTime: 0,
             error: 'No connection selected for this tab',
             editable: null,
@@ -543,6 +545,7 @@ export const useQueryStore = create<QueryState>()(
             rows: [],
             originalRows: {},
             rowCount: 0,
+            affectedRows: 0,
             executionTime: 0,
             error: 'Connection not established. Please connect to the database first.',
             editable: null,
@@ -560,15 +563,16 @@ export const useQueryStore = create<QueryState>()(
             get().addResult({
               tabId,
               columns: [],
-            rows: [],
-            originalRows: {},
-            rowCount: 0,
-            executionTime: 0,
-            error: message,
-            editable: null,
-            query,
-            connectionId,
-          })
+              rows: [],
+              originalRows: {},
+              rowCount: 0,
+              affectedRows: 0,
+              executionTime: 0,
+              error: message,
+              editable: null,
+              query,
+              connectionId,
+            })
             return
           }
 
@@ -580,6 +584,18 @@ export const useQueryStore = create<QueryState>()(
             editable: rawEditable = null,
           } = response.data
 
+          const statsRecord = (stats ?? {}) as Record<string, unknown>
+          const affectedRows =
+            typeof statsRecord.affectedRows === 'number'
+              ? statsRecord.affectedRows
+              : typeof statsRecord.affected_rows === 'number'
+                ? statsRecord.affected_rows
+                : 0
+          const durationValue =
+            typeof statsRecord.duration === 'string'
+              ? statsRecord.duration
+              : undefined
+
           const editableMetadata = transformEditableMetadata(rawEditable)
           const { rows: normalisedRows, originalRows } = normaliseRows(columns, rows, editableMetadata)
 
@@ -589,7 +605,8 @@ export const useQueryStore = create<QueryState>()(
             rows: normalisedRows,
             originalRows,
             rowCount: rowCount || normalisedRows.length,
-            executionTime: parseDurationMs(stats.duration),
+            affectedRows,
+            executionTime: parseDurationMs(durationValue),
             error: undefined,
             editable: editableMetadata,
             query,
@@ -612,6 +629,7 @@ export const useQueryStore = create<QueryState>()(
             rows: [],
             originalRows: {},
             rowCount: 0,
+            affectedRows: 0,
             executionTime: 0,
             error: error instanceof Error ? error.message : 'Unknown error occurred',
             editable: null,

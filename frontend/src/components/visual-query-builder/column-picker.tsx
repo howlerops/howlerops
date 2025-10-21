@@ -3,14 +3,14 @@
  * Handles column selection and aliasing
  */
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Plus, X, Hash, Text, Calendar, ToggleLeft, Key } from 'lucide-react'
-import { ColumnPickerProps, ColumnInfo, SelectItem as SelectItemType } from './types'
+import { Hash, Text, Calendar, ToggleLeft, Key } from 'lucide-react'
+import { ColumnPickerProps, ColumnInfo } from './types'
 import { typeRegistry } from '@/lib/type-registry'
 
 export function ColumnPicker({
@@ -20,8 +20,6 @@ export function ColumnPicker({
   onColumnsChange
 }: ColumnPickerProps) {
   const [searchTerm, setSearchTerm] = useState('')
-  const [showAll, setShowAll] = useState(false)
-
   // Filter columns based on search term
   const filteredColumns = columns.filter(column =>
     column.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -106,10 +104,10 @@ export function ColumnPicker({
   }
 
   // Handle aggregate change
-  const handleAggregateChange = (columnName: string, aggregate: string) => {
+  const handleAggregateChange = (columnName: string, aggregate: '' | NonNullable<ColumnPickerProps['selectedColumns'][number]['aggregate']>) => {
     onColumnsChange(selectedColumns.map(sel => 
       sel.column === columnName 
-        ? { ...sel, aggregate: aggregate as any }
+        ? { ...sel, aggregate: aggregate || undefined }
         : sel
     ))
   }

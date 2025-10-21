@@ -169,7 +169,7 @@ export const useTableState = (
     }
 
     return true;
-  }, [addToUndoStack]);
+  }, [addToUndoStack, setData]);
 
   const startEditing = useCallback((
     rowId: string,
@@ -381,7 +381,6 @@ export const useTableState = (
     setState(prev => ({ ...prev, invalidCells: new Map() }));
     
     // Validate all dirty cells
-    let hasInvalidCells = false;
     const newInvalidCells = new Map<string, { columnId: string; error: string }>();
     
     state.dirtyRows.forEach(rowId => {
@@ -404,7 +403,7 @@ export const useTableState = (
     });
     
     setState(prev => ({ ...prev, invalidCells: newInvalidCells }));
-    return !hasInvalidCells;
+    return newInvalidCells.size === 0;
   }, [state.dirtyRows]);
 
   const clearInvalidCells = useCallback(() => {
@@ -452,7 +451,7 @@ export const useTableState = (
       undoStack: [],
       redoStack: [],
     });
-  }, [initialData]);
+  }, [initialData, setData]);
 
   // Event-based state clearing
   useEffect(() => {

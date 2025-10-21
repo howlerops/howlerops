@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { cn } from '../../utils/cn';
 import type { CellEditorProps } from '../../types/table';
-import { validateCellValue, parseCellValue, isEqual } from '../../utils/table';
+import { validateCellValue, parseCellValue } from '../../utils/table';
 
 export const CellEditor: React.FC<CellEditorProps> = ({
   value,
@@ -18,9 +18,6 @@ export const CellEditor: React.FC<CellEditorProps> = ({
   const [localValue, setLocalValue] = useState<string>(
     value?.toString() ?? ''
   );
-  const [isValid, setIsValid] = useState(true);
-  const [error, setError] = useState<string>();
-
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(null);
   const onChangeRef = useRef(onChange);
 
@@ -39,10 +36,9 @@ export const CellEditor: React.FC<CellEditorProps> = ({
     }
   }, [autoFocus]);
 
-  // Validate the value whenever it changes
-  useEffect(() => {
+  const validationResult = useMemo(() => {
     const parsedValue = parseCellValue(localValue, type);
-    const validationResult = validateCellValue(parsedValue, {
+    const result = validateCellValue(parsedValue, {
       id: '',
       accessorKey: '',
       header: '',
@@ -52,19 +48,27 @@ export const CellEditor: React.FC<CellEditorProps> = ({
       options,
     });
 
-    setIsValid(validationResult.isValid);
-    setError(validationResult.error);
-    
-    // Always call onChange with validation state
-    // The parent should handle this properly to avoid infinite loops
-    onChangeRef.current(parsedValue, validationResult.isValid, validationResult.error);
+    return {
+      parsedValue,
+      isValid: result.isValid,
+      error: result.error,
+    };
   }, [localValue, type, validation, required, options]);
+
+  // Notify parent about validation changes
+  useEffect(() => {
+    onChangeRef.current(
+      validationResult.parsedValue,
+      validationResult.isValid,
+      validationResult.error
+    );
+  }, [validationResult]);
 
   const handleKeyDown = useCallback((event: React.KeyboardEvent) => {
     switch (event.key) {
       case 'Enter':
         event.preventDefault();
-        if (isValid) {
+        if (validationResult.isValid) {
           onSave();
         }
         break;
@@ -74,20 +78,20 @@ export const CellEditor: React.FC<CellEditorProps> = ({
         break;
       case 'Tab':
         event.preventDefault();
-        if (isValid) {
+        if (validationResult.isValid) {
           onSave();
         }
         break;
     }
-  }, [isValid, onSave, onCancel]);
+  }, [validationResult.isValid, onSave, onCancel]);
 
   const handleBlur = useCallback(() => {
-    if (isValid) {
+    if (validationResult.isValid) {
       onSave();
     } else {
       onCancel();
     }
-  }, [isValid, onSave, onCancel]);
+  }, [validationResult.isValid, onSave, onCancel]);
 
   const handleChange = useCallback((
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -100,7 +104,7 @@ export const CellEditor: React.FC<CellEditorProps> = ({
       'w-full h-full px-2 py-1 text-sm border-0 outline-none resize-none',
       'focus:ring-2 focus:ring-blue-500 focus:ring-inset',
       {
-        'border-destructive focus:ring-red-500': !isValid,
+        'border-destructive focus:ring-red-500': !validationResult.isValid,
       },
       className
     );
@@ -212,9 +216,9 @@ export const CellEditor: React.FC<CellEditorProps> = ({
       {renderInput()}
 
       {/* Validation error */}
-      {error && (
+      {validationResult.error && (
         <div className="absolute z-50 mt-1 p-2 bg-destructive border border-destructive rounded text-xs text-destructive shadow-lg min-w-max">
-          {error}
+          {validationResult.error}
         </div>
       )}
 
@@ -223,7 +227,7 @@ export const CellEditor: React.FC<CellEditorProps> = ({
         <div className="absolute z-40 bottom-0 right-0 flex gap-1 p-1 bg-white border border-gray-300 rounded shadow">
           <button
             onClick={onSave}
-            disabled={!isValid}
+            disabled={!validationResult.isValid}
             className="px-2 py-1 text-xs bg-primary text-white rounded disabled:opacity-50 hover:bg-primary"
             type="button"
           >

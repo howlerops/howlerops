@@ -122,7 +122,7 @@ export class MultiConnectionExecutor {
         }
       }
 
-      const { columns = [], rows = [], rowCount = 0, stats = {} } = response.data
+      const { columns = [], rows = [], rowCount = 0 } = response.data
 
       return {
         connectionId,

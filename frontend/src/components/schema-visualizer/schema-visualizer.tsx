@@ -10,10 +10,7 @@ import {
   Connection,
   ReactFlowProvider,
   Node,
-  Edge,
   OnEdgeClick,
-  OnNodesChange,
-  OnEdgesChange,
 } from 'reactflow'
 import 'reactflow/dist/style.css'
 
@@ -185,13 +182,6 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
     showForeignKeys,
     showPrimaryKeys,
   }), [debouncedSearchTerm, selectedSchemas, showForeignKeys, showPrimaryKeys])
-
-  // Create node lookup map for performance
-  const nodeMap = useMemo(() => {
-    const map = new Map()
-    nodes.forEach(node => map.set(node.id, node))
-    return map
-  }, [nodes])
 
   // Apply filters and interactive states
   const filteredNodes = useMemo(() => {

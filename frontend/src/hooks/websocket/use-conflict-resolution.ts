@@ -483,11 +483,10 @@ export function useConflictResolution() {
 
   // Cleanup timeouts on unmount
   useEffect(() => {
+    const timeoutMap = autoResolveTimeoutRef.current;
     return () => {
-      for (const timeoutId of autoResolveTimeoutRef.current.values()) {
-        clearTimeout(timeoutId);
-      }
-      autoResolveTimeoutRef.current.clear();
+      Array.from(timeoutMap.values()).forEach(clearTimeout);
+      timeoutMap.clear();
     };
   }, []);
 

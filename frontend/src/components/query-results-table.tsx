@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
-import { Database, Clock, Save, AlertCircle, Download, Search, Inbox, Loader2 } from 'lucide-react'
+import { Database, Clock, Save, AlertCircle, Download, Search, Inbox, Loader2, CheckCircle2 } from 'lucide-react'
 
 import { EditableTable } from './editable-table/editable-table'
 import { Button } from './ui/button'
@@ -22,6 +22,7 @@ interface QueryResultsTableProps {
   executionTimeMs: number
   rowCount: number
   executedAt: Date
+  affectedRows: number
 }
 
 interface ToolbarProps {
@@ -368,7 +369,7 @@ const buildColumnsLookup = (metadata?: QueryEditableMetadata | null) => {
 
 export const QueryResultsTable = ({
   resultId,
-  columns,
+  columns = [],
   rows,
   originalRows,
   metadata,
@@ -377,7 +378,9 @@ export const QueryResultsTable = ({
   executionTimeMs,
   rowCount,
   executedAt,
+  affectedRows,
 }: QueryResultsTableProps) => {
+  const columnNames = Array.isArray(columns) ? columns : []
   const [dirtyRowIds, setDirtyRowIds] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -402,6 +405,117 @@ export const QueryResultsTable = ({
     return () => window.clearTimeout(timeout)
   }, [saveSuccess])
 
+  const resolveCurrentRows = useCallback((): QueryResultRow[] => {
+    const contextRows = tableContextRef.current?.data as QueryResultRow[] | undefined
+    const source = contextRows ?? rows
+    return source.map((row) => ({ ...row }))
+  }, [rows])
+
+  const handleSave = useCallback(async () => {
+    const currentRows = resolveCurrentRows()
+
+    if (!metadata?.enabled || !metadata || rows.length === 0) {
+      return
+    }
+    if (!connectionId) {
+      setSaveError('No active connection. Please select a connection and try again.')
+      return
+    }
+    if (dirtyRowIds.length === 0) {
+      return
+    }
+
+    // Validate all cells before saving
+    if (tableContextRef.current) {
+      const isValid = tableContextRef.current.actions.validateAllCells()
+      if (!isValid) {
+        const invalidCells = tableContextRef.current.actions.getInvalidCells()
+        setSaveError(`Cannot save: ${invalidCells.length} validation error${invalidCells.length === 1 ? '' : 's'} found. Please fix all errors before saving.`)
+        return
+      }
+    }
+
+    setSaving(true)
+    setSaveError(null)
+    setSaveSuccess(null)
+
+    try {
+      for (const rowId of dirtyRowIds) {
+        const currentRow = currentRows.find((row) => row.__rowId === rowId)
+        const originalRow = originalRows[rowId]
+
+        if (!currentRow || !originalRow) {
+          continue
+        }
+
+        const primaryKey = buildPrimaryKeyMap(originalRow, metadata, columnsLookup)
+        if (!primaryKey) {
+          throw new Error('Unable to determine primary key for the selected row.')
+        }
+
+        const changedValues: Record<string, unknown> = {}
+        columnNames.forEach((columnName) => {
+          const currentValue = currentRow[columnName]
+          const originalValue = originalRow[columnName]
+
+          const valuesAreEqual =
+            currentValue === originalValue ||
+            (currentValue == null && originalValue == null)
+
+          const metaColumn = metadata?.columns?.find((col) => {
+            const candidate = col.resultName ?? col.name
+            return candidate ? candidate.toLowerCase() === columnName.toLowerCase() : false
+          })
+
+          if (!valuesAreEqual && metaColumn?.editable) {
+            changedValues[columnName] = currentValue
+          }
+        })
+
+        if (Object.keys(changedValues).length === 0) {
+          continue
+        }
+
+        const response = await wailsEndpoints.queries.updateRow({
+          connectionId,
+          query,
+          columns: columnNames,
+          schema: metadata?.schema,
+          table: metadata?.table,
+          primaryKey,
+          values: changedValues,
+        })
+
+        if (!response.success) {
+          throw new Error(response.message || 'Failed to save changes')
+        }
+      }
+
+      const newOriginalRows = createOriginalMap(currentRows)
+      updateResultRows(resultId, currentRows, newOriginalRows)
+      setDirtyRowIds([])
+      tableContextRef.current?.actions.clearDirtyRows()
+      tableContextRef.current?.actions.clearInvalidCells()
+      setSaveSuccess('Changes saved successfully.')
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : 'Failed to save changes')
+    } finally {
+      setSaving(false)
+    }
+  }, [
+    connectionId,
+    columnNames,
+    columnsLookup,
+    dirtyRowIds,
+    metadata,
+    originalRows,
+    query,
+    resultId,
+    resolveCurrentRows,
+    rows,
+    updateResultRows,
+  ])
+
   // Keyboard shortcut handler for Ctrl+S (Cmd+S on Mac)
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -425,7 +539,7 @@ export const QueryResultsTable = ({
   }, [metadata?.enabled, dirtyRowIds.length, handleSave])
 
   const tableColumns: TableColumn[] = useMemo(() => {
-    return columns.map<TableColumn>((columnName) => {
+    return columnNames.map<TableColumn>((columnName) => {
       const metaColumn = metadata?.columns?.find((col) => {
         const candidate = (col.resultName ?? col.name)?.toLowerCase()
         return candidate ? candidate === columnName.toLowerCase() : false
@@ -442,19 +556,13 @@ export const QueryResultsTable = ({
         minWidth: 120,
       }
     })
-  }, [columns, metadata])
-
-  const resolveCurrentRows = useCallback((): QueryResultRow[] => {
-    const contextRows = tableContextRef.current?.data as QueryResultRow[] | undefined
-    const source = contextRows ?? rows
-    return source.map((row) => ({ ...row }))
-  }, [rows])
+  }, [columnNames, metadata])
 
   // const handleExportCsv = useCallback(() => {
   //   const currentRows = resolveCurrentRows()
   //   const header = columns.join(',')
   //   const records = currentRows.map((row) =>
-  //     columns.map((column) => serialiseCsvValue(row[column])).join(',')
+  //     columnNames.map((column) => serialiseCsvValue(row[column])).join(',')
   //   )
 
   //   const csv = [header, ...records].join('\n')
@@ -467,7 +575,7 @@ export const QueryResultsTable = ({
   //   link.click()
   //   document.body.removeChild(link)
   //   URL.revokeObjectURL(url)
-  // }, [columns, resolveCurrentRows])
+  // }, [columnNames, resolveCurrentRows])
 
   const handleExport = useCallback(async (options: ExportOptions) => {
     const currentRows = resolveCurrentRows()
@@ -485,9 +593,9 @@ export const QueryResultsTable = ({
 
     if (options.format === 'csv') {
       filename = `query-results-${timestamp}.csv`
-      const header = options.includeHeaders ? columns.join(',') : ''
+      const header = options.includeHeaders ? columnNames.join(',') : ''
       const records = dataToExport.map((row) =>
-        columns.map((column) => serialiseCsvValue(row[column])).join(',')
+        columnNames.map((column) => serialiseCsvValue(row[column])).join(',')
       )
       content = options.includeHeaders ? [header, ...records].join('\n') : records.join('\n')
     } else {
@@ -529,7 +637,7 @@ export const QueryResultsTable = ({
       document.body.removeChild(link)
       URL.revokeObjectURL(url)
     }
-  }, [columns, resolveCurrentRows])
+  }, [columnNames, resolveCurrentRows])
 
   const handleDiscardChanges = useCallback(() => {
     if (tableContextRef.current) {
@@ -561,7 +669,8 @@ export const QueryResultsTable = ({
     columnId: string,
     value: unknown
   ): Promise<boolean> => {
-    if (!metadata?.enabled) {
+    // Early return if no rows or metadata is not properly initialized
+    if (!metadata?.enabled || !metadata || rows.length === 0) {
       return false
     }
 
@@ -576,7 +685,7 @@ export const QueryResultsTable = ({
       }
 
       // Check if the column is editable
-      const metaColumn = metadata.columns?.find((col) => {
+      const metaColumn = metadata?.columns?.find((col) => {
         const candidate = col.resultName ?? col.name
         return candidate ? candidate.toLowerCase() === columnId.toLowerCase() : false
       })
@@ -595,9 +704,9 @@ export const QueryResultsTable = ({
       const updateData = {
         connectionId,
         query,
-        columns,
-        schema: metadata.schema,
-        table: metadata.table,
+        columns: columnNames,
+        schema: metadata?.schema,
+        table: metadata?.table,
         primaryKey,
         values: { [columnId]: value },
       }
@@ -639,117 +748,14 @@ export const QueryResultsTable = ({
     }
   }, [
     metadata,
+    rows,
     resolveCurrentRows,
     originalRows,
     columnsLookup,
     connectionId,
     query,
-    columns,
+    columnNames,
     resultId,
-    updateResultRows,
-  ])
-
-  const handleSave = useCallback(async () => {
-    const currentRows = resolveCurrentRows()
-
-    if (!metadata?.enabled) {
-      return
-    }
-    if (!connectionId) {
-      setSaveError('No active connection. Please select a connection and try again.')
-      return
-    }
-    if (dirtyRowIds.length === 0) {
-      return
-    }
-
-    // Validate all cells before saving
-    if (tableContextRef.current) {
-      const isValid = tableContextRef.current.actions.validateAllCells()
-      if (!isValid) {
-        const invalidCells = tableContextRef.current.actions.getInvalidCells()
-        setSaveError(`Cannot save: ${invalidCells.length} validation error${invalidCells.length === 1 ? '' : 's'} found. Please fix all errors before saving.`)
-        return
-      }
-    }
-
-    setSaving(true)
-    setSaveError(null)
-    setSaveSuccess(null)
-
-    try {
-      for (const rowId of dirtyRowIds) {
-        const currentRow = currentRows.find((row) => row.__rowId === rowId)
-        const originalRow = originalRows[rowId]
-
-        if (!currentRow || !originalRow) {
-          continue
-        }
-
-        const primaryKey = buildPrimaryKeyMap(originalRow, metadata, columnsLookup)
-        if (!primaryKey) {
-          throw new Error('Unable to determine primary key for the selected row.')
-        }
-
-        const changedValues: Record<string, unknown> = {}
-        columns.forEach((columnName) => {
-          const currentValue = currentRow[columnName]
-          const originalValue = originalRow[columnName]
-
-          const valuesAreEqual =
-            currentValue === originalValue ||
-            (currentValue == null && originalValue == null)
-
-          const metaColumn = metadata.columns?.find((col) => {
-            const candidate = col.resultName ?? col.name
-            return candidate ? candidate.toLowerCase() === columnName.toLowerCase() : false
-          })
-
-          if (!valuesAreEqual && metaColumn?.editable) {
-            changedValues[columnName] = currentValue
-          }
-        })
-
-        if (Object.keys(changedValues).length === 0) {
-          continue
-        }
-
-        const response = await wailsEndpoints.queries.updateRow({
-          connectionId,
-          query,
-          columns,
-          schema: metadata.schema,
-          table: metadata.table,
-          primaryKey,
-          values: changedValues,
-        })
-
-        if (!response.success) {
-          throw new Error(response.message || 'Failed to save changes')
-        }
-      }
-
-      const newOriginalRows = createOriginalMap(currentRows)
-      updateResultRows(resultId, currentRows, newOriginalRows)
-      setDirtyRowIds([])
-      tableContextRef.current?.actions.clearDirtyRows()
-      tableContextRef.current?.actions.clearInvalidCells()
-      setSaveSuccess('Changes saved successfully.')
-    } catch (error) {
-      setSaveError(error instanceof Error ? error.message : 'Failed to save changes')
-    } finally {
-      setSaving(false)
-    }
-  }, [
-    connectionId,
-    columns,
-    columnsLookup,
-    dirtyRowIds,
-    metadata,
-    originalRows,
-    query,
-    resultId,
-    resolveCurrentRows,
     updateResultRows,
   ])
 
@@ -772,7 +778,7 @@ export const QueryResultsTable = ({
       <QueryResultsToolbar
         context={context}
         rowCount={rowCount}
-        columnCount={columns.length}
+        columnCount={columnNames.length}
         executionTimeMs={executionTimeMs}
         executedAt={executedAt}
         dirtyCount={dirtyRowIds.length}
@@ -787,18 +793,36 @@ export const QueryResultsTable = ({
         onJumpToFirstError={handleJumpToFirstError}
       />
     )
-  }, [rowCount, columns.length, executionTimeMs, executedAt, dirtyRowIds.length, 
+  }, [rowCount, columnNames.length, executionTimeMs, executedAt, dirtyRowIds.length, 
       canSave, saving, handleSave, handleExport, metadata, saveError, saveSuccess,
       handleDiscardChanges, handleJumpToFirstError])
 
+  const safeAffectedRows = Number.isFinite(affectedRows) ? affectedRows : 0
+  const hasTabularResults = columnNames.length > 0 && rows.length > 0
+  const isModificationStatement = columnNames.length === 0
+  const affectedRowsMessage =
+    safeAffectedRows === 1
+      ? '1 row affected.'
+      : `${safeAffectedRows.toLocaleString()} rows affected.`
+
   return (
     <div className="flex flex-1 min-h-0 flex-col">
-      {rows.length === 0 ? (
+      {!hasTabularResults ? (
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center text-muted-foreground">
-            <Inbox className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p className="text-lg font-medium mb-1">No results found</p>
-            <p className="text-sm">Your query returned 0 rows</p>
+            {isModificationStatement ? (
+              <>
+                <CheckCircle2 className="h-12 w-12 mx-auto mb-4 text-primary" />
+                <p className="text-lg font-medium mb-1">Statement executed successfully</p>
+                <p className="text-sm">{affectedRowsMessage}</p>
+              </>
+            ) : (
+              <>
+                <Inbox className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p className="text-lg font-medium mb-1">No results found</p>
+                <p className="text-sm">Your query returned 0 rows</p>
+              </>
+            )}
           </div>
         </div>
       ) : (
@@ -823,8 +847,14 @@ export const QueryResultsTable = ({
         <div className="flex items-center gap-4">
           <span className="flex items-center gap-1.5">
             <Database className="h-3.5 w-3.5" />
-            {rowCount.toLocaleString()} rows • {columns.length} columns
+            {rowCount.toLocaleString()} rows • {columnNames.length} columns
           </span>
+          {safeAffectedRows > 0 && (
+            <span className="flex items-center gap-1.5">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              {safeAffectedRows.toLocaleString()} affected
+            </span>
+          )}
           <span className="flex items-center gap-1.5">
             <Clock className="h-3.5 w-3.5" />
             {executionTimeMs.toFixed(2)} ms

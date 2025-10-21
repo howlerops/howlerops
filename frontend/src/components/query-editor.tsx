@@ -46,7 +46,6 @@ import { MultiDBConnectionSelector } from "@/components/multi-db-connection-sele
 import { AISuggestionCard } from "@/components/ai-suggestion-card"
 import { GenericChatSidebar } from "@/components/generic-chat-sidebar"
 import { VisualQueryBuilder } from "@/components/visual-query-builder"
-import { generateSQL } from "@/lib/query-ir"
 import { QueryIR } from "@/lib/query-ir"
 
 
@@ -112,7 +111,6 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
   // Visual Query Builder state
   const [isVisualMode, setIsVisualMode] = useState(false)
   const [visualQueryIR, setVisualQueryIR] = useState<QueryIR | null>(null)
-  const [lastSyncedSQL, setLastSyncedSQL] = useState('')
 
   // Multi-DB state - schemas for all connections
   const [multiDBSchemas, setMultiDBSchemas] = useState<Map<string, SchemaNode[]>>(new Map())
@@ -437,7 +435,6 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
     try {
       const sql = generateSQL(queryIR, 'postgres') // TODO: Get dialect from connection
       setEditorContent(sql)
-      setLastSyncedSQL(sql)
       
       if (activeTab) {
         updateTab(activeTab.id, {
@@ -448,11 +445,10 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
     } catch (error) {
       console.error('Failed to generate SQL from visual query:', error)
     }
-  }, [activeTab, updateTab])
+  }, [activeTab, updateTab, generateSQL])
 
   const handleVisualSQLChange = useCallback((sql: string) => {
     setEditorContent(sql)
-    setLastSyncedSQL('') // Mark as manual
     
     if (activeTab) {
       updateTab(activeTab.id, {
@@ -471,7 +467,7 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
     } else {
       // Switching to SQL mode
       setVisualQueryIR(null)
-      setLastSyncedSQL('')
+      // Reset visual builder state when entering SQL mode
     }
   }, [isVisualMode])
 
@@ -488,7 +484,7 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
     if (isVisualMode && visualQueryIR) {
       const generatedSQL = generateSQL(visualQueryIR, 'postgres') // TODO: Get dialect from connection
       if (value.trim() !== generatedSQL.trim()) {
-        setLastSyncedSQL('')
+        // Keep visual builder results in sync with SQL editor
       }
     }
   }

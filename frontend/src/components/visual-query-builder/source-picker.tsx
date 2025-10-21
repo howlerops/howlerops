@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Loader2, Database, AlertCircle } from 'lucide-react'
-import { SourcePickerProps, ConnectionInfo, SchemaInfo, TableInfo } from './types'
+import { SourcePickerProps, TableInfo } from './types'
 import { TableRef } from '@/lib/query-ir'
 
 export function SourcePicker({
@@ -89,11 +89,6 @@ export function SourcePicker({
       table: tableName
     }
     onTableChange(table)
-  }
-
-  // Get connection info
-  const getConnectionInfo = (connectionId: string): ConnectionInfo | undefined => {
-    return connections.find(conn => conn.id === connectionId)
   }
 
   // Get available schemas for selected connections

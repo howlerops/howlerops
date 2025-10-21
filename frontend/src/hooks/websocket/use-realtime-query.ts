@@ -41,7 +41,15 @@ const initialState: QueryState = {
 };
 
 export function useRealtimeQuery(options: UseRealtimeQueryOptions) {
-  const { connectionName, streaming = false, autoExecute = false } = options;
+  const {
+    connectionName,
+    streaming = false,
+    autoExecute = false,
+    onProgress,
+    onResult,
+    onError,
+    onChunk,
+  } = options;
   const { sendMessage, on, off, connectionState } = useWebSocket();
 
   // State
@@ -62,6 +70,31 @@ export function useRealtimeQuery(options: UseRealtimeQueryOptions) {
     currentQueryRef.current = null;
   }, []);
 
+  const cancelQuery = useCallback(async () => {
+    if (!currentQueryRef.current) return;
+
+    const queryId = currentQueryRef.current;
+
+    try {
+      await sendMessage('cancel_query', { queryId });
+
+      setQueryState(prev => ({
+        ...prev,
+        status: 'cancelled',
+        progressMessage: 'Query cancelled',
+      }));
+
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+
+      currentQueryRef.current = null;
+    } catch (error) {
+      console.error('Failed to cancel query:', error);
+    }
+  }, [sendMessage]);
+
   /**
    * Handle query progress updates
    */
@@ -74,8 +107,8 @@ export function useRealtimeQuery(options: UseRealtimeQueryOptions) {
       progressMessage: progress.message,
     }));
 
-    options.onProgress?.(progress);
-  }, [options.onProgress]);
+    onProgress?.(progress);
+  }, [onProgress]);
 
   /**
    * Handle query result
@@ -101,8 +134,8 @@ export function useRealtimeQuery(options: UseRealtimeQueryOptions) {
     setQueryHistory(prev => [result, ...prev.slice(0, 9)]); // Keep last 10 queries
 
     currentQueryRef.current = null;
-    options.onResult?.(result);
-  }, [queryState.startTime, options.onResult]);
+    onResult?.(result);
+  }, [queryState.startTime, onResult]);
 
   /**
    * Handle query error
@@ -118,8 +151,8 @@ export function useRealtimeQuery(options: UseRealtimeQueryOptions) {
     }));
 
     currentQueryRef.current = null;
-    options.onError?.(error);
-  }, [options.onError]);
+    onError?.(error);
+  }, [onError]);
 
   /**
    * Handle data chunk (for streaming queries)
@@ -136,7 +169,7 @@ export function useRealtimeQuery(options: UseRealtimeQueryOptions) {
       totalRows: prev.totalRows + chunk.chunk.length,
     }));
 
-    options.onChunk?.(chunk);
+    onChunk?.(chunk);
 
     // If this is the last chunk, mark as completed
     if (chunk.isLast) {
@@ -148,7 +181,7 @@ export function useRealtimeQuery(options: UseRealtimeQueryOptions) {
       }));
       currentQueryRef.current = null;
     }
-  }, [options.onChunk]);
+  }, [onChunk]);
 
   /**
    * Execute a SQL query
@@ -220,36 +253,11 @@ export function useRealtimeQuery(options: UseRealtimeQueryOptions) {
       currentQueryRef.current = null;
       throw error;
     }
-  }, [connectionState.status, connectionName, streaming, sendMessage, resetState]);
+  }, [connectionState.status, connectionName, streaming, sendMessage, resetState, cancelQuery]);
 
   /**
    * Cancel the current query
    */
-  const cancelQuery = useCallback(async () => {
-    if (!currentQueryRef.current) return;
-
-    const queryId = currentQueryRef.current;
-
-    try {
-      await sendMessage('cancel_query', { queryId });
-
-      setQueryState(prev => ({
-        ...prev,
-        status: 'cancelled',
-        progressMessage: 'Query cancelled',
-      }));
-
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-        abortControllerRef.current = null;
-      }
-
-      currentQueryRef.current = null;
-    } catch (error) {
-      console.error('Failed to cancel query:', error);
-    }
-  }, [sendMessage]);
-
   /**
    * Re-execute the last query
    */
@@ -337,7 +345,7 @@ export function useRealtimeQuery(options: UseRealtimeQueryOptions) {
         cancelQuery();
       }
     };
-  }, []);
+  }, [cancelQuery]);
 
   return {
     // State

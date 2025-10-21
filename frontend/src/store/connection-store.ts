@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
 import { wailsEndpoints } from '@/lib/wails-api'
-import { DatabaseType, SSHAuthMethod } from '@/generated/database'
+import { SSHAuthMethod } from '@/generated/database'
 
 export type DatabaseTypeString =
   | 'postgresql'

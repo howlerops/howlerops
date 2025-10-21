@@ -108,6 +108,18 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorRef, CodeMirrorEditor
       ]
 
       const extensions = [
+        EditorView.theme({
+          '&': {
+            height: '100%',
+            maxHeight: '100%',
+          },
+          '.cm-scroller': {
+            overflow: 'auto',
+          },
+          '.cm-content': {
+            minHeight: '100%',
+          },
+        }),
         ...basicSetup,
         ...createSQLExtensions(theme, columnLoader, onChange),
         EditorView.editable.of(!readOnly),
@@ -125,7 +137,7 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorRef, CodeMirrorEditor
       }
 
       const state = EditorState.create({
-        doc: value,
+        doc: valueRef.current,
         extensions
       })
 
@@ -150,7 +162,7 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorRef, CodeMirrorEditor
         view.destroy()
         viewRef.current = null
       }
-    }, [columnLoader]) // Re-create editor when columnLoader changes
+    }, [columnLoader])
 
     // Update value when prop changes
     useEffect(() => {
@@ -224,4 +236,3 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorRef, CodeMirrorEditor
 )
 
 CodeMirrorEditor.displayName = 'CodeMirrorEditor'
-

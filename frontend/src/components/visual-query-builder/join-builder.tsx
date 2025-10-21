@@ -8,10 +8,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Plus, X, Trash2, Link, ArrowRight } from 'lucide-react'
-import { JoinBuilderProps, TableInfo, ColumnInfo } from './types'
-import { TableRef, Join, Expr, Predicate } from '@/lib/query-ir'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { Plus, X, Link, ArrowRight } from 'lucide-react'
+import { JoinBuilderProps, TableInfo } from './types'
+import { TableRef, Expr, Predicate } from '@/lib/query-ir'
 import { FilterOperator } from '@/workers/types'
 
 export function JoinBuilder({
@@ -70,12 +70,6 @@ export function JoinBuilder({
   // Get table info
   const getTableInfo = (tableName: string): TableInfo | undefined => {
     return availableTables.find(table => table.name === tableName)
-  }
-
-  // Get column info
-  const getColumnInfo = (tableName: string, columnName: string): ColumnInfo | undefined => {
-    const table = getTableInfo(tableName)
-    return table?.columns.find(col => col.name === columnName)
   }
 
   // Get join type label
