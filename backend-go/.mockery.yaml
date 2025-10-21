@@ -1,0 +1,36 @@
+# Mockery configuration for generating test mocks
+# https://vektra.github.io/mockery/latest/configuration/
+
+# Global settings
+with-expecter: true
+dir: "{{.InterfaceDir}}/mocks"
+outpkg: mocks
+filename: "mock_{{.InterfaceName}}.go"
+mockname: "Mock{{.InterfaceName}}"
+
+# Package-specific configurations
+packages:
+  # Database layer interfaces
+  github.com/sql-studio/backend-go/pkg/database:
+    interfaces:
+      Driver:
+      SchemaCache:
+
+  # Storage layer interfaces
+  github.com/sql-studio/backend-go/pkg/storage:
+    interfaces:
+      Store:
+      Manager:
+
+  # AI service interfaces
+  github.com/sql-studio/backend-go/internal/ai:
+    interfaces:
+      Provider:
+      Service:
+
+  # RAG interfaces
+  github.com/sql-studio/backend-go/internal/rag:
+    interfaces:
+      VectorStore:
+      EmbeddingService:
+      ContextBuilder:

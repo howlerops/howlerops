@@ -5,13 +5,13 @@ import (
 	"sync"
 
 	"github.com/sirupsen/logrus"
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // KeyboardService handles keyboard shortcuts and events
 type KeyboardService struct {
 	logger   *logrus.Logger
 	ctx      context.Context
+	emitter  EventsEmitter
 	mu       sync.RWMutex
 	bindings map[string]KeyboardAction
 }
@@ -36,8 +36,18 @@ type KeyboardEvent struct {
 
 // NewKeyboardService creates a new keyboard service
 func NewKeyboardService(logger *logrus.Logger) *KeyboardService {
+	return NewKeyboardServiceWithEmitter(logger, defaultEventsEmitter())
+}
+
+// NewKeyboardServiceWithEmitter allows tests to inject a custom event emitter.
+func NewKeyboardServiceWithEmitter(logger *logrus.Logger, emitter EventsEmitter) *KeyboardService {
+	if emitter == nil {
+		emitter = defaultEventsEmitter()
+	}
+
 	service := &KeyboardService{
 		logger:   logger,
+		emitter:  emitter,
 		bindings: make(map[string]KeyboardAction),
 	}
 
@@ -52,11 +62,25 @@ func (k *KeyboardService) SetContext(ctx context.Context) {
 	k.ctx = ctx
 }
 
+func (k *KeyboardService) emit(event string, payload interface{}) {
+	if k.emitter == nil || k.ctx == nil {
+		return
+	}
+
+	if err := k.emitter.Emit(k.ctx, event, payload); err != nil && k.logger != nil {
+		k.logger.WithError(err).WithField("event", event).Warn("Failed to emit keyboard event")
+	}
+}
+
 // initializeDefaultBindings sets up the default keyboard shortcuts
 func (k *KeyboardService) initializeDefaultBindings() {
 	k.mu.Lock()
 	defer k.mu.Unlock()
 
+	k.populateDefaultBindings()
+}
+
+func (k *KeyboardService) populateDefaultBindings() {
 	// File operations
 	k.bindings["ctrl+n"] = KeyboardAction{
 		Key:         "Ctrl+N",
@@ -434,14 +458,14 @@ func (k *KeyboardService) HandleKeyboardEvent(event KeyboardEvent) {
 	}).Debug("Keyboard shortcut triggered")
 
 	// Emit keyboard event
-	runtime.EventsEmit(k.ctx, "keyboard:shortcut", map[string]interface{}{
-		"key":     key,
-		"action":  action.Handler,
-		"event":   event,
+	k.emit("keyboard:shortcut", map[string]interface{}{
+		"key":    key,
+		"action": action.Handler,
+		"event":  event,
 	})
 
 	// Emit specific handler event
-	runtime.EventsEmit(k.ctx, action.Handler, event)
+	k.emit(action.Handler, event)
 }
 
 // normalizeKeyString converts keyboard event to normalized key string
@@ -575,12 +599,12 @@ func (k *KeyboardService) ResetToDefaults() {
 	defer k.mu.Unlock()
 
 	k.bindings = make(map[string]KeyboardAction)
-	k.initializeDefaultBindings()
+	k.populateDefaultBindings()
 
 	k.logger.Info("Keyboard bindings reset to defaults")
 
 	// Emit reset event
-	runtime.EventsEmit(k.ctx, "keyboard:reset", nil)
+	k.emit("keyboard:reset", nil)
 }
 
 // ExportBindings exports keyboard bindings as JSON
@@ -600,7 +624,7 @@ func (k *KeyboardService) ImportBindings(bindings map[string]KeyboardAction) {
 	k.logger.WithField("count", len(bindings)).Info("Keyboard bindings imported")
 
 	// Emit import event
-	runtime.EventsEmit(k.ctx, "keyboard:imported", map[string]interface{}{
+	k.emit("keyboard:imported", map[string]interface{}{
 		"count": len(bindings),
 	})
 }

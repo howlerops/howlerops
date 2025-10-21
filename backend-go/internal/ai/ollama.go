@@ -108,6 +108,12 @@ func NewOllamaProvider(config *OllamaConfig, logger *logrus.Logger) (AIProvider,
 	}, nil
 }
 
+func (p *OllamaProvider) setHTTPClient(client *http.Client) {
+	if client != nil {
+		p.client = client
+	}
+}
+
 // GenerateSQL generates SQL from natural language using Ollama
 func (p *OllamaProvider) GenerateSQL(ctx context.Context, req *SQLRequest) (*SQLResponse, error) {
 	prompt := p.buildGeneratePrompt(req)

@@ -572,7 +572,7 @@ func (s *SQLiteDatabase) getTableInfo(ctx context.Context, db *sql.DB, table str
 }
 
 func (s *SQLiteDatabase) getTableColumns(ctx context.Context, db *sql.DB, table string) ([]ColumnInfo, error) {
-	query := fmt.Sprintf("PRAGMA table_info(%s)", s.QuoteIdentifier(table))
+	query := fmt.Sprintf("PRAGMA table_info('%s')", table)
 
 	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
@@ -613,7 +613,7 @@ func (s *SQLiteDatabase) getTableColumns(ctx context.Context, db *sql.DB, table 
 }
 
 func (s *SQLiteDatabase) getTableIndexes(ctx context.Context, db *sql.DB, table string) ([]IndexInfo, error) {
-	query := fmt.Sprintf("PRAGMA index_list(%s)", s.QuoteIdentifier(table))
+	query := fmt.Sprintf("PRAGMA index_list('%s')", table)
 
 	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
@@ -626,20 +626,24 @@ func (s *SQLiteDatabase) getTableIndexes(ctx context.Context, db *sql.DB, table 
 		var idx IndexInfo
 		var seq int
 		var partial int
+		var origin string // PRAGMA index_list origin: "c"=CREATE INDEX, "u"=UNIQUE, "pk"=PRIMARY KEY
 
 		err := rows.Scan(
 			&seq,
 			&idx.Name,
 			&idx.Unique,
-			&idx.Primary, // origin (actually contains index origin: c=CREATE INDEX, u=UNIQUE, pk=PRIMARY KEY)
+			&origin,
 			&partial,
 		)
 		if err != nil {
 			return nil, err
 		}
 
+		// Set Primary flag based on origin
+		idx.Primary = (origin == "pk")
+
 		// Get index columns
-		colQuery := fmt.Sprintf("PRAGMA index_info(%s)", s.QuoteIdentifier(idx.Name))
+		colQuery := fmt.Sprintf("PRAGMA index_info('%s')", idx.Name)
 		colRows, err := db.QueryContext(ctx, colQuery)
 		if err != nil {
 			continue
@@ -666,7 +670,7 @@ func (s *SQLiteDatabase) getTableIndexes(ctx context.Context, db *sql.DB, table 
 }
 
 func (s *SQLiteDatabase) getTableForeignKeys(ctx context.Context, db *sql.DB, table string) ([]ForeignKeyInfo, error) {
-	query := fmt.Sprintf("PRAGMA foreign_key_list(%s)", s.QuoteIdentifier(table))
+	query := fmt.Sprintf("PRAGMA foreign_key_list('%s')", table)
 
 	rows, err := db.QueryContext(ctx, query)
 	if err != nil {

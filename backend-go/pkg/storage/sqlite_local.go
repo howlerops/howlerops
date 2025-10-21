@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/google/uuid"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/sirupsen/logrus"
 
 	"github.com/sql-studio/backend-go/internal/rag"
@@ -28,11 +28,11 @@ type LocalSQLiteStorage struct {
 
 // LocalStorageConfig holds configuration for local storage
 type LocalStorageConfig struct {
-	DataDir    string
-	Database   string
-	VectorsDB  string
-	UserID     string
-	VectorSize int
+	DataDir         string
+	Database        string
+	VectorsDB       string
+	UserID          string
+	VectorSize      int
 	VectorStoreType string
 	MySQLVector     *MySQLVectorConfig
 }
@@ -173,41 +173,41 @@ CREATE INDEX IF NOT EXISTS idx_schema_cache_expires_at ON schema_cache(expires_a
 func parseLocalStorageStatements(sql string) []string {
 	var statements []string
 	var currentStmt strings.Builder
-	
+
 	lines := strings.Split(sql, "\n")
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		
+
 		// Skip empty lines and comments when not in a statement
 		if currentStmt.Len() == 0 && (trimmed == "" || strings.HasPrefix(trimmed, "--")) {
 			continue
 		}
-		
+
 		// Add line to current statement
 		if currentStmt.Len() > 0 {
 			currentStmt.WriteString("\n")
 		}
 		currentStmt.WriteString(line)
-		
+
 		// Check if statement is complete (ends with semicolon)
 		if strings.HasSuffix(trimmed, ";") {
 			statements = append(statements, currentStmt.String())
 			currentStmt.Reset()
 		}
 	}
-	
+
 	// Add any remaining statement
 	if currentStmt.Len() > 0 {
 		statements = append(statements, currentStmt.String())
 	}
-	
+
 	return statements
 }
 
 // runLocalStorageMigrations executes the initialization schema for local storage
 func runLocalStorageMigrations(db *sql.DB, logger *logrus.Logger) error {
 	logger.Debug("Running local storage migrations")
-	
+
 	// Check if tables exist
 	var tableExists bool
 	err := db.QueryRow(`
@@ -215,41 +215,41 @@ func runLocalStorageMigrations(db *sql.DB, logger *logrus.Logger) error {
 		FROM sqlite_master
 		WHERE type='table' AND name='connections'
 	`).Scan(&tableExists)
-	
+
 	if err != nil {
 		return fmt.Errorf("failed to check if tables exist: %w", err)
 	}
-	
+
 	// If tables already exist, skip migrations
 	if tableExists {
 		logger.Debug("Local storage tables already exist, skipping migrations")
 		return nil
 	}
-	
+
 	// Parse and execute migration statements
 	statements := parseLocalStorageStatements(localStorageSchema)
-	
+
 	tx, err := db.Begin()
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback()
-	
+
 	for _, stmt := range statements {
 		stmt = strings.TrimSpace(stmt)
 		if stmt == "" {
 			continue
 		}
-		
+
 		if _, err := tx.Exec(stmt); err != nil {
 			return fmt.Errorf("failed to execute migration statement: %w", err)
 		}
 	}
-	
+
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("failed to commit migrations: %w", err)
 	}
-	
+
 	logger.Info("Local storage migrations completed successfully")
 	return nil
 }
@@ -289,45 +289,45 @@ func NewLocalStorage(config *LocalStorageConfig, logger *logrus.Logger) (*LocalS
 		return nil, fmt.Errorf("failed to run local storage migrations: %w", err)
 	}
 
-    // Create vector store
-    vectorStoreType := strings.ToLower(config.VectorStoreType)
-    vectorConfig := &rag.VectorStoreConfig{}
+	// Create vector store
+	vectorStoreType := strings.ToLower(config.VectorStoreType)
+	vectorConfig := &rag.VectorStoreConfig{}
 
-    switch vectorStoreType {
-    case "mysql":
-        if config.MySQLVector == nil || config.MySQLVector.DSN == "" {
-            db.Close()
-            return nil, fmt.Errorf("mysql vector store requires DSN")
-        }
-        vectorConfig.Type = "mysql"
-        vectorConfig.MySQLConfig = &rag.MySQLVectorConfig{
-            DSN:        config.MySQLVector.DSN,
-            VectorSize: config.MySQLVector.VectorSize,
-        }
-    default:
-        vectorDBPath := filepath.Join(dataDir, config.VectorsDB)
-        vectorConfig.Type = "sqlite"
-        vectorConfig.SQLiteConfig = &rag.SQLiteVectorConfig{
-            Path:        vectorDBPath,
-            Extension:   "sqlite-vec",
-            VectorSize:  config.VectorSize,
-            CacheSizeMB: 128,
-            MMapSizeMB:  256,
-            WALEnabled:  true,
-            Timeout:     10 * time.Second,
-        }
-    }
+	switch vectorStoreType {
+	case "mysql":
+		if config.MySQLVector == nil || config.MySQLVector.DSN == "" {
+			db.Close()
+			return nil, fmt.Errorf("mysql vector store requires DSN")
+		}
+		vectorConfig.Type = "mysql"
+		vectorConfig.MySQLConfig = &rag.MySQLVectorConfig{
+			DSN:        config.MySQLVector.DSN,
+			VectorSize: config.MySQLVector.VectorSize,
+		}
+	default:
+		vectorDBPath := filepath.Join(dataDir, config.VectorsDB)
+		vectorConfig.Type = "sqlite"
+		vectorConfig.SQLiteConfig = &rag.SQLiteVectorConfig{
+			Path:        vectorDBPath,
+			Extension:   "sqlite-vec",
+			VectorSize:  config.VectorSize,
+			CacheSizeMB: 128,
+			MMapSizeMB:  256,
+			WALEnabled:  true,
+			Timeout:     10 * time.Second,
+		}
+	}
 
-    vectorStore, err := rag.NewVectorStore(vectorConfig, logger)
-    if err != nil {
-        db.Close()
-        return nil, fmt.Errorf("failed to create vector store: %w", err)
-    }
+	vectorStore, err := rag.NewVectorStore(vectorConfig, logger)
+	if err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to create vector store: %w", err)
+	}
 
-    if err := vectorStore.Initialize(context.Background()); err != nil {
-        db.Close()
-        return nil, fmt.Errorf("failed to initialize vector store: %w", err)
-    }
+	if err := vectorStore.Initialize(context.Background()); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to initialize vector store: %w", err)
+	}
 
 	storage := &LocalSQLiteStorage{
 		db:          db,
@@ -449,7 +449,7 @@ func (s *LocalSQLiteStorage) GetConnections(ctx context.Context, filters *Connec
 			s.logger.WithError(err).Warn("Failed to scan connection")
 			continue
 		}
-		
+
 		// Apply environment filter if specified
 		if filters != nil && len(filters.Environments) > 0 {
 			hasMatch := false
@@ -470,7 +470,7 @@ func (s *LocalSQLiteStorage) GetConnections(ctx context.Context, filters *Connec
 				continue
 			}
 		}
-		
+
 		connections = append(connections, conn)
 	}
 
@@ -740,16 +740,16 @@ func (s *LocalSQLiteStorage) IndexDocument(ctx context.Context, doc *Document) e
 		AccessCount:  doc.AccessCount,
 		LastAccessed: doc.LastAccessed,
 	}
-	
+
 	if err := s.vectorStore.IndexDocument(ctx, ragDoc); err != nil {
 		return err
 	}
-	
+
 	// Copy back any fields that may have been modified
 	doc.ID = ragDoc.ID
 	doc.CreatedAt = ragDoc.CreatedAt
 	doc.UpdatedAt = ragDoc.UpdatedAt
-	
+
 	return nil
 }
 
@@ -1049,4 +1049,9 @@ func (s *LocalSQLiteStorage) scanQueryHistory(row scanner) (*QueryHistory, error
 		TeamID:       teamID,
 		IsShared:     isShared,
 	}, nil
+}
+
+// GetDB returns the database connection for direct access
+func (s *LocalSQLiteStorage) GetDB() *sql.DB {
+	return s.db
 }

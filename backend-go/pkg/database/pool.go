@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -212,8 +213,22 @@ func (p *ConnectionPool) buildMySQLDSN() string {
 func (p *ConnectionPool) buildSQLiteDSN() string {
 	dsn := p.config.Database
 
+	// For :memory: databases with cache=shared, use file::memory: format
+	// This ensures the in-memory database is properly shared across connections
+	if dsn == ":memory:" {
+		if cacheMode, ok := p.config.Parameters["cache"]; ok && cacheMode == "shared" {
+			dsn = "file::memory:"
+		}
+	}
+
 	if len(p.config.Parameters) > 0 {
-		dsn += "?"
+		// Check if DSN already has parameters (contains '?')
+		separator := "?"
+		if strings.Contains(dsn, "?") {
+			separator = "&"
+		}
+
+		dsn += separator
 		first := true
 		for key, value := range p.config.Parameters {
 			if !first {

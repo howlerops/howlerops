@@ -69,7 +69,7 @@ func (d *OllamaDetector) DetectOllama(ctx context.Context) (*OllamaStatus, error
 	}
 
 	// Check if Ollama is installed
-	installed, version, err := d.checkOllamaInstalled()
+	installed, version, err := d.IsOllamaInstalled()
 	if err != nil {
 		status.Error = fmt.Sprintf("Failed to check Ollama installation: %v", err)
 		return status, nil
@@ -82,7 +82,7 @@ func (d *OllamaDetector) DetectOllama(ctx context.Context) (*OllamaStatus, error
 	}
 
 	// Check if Ollama service is running
-	running, err := d.checkOllamaRunning(ctx, status.Endpoint)
+	running, err := d.IsOllamaRunning(ctx, status.Endpoint)
 	if err != nil {
 		status.Error = fmt.Sprintf("Failed to check Ollama service: %v", err)
 		return status, nil
@@ -94,7 +94,7 @@ func (d *OllamaDetector) DetectOllama(ctx context.Context) (*OllamaStatus, error
 	}
 
 	// Get available models
-	models, err := d.getAvailableModels(ctx, status.Endpoint)
+	models, err := d.ListAvailableModels(ctx, status.Endpoint)
 	if err != nil {
 		d.logger.WithError(err).Warn("Failed to get available models")
 	} else {
@@ -104,8 +104,8 @@ func (d *OllamaDetector) DetectOllama(ctx context.Context) (*OllamaStatus, error
 	return status, nil
 }
 
-// checkOllamaInstalled checks if Ollama is installed on the system
-func (d *OllamaDetector) checkOllamaInstalled() (bool, string, error) {
+// IsOllamaInstalled checks if Ollama is installed on the system
+func (d *OllamaDetector) IsOllamaInstalled() (bool, string, error) {
 	// Try to run ollama --version
 	cmd := exec.CommandContext(context.Background(), "ollama", "--version")
 	output, err := cmd.Output()
@@ -133,8 +133,8 @@ func (d *OllamaDetector) checkOllamaInstalled() (bool, string, error) {
 	return true, version, nil
 }
 
-// checkOllamaRunning checks if Ollama service is running and accessible
-func (d *OllamaDetector) checkOllamaRunning(ctx context.Context, endpoint string) (bool, error) {
+// IsOllamaRunning checks if Ollama service is running and accessible
+func (d *OllamaDetector) IsOllamaRunning(ctx context.Context, endpoint string) (bool, error) {
 	req, err := http.NewRequestWithContext(ctx, "GET", endpoint+"/api/tags", nil)
 	if err != nil {
 		return false, err
@@ -149,8 +149,8 @@ func (d *OllamaDetector) checkOllamaRunning(ctx context.Context, endpoint string
 	return resp.StatusCode == http.StatusOK, nil
 }
 
-// getAvailableModels retrieves the list of available models from Ollama
-func (d *OllamaDetector) getAvailableModels(ctx context.Context, endpoint string) ([]string, error) {
+// ListAvailableModels retrieves the list of available models from Ollama
+func (d *OllamaDetector) ListAvailableModels(ctx context.Context, endpoint string) ([]string, error) {
 	req, err := http.NewRequestWithContext(ctx, "GET", endpoint+"/api/tags", nil)
 	if err != nil {
 		return nil, err
@@ -302,8 +302,8 @@ func (d *OllamaDetector) GetRecommendedModels() []string {
 }
 
 // CheckModelExists checks if a specific model is available
-func (d *OllamaDetector) CheckModelExists(ctx context.Context, modelName string) (bool, error) {
-	models, err := d.getAvailableModels(ctx, "http://localhost:11434")
+func (d *OllamaDetector) CheckModelExists(ctx context.Context, modelName string, endpoint string) (bool, error) {
+	models, err := d.ListAvailableModels(ctx, endpoint)
 	if err != nil {
 		return false, err
 	}

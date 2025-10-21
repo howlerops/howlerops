@@ -9,6 +9,11 @@ import {
   addEdge,
   Connection,
   ReactFlowProvider,
+  Node,
+  Edge,
+  OnEdgeClick,
+  OnNodesChange,
+  OnEdgesChange,
 } from 'reactflow'
 import 'reactflow/dist/style.css'
 
@@ -32,6 +37,8 @@ import {
 } from 'lucide-react'
 
 import { TableNode } from './table-node'
+import { CustomEdge } from './custom-edge'
+import { RelationshipInspector } from './relationship-inspector'
 import { SchemaErrorBoundary } from './schema-error-boundary'
 import { LayoutEngine } from '@/lib/schema-layout'
 import { SchemaConfigBuilder } from '@/lib/schema-config'
@@ -44,6 +51,8 @@ import {
   FilterOptions,
   SchemaVisualizerNode,
   SchemaVisualizerEdge,
+  EdgeConfig,
+  TableConfig,
 } from '@/types/schema-visualizer'
 
 interface SchemaVisualizerProps {
@@ -56,9 +65,13 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
   const [edges, setEdges, onEdgesChange] = useEdgesState([])
   const [schemaConfig, setSchemaConfig] = useState<SchemaConfig | null>(null)
 
-  // Memoize nodeTypes to prevent unnecessary re-renders
+  // Memoize nodeTypes and edgeTypes to prevent unnecessary re-renders
   const nodeTypes = useMemo(() => ({
     table: TableNode,
+  }), [])
+
+  const edgeTypes = useMemo(() => ({
+    smoothstep: CustomEdge,
   }), [])
   
   // UI State
@@ -70,6 +83,36 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
   const [layoutAlgorithm, setLayoutAlgorithm] = useState<LayoutAlgorithm>('hierarchical')
   const [isFullscreen, setIsFullscreen] = useState(true)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+
+  // Interactive state
+  const [selectedTableId, setSelectedTableId] = useState<string | null>(null)
+  const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null)
+  const [selectedEdge, setSelectedEdge] = useState<{
+    edge: EdgeConfig
+    sourceTable: TableConfig
+    targetTable: TableConfig
+    position: { x: number; y: number }
+  } | null>(null)
+
+  // Performance optimizations
+  const shouldDisableAnimations = useMemo(() => {
+    return schemaConfig && schemaConfig.tables.length > 50
+  }, [schemaConfig])
+
+  // Performance degradation thresholds
+  const performanceLevel = useMemo(() => {
+    if (!schemaConfig) return 'optimal'
+    const tableCount = schemaConfig.tables.length
+
+    if (tableCount < 50) return 'optimal'
+    if (tableCount < 100) return 'good'
+    if (tableCount < 200) return 'degraded'
+    return 'critical'
+  }, [schemaConfig])
+
+  const showPerformanceWarning = useMemo(() => {
+    return performanceLevel === 'degraded' || performanceLevel === 'critical'
+  }, [performanceLevel])
 
   // Initialize schema configuration
   useEffect(() => {
@@ -102,19 +145,25 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
           })
 
           // Smart layout selection based on table count
+          // Performance thresholds based on ReactFlow limitations
           const tableCount = config.tables.length
           if (tableCount < 50) {
+            // Optimal range: full features
             setLayoutAlgorithm('hierarchical')
-          } else if (tableCount < 200) {
+          } else if (tableCount < 100) {
+            // Degraded range: switch to grid, keep animations
             setLayoutAlgorithm('grid')
-            // Show warning for large schemas
-            if (tableCount > 100) {
-              console.info(`Large schema detected: ${tableCount} tables. Consider using filters to improve performance.`)
-            }
+            console.info(`Medium schema detected: ${tableCount} tables. Using grid layout for better performance.`)
+          } else if (tableCount < 200) {
+            // Minimal range: grid only, no animations
+            setLayoutAlgorithm('grid')
+            setSidebarCollapsed(false) // Encourage filtering
+            console.warn(`Large schema detected: ${tableCount} tables. Performance may be degraded. Use filters to reduce complexity.`)
           } else {
+            // Critical range: warn user strongly
             setLayoutAlgorithm('grid')
             setSidebarCollapsed(false) // Force sidebar open for filtering
-            console.warn(`Very large schema: ${tableCount} tables. Please use filters before visualizing.`)
+            console.error(`Very large schema: ${tableCount} tables. Browser visualization not recommended. Consider using a dedicated database client tool or export to documentation.`)
           }
 
           // Extract unique schemas for filtering
@@ -144,7 +193,7 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
     return map
   }, [nodes])
 
-  // Apply filters
+  // Apply filters and interactive states
   const filteredNodes = useMemo(() => {
     return nodes.filter((node) => {
       const tableData = node.data as { name: string; schema: string; columns: Array<{ name: string }> }
@@ -165,13 +214,34 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
       }
 
       return true
+    }).map((node) => {
+      // Apply focus mode styling
+      const isFocused = selectedTableId === node.id
+      const isDimmed = selectedTableId !== null && selectedTableId !== node.id
+
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          isFocused,
+          isDimmed,
+        },
+      }
     })
-  }, [nodes, debouncedSearchTerm, selectedSchemas])
+  }, [nodes, debouncedSearchTerm, selectedSchemas, selectedTableId])
 
   // Create filtered nodes Set for O(1) lookup
   const filteredNodeIds = useMemo(() => {
     return new Set(filteredNodes.map(n => n.id))
   }, [filteredNodes])
+
+  // Debounced edge hover handler
+  const debouncedHoveredEdgeId = useDebounce(hoveredEdgeId, 50)
+
+  // Handle edge hover
+  const handleEdgeHover = useCallback((edgeId: string | null) => {
+    setHoveredEdgeId(edgeId)
+  }, [])
 
   const filteredEdges = useMemo(() => {
     if (!showForeignKeys) return []
@@ -179,8 +249,29 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
     // Use Set for O(1) lookup instead of O(n) includes()
     return edges.filter((edge) => {
       return filteredNodeIds.has(edge.source) && filteredNodeIds.has(edge.target)
+    }).map((edge) => {
+      // Determine if this edge should be highlighted or dimmed
+      const isConnectedToSelectedTable = selectedTableId !== null && (
+        edge.source === selectedTableId || edge.target === selectedTableId
+      )
+      const isHighlighted = debouncedHoveredEdgeId === edge.id || isConnectedToSelectedTable
+      const isDimmed = selectedTableId !== null && !isConnectedToSelectedTable
+
+      // Disable animations for large schemas (performance optimization)
+      const shouldAnimate = !shouldDisableAnimations && edge.animated
+
+      return {
+        ...edge,
+        animated: shouldAnimate,
+        data: {
+          ...edge.data,
+          onEdgeHover: handleEdgeHover,
+          isHighlighted,
+          isDimmed,
+        },
+      }
     })
-  }, [edges, filteredNodeIds, showForeignKeys])
+  }, [edges, filteredNodeIds, showForeignKeys, selectedTableId, debouncedHoveredEdgeId, handleEdgeHover, shouldDisableAnimations])
 
   // Layout functions
   const applyLayout = useCallback((algorithm: LayoutAlgorithm) => {
@@ -245,6 +336,63 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
     [setEdges]
   )
 
+  // Handle node click (focus mode)
+  const handleNodeClick = useCallback(
+    (event: React.MouseEvent, node: Node) => {
+      event.stopPropagation()
+      // Toggle focus: if already selected, deselect; otherwise select
+      setSelectedTableId((prevId) => (prevId === node.id ? null : node.id))
+    },
+    []
+  )
+
+  // Handle edge click (show inspector)
+  const handleEdgeClick: OnEdgeClick = useCallback(
+    (event, edge) => {
+      event.stopPropagation()
+
+      if (!schemaConfig) return
+
+      // Find the edge configuration data
+      const edgeData = edge.data?.data as EdgeConfig | undefined
+      if (!edgeData) return
+
+      // Find source and target tables
+      const sourceTable = schemaConfig.tables.find((t) => t.id === edge.source)
+      const targetTable = schemaConfig.tables.find((t) => t.id === edge.target)
+
+      if (!sourceTable || !targetTable) return
+
+      // Set the selected edge with position
+      setSelectedEdge({
+        edge: edgeData,
+        sourceTable,
+        targetTable,
+        position: { x: event.clientX, y: event.clientY },
+      })
+    },
+    [schemaConfig]
+  )
+
+  // Handle pane click (deselect)
+  const handlePaneClick = useCallback(() => {
+    setSelectedTableId(null)
+    setSelectedEdge(null)
+  }, [])
+
+  // Keyboard support for focus mode
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setSelectedTableId(null)
+        setSelectedEdge(null)
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
   if (!schemaConfig) {
     return (
       <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
@@ -264,19 +412,36 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
     )
   }
 
-  // Show performance warning for large schemas
-  const showPerformanceWarning = schemaConfig && schemaConfig.tables.length > 100
-
   return (
     <div className={`fixed inset-0 bg-background z-50 ${isFullscreen ? '' : 'p-4'}`}>
       <div className="h-full flex flex-col">
         {/* Performance Warning Banner */}
-        {showPerformanceWarning && filteredNodes.length > 50 && (
-          <div className="bg-yellow-500/10 border-b border-yellow-500/20 px-4 py-2">
-            <p className="text-sm text-yellow-700 dark:text-yellow-400">
-              ⚠️ Large schema detected ({schemaConfig?.tables.length} tables).
-              Use filters to reduce visible tables for better performance.
-              Currently showing {filteredNodes.length} tables.
+        {showPerformanceWarning && (
+          <div className={
+            performanceLevel === 'critical'
+              ? 'bg-red-500/10 border-b border-red-500/20 px-4 py-3'
+              : 'bg-yellow-500/10 border-b border-yellow-500/20 px-4 py-2'
+          }>
+            <p className={
+              performanceLevel === 'critical'
+                ? 'text-sm text-red-700 dark:text-red-400'
+                : 'text-sm text-yellow-700 dark:text-yellow-400'
+            }>
+              {performanceLevel === 'critical' ? (
+                <>
+                  ⚠️ <strong>Critical:</strong> Very large schema ({schemaConfig?.tables.length} tables).
+                  Browser visualization not recommended above 200 tables.
+                  Consider using a dedicated database client tool (DBeaver, DataGrip) or export to documentation.
+                  Currently showing {filteredNodes.length} table{filteredNodes.length !== 1 ? 's' : ''}.
+                </>
+              ) : (
+                <>
+                  ⚠️ Large schema detected ({schemaConfig?.tables.length} tables).
+                  Performance may be degraded. Use filters to reduce complexity.
+                  Currently showing {filteredNodes.length} table{filteredNodes.length !== 1 ? 's' : ''}.
+                  {shouldDisableAnimations && ' Edge animations disabled for better performance.'}
+                </>
+              )}
             </p>
           </div>
         )}
@@ -433,7 +598,11 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
               onNodesChange={onNodesChange}
               onEdgesChange={onEdgesChange}
               onConnect={onConnect}
+              onNodeClick={handleNodeClick}
+              onEdgeClick={handleEdgeClick}
+              onPaneClick={handlePaneClick}
               nodeTypes={nodeTypes}
+              edgeTypes={edgeTypes}
               onlyRenderVisibleElements={true}
               fitView
               attributionPosition="bottom-left"
@@ -442,6 +611,17 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
               <Controls />
               <MiniMap />
             </ReactFlow>
+
+            {/* Relationship Inspector */}
+            {selectedEdge && (
+              <RelationshipInspector
+                edge={selectedEdge.edge}
+                sourceTable={selectedEdge.sourceTable}
+                targetTable={selectedEdge.targetTable}
+                position={selectedEdge.position}
+                onClose={() => setSelectedEdge(null)}
+              />
+            )}
           </div>
         </div>
       </div>

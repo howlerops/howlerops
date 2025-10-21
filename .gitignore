@@ -1,51 +1,69 @@
-# Binaries for programs and plugins
+# Executables and binaries
 *.exe
 *.exe~
 *.dll
 *.so
 *.dylib
+*.app
+*.dmg
+*.AppImage
+*.syso
+*.pprof
 bin/
 sql-studio
 howlerops
+wails-build/
+backend-go/bin/
+backend-go/.gobuild/
+backend-go/cmd/server/main
 
-# Test binary, built with `go test -c`
+# Go build/test artifacts
 *.test
-
-# Output of the go coverage tool
 *.out
-coverage.html
+*.coverprofile
 coverage.txt
-
-# Go vendor directory
+coverage.html
+coverage*.html
+.gocache/
+backend-go/*.test
+backend-go/coverage*.out
+backend-go/coverage/
 vendor/
+app.syso
+wails.json.bak
+.wails/
+bindings/
 
-# Go build cache
-.cache/
-
-# Dependency directories
+# Node/Vite build artifacts
 node_modules/
 .pnp
 .pnp.js
-
-# Testing coverage
-coverage/
-*.lcov
-.nyc_output/
-
-# Production build
+frontend/dist/
+frontend/build/
+frontend/.vite/
+frontend/.turbo/
+frontend/.playwright-cache/
+frontend/.vitest/
+frontend/.cache/
+dist/
+out/
 build/
 !build/icons/
 !build/appicon.png
 !build/darwin/
-dist/
-out/
+build/bin/
+playwright/.cache/
 
-# Environment files
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+# Generated sources
+frontend/src/generated/
+frontend/wailsjs/
+backend-go/api/*.pb.go
+backend-go/api/*_grpc.pb.go
+
+# Generated mocks and fixtures
+backend-go/internal/**/mocks/
+backend-go/pkg/**/mocks/
+backend-go/internal/testutil/tmp/
 
 # Logs
 logs/
@@ -56,108 +74,64 @@ yarn-error.log*
 lerna-debug.log*
 .pnpm-debug.log*
 
-# IDE directories
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-.DS_Store
-Thumbs.db
-
-# Debug
-*.pprof
+# Test and coverage reports
+coverage/
+**/coverage/
+*.lcov
+.nyc_output/
+test-results/
+**/test-results/
+playwright-report/
+**/playwright-report/
 
 # Database files
 *.db
 *.sqlite
 *.sqlite3
 connections.db
+data/
+sessions/
+uploads/
 
 # Temporary files
 tmp/
 temp/
 *.tmp
+*.bak
+*.backup
+*.orig
+
+# Environment files
+.env
+.env.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
 
 # Docker
 .dockerignore
 docker-compose.override.yml
 
-# OS files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-
-# Project specific
+# Local configuration
 config/local.yaml
 config/production.yaml
-data/
-sessions/
-uploads/
 
-# Wails specific
-*.app
-*.dmg
-*.AppImage
-wails.json.bak
-.wails/
-app.syso
-wails-build/
-bindings/
-*.syso
-
-# Frontend build
-frontend/dist/
-frontend/build/
-frontend/.vite/
-frontend/.turbo/
-
-# Generated files (protobuf, Wails bindings)
-backend-go/api/*.pb.go
-backend-go/api/*_grpc.pb.go
-frontend/src/generated/
-frontend/wailsjs/
-
-# Backend build artifacts
-backend-go/bin/
-backend-go/.gobuild/
-backend-go/cmd/server/main
-
-# Package manager lock files (keep package.json, ignore lock files)
-package-lock.json
-yarn.lock
-pnpm-lock.yaml
-
-# Runtime and cache directories
+# Runtime caches
 .cache/
-.gocache/
 .parcel-cache/
 .next/
 .nuxt/
 .vuepress/dist/
 
-# Test artifacts
-test-results/
-playwright-report/
-playwright/.cache/
-
-# Coverage reports
-coverage/
-*.lcov
-.nyc_output/
-
-# Editor and IDE files
+# IDE and OS files
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
-
-# OS generated files
 .DS_Store
 .DS_Store?
 ._*
@@ -166,13 +140,7 @@ coverage/
 ehthumbs.db
 Thumbs.db
 
-# Local development files
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# Backup files
-*.bak
-*.backup
-*.orig
+# Package manager lock files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml

@@ -1,0 +1,39 @@
+name: Go Unit Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+concurrency:
+  group: unit-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  go-unit:
+    name: Go Unit Suite
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.5'
+          cache: true
+
+      - name: Go unit tests (root module)
+        run: go test ./services
+
+      - name: Go unit tests (backend module)
+        working-directory: backend-go
+        run: go test ./internal/config \
+                       ./internal/services \
+                       ./internal/middleware \
+                       ./internal/server \
+                       ./internal/rag \
+                       ./internal/ai \
+                       ./cmd/migrate-vector-db

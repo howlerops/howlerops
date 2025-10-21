@@ -152,6 +152,18 @@ export function useSchemaIntrospection() {
     try {
       // Fetch schemas/databases
       const schemasResponse = await wailsEndpoints.schema.databases(connectionId)
+      
+      // Also fetch synthetic views
+      let syntheticViews: any[] = []
+      try {
+        const { GetSyntheticSchema } = await import('../../wailsjs/go/main/App')
+        const syntheticSchema = await GetSyntheticSchema()
+        if (syntheticSchema && syntheticSchema.views) {
+          syntheticViews = syntheticSchema.views
+        }
+      } catch (err) {
+        console.warn('Failed to load synthetic views:', err)
+      }
 
       if (!schemasResponse.success || !schemasResponse.data) {
         throw new Error(schemasResponse.message || 'Failed to fetch schemas')
@@ -217,6 +229,37 @@ export function useSchemaIntrospection() {
         }
 
         schemaNodes.push(schemaNode)
+      }
+
+      // Add synthetic views as a special schema
+      if (syntheticViews.length > 0) {
+        const syntheticSchemaNode: SchemaNode = {
+          id: 'synthetic',
+          name: 'synthetic',
+          type: 'schema',
+          expanded: true,
+          children: syntheticViews.map((view, index) => ({
+            id: `synthetic.${view.name}.${index}`,
+            name: view.name,
+            type: 'table' as const,
+            children: view.columns?.map((col: any, colIndex: number) => ({
+              id: `synthetic.${view.name}.${col.name}.${colIndex}`,
+              name: col.name,
+              type: 'column' as const,
+              metadata: {
+                dataType: col.type,
+                readOnly: true,
+                synthetic: true
+              }
+            })) || [],
+            metadata: {
+              readOnly: true,
+              synthetic: true,
+              comment: 'Synthetic federated view'
+            }
+          }))
+        }
+        schemaNodes.push(syntheticSchemaNode)
       }
 
       setSchema(schemaNodes)

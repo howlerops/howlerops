@@ -31,7 +31,7 @@ import { useTheme } from "@/hooks/use-theme"
 import { useAIConfig, useAIGeneration, useAIStore } from "@/store/ai-store"
 import { useAIQueryAgentStore } from "@/store/ai-query-agent-store"
 import { AIQueryTabView } from "@/components/ai-query-tab"
-import { Play, Square, Plus, X, Wand2, AlertCircle, Loader2, Network, Database, Bug, Sparkles, Users, Pencil, Trash2, ChevronDown, MessageCircle } from "lucide-react"
+import { Play, Square, Plus, X, Wand2, AlertCircle, Loader2, Network, Database, Bug, Sparkles, Users, Pencil, Trash2, ChevronDown, MessageCircle, Layout } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AISchemaDisplay } from "@/components/ai-schema-display"
 import { cn } from "@/lib/utils"
@@ -45,6 +45,9 @@ import { useQueryMode } from "@/hooks/use-query-mode"
 import { MultiDBConnectionSelector } from "@/components/multi-db-connection-selector"
 import { AISuggestionCard } from "@/components/ai-suggestion-card"
 import { GenericChatSidebar } from "@/components/generic-chat-sidebar"
+import { VisualQueryBuilder } from "@/components/visual-query-builder"
+import { generateSQL } from "@/lib/query-ir"
+import { QueryIR } from "@/lib/query-ir"
 
 
 export interface QueryEditorProps {
@@ -105,6 +108,11 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
   const [aiSheetTab, setAISheetTab] = useState<'assistant' | 'memories'>('assistant')
   const [renameSessionId, setRenameSessionId] = useState<string | null>(null)
   const [renameTitle, setRenameTitle] = useState('')
+  
+  // Visual Query Builder state
+  const [isVisualMode, setIsVisualMode] = useState(false)
+  const [visualQueryIR, setVisualQueryIR] = useState<QueryIR | null>(null)
+  const [lastSyncedSQL, setLastSyncedSQL] = useState('')
 
   // Multi-DB state - schemas for all connections
   const [multiDBSchemas, setMultiDBSchemas] = useState<Map<string, SchemaNode[]>>(new Map())
@@ -418,6 +426,52 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
     // Editor mounted
   }
 
+  // Visual Query Builder handlers
+  const handleVisualQueryChange = useCallback((queryIR: QueryIR) => {
+    setVisualQueryIR(queryIR)
+    
+    // Generate SQL from IR
+    try {
+      const sql = generateSQL(queryIR, 'postgres') // TODO: Get dialect from connection
+      setEditorContent(sql)
+      setLastSyncedSQL(sql)
+      
+      if (activeTab) {
+        updateTab(activeTab.id, {
+          content: sql,
+          isDirty: sql !== activeTab.content
+        })
+      }
+    } catch (error) {
+      console.error('Failed to generate SQL from visual query:', error)
+    }
+  }, [activeTab, updateTab])
+
+  const handleVisualSQLChange = useCallback((sql: string) => {
+    setEditorContent(sql)
+    setLastSyncedSQL('') // Mark as manual
+    
+    if (activeTab) {
+      updateTab(activeTab.id, {
+        content: sql,
+        isDirty: sql !== activeTab.content
+      })
+    }
+  }, [activeTab, updateTab])
+
+  const handleVisualModeToggle = useCallback(() => {
+    setIsVisualMode(prev => !prev)
+    
+    if (!isVisualMode) {
+      // Switching to visual mode
+      setVisualQueryIR(null)
+    } else {
+      // Switching to SQL mode
+      setVisualQueryIR(null)
+      setLastSyncedSQL('')
+    }
+  }, [isVisualMode])
+
   const handleEditorChange = (value: string) => {
     if (activeTab) {
       setEditorContent(value)
@@ -425,6 +479,14 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
         content: value,
         isDirty: value !== activeTab.content
       })
+    }
+    
+    // Check if SQL has changed from visual mode
+    if (isVisualMode && visualQueryIR) {
+      const generatedSQL = generateSQL(visualQueryIR, 'postgres') // TODO: Get dialect from connection
+      if (value.trim() !== generatedSQL.trim()) {
+        setLastSyncedSQL('')
+      }
     }
   }
 
@@ -1484,6 +1546,17 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
             {activeTab?.isExecuting ? 'Stop' : 'Run'}
           </Button>
 
+          {/* Visual Mode Toggle */}
+          <Button
+            variant={isVisualMode ? "default" : "outline"}
+            size="sm"
+            onClick={handleVisualModeToggle}
+            className="ml-2"
+          >
+            <Layout className="h-4 w-4 mr-2" />
+            {isVisualMode ? 'Visual' : 'SQL'}
+          </Button>
+
           {/* AI Fix SQL Button */}
           {aiEnabled && lastExecutionError && (
             <Button
@@ -1516,19 +1589,36 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
 
       {/* Editor */}
       <div className="flex-1 min-h-0 overflow-y-auto">
-        <CodeMirrorEditor
-          ref={editorRef}
-          value={editorContent}
-          onChange={handleEditorChange}
-          onMount={handleEditorDidMount}
-          theme={theme === 'dark' ? 'dark' : 'light'}
-          height="100%"
-          connections={codeMirrorConnections}
-          schemas={editorSchemas}
-          mode={mode}
-          columnLoader={columnLoader}
-          className="h-full"
-        />
+        {isVisualMode ? (
+          <div className="h-full p-4">
+            <VisualQueryBuilder
+              connections={connections.map(conn => ({
+                id: conn.id,
+                name: conn.name,
+                type: conn.type,
+                isConnected: conn.isConnected
+              }))}
+              schemas={new Map()} // TODO: Convert schema format
+              onQueryChange={handleVisualQueryChange}
+              onSQLChange={handleVisualSQLChange}
+              initialQuery={visualQueryIR || undefined}
+            />
+          </div>
+        ) : (
+          <CodeMirrorEditor
+            ref={editorRef}
+            value={editorContent}
+            onChange={handleEditorChange}
+            onMount={handleEditorDidMount}
+            theme={theme === 'dark' ? 'dark' : 'light'}
+            height="100%"
+            connections={codeMirrorConnections}
+            schemas={editorSchemas}
+            mode={mode}
+            columnLoader={columnLoader}
+            className="h-full"
+          />
+        )}
       </div>
 
       {/* Multi-DB Connection Selector Dialog */}

@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 
 	"github.com/sirupsen/logrus"
@@ -17,15 +18,15 @@ type Config struct {
 
 // TursoConfig holds Turso team storage configuration
 type TursoConfig struct {
-	Enabled       bool   `json:"enabled"`
-	URL           string `json:"url"`
-	AuthToken     string `json:"auth_token"`
-	LocalReplica  string `json:"local_replica"`
-	SyncInterval  string `json:"sync_interval"`
-	ShareHistory  bool   `json:"share_history"`
-	ShareQueries  bool   `json:"share_queries"`
-	ShareLearnings bool  `json:"share_learnings"`
-	TeamID        string `json:"team_id"`
+	Enabled        bool   `json:"enabled"`
+	URL            string `json:"url"`
+	AuthToken      string `json:"auth_token"`
+	LocalReplica   string `json:"local_replica"`
+	SyncInterval   string `json:"sync_interval"`
+	ShareHistory   bool   `json:"share_history"`
+	ShareQueries   bool   `json:"share_queries"`
+	ShareLearnings bool   `json:"share_learnings"`
+	TeamID         string `json:"team_id"`
 }
 
 // Manager manages storage operations and mode switching
@@ -33,7 +34,7 @@ type Manager struct {
 	mode       Mode
 	storage    Storage
 	localStore *LocalSQLiteStorage // Always present for local operations
-	teamStore  Storage              // nil in solo mode, TursoTeamStorage in team mode
+	teamStore  Storage             // nil in solo mode, TursoTeamStorage in team mode
 	userID     string
 	logger     *logrus.Logger
 }
@@ -74,7 +75,7 @@ func NewManager(ctx context.Context, config *Config, logger *logrus.Logger) (*Ma
 			logger.Warn("Team mode not yet implemented, using local storage")
 			manager.mode = ModeSolo
 			manager.storage = localStore
-			
+
 			// Future implementation:
 			// teamStore, err := NewTursoStorage(config.Team, config.UserID, logger)
 			// if err != nil {
@@ -110,6 +111,14 @@ func (m *Manager) GetUserID() string {
 	return m.userID
 }
 
+// GetDB returns the database connection for direct access
+func (m *Manager) GetDB() *sql.DB {
+	if m.localStore != nil {
+		return m.localStore.GetDB()
+	}
+	return nil
+}
+
 // SwitchToTeamMode switches from solo to team mode
 func (m *Manager) SwitchToTeamMode(ctx context.Context, teamConfig *TursoConfig) error {
 	if m.mode == ModeTeam {
@@ -120,7 +129,7 @@ func (m *Manager) SwitchToTeamMode(ctx context.Context, teamConfig *TursoConfig)
 	// 1. Initialize Turso storage
 	// 2. Optionally migrate local data to team
 	// 3. Switch active storage
-	
+
 	return fmt.Errorf("team mode not yet implemented")
 }
 
@@ -133,7 +142,7 @@ func (m *Manager) SwitchToSoloMode(ctx context.Context) error {
 	// Switch to local storage
 	m.storage = m.localStore
 	m.mode = ModeSolo
-	
+
 	// Close team storage if present
 	if m.teamStore != nil {
 		if err := m.teamStore.Close(); err != nil {
@@ -274,4 +283,3 @@ func (m *Manager) GetTeam(ctx context.Context) (*Team, error) {
 func (m *Manager) GetTeamMembers(ctx context.Context) ([]*TeamMember, error) {
 	return m.storage.GetTeamMembers(ctx)
 }
-

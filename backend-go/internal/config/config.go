@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -48,14 +49,14 @@ type DatabaseConfig struct {
 
 // AuthConfig holds authentication configuration
 type AuthConfig struct {
-	JWTSecret          string        `mapstructure:"jwt_secret"`
-	JWTExpiration      time.Duration `mapstructure:"jwt_expiration"`
-	RefreshExpiration  time.Duration `mapstructure:"refresh_expiration"`
-	BcryptCost         int           `mapstructure:"bcrypt_cost"`
-	SessionTimeout     time.Duration `mapstructure:"session_timeout"`
-	MaxLoginAttempts   int           `mapstructure:"max_login_attempts"`
-	LockoutDuration    time.Duration `mapstructure:"lockout_duration"`
-	RequireStrongPass  bool          `mapstructure:"require_strong_password"`
+	JWTSecret         string        `mapstructure:"jwt_secret"`
+	JWTExpiration     time.Duration `mapstructure:"jwt_expiration"`
+	RefreshExpiration time.Duration `mapstructure:"refresh_expiration"`
+	BcryptCost        int           `mapstructure:"bcrypt_cost"`
+	SessionTimeout    time.Duration `mapstructure:"session_timeout"`
+	MaxLoginAttempts  int           `mapstructure:"max_login_attempts"`
+	LockoutDuration   time.Duration `mapstructure:"lockout_duration"`
+	RequireStrongPass bool          `mapstructure:"require_strong_password"`
 }
 
 // RedisConfig holds Redis configuration
@@ -101,11 +102,11 @@ type SecurityConfig struct {
 
 // MetricsConfig holds metrics configuration
 type MetricsConfig struct {
-	Enabled    bool   `mapstructure:"enabled"`
-	Path       string `mapstructure:"path"`
-	Port       int    `mapstructure:"port"`
-	Namespace  string `mapstructure:"namespace"`
-	Subsystem  string `mapstructure:"subsystem"`
+	Enabled   bool   `mapstructure:"enabled"`
+	Path      string `mapstructure:"path"`
+	Port      int    `mapstructure:"port"`
+	Namespace string `mapstructure:"namespace"`
+	Subsystem string `mapstructure:"subsystem"`
 }
 
 // Load loads configuration from various sources
@@ -114,12 +115,16 @@ func Load() (*Config, error) {
 	setDefaults()
 
 	// Set up Viper
-	viper.SetConfigName("config")
-	viper.SetConfigType("yaml")
-	viper.AddConfigPath(".")
-	viper.AddConfigPath("./configs")
-	viper.AddConfigPath("/etc/sql-studio")
-	viper.AddConfigPath("$HOME/.sql-studio")
+	if configFile := os.Getenv("SQL_STUDIO_CONFIG_FILE"); configFile != "" {
+		viper.SetConfigFile(configFile)
+	} else {
+		viper.SetConfigName("config")
+		viper.SetConfigType("yaml")
+		viper.AddConfigPath(".")
+		viper.AddConfigPath("./configs")
+		viper.AddConfigPath("/etc/sql-studio")
+		viper.AddConfigPath("$HOME/.sql-studio")
+	}
 
 	// Enable environment variable support
 	viper.SetEnvPrefix("SQL_STUDIO")

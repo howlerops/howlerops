@@ -8,17 +8,41 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"github.com/sql-studio/backend-go/pkg/database"
 	"github.com/sql-studio/backend-go/pkg/database/multiquery"
 )
 
+// DatabaseManager captures the subset of backend-go's Manager used by the desktop services layer.
+type DatabaseManager interface {
+	CreateConnection(ctx context.Context, config database.ConnectionConfig) (*database.Connection, error)
+	GetMultiConnectionSchema(ctx context.Context, connectionIDs []string) (*multiquery.CombinedSchema, error)
+	TestConnection(ctx context.Context, config database.ConnectionConfig) error
+	ListConnections() []string
+	RemoveConnection(connectionID string) error
+	GetConnection(connectionID string) (database.Database, error)
+	UpdateRow(ctx context.Context, connectionID string, params database.UpdateRowParams) error
+	GetConnectionHealth(ctx context.Context, connectionID string) (*database.HealthStatus, error)
+	GetConnectionStats() map[string]database.PoolStats
+	HealthCheckAll(ctx context.Context) map[string]*database.HealthStatus
+	Close() error
+	ExecuteMultiQuery(ctx context.Context, query string, options *multiquery.Options) (*multiquery.Result, error)
+	ParseMultiQuery(query string) (*multiquery.ParsedQuery, error)
+	ValidateMultiQuery(parsed *multiquery.ParsedQuery) error
+	InvalidateSchemaCache(connectionID string)
+	InvalidateAllSchemas()
+	RefreshSchema(ctx context.Context, connectionID string) error
+	GetSchemaCacheStats() map[string]interface{}
+	GetConnectionCount() int
+	GetConnectionIDs() []string
+}
+
 // DatabaseService wraps the backend database manager for Wails
 type DatabaseService struct {
-	manager      *database.Manager
+	manager      DatabaseManager
 	logger       *logrus.Logger
 	ctx          context.Context
+	emitter      EventsEmitter
 	mu           sync.RWMutex
 	streams      map[string]*QueryStream
 	streamID     int64
@@ -77,10 +101,20 @@ func NewDatabaseService(logger *logrus.Logger) *DatabaseService {
 		RequireExplicitConns:   false,
 	}
 
-	manager := database.NewManagerWithConfig(logger, multiQueryConfig)
+	manager := DatabaseManager(database.NewManagerWithConfig(logger, multiQueryConfig))
+	return NewDatabaseServiceWithDependencies(logger, manager, defaultEventsEmitter())
+}
+
+// NewDatabaseServiceWithDependencies allows tests to inject custom managers and event emitters.
+func NewDatabaseServiceWithDependencies(logger *logrus.Logger, manager DatabaseManager, emitter EventsEmitter) *DatabaseService {
+	if emitter == nil {
+		emitter = defaultEventsEmitter()
+	}
+
 	return &DatabaseService{
 		manager:      manager,
 		logger:       logger,
+		emitter:      emitter,
 		streams:      make(map[string]*QueryStream),
 		metadataJobs: make(map[string]*EditableMetadataJob),
 	}
@@ -89,6 +123,16 @@ func NewDatabaseService(logger *logrus.Logger) *DatabaseService {
 // SetContext sets the Wails context
 func (s *DatabaseService) SetContext(ctx context.Context) {
 	s.ctx = ctx
+}
+
+func (s *DatabaseService) emitEvent(event string, payload interface{}) {
+	if s.emitter == nil || s.ctx == nil {
+		return
+	}
+
+	if err := s.emitter.Emit(s.ctx, event, payload); err != nil && s.logger != nil {
+		s.logger.WithError(err).WithField("event", event).Warn("Failed to emit event")
+	}
 }
 
 // CreateConnection creates a new database connection
@@ -113,7 +157,7 @@ func (s *DatabaseService) CreateConnection(config database.ConnectionConfig) (*d
 		displayName = config.Database
 	}
 
-	runtime.EventsEmit(s.ctx, "connection:created", map[string]interface{}{
+	s.emitEvent("connection:created", map[string]interface{}{
 		"id":   connection.ID,
 		"type": config.Type,
 		"name": displayName,
@@ -164,7 +208,7 @@ func (s *DatabaseService) RemoveConnection(connectionID string) error {
 	}
 
 	// Emit connection removed event
-	runtime.EventsEmit(s.ctx, "connection:removed", map[string]interface{}{
+	s.emitEvent("connection:removed", map[string]interface{}{
 		"id": connectionID,
 	})
 
@@ -211,7 +255,7 @@ func (s *DatabaseService) ExecuteQuery(connectionID, query string, options *data
 	}
 
 	// Emit query executed event
-	runtime.EventsEmit(s.ctx, "query:executed", map[string]interface{}{
+	s.emitEvent("query:executed", map[string]interface{}{
 		"connectionId": connectionID,
 		"duration":     result.Duration.String(),
 		"rowCount":     result.RowCount,
@@ -306,7 +350,7 @@ func (s *DatabaseService) computeEditableMetadataJob(jobID, connectionID string,
 		eventPayload["error"] = jobError
 	}
 
-	runtime.EventsEmit(s.ctx, "query:editableMetadata", eventPayload)
+	s.emitEvent("query:editableMetadata", eventPayload)
 }
 
 func (s *DatabaseService) GetEditableMetadataJob(jobID string) (*EditableMetadataJob, error) {
@@ -449,7 +493,7 @@ func (s *DatabaseService) handleQueryStream(ctx context.Context, stream *QuerySt
 				Data:     rows,
 				Total:    stream.TotalRows,
 			}
-			runtime.EventsEmit(s.ctx, "query:stream", update)
+			s.emitEvent("query:stream", update)
 			return nil
 		}
 	}
@@ -461,7 +505,7 @@ func (s *DatabaseService) handleQueryStream(ctx context.Context, stream *QuerySt
 			Type:     "error",
 			Error:    err.Error(),
 		}
-		runtime.EventsEmit(s.ctx, "query:stream", update)
+		s.emitEvent("query:stream", update)
 		stream.Errors <- err
 		return
 	}
@@ -472,7 +516,7 @@ func (s *DatabaseService) handleQueryStream(ctx context.Context, stream *QuerySt
 		Type:     "complete",
 		Total:    stream.TotalRows,
 	}
-	runtime.EventsEmit(s.ctx, "query:stream", update)
+	s.emitEvent("query:stream", update)
 	stream.Done <- true
 }
 
@@ -570,7 +614,7 @@ func (s *DatabaseService) BeginTransaction(connectionID string) (string, error) 
 	}).Info("Transaction started")
 
 	// Emit transaction started event
-	runtime.EventsEmit(s.ctx, "transaction:started", map[string]interface{}{
+	s.emitEvent("transaction:started", map[string]interface{}{
 		"connectionId":  connectionID,
 		"transactionId": txID,
 	})
@@ -692,7 +736,7 @@ func (s *DatabaseService) ExecuteMultiDatabaseQuery(query string, options *multi
 	}
 
 	// Emit multi-query executed event
-	runtime.EventsEmit(s.ctx, "multiquery:executed", map[string]interface{}{
+	s.emitEvent("multiquery:executed", map[string]interface{}{
 		"connections": result.ConnectionsUsed,
 		"duration":    result.Duration.String(),
 		"rowCount":    result.RowCount,
@@ -776,4 +820,9 @@ func (s *DatabaseService) GetConnectionCount() int {
 // GetConnectionIDs returns a list of all connection IDs
 func (s *DatabaseService) GetConnectionIDs() []string {
 	return s.manager.GetConnectionIDs()
+}
+
+// GetManager returns the database manager for direct access
+func (s *DatabaseService) GetManager() DatabaseManager {
+	return s.manager
 }
