@@ -34,6 +34,7 @@ export interface CodeMirrorEditorProps {
 export interface CodeMirrorEditorRef {
   getView: () => EditorView | null
   getValue: () => string
+  getSelectedText: () => string
   setValue: (value: string) => void
   focus: () => void
 }
@@ -203,6 +204,22 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorRef, CodeMirrorEditor
     useImperativeHandle(ref, () => ({
       getView: () => viewRef.current,
       getValue: () => viewRef.current?.state.doc.toString() || '',
+      getSelectedText: () => {
+        const view = viewRef.current
+        if (!view) {
+          return ''
+        }
+
+        const { ranges } = view.state.selection
+
+        for (const range of ranges) {
+          if (!range.empty) {
+            return view.state.sliceDoc(range.from, range.to)
+          }
+        }
+
+        return ''
+      },
       setValue: (newValue: string) => {
         const view = viewRef.current
         if (!view) return

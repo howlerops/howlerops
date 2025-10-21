@@ -3,6 +3,8 @@ import { cn } from '../../utils/cn';
 import type { CellEditorProps } from '../../types/table';
 import { validateCellValue, parseCellValue } from '../../utils/table';
 
+const EMPTY_OPTIONS: string[] = [];
+
 export const CellEditor: React.FC<CellEditorProps> = ({
   value,
   type,
@@ -10,11 +12,12 @@ export const CellEditor: React.FC<CellEditorProps> = ({
   onCancel,
   onSave,
   validation,
-  options = [],
+  options,
   required = false,
   autoFocus = true,
   className,
 }) => {
+  const editorOptions = options ?? EMPTY_OPTIONS;
   const [localValue, setLocalValue] = useState<string>(
     value?.toString() ?? ''
   );
@@ -45,7 +48,7 @@ export const CellEditor: React.FC<CellEditorProps> = ({
       type,
       validation,
       required,
-      options,
+      options: editorOptions,
     });
 
     return {
@@ -53,7 +56,7 @@ export const CellEditor: React.FC<CellEditorProps> = ({
       isValid: result.isValid,
       error: result.error,
     };
-  }, [localValue, type, validation, required, options]);
+  }, [localValue, type, validation, required, editorOptions]);
 
   // Notify parent about validation changes
   useEffect(() => {
@@ -137,7 +140,7 @@ export const CellEditor: React.FC<CellEditorProps> = ({
             className={baseClassName}
           >
             {!required && <option value="">Select...</option>}
-            {options.map(option => (
+            {editorOptions.map(option => (
               <option key={option} value={option}>
                 {option}
               </option>

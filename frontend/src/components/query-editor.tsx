@@ -493,11 +493,9 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
     if (!activeTab) return
 
     const currentEditorValue = editorRef.current?.getValue() ?? editorContent
-    const queryText = currentEditorValue
+    const selectedText = editorRef.current?.getSelectedText?.() ?? ''
+    const queryText = selectedText.trim().length > 0 ? selectedText : currentEditorValue
 
-    // TODO: Add selection support for CodeMirror
-    // For now, just use the full editor content
-    
     const trimmedValue = queryText.trim()
     if (!trimmedValue) return
 

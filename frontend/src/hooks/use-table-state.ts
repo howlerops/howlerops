@@ -195,41 +195,36 @@ export const useTableState = (
   ) => {
     setState(prev => {
       if (!prev.editingCell) return prev;
-      
-      // Track validation errors if the cell is invalid
-      if (!isValid && error && prev.editingCell.rowId && prev.editingCell.columnId) {
-        const cellKey = `${prev.editingCell.rowId}|${prev.editingCell.columnId}`;
-        const newInvalidCells = new Map(prev.invalidCells);
-        newInvalidCells.set(cellKey, { columnId: prev.editingCell.columnId, error });
-        
-        return {
-          ...prev,
-          editingCell: {
-            ...prev.editingCell,
-            value,
-            isValid,
-            error,
-          },
-          invalidCells: newInvalidCells,
-        };
-      } else if (isValid && prev.editingCell.rowId && prev.editingCell.columnId) {
-        // Clear validation error if cell becomes valid
-        const cellKey = `${prev.editingCell.rowId}|${prev.editingCell.columnId}`;
-        const newInvalidCells = new Map(prev.invalidCells);
-        newInvalidCells.delete(cellKey);
-        
-        return {
-          ...prev,
-          editingCell: {
-            ...prev.editingCell,
-            value,
-            isValid,
-            error,
-          },
-          invalidCells: newInvalidCells,
-        };
+      const { rowId, columnId } = prev.editingCell;
+
+      let nextInvalidCells = prev.invalidCells;
+      let invalidChanged = false;
+
+      if (rowId && columnId) {
+        const cellKey = `${rowId}|${columnId}`;
+        const existingInvalid = prev.invalidCells.get(cellKey);
+
+        if (!isValid && error) {
+          if (!existingInvalid || existingInvalid.error !== error) {
+            nextInvalidCells = new Map(prev.invalidCells);
+            nextInvalidCells.set(cellKey, { columnId, error });
+            invalidChanged = true;
+          }
+        } else if (existingInvalid) {
+          nextInvalidCells = new Map(prev.invalidCells);
+          nextInvalidCells.delete(cellKey);
+          invalidChanged = true;
+        }
       }
-      
+
+      const valueChanged = !isEqual(prev.editingCell.value, value);
+      const validityChanged = prev.editingCell.isValid !== isValid;
+      const errorChanged = prev.editingCell.error !== error;
+
+      if (!valueChanged && !validityChanged && !errorChanged && !invalidChanged) {
+        return prev;
+      }
+
       return {
         ...prev,
         editingCell: {
@@ -238,6 +233,7 @@ export const useTableState = (
           isValid,
           error,
         },
+        invalidCells: nextInvalidCells,
       };
     });
   }, []);
