@@ -237,9 +237,7 @@ export const buildExecutableSql = (
 
   if (selectionText) {
     const cleanedSelection = sanitizeStatementText(selectionText)
-    if (cleanedSelection) {
-      return cleanedSelection
-    }
+    return cleanedSelection
   }
 
   const statements = parseStatements(documentText)

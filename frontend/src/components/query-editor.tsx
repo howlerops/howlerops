@@ -497,6 +497,22 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
     const selectedText = editorRef.current?.getSelectedText?.() ?? ''
     const cursorOffset = editorRef.current?.getCursorOffset?.() ?? currentEditorValue.length
 
+    if (selectedText.trim().length > 0) {
+      const cleanedSelection = selectedText.trim()
+      setLastExecutionError(null)
+
+      if (currentEditorValue !== editorContent) {
+        setEditorContent(currentEditorValue)
+        updateTab(activeTab.id, {
+          content: currentEditorValue,
+          isDirty: currentEditorValue !== activeTab.content,
+        })
+      }
+
+      await executeQuery(activeTab.id, cleanedSelection)
+      return
+    }
+
     const executableQuery = buildExecutableSql(currentEditorValue, {
       selectionText: selectedText,
       cursorOffset,
@@ -523,11 +539,22 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        const view = editorRef.current?.getView()
+        if (view && e.target instanceof Node && view.contentDOM.contains(e.target)) {
+          // Let the editor's own keymap handle execution to avoid double-triggering
+          return
+        }
+
         e.preventDefault()
+
         if (activeConnection?.isConnected && !activeTab?.isExecuting) {
           const currentEditorValue = editorRef.current?.getValue() ?? editorContent
           const selectedText = editorRef.current?.getSelectedText?.() ?? ''
           const cursorOffset = editorRef.current?.getCursorOffset?.() ?? currentEditorValue.length
+          if (selectedText.trim().length > 0) {
+            handleExecuteQuery()
+            return
+          }
           const executableQuery = buildExecutableSql(currentEditorValue, {
             selectionText: selectedText,
             cursorOffset,
@@ -1624,6 +1651,7 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
             value={editorContent}
             onChange={handleEditorChange}
             onMount={handleEditorDidMount}
+            onExecute={handleExecuteQuery}
             theme={theme === 'dark' ? 'dark' : 'light'}
             height="100%"
             connections={codeMirrorConnections}
