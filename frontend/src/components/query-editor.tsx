@@ -47,6 +47,7 @@ import { AISuggestionCard } from "@/components/ai-suggestion-card"
 import { GenericChatSidebar } from "@/components/generic-chat-sidebar"
 import { VisualQueryBuilder } from "@/components/visual-query-builder"
 import { QueryIR } from "@/lib/query-ir"
+import { buildExecutableSql } from "@/utils/sql"
 
 
 export interface QueryEditorProps {
@@ -494,10 +495,16 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
 
     const currentEditorValue = editorRef.current?.getValue() ?? editorContent
     const selectedText = editorRef.current?.getSelectedText?.() ?? ''
-    const queryText = selectedText.trim().length > 0 ? selectedText : currentEditorValue
+    const cursorOffset = editorRef.current?.getCursorOffset?.() ?? currentEditorValue.length
 
-    const trimmedValue = queryText.trim()
-    if (!trimmedValue) return
+    const executableQuery = buildExecutableSql(currentEditorValue, {
+      selectionText: selectedText,
+      cursorOffset,
+    })
+
+    if (!executableQuery) {
+      return
+    }
 
     setLastExecutionError(null)
 
@@ -509,7 +516,7 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
       })
     }
 
-    await executeQuery(activeTab.id, trimmedValue)
+    await executeQuery(activeTab.id, executableQuery)
   }, [activeTab, editorContent, executeQuery, updateTab])
 
   // Keyboard shortcut for executing query (Ctrl/Cmd+Enter)
@@ -517,12 +524,22 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
         e.preventDefault()
-        if (activeConnection?.isConnected && editorContent.trim() && !activeTab?.isExecuting) {
-          handleExecuteQuery()
+        if (activeConnection?.isConnected && !activeTab?.isExecuting) {
+          const currentEditorValue = editorRef.current?.getValue() ?? editorContent
+          const selectedText = editorRef.current?.getSelectedText?.() ?? ''
+          const cursorOffset = editorRef.current?.getCursorOffset?.() ?? currentEditorValue.length
+          const executableQuery = buildExecutableSql(currentEditorValue, {
+            selectionText: selectedText,
+            cursorOffset,
+          })
+
+          if (executableQuery) {
+            handleExecuteQuery()
+          }
         }
       }
     }
-    
+
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [activeConnection, editorContent, activeTab?.isExecuting, handleExecuteQuery])

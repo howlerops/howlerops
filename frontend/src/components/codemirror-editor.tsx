@@ -35,6 +35,7 @@ export interface CodeMirrorEditorRef {
   getView: () => EditorView | null
   getValue: () => string
   getSelectedText: () => string
+  getCursorOffset: () => number
   setValue: (value: string) => void
   focus: () => void
 }
@@ -212,14 +213,17 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorRef, CodeMirrorEditor
 
         const { ranges } = view.state.selection
 
-        for (const range of ranges) {
-          if (!range.empty) {
-            return view.state.sliceDoc(range.from, range.to)
-          }
+        const segments = ranges
+          .filter(range => !range.empty)
+          .map(range => view.state.sliceDoc(range.from, range.to))
+
+        if (segments.length === 0) {
+          return ''
         }
 
-        return ''
+        return segments.join('\n')
       },
+      getCursorOffset: () => viewRef.current?.state.selection.main.head ?? 0,
       setValue: (newValue: string) => {
         const view = viewRef.current
         if (!view) return
