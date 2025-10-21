@@ -1,25 +1,20 @@
 {
   "permissions": {
     "allow": [
-      "Bash(make:*)",
-      "Bash(lsof:*)",
-      "Bash(git add:*)",
-      "Bash(git commit:*)",
-      "Bash(git push:*)",
-      "Bash(go build:*)",
-      "Bash(go get:*)",
-      "Bash(go test:*)",
-      "Bash(npm run type-check:*)",
-      "Bash(npm run typecheck:*)",
-      "Bash(npm run build:*)",
-      "WebSearch",
-      "Bash(wails build:*)",
-      "WebFetch(domain:wails.io)",
-      "Bash(md5:*)",
-      "Bash(iconutil:*)",
-      "Bash(sips:*)"
+      "Bash(find /Users/jacob/projects/amplifier/ai_working/howlerops/backend-go -name \"*_test.go\" -type f -exec wc -l {} +)",
+      "Bash(for pkg in internal/middleware internal/rag internal/ai pkg/database)",
+      "Bash(do echo \"=== $pkg ===\")",
+      "Bash(done)"
     ],
     "deny": [],
     "ask": []
-  }
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "browser-use",
+    "context7",
+    "deepwiki",
+    "repomix",
+    "zen"
+  ]
 }

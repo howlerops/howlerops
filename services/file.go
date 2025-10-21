@@ -17,33 +17,44 @@ import (
 type FileService struct {
 	logger         *logrus.Logger
 	ctx            context.Context
+	emitter        EventsEmitter
 	recentFiles    []string
 	maxRecentFiles int
 }
 
 // FileInfo represents file metadata
 type FileInfo struct {
-	Name         string    `json:"name"`
-	Path         string    `json:"path"`
-	Size         int64     `json:"size"`
-	ModTime      time.Time `json:"modTime"`
-	IsDirectory  bool      `json:"isDirectory"`
-	Extension    string    `json:"extension"`
-	Permissions  string    `json:"permissions"`
+	Name        string    `json:"name"`
+	Path        string    `json:"path"`
+	Size        int64     `json:"size"`
+	ModTime     time.Time `json:"modTime"`
+	IsDirectory bool      `json:"isDirectory"`
+	Extension   string    `json:"extension"`
+	Permissions string    `json:"permissions"`
 }
 
 // RecentFile represents a recently opened file
 type RecentFile struct {
-	Path        string    `json:"path"`
-	Name        string    `json:"name"`
-	LastOpened  time.Time `json:"lastOpened"`
-	Size        int64     `json:"size"`
+	Path       string    `json:"path"`
+	Name       string    `json:"name"`
+	LastOpened time.Time `json:"lastOpened"`
+	Size       int64     `json:"size"`
 }
 
 // NewFileService creates a new file service
 func NewFileService(logger *logrus.Logger) *FileService {
+	return NewFileServiceWithEmitter(logger, defaultEventsEmitter())
+}
+
+// NewFileServiceWithEmitter allows injection of a custom event emitter (useful for testing).
+func NewFileServiceWithEmitter(logger *logrus.Logger, emitter EventsEmitter) *FileService {
+	if emitter == nil {
+		emitter = defaultEventsEmitter()
+	}
+
 	return &FileService{
 		logger:         logger,
+		emitter:        emitter,
 		recentFiles:    make([]string, 0),
 		maxRecentFiles: 10,
 	}
@@ -52,6 +63,16 @@ func NewFileService(logger *logrus.Logger) *FileService {
 // SetContext sets the Wails context
 func (f *FileService) SetContext(ctx context.Context) {
 	f.ctx = ctx
+}
+
+func (f *FileService) emit(event string, payload interface{}) {
+	if f.emitter == nil || f.ctx == nil {
+		return
+	}
+
+	if err := f.emitter.Emit(f.ctx, event, payload); err != nil && f.logger != nil {
+		f.logger.WithError(err).WithField("event", event).Warn("Failed to emit file service event")
+	}
 }
 
 // OpenFile opens a file dialog and returns the selected file path
@@ -88,7 +109,7 @@ func (f *FileService) OpenFile(filters []runtime.FileFilter) (string, error) {
 		f.logger.WithField("file_path", filePath).Info("File opened")
 
 		// Emit file opened event
-		runtime.EventsEmit(f.ctx, "file:opened", map[string]interface{}{
+		f.emit("file:opened", map[string]interface{}{
 			"path": filePath,
 		})
 	}
@@ -126,7 +147,7 @@ func (f *FileService) SaveFile(defaultFilename string) (string, error) {
 		f.logger.WithField("file_path", filePath).Info("File save location selected")
 
 		// Emit file save dialog event
-		runtime.EventsEmit(f.ctx, "file:save-dialog", map[string]interface{}{
+		f.emit("file:save-dialog", map[string]interface{}{
 			"path": filePath,
 		})
 	}
@@ -186,7 +207,7 @@ func (f *FileService) WriteFile(filePath, content string) error {
 	}).Info("File written successfully")
 
 	// Emit file saved event
-	runtime.EventsEmit(f.ctx, "file:saved", map[string]interface{}{
+	f.emit("file:saved", map[string]interface{}{
 		"path": filePath,
 		"size": len(content),
 	})
@@ -257,7 +278,7 @@ func (f *FileService) ClearRecentFiles() {
 	f.logger.Info("Recent files list cleared")
 
 	// Emit recent files cleared event
-	runtime.EventsEmit(f.ctx, "file:recent-cleared")
+	f.emit("file:recent-cleared", nil)
 }
 
 // RemoveFromRecentFiles removes a file from recent files list
@@ -374,7 +395,7 @@ func (f *FileService) DeleteFile(filePath string) error {
 	f.logger.WithField("file_path", filePath).Info("File deleted successfully")
 
 	// Emit file deleted event
-	runtime.EventsEmit(f.ctx, "file:deleted", map[string]interface{}{
+	f.emit("file:deleted", map[string]interface{}{
 		"path": filePath,
 	})
 
@@ -491,7 +512,7 @@ func (f *FileService) SaveToDownloads(filename, content string) (string, error) 
 	}).Info("File saved to Downloads successfully")
 
 	// Emit file saved event
-	runtime.EventsEmit(f.ctx, "file:saved", map[string]interface{}{
+	f.emit("file:saved", map[string]interface{}{
 		"path": filePath,
 		"size": len(content),
 	})

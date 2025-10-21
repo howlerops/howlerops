@@ -94,6 +94,12 @@ func NewAnthropicProvider(config *AnthropicConfig, logger *logrus.Logger) (AIPro
 	}, nil
 }
 
+func (p *anthropicProvider) setHTTPClient(client *http.Client) {
+	if client != nil {
+		p.client = client
+	}
+}
+
 // GenerateSQL generates SQL from natural language using Anthropic Claude
 func (p *anthropicProvider) GenerateSQL(ctx context.Context, req *SQLRequest) (*SQLResponse, error) {
 	prompt := p.buildGeneratePrompt(req)

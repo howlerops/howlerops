@@ -1,3 +1,4 @@
+import { MarkerType } from 'reactflow'
 import { SchemaNode } from '@/hooks/use-schema-introspection'
 import { SchemaConfig, TableConfig, ColumnConfig, EdgeConfig } from '@/types/schema-visualizer'
 
@@ -128,7 +129,7 @@ export class SchemaConfigBuilder {
         strokeWidth: 2,
       }
       let markerEnd = {
-        type: 'arrowclosed',
+        type: MarkerType.ArrowClosed,
         color: '#64748b',
       }
 
@@ -138,7 +139,7 @@ export class SchemaConfigBuilder {
           strokeWidth: 2,
         }
         markerEnd = {
-          type: 'arrowclosed',
+          type: MarkerType.ArrowClosed,
           color: '#f59e0b',
         }
       } else if (edge.relation === 'hasOne') {
@@ -147,7 +148,7 @@ export class SchemaConfigBuilder {
           strokeWidth: 2,
         }
         markerEnd = {
-          type: 'arrowclosed',
+          type: MarkerType.ArrowClosed,
           color: '#3b82f6',
         }
       } else if (edge.relation === 'belongsTo') {
@@ -157,7 +158,7 @@ export class SchemaConfigBuilder {
           strokeDasharray: '5,5',
         }
         markerEnd = {
-          type: 'arrowclosed',
+          type: MarkerType.ArrowClosed,
           color: '#8b5cf6',
         }
       }

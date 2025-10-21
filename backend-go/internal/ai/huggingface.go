@@ -142,7 +142,7 @@ func (p *huggingFaceProvider) HealthCheck(ctx context.Context) (*HealthStatus, e
 	}
 
 	// Check if recommended model is available
-	modelExists, err := p.detector.CheckModelExists(ctx, p.config.RecommendedModel)
+	modelExists, err := p.detector.CheckModelExists(ctx, p.config.RecommendedModel, p.config.Endpoint)
 	if err != nil {
 		return &HealthStatus{
 			Provider:    ProviderHuggingFace,
@@ -262,7 +262,7 @@ func (p *huggingFaceProvider) ValidateConfig(config interface{}) error {
 // ensureModelAvailable ensures the specified model is available, pulling it if necessary
 func (p *huggingFaceProvider) ensureModelAvailable(ctx context.Context, modelName string) error {
 	// Check if model exists
-	exists, err := p.detector.CheckModelExists(ctx, modelName)
+	exists, err := p.detector.CheckModelExists(ctx, modelName, p.config.Endpoint)
 	if err != nil {
 		return err
 	}
@@ -308,7 +308,7 @@ func (p *huggingFaceProvider) GetInstallationInstructions() (string, error) {
 	}
 
 	// Check if recommended model is available
-	exists, err := p.detector.CheckModelExists(context.Background(), p.config.RecommendedModel)
+	exists, err := p.detector.CheckModelExists(context.Background(), p.config.RecommendedModel, p.config.Endpoint)
 	if err != nil {
 		return "", err
 	}

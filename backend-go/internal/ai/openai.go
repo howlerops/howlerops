@@ -99,6 +99,12 @@ func NewOpenAIProvider(config *OpenAIConfig, logger *logrus.Logger) (AIProvider,
 	}, nil
 }
 
+func (p *openaiProvider) setHTTPClient(client *http.Client) {
+	if client != nil {
+		p.client = client
+	}
+}
+
 // GenerateSQL generates SQL from natural language using OpenAI
 func (p *openaiProvider) GenerateSQL(ctx context.Context, req *SQLRequest) (*SQLResponse, error) {
 	prompt := p.buildGeneratePrompt(req)

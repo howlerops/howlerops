@@ -12,6 +12,11 @@ export interface TableConfig {
   description?: string
   columns: ColumnConfig[]
   position?: { x: number; y: number }
+  schemaColor?: string
+  isHighlighted?: boolean
+  isSelected?: boolean
+  isFocused?: boolean
+  isDimmed?: boolean
 }
 
 export interface ColumnConfig {
@@ -50,7 +55,11 @@ export interface SchemaVisualizerEdge {
   targetHandle: string
   type?: string
   label?: string
-  data?: EdgeConfig
+  data?: EdgeConfig & {
+    onEdgeHover?: (edgeId: string | null) => void
+    isHighlighted?: boolean
+    isDimmed?: boolean
+  }
 }
 
 export type LayoutAlgorithm = 'force' | 'hierarchical' | 'grid' | 'circular'

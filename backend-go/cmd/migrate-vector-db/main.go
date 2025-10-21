@@ -11,6 +11,11 @@ import (
 	"github.com/sql-studio/backend-go/internal/rag"
 )
 
+type collectionStatsStore interface {
+	ListCollections(ctx context.Context) ([]string, error)
+	GetCollectionStats(ctx context.Context, collection string) (*rag.CollectionStats, error)
+}
+
 // Migration tool to migrate vector data from Qdrant to SQLite
 //
 // Usage:
@@ -110,7 +115,7 @@ func initSQLiteStore(path string, logger *logrus.Logger) (rag.VectorStore, error
 	return store, nil
 }
 
-func migrateVectorStore(ctx context.Context, source, target rag.VectorStore, batchSize int, dryRun bool, logger *logrus.Logger) error {
+func migrateVectorStore(ctx context.Context, source collectionStatsStore, target collectionStatsStore, batchSize int, dryRun bool, logger *logrus.Logger) error {
 	// Get collections from source
 	collections, err := source.ListCollections(ctx)
 	if err != nil {
@@ -163,4 +168,3 @@ func migrateVectorStore(ctx context.Context, source, target rag.VectorStore, bat
 
 	return nil
 }
-
