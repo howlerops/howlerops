@@ -61,6 +61,7 @@ export interface EditableTableContext {
     hasRedoActions: boolean;
     hasSelection: boolean;
     hasDirtyRows: boolean;
+    hasInvalidCells: boolean;
     isEditing: boolean;
   };
   actions: EditableTableActions;
@@ -86,6 +87,11 @@ export interface EditableTableActions {
   redo: () => void;
   clearDirtyRows: () => void;
   resetTable: () => void;
+  getInvalidCells: () => Array<{ rowId: string; columnId: string; error: string }>;
+  validateAllCells: () => boolean;
+  clearInvalidCells: () => void;
+  trackValidationError: (rowId: string, columnId: string, error: string) => void;
+  clearValidationError: (rowId: string, columnId: string) => void;
 }
 
 export interface CellEditState {
@@ -107,6 +113,7 @@ export interface TableState {
   columnOrder: string[];
   columnSizing: Record<string, number>;
   dirtyRows: Set<string>;
+  invalidCells: Map<string, { columnId: string; error: string }>;
   undoStack: TableAction[];
   redoStack: TableAction[];
 }
@@ -182,7 +189,7 @@ export interface ColumnHeaderProps {
 export interface CellEditorProps {
   value: CellValue;
   type: TableColumn['type'];
-  onChange: (value: CellValue) => void;
+  onChange: (value: CellValue, isValid: boolean, error?: string) => void;
   onCancel: () => void;
   onSave: () => void;
   validation?: TableColumn['validation'];

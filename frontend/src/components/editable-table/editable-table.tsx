@@ -113,23 +113,30 @@ export const EditableTable: React.FC<EditableTableProps> = ({
           const rawColumnId = column.id ?? (column as unknown as { columnDef?: { id?: string; accessorKey?: string } }).columnDef?.id ?? (column as unknown as { columnDef?: { id?: string; accessorKey?: string } }).columnDef?.accessorKey;
           const currentColumnId = String(rawColumnId ?? columnId);
           return (
-            <TableCell
-              value={getValue() as CellValue}
-              rowId={row.original.__rowId!}
-              columnId={currentColumnId}
-              column={col}
-              isEditing={
-                state.editingCell?.rowId === row.original.__rowId &&
-                state.editingCell?.columnId === currentColumnId
-              }
-              isSelected={state.selectedRows.includes(row.original.__rowId!)}
-              isDirty={state.dirtyRows.has(row.original.__rowId!)}
-              onEdit={actions.startEditing}
-              onSave={actions.saveEditing}
-              onCancel={actions.cancelEditing}
-              onUpdateEdit={actions.updateEditingCell}
-              editingState={state.editingCell}
-            />
+            <div
+              data-row-id={row.original.__rowId!}
+              data-column-id={currentColumnId}
+            >
+              <TableCell
+                value={getValue() as CellValue}
+                rowId={row.original.__rowId!}
+                columnId={currentColumnId}
+                column={col}
+                isEditing={
+                  state.editingCell?.rowId === row.original.__rowId &&
+                  state.editingCell?.columnId === currentColumnId
+                }
+                isSelected={state.selectedRows.includes(row.original.__rowId!)}
+                isDirty={state.dirtyRows.has(row.original.__rowId!)}
+                isInvalid={state.invalidCells.has(`${row.original.__rowId!}|${currentColumnId}`)}
+                validationError={state.invalidCells.get(`${row.original.__rowId!}|${currentColumnId}`)?.error}
+                onEdit={actions.startEditing}
+                onSave={actions.saveEditing}
+                onCancel={actions.cancelEditing}
+                onUpdateEdit={actions.updateEditingCell}
+                editingState={state.editingCell}
+              />
+            </div>
           );
         },
       };

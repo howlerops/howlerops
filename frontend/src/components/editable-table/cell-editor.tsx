@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { cn } from '../../utils/cn';
 import type { CellEditorProps } from '../../types/table';
-import { validateCellValue, parseCellValue } from '../../utils/table';
+import { validateCellValue, parseCellValue, isEqual } from '../../utils/table';
 
 export const CellEditor: React.FC<CellEditorProps> = ({
   value,
@@ -54,7 +54,10 @@ export const CellEditor: React.FC<CellEditorProps> = ({
 
     setIsValid(validationResult.isValid);
     setError(validationResult.error);
-    onChangeRef.current(parsedValue);
+    
+    // Always call onChange with validation state
+    // The parent should handle this properly to avoid infinite loops
+    onChangeRef.current(parsedValue, validationResult.isValid, validationResult.error);
   }, [localValue, type, validation, required, options]);
 
   const handleKeyDown = useCallback((event: React.KeyboardEvent) => {

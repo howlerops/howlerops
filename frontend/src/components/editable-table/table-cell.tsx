@@ -1,4 +1,5 @@
 import React, { memo, useCallback, useRef, useEffect } from 'react';
+import { AlertCircle } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { CellValue, TableColumn, CellEditState } from '../../types/table';
 import { formatCellValue } from '../../utils/table';
@@ -12,6 +13,8 @@ interface TableCellProps {
   isEditing: boolean;
   isSelected: boolean;
   isDirty: boolean;
+  isInvalid: boolean;
+  validationError?: string;
   onEdit: (rowId: string, columnId: string, value: CellValue) => void;
   onSave: () => Promise<boolean>;
   onCancel: () => void;
@@ -27,6 +30,8 @@ export const TableCell = memo<TableCellProps>(({
   isEditing,
   isSelected,
   isDirty,
+  isInvalid,
+  validationError,
   onEdit,
   onSave,
   onCancel,
@@ -89,9 +94,8 @@ export const TableCell = memo<TableCellProps>(({
         <CellEditor
           value={editingState?.value ?? value}
           type={column.type}
-          onChange={(newValue) => {
-            // Validate the new value here if needed
-            onUpdateEdit(newValue, true); // Simplified validation for now
+          onChange={(newValue, isValid, error) => {
+            onUpdateEdit(newValue, isValid, error);
           }}
           onCancel={onCancel}
           onSave={onSave}
@@ -152,10 +156,11 @@ export const TableCell = memo<TableCellProps>(({
   };
 
   const renderValidationError = () => {
-    if (isEditing && editingState?.error) {
+    const errorMessage = isEditing ? editingState?.error : validationError;
+    if (errorMessage) {
       return (
         <div className="absolute z-50 mt-1 p-2 bg-destructive border border-destructive rounded text-xs text-destructive shadow-lg">
-          {editingState.error}
+          {errorMessage}
         </div>
       );
     }
@@ -171,10 +176,13 @@ export const TableCell = memo<TableCellProps>(({
         'cursor-pointer select-none',
         {
           'bg-primary/10 border-primary': isSelected,
-          'bg-accent/10 border-accent': isDirty,
+          'bg-accent/10 border-accent': isDirty && !isInvalid,
           'bg-muted': isEditing,
           'cursor-not-allowed opacity-60': !column.editable,
           'hover:bg-muted/50': column.editable && !isEditing && !isSelected,
+          // Invalid cell styling - red border takes precedence
+          'border-2 border-destructive bg-destructive/5': isInvalid,
+          'hover:bg-destructive/10': isInvalid && column.editable && !isEditing,
         }
       )}
       onClick={handleSingleClick}
@@ -188,8 +196,15 @@ export const TableCell = memo<TableCellProps>(({
       {renderCellContent()}
       {renderValidationError()}
 
+      {/* Error indicator */}
+      {isInvalid && !isEditing && (
+        <div className="absolute top-1 right-1">
+          <AlertCircle className="h-3 w-3 text-destructive" />
+        </div>
+      )}
+
       {/* Dirty indicator */}
-      {isDirty && !isEditing && (
+      {isDirty && !isEditing && !isInvalid && (
         <div className="absolute top-1 right-1 w-2 h-2 bg-accent rounded-full" />
       )}
 

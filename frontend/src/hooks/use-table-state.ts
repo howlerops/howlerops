@@ -107,6 +107,7 @@ export const useTableState = (
     columnOrder: [],
     columnSizing: {},
     dirtyRows: new Set(),
+    invalidCells: new Map(),
     undoStack: [],
     redoStack: [],
   });
@@ -194,6 +195,41 @@ export const useTableState = (
   ) => {
     setState(prev => {
       if (!prev.editingCell) return prev;
+      
+      // Track validation errors if the cell is invalid
+      if (!isValid && error && prev.editingCell.rowId && prev.editingCell.columnId) {
+        const cellKey = `${prev.editingCell.rowId}|${prev.editingCell.columnId}`;
+        const newInvalidCells = new Map(prev.invalidCells);
+        newInvalidCells.set(cellKey, { columnId: prev.editingCell.columnId, error });
+        
+        return {
+          ...prev,
+          editingCell: {
+            ...prev.editingCell,
+            value,
+            isValid,
+            error,
+          },
+          invalidCells: newInvalidCells,
+        };
+      } else if (isValid && prev.editingCell.rowId && prev.editingCell.columnId) {
+        // Clear validation error if cell becomes valid
+        const cellKey = `${prev.editingCell.rowId}|${prev.editingCell.columnId}`;
+        const newInvalidCells = new Map(prev.invalidCells);
+        newInvalidCells.delete(cellKey);
+        
+        return {
+          ...prev,
+          editingCell: {
+            ...prev.editingCell,
+            value,
+            isValid,
+            error,
+          },
+          invalidCells: newInvalidCells,
+        };
+      }
+      
       return {
         ...prev,
         editingCell: {
@@ -331,6 +367,75 @@ export const useTableState = (
     setState(prev => ({ ...prev, dirtyRows: new Set() }));
   }, []);
 
+  const getInvalidCells = useCallback(() => {
+    const invalidCellsArray: Array<{ rowId: string; columnId: string; error: string }> = [];
+    state.invalidCells.forEach((errorInfo, cellKey) => {
+      const [rowId, columnId] = cellKey.split('|');
+      invalidCellsArray.push({ rowId, columnId, error: errorInfo.error });
+    });
+    return invalidCellsArray;
+  }, [state.invalidCells]);
+
+  const validateAllCells = useCallback(() => {
+    // Clear existing invalid cells
+    setState(prev => ({ ...prev, invalidCells: new Map() }));
+    
+    // Validate all dirty cells
+    let hasInvalidCells = false;
+    const newInvalidCells = new Map<string, { columnId: string; error: string }>();
+    
+    state.dirtyRows.forEach(rowId => {
+      const rowIndex = dataRef.current.findIndex(row => row.__rowId === rowId);
+      if (rowIndex === -1) return;
+      
+      const row = dataRef.current[rowIndex];
+      // For now, we'll do basic validation - this can be enhanced later
+      // with proper column validation rules
+      Object.keys(row).forEach(columnId => {
+        if (columnId === '__rowId') return;
+        
+        const value = row[columnId];
+        // Basic validation - can be enhanced with column-specific rules
+        if (value === null || value === undefined || value === '') {
+          // This is a placeholder - real validation should check column rules
+          // For now, we'll consider empty values as valid
+        }
+      });
+    });
+    
+    setState(prev => ({ ...prev, invalidCells: newInvalidCells }));
+    return !hasInvalidCells;
+  }, [state.dirtyRows]);
+
+  const clearInvalidCells = useCallback(() => {
+    setState(prev => ({ ...prev, invalidCells: new Map() }));
+  }, []);
+
+  const trackValidationError = useCallback((
+    rowId: string,
+    columnId: string,
+    error: string
+  ) => {
+    const cellKey = `${rowId}|${columnId}`;
+    setState(prev => {
+      const newInvalidCells = new Map(prev.invalidCells);
+      newInvalidCells.set(cellKey, { columnId, error });
+      return { ...prev, invalidCells: newInvalidCells };
+    });
+  }, []);
+
+  const clearValidationError = useCallback((
+    rowId: string,
+    columnId: string
+  ) => {
+    const cellKey = `${rowId}|${columnId}`;
+    setState(prev => {
+      const newInvalidCells = new Map(prev.invalidCells);
+      newInvalidCells.delete(cellKey);
+      return { ...prev, invalidCells: newInvalidCells };
+    });
+  }, []);
+
   const resetTable = useCallback(() => {
     setData(assignRowIds(initialData));
     setState({
@@ -343,6 +448,7 @@ export const useTableState = (
       columnOrder: [],
       columnSizing: {},
       dirtyRows: new Set(),
+      invalidCells: new Map(),
       undoStack: [],
       redoStack: [],
     });
@@ -359,6 +465,7 @@ export const useTableState = (
       setState(prev => ({
         ...prev,
         dirtyRows: new Set(),
+        invalidCells: new Map(),
         undoStack: [],
         redoStack: [],
       }));
@@ -370,6 +477,7 @@ export const useTableState = (
         editingCell: null,
         selectedRows: [],
         dirtyRows: new Set(),
+        invalidCells: new Map(),
         undoStack: [],
         redoStack: [],
       }));
@@ -405,6 +513,11 @@ export const useTableState = (
     redo,
     clearDirtyRows,
     resetTable,
+    getInvalidCells,
+    validateAllCells,
+    clearInvalidCells,
+    trackValidationError,
+    clearValidationError,
   }), [
     updateCell,
     startEditing,
@@ -423,6 +536,11 @@ export const useTableState = (
     redo,
     clearDirtyRows,
     resetTable,
+    getInvalidCells,
+    validateAllCells,
+    clearInvalidCells,
+    trackValidationError,
+    clearValidationError,
   ]);
 
   const computedState = useMemo(() => ({
@@ -431,6 +549,7 @@ export const useTableState = (
     hasRedoActions: state.redoStack.length > 0,
     hasSelection: state.selectedRows.length > 0,
     hasDirtyRows: state.dirtyRows.size > 0,
+    hasInvalidCells: state.invalidCells.size > 0,
     isEditing: state.editingCell !== null,
   }), [state]);
 

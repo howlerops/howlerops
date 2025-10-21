@@ -427,8 +427,10 @@ export const useQueryStore = create<QueryState>()(
         let initialConnectionId = options?.connectionId
         let environmentSnapshot: string | null = null
 
+        // Get connection state for both connectionId and selectedConnectionIds
+        const connectionState = window.__connectionStore?.getState?.()
+        
         if (!initialConnectionId) {
-          const connectionState = window.__connectionStore?.getState?.()
           if (connectionState) {
             const { connections, activeConnection, activeEnvironmentFilter } = connectionState
             environmentSnapshot = activeEnvironmentFilter
@@ -452,7 +454,7 @@ export const useQueryStore = create<QueryState>()(
           isDirty: false,
           isExecuting: false,
           connectionId: initialConnectionId,
-          selectedConnectionIds: initialConnectionId ? [initialConnectionId] : [],
+          selectedConnectionIds: connectionState?.connections?.filter((c: DatabaseConnection) => c.isConnected).map((c: DatabaseConnection) => c.id) || [],
           environmentSnapshot,
           aiSessionId: options?.aiSessionId,
         }

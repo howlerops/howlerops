@@ -169,7 +169,8 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
 
   const editorConnections = useMemo(() => {
     if (mode === 'multi') {
-      return filteredConnections.filter(conn => conn.isConnected)
+      // For multi-DB mode, use ALL connected connections for autocomplete
+      return connections.filter(conn => conn.isConnected)
     }
 
     if (activeConnection?.isConnected) {
@@ -177,7 +178,7 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
     }
 
     return []
-  }, [mode, filteredConnections, activeConnection])
+  }, [mode, connections, activeConnection])
 
   const singleConnectionSchemas = useMemo(() => {
     if (!activeConnection?.id || schema.length === 0) {
@@ -209,6 +210,7 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
       database: conn.database,
       sessionId: conn.sessionId,
       isConnected: conn.isConnected,
+      alias: conn.parameters?.alias || conn.name, // Use alias from parameters or fallback to name
     })),
     [editorConnections]
   )
@@ -258,8 +260,9 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
   }, [])
 
   const loadMultiDBSchemas = useCallback(async () => {
-    // Apply environment filter for multi-DB mode
-    const relevantConnections = mode === 'multi' ? getFilteredConnections() : connections
+    // For @ symbol autocomplete, we need ALL connected connections, not just filtered ones
+    // The environment filter should only affect the UI, not the autocomplete functionality
+    const relevantConnections = mode === 'multi' ? connections.filter(c => c.isConnected) : connections
     
     try {
       // Step 1: Ensure ALL filtered connections are connected (auto-connect)
@@ -382,16 +385,16 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
       // Set empty map on error so autocomplete still works (without multi-DB)
       setMultiDBSchemas(new Map())
     }
-  }, [mode, getFilteredConnections, connections, connectToDatabase])
+  }, [mode, connections, connectToDatabase])
 
   // Load schemas for all connections when in multi-DB mode
-  // Apply environment filter
   useEffect(() => {
     if (mode !== 'multi') {
       return
     }
 
-    if (filteredConnections.length === 0) {
+    const connectedConnections = connections.filter(c => c.isConnected)
+    if (connectedConnections.length === 0) {
       const emptyMap = new Map<string, SchemaNode[]>()
       setMultiDBSchemas(emptyMap)
       multiDBSchemasRef.current = emptyMap
@@ -399,7 +402,7 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
     }
 
     loadMultiDBSchemas()
-  }, [mode, filteredConnections, loadMultiDBSchemas])
+  }, [mode, connections, loadMultiDBSchemas])
 
   const columnLoader: ColumnLoader = useCallback(async (sessionId: string, schema: string, tableName: string) => {
     try {

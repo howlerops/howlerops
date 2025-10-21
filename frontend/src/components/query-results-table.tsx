@@ -38,6 +38,8 @@ interface ToolbarProps {
   metadata?: QueryEditableMetadata | null
   saveError?: string | null
   saveSuccess?: string | null
+  onDiscardChanges?: () => void
+  onJumpToFirstError?: () => void
 }
 
 const inferColumnType = (dataType?: string): TableColumn['type'] => {
@@ -192,10 +194,17 @@ const QueryResultsToolbar = ({
   metadata,
   saveError,
   saveSuccess,
+  onDiscardChanges,
+  onJumpToFirstError,
 }: ToolbarProps) => {
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     context.actions.updateGlobalFilter(event.target.value)
   }
+
+  const invalidCellsCount = context.state.invalidCells.size
+  const dirtyCount = context.state.dirtyRows.size
+  const hasValidationErrors = invalidCellsCount > 0
+  const canSaveWithValidation = canSave && !hasValidationErrors
 
   return (
     <div className="flex flex-col gap-3 border-b border-gray-200 bg-background px-1 py-1">
@@ -221,6 +230,35 @@ const QueryResultsToolbar = ({
         </div>
       )}
 
+      {/* Validation and changes summary */}
+      {(dirtyCount > 0 || invalidCellsCount > 0) && (
+        <div className="flex items-center gap-2 text-xs">
+          {dirtyCount > 0 && (
+            <div className="flex items-center gap-1 px-2 py-1 bg-accent/10 border border-accent rounded">
+              <span className="text-accent-foreground">
+                {dirtyCount} unsaved change{dirtyCount === 1 ? '' : 's'}
+              </span>
+            </div>
+          )}
+          {invalidCellsCount > 0 && (
+            <div className="flex items-center gap-1 px-2 py-1 bg-destructive/10 border border-destructive rounded">
+              <AlertCircle className="h-3 w-3 text-destructive" />
+              <span className="text-destructive">
+                {invalidCellsCount} validation error{invalidCellsCount === 1 ? '' : 's'}
+              </span>
+              {onJumpToFirstError && (
+                <button
+                  onClick={onJumpToFirstError}
+                  className="text-destructive hover:text-destructive/80 underline"
+                >
+                  Jump to first error
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="relative w-full max-w-xs">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -239,24 +277,41 @@ const QueryResultsToolbar = ({
           <ExportButton context={context} onExport={onExport} />
           
           {metadata?.enabled && (
-            <Button
-              size="sm"
-              onClick={onSave}
-              disabled={!canSave}
-              className="gap-2"
-            >
-              {saving ? (
-                <span className="flex items-center gap-2">
-                  <span className="h-3 w-3 animate-spin rounded-full border-2 border-b-transparent border-current" />
-                  Saving…
-                </span>
-              ) : (
-                <>
-                  <Save className="h-4 w-4" />
-                  Save Changes
-                </>
+            <>
+              {/* Discard Changes Button */}
+              {dirtyCount > 0 && onDiscardChanges && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onDiscardChanges}
+                  disabled={saving}
+                  className="gap-2"
+                >
+                  Discard Changes
+                </Button>
               )}
-            </Button>
+              
+              {/* Save Button */}
+              <Button
+                size="sm"
+                onClick={onSave}
+                disabled={!canSaveWithValidation}
+                className="gap-2"
+                title={hasValidationErrors ? `Cannot save: ${invalidCellsCount} validation errors` : undefined}
+              >
+                {saving ? (
+                  <span className="flex items-center gap-2">
+                    <span className="h-3 w-3 animate-spin rounded-full border-2 border-b-transparent border-current" />
+                    Saving…
+                  </span>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4" />
+                    Save Changes
+                  </>
+                )}
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -346,6 +401,28 @@ export const QueryResultsTable = ({
     }, 4000)
     return () => window.clearTimeout(timeout)
   }, [saveSuccess])
+
+  // Keyboard shortcut handler for Ctrl+S (Cmd+S on Mac)
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0
+      const isSaveShortcut = isMac 
+        ? (event.metaKey && event.key === 's')
+        : (event.ctrlKey && event.key === 's')
+      
+      if (isSaveShortcut) {
+        event.preventDefault()
+        
+        // Only save if there are dirty rows and metadata is enabled
+        if (metadata?.enabled && dirtyRowIds.length > 0) {
+          handleSave()
+        }
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [metadata?.enabled, dirtyRowIds.length, handleSave])
 
   const tableColumns: TableColumn[] = useMemo(() => {
     return columns.map<TableColumn>((columnName) => {
@@ -454,6 +531,31 @@ export const QueryResultsTable = ({
     }
   }, [columns, resolveCurrentRows])
 
+  const handleDiscardChanges = useCallback(() => {
+    if (tableContextRef.current) {
+      tableContextRef.current.actions.resetTable()
+      setDirtyRowIds([])
+      setSaveError(null)
+      setSaveSuccess(null)
+    }
+  }, [])
+
+  const handleJumpToFirstError = useCallback(() => {
+    if (!tableContextRef.current) return
+    
+    const invalidCells = tableContextRef.current.actions.getInvalidCells()
+    if (invalidCells.length === 0) return
+    
+    const firstError = invalidCells[0]
+    // Find the cell element and scroll to it
+    const cellElement = document.querySelector(`[data-row-id="${firstError.rowId}"][data-column-id="${firstError.columnId}"]`)
+    if (cellElement) {
+      cellElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      // Focus the cell for better visibility
+      ;(cellElement as HTMLElement).focus()
+    }
+  }, [])
+
   const handleCellEdit = useCallback(async (
     rowId: string,
     columnId: string,
@@ -561,6 +663,16 @@ export const QueryResultsTable = ({
       return
     }
 
+    // Validate all cells before saving
+    if (tableContextRef.current) {
+      const isValid = tableContextRef.current.actions.validateAllCells()
+      if (!isValid) {
+        const invalidCells = tableContextRef.current.actions.getInvalidCells()
+        setSaveError(`Cannot save: ${invalidCells.length} validation error${invalidCells.length === 1 ? '' : 's'} found. Please fix all errors before saving.`)
+        return
+      }
+    }
+
     setSaving(true)
     setSaveError(null)
     setSaveSuccess(null)
@@ -621,6 +733,7 @@ export const QueryResultsTable = ({
       updateResultRows(resultId, currentRows, newOriginalRows)
       setDirtyRowIds([])
       tableContextRef.current?.actions.clearDirtyRows()
+      tableContextRef.current?.actions.clearInvalidCells()
       setSaveSuccess('Changes saved successfully.')
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : 'Failed to save changes')
@@ -670,10 +783,13 @@ export const QueryResultsTable = ({
         metadata={metadata}
         saveError={saveError}
         saveSuccess={saveSuccess}
+        onDiscardChanges={handleDiscardChanges}
+        onJumpToFirstError={handleJumpToFirstError}
       />
     )
   }, [rowCount, columns.length, executionTimeMs, executedAt, dirtyRowIds.length, 
-      canSave, saving, handleSave, handleExport, metadata, saveError, saveSuccess])
+      canSave, saving, handleSave, handleExport, metadata, saveError, saveSuccess,
+      handleDiscardChanges, handleJumpToFirstError])
 
   return (
     <div className="flex flex-1 min-h-0 flex-col">
