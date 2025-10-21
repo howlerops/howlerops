@@ -821,3 +821,8 @@ func (s *DatabaseService) GetConnectionCount() int {
 func (s *DatabaseService) GetConnectionIDs() []string {
 	return s.manager.GetConnectionIDs()
 }
+
+// GetManager returns the database manager for direct access
+func (s *DatabaseService) GetManager() DatabaseManager {
+	return s.manager
+}

@@ -26,6 +26,7 @@ import (
 	"github.com/sql-studio/backend-go/pkg/ai"
 	"github.com/sql-studio/backend-go/pkg/database"
 	"github.com/sql-studio/backend-go/pkg/database/multiquery"
+	"github.com/sql-studio/backend-go/pkg/federation/duckdb"
 	"github.com/sql-studio/backend-go/pkg/rag"
 	"github.com/sql-studio/backend-go/pkg/storage"
 	"github.com/sql-studio/sql-studio/services"
@@ -45,6 +46,8 @@ type App struct {
 	aiService        *ai.Service
 	aiConfig         *ai.RuntimeConfig
 	embeddingService rag.EmbeddingService
+	duckdbEngine     *duckdb.Engine
+	syntheticViews   *storage.SyntheticViewStorage
 }
 
 // ConnectionRequest represents a database connection request
@@ -449,6 +452,21 @@ func (a *App) initializeStorageManager(ctx context.Context) error {
 	}
 
 	a.storageManager = manager
+	
+	// Initialize synthetic views storage
+	syntheticViewsStorage := storage.NewSyntheticViewStorage(manager.GetDB(), a.logger)
+	if err := syntheticViewsStorage.CreateTable(); err != nil {
+		a.logger.WithError(err).Warn("Failed to create synthetic views table")
+	}
+	a.syntheticViews = syntheticViewsStorage
+	
+	// Initialize DuckDB federation engine
+	duckdbEngine := duckdb.NewEngine(a.logger, a.databaseService.GetManager())
+	if err := duckdbEngine.Initialize(ctx); err != nil {
+		a.logger.WithError(err).Warn("Failed to initialize DuckDB federation engine")
+	}
+	a.duckdbEngine = duckdbEngine
+	
 	a.logger.WithFields(logrus.Fields{
 		"mode":    manager.GetMode().String(),
 		"user_id": manager.GetUserID(),
@@ -685,6 +703,12 @@ func (a *App) ExecuteQuery(req QueryRequest) (*QueryResponse, error) {
 		"connection_id": req.ConnectionID,
 		"query_length":  len(req.Query),
 	}).Info("Executing query")
+
+	// Check if query targets synthetic schema
+	if strings.Contains(strings.ToLower(req.Query), "synthetic.") {
+		// Route to DuckDB federation engine
+		return a.ExecuteSyntheticQuery(req.Query)
+	}
 
 	options := &database.QueryOptions{
 		Timeout:  30 * time.Second,
@@ -3443,6 +3467,43 @@ func (a *App) GetMultiConnectionSchema(connectionIDs []string) (*CombinedSchema,
 		}
 	}
 
+	// Add synthetic views as a pseudo-connection
+	if a.syntheticViews != nil {
+		syntheticSchema, err := a.syntheticViews.GetSyntheticSchema()
+		if err == nil {
+			// Create synthetic connection schema
+			syntheticTables := make([]TableInfo, 0)
+			if views, ok := syntheticSchema["views"].([]map[string]interface{}); ok {
+				for _, view := range views {
+					if name, ok := view["name"].(string); ok {
+						// Convert columns to table info format
+						var columns []string
+						if cols, ok := view["columns"].([]map[string]interface{}); ok {
+							for _, col := range cols {
+								if colName, ok := col["name"].(string); ok {
+									columns = append(columns, colName)
+								}
+							}
+						}
+						
+						syntheticTables = append(syntheticTables, TableInfo{
+							Schema: "synthetic",
+							Name:   name,
+							Type:   "view",
+							Comment: "Synthetic federated view",
+						})
+					}
+				}
+			}
+			
+			result.Connections["synthetic"] = ConnectionSchema{
+				ConnectionID: "synthetic",
+				Schemas:      []string{"synthetic"},
+				Tables:       syntheticTables,
+			}
+		}
+	}
+
 	return result, nil
 }
 
@@ -3514,4 +3575,127 @@ func (a *App) GetAvailableEnvironments() ([]string, error) {
 		return []string{}, nil
 	}
 	return a.storageManager.GetAvailableEnvironments(a.ctx)
+}
+
+// ==================== Synthetic Views Management ====================
+
+// SaveSyntheticView saves a synthetic view definition
+func (a *App) SaveSyntheticView(viewDef storage.ViewDefinition) (string, error) {
+	if a.syntheticViews == nil {
+		return "", fmt.Errorf("synthetic views storage not initialized")
+	}
+	
+	if viewDef.ID == "" {
+		viewDef.ID = fmt.Sprintf("view_%d", time.Now().UnixNano())
+	}
+	
+	if viewDef.Version == "" {
+		viewDef.Version = "1.0.0"
+	}
+	
+	if err := a.syntheticViews.SaveSyntheticView(&viewDef); err != nil {
+		return "", fmt.Errorf("failed to save synthetic view: %w", err)
+	}
+	
+	a.logger.WithField("view_id", viewDef.ID).Info("Synthetic view saved")
+	return viewDef.ID, nil
+}
+
+// ListSyntheticViews returns a list of all synthetic views
+func (a *App) ListSyntheticViews() ([]storage.ViewSummary, error) {
+	if a.syntheticViews == nil {
+		return []storage.ViewSummary{}, nil
+	}
+	
+	views, err := a.syntheticViews.ListSyntheticViews()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list synthetic views: %w", err)
+	}
+	
+	return views, nil
+}
+
+// GetSyntheticView retrieves a synthetic view by ID
+func (a *App) GetSyntheticView(id string) (*storage.ViewDefinition, error) {
+	if a.syntheticViews == nil {
+		return nil, fmt.Errorf("synthetic views storage not initialized")
+	}
+	
+	view, err := a.syntheticViews.GetSyntheticView(id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get synthetic view: %w", err)
+	}
+	
+	return view, nil
+}
+
+// DeleteSyntheticView deletes a synthetic view by ID
+func (a *App) DeleteSyntheticView(id string) error {
+	if a.syntheticViews == nil {
+		return fmt.Errorf("synthetic views storage not initialized")
+	}
+	
+	if err := a.syntheticViews.DeleteSyntheticView(id); err != nil {
+		return fmt.Errorf("failed to delete synthetic view: %w", err)
+	}
+	
+	a.logger.WithField("view_id", id).Info("Synthetic view deleted")
+	return nil
+}
+
+// ExecuteSyntheticQuery executes a query against synthetic views
+func (a *App) ExecuteSyntheticQuery(sql string) (*QueryResponse, error) {
+	if a.duckdbEngine == nil {
+		return nil, fmt.Errorf("DuckDB federation engine not initialized")
+	}
+	
+	// Check if query targets synthetic schema
+	if !strings.Contains(strings.ToLower(sql), "synthetic.") {
+		return nil, fmt.Errorf("query does not target synthetic schema")
+	}
+	
+	// Check for DML operations (INSERT, UPDATE, DELETE, DDL)
+	sqlLower := strings.ToLower(strings.TrimSpace(sql))
+	if strings.HasPrefix(sqlLower, "insert") || 
+	   strings.HasPrefix(sqlLower, "update") || 
+	   strings.HasPrefix(sqlLower, "delete") ||
+	   strings.HasPrefix(sqlLower, "create") ||
+	   strings.HasPrefix(sqlLower, "alter") ||
+	   strings.HasPrefix(sqlLower, "drop") {
+		return nil, fmt.Errorf("DML/DDL operations are not allowed on synthetic schema")
+	}
+	
+	// Execute query with timeout
+	timeout := 30 * time.Second
+	result, err := a.duckdbEngine.ExecuteQuery(a.ctx, sql, timeout)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute synthetic query: %w", err)
+	}
+	
+	// Convert result to QueryResponse format
+	response := &QueryResponse{
+		Columns:  result.Columns,
+		Rows:     result.Rows,
+		RowCount: int64(result.RowCount),
+		Duration: result.Duration.String(),
+	}
+	
+	return response, nil
+}
+
+// GetSyntheticSchema returns the schema information for synthetic views
+func (a *App) GetSyntheticSchema() (map[string]interface{}, error) {
+	if a.syntheticViews == nil {
+		return map[string]interface{}{
+			"schema": "synthetic",
+			"views":  []interface{}{},
+		}, nil
+	}
+	
+	schema, err := a.syntheticViews.GetSyntheticSchema()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get synthetic schema: %w", err)
+	}
+	
+	return schema, nil
 }
