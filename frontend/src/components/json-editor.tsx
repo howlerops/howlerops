@@ -149,14 +149,14 @@ export function JsonEditor({
       )
       return (
         <div 
-          className="font-mono text-sm"
+          className="font-mono text-sm whitespace-pre"
           dangerouslySetInnerHTML={{ __html: highlighted }}
         />
       )
     }
 
     return (
-      <div className="font-mono text-sm">
+      <div className="font-mono text-sm whitespace-pre">
         {tokens.map((token, index) => (
           <span
             key={index}
@@ -253,10 +253,9 @@ export function JsonEditor({
         </div>
         
         {/* Foreign key resolver */}
-        <ForeignKeyResolver
-          key={`fk-${key}`}
-          key={key}
-          value={value}
+          <ForeignKeyResolver
+            key={`fk-${key}`}
+            value={value}
           metadata={metadata}
           connectionId={connectionId}
           isExpanded={isExpanded}
@@ -272,25 +271,6 @@ export function JsonEditor({
       {/* Toolbar */}
       <div className="flex items-center justify-between p-2 border-b">
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onToggleEdit}
-            className="h-7"
-          >
-            {isEditing ? (
-              <>
-                <EyeOff className="h-3 w-3 mr-1" />
-                View Mode
-              </>
-            ) : (
-              <>
-                <Edit3 className="h-3 w-3 mr-1" />
-                Edit Mode
-              </>
-            )}
-          </Button>
-          
           <Button
             variant="outline"
             size="sm"

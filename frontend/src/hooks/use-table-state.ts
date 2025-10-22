@@ -455,7 +455,8 @@ export const useTableState = (
       resetTable();
     };
 
-    const handleDataRefresh = (newData: TableRow[]) => {
+    const handleDataRefresh = (...args: unknown[]) => {
+      const newData = args[0] as TableRow[];
       setData(assignRowIds(newData));
       setState(prev => ({
         ...prev,

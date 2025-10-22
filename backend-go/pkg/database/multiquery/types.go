@@ -74,6 +74,7 @@ type Result struct {
 	Duration        time.Duration
 	ConnectionsUsed []string
 	Strategy        ExecutionStrategy
+	Editable        *EditableQueryMetadata
 }
 
 // CombinedSchema represents schema information from multiple connections
@@ -124,6 +125,7 @@ type QueryResult struct {
 	Rows     [][]interface{}
 	RowCount int64
 	Duration time.Duration
+	Editable *EditableQueryMetadata
 }
 
 // TableInfo represents minimal table info (avoiding import cycles)
@@ -134,5 +136,34 @@ type TableInfo struct {
 	Comment   string
 	RowCount  int64
 	SizeBytes int64
+}
+
+// EditableQueryMetadata represents metadata for editable queries
+type EditableQueryMetadata struct {
+	Enabled    bool
+	Reason     string
+	Schema     string
+	Table      string
+	PrimaryKeys []string
+	Columns    []EditableColumn
+	Pending    bool
+	JobID      string
+}
+
+// EditableColumn represents an editable column
+type EditableColumn struct {
+	Name        string
+	ResultName  string
+	DataType    string
+	Editable    bool
+	PrimaryKey  bool
+	ForeignKey  *ForeignKeyRef
+}
+
+// ForeignKeyRef represents foreign key information
+type ForeignKeyRef struct {
+	Table  string
+	Column string
+	Schema string
 }
 

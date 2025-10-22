@@ -161,7 +161,7 @@ export const exportData = (
       }
       exportData.forEach(row => {
         const values = columns.map(col => {
-          const value = row[col.accessorKey];
+          const value = col.accessorKey ? row[col.accessorKey] : undefined;
           const formatted = formatCellValue(value, col.type);
           return `"${formatted.replace(/"/g, '""')}"`;
         });
@@ -233,7 +233,7 @@ export const getColumnWidth = (
   const headerWidth = column.header.length * 8 + 40; // Approximate width
   const maxContentWidth = Math.max(
     ...data.slice(0, 100).map(row => {
-      const value = formatCellValue(row[column.accessorKey], column.type);
+      const value = column.accessorKey ? formatCellValue(row[column.accessorKey], column.type) : '';
       return value.length * 8 + 20;
     })
   );
@@ -258,7 +258,7 @@ export const requestAnimationFrame = (callback: () => void): number => {
   if (typeof window !== 'undefined' && window.requestAnimationFrame) {
     return window.requestAnimationFrame(callback);
   }
-  return setTimeout(callback, 16); // 60fps fallback
+  return setTimeout(callback, 16) as unknown as number; // 60fps fallback
 };
 
 export const cancelAnimationFrame = (id: number): void => {

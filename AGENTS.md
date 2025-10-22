@@ -12,6 +12,42 @@ Format Go code with `go fmt`/`goimports` (`make fmt-go`); exported names stay Pa
 ## Testing Guidelines
 Target ≥80% coverage for new logic. Add Go tests in `_test.go` files near the code under test and favor table-driven assertions. Frontend unit specs live as `.test.tsx`; integration variants use `.integration.test.tsx`. Run `npm run test:run` inside `frontend/` for watch mode, `npm run test:coverage` when tweaking analytics, and Playwright (`npm run test:e2e`) for workflow changes. Always run `make test` before pushing.
 
+## Task Completion Requirements
+
+**CRITICAL: Before considering any task complete, you MUST run the following validation steps:**
+
+1. **Frontend Validation:**
+   ```bash
+   cd frontend
+   npm run typecheck    # TypeScript type checking
+   npm run lint         # ESLint validation
+   npm run test:run     # Unit tests
+   ```
+
+2. **Backend Validation:**
+   ```bash
+   go mod tidy          # Clean up Go modules
+   go fmt ./...         # Format Go code
+   go test ./...        # Run Go tests
+   ```
+
+3. **Full Validation:**
+   ```bash
+   make validate        # Runs lint + test for both frontend and backend
+   ```
+
+**Task completion checklist:**
+- [ ] All TypeScript types are valid (`npm run typecheck`)
+- [ ] Frontend code passes linting (`npm run lint`)
+- [ ] Frontend tests pass (`npm run test:run`)
+- [ ] Go modules are tidy (`go mod tidy`)
+- [ ] Go code is formatted (`go fmt ./...`)
+- [ ] Go tests pass (`go test ./...`)
+- [ ] Full validation passes (`make validate`)
+- [ ] Code compiles successfully (`make build`)
+
+**Never mark a task as complete without running these validation steps.**
+
 ## Commit & Pull Request Guidelines
 Use short, imperative commit subjects; prefixes such as `feat:` and `fix:` appear in history and streamline changelog tooling. Keep each commit focused and update generated assets (proto, icons, SQL) alongside the source. Pull requests need a concise summary, linked issues, screenshots or GIFs for UI changes, and a checklist of local commands (`make lint`, `make test`, `make proto`). Confirm CI is green before requesting review.
 

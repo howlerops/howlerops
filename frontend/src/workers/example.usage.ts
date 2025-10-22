@@ -140,7 +140,11 @@ async function advancedUsageExample() {
     }
   ];
 
-  const validationResult = await manager.validateData(data, validationRules);
+  const validationResult = await manager.validateData(data, validationRules) as {
+    valid: boolean;
+    errors: unknown[];
+    summary: { errorRate: number };
+  };
   console.log('Validation result:', {
     valid: validationResult.valid,
     errorCount: validationResult.errors.length,
@@ -198,9 +202,10 @@ async function advancedUsageExample() {
 
   const processedBatches = await manager.processBatchData(
     veryLargeDataset,
-    async (batch: Array<{ price: number; quantity: number }>) => {
+    async (batch: unknown[]) => {
       // Process each batch
-      return batch.map(row => ({
+      const typedBatch = batch as Array<{ price: number; quantity: number }>;
+      return typedBatch.map(row => ({
         ...row,
         total: row.price * row.quantity
       }));
@@ -260,7 +265,15 @@ async function realtimeProcessingExample() {
       };
 
       // Process each batch
-      const stats = await manager.calculateStatistics(batchData, ['value']);
+      const stats = await manager.calculateStatistics(batchData, ['value']) as {
+        value: {
+          numeric?: {
+            mean?: number;
+            max?: number;
+            min?: number;
+          };
+        };
+      };
       console.log(`Batch ${i + 1} stats:`, {
         mean: stats.value.numeric?.mean,
         max: stats.value.numeric?.max,

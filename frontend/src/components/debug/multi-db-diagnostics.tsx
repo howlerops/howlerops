@@ -8,6 +8,7 @@ import { CheckCircle, XCircle, RefreshCw, Bug, ChevronDown, ChevronRight } from 
 interface SchemaNode {
   name: string;
   type: string;
+  children?: SchemaNode[];
 }
 
 interface Column {

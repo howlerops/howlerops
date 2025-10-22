@@ -266,7 +266,7 @@ export class WorkerPool {
 
       // Store pending promise handlers
       this.pendingTasks.set(taskId, {
-        resolve,
+        resolve: resolve as (value: unknown) => void,
         reject,
         timeout: setTimeout(() => {
           this.handleTaskTimeout(taskId);

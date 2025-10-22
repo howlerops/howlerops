@@ -49,10 +49,17 @@ export const SyntheticViewsManager: React.FC<SyntheticViewsManagerProps> = ({
       setLoading(true)
       setError(null)
       
-      // Import Wails API
-      const { ListSyntheticViews } = await import('../../wailsjs/go/main/App')
-      const viewsList = await ListSyntheticViews()
-      setViews(viewsList)
+      // Load synthetic views
+      try {
+        // @ts-ignore - Wails API may not be available in development
+        const App = await import('../../wailsjs/go/main/App') as any
+        const viewsList = await App.ListSyntheticViews()
+        setViews(viewsList)
+      } catch (importError) {
+        console.warn('Wails API not available, using mock data:', importError)
+        // Fallback to mock data for development
+        setViews([])
+      }
     } catch (err) {
       console.error('Failed to load synthetic views:', err)
       setError(err instanceof Error ? err.message : 'Failed to load views')
@@ -64,11 +71,17 @@ export const SyntheticViewsManager: React.FC<SyntheticViewsManagerProps> = ({
   // Load view details
   const loadViewDetails = async (viewId: string) => {
     try {
-      const { GetSyntheticView } = await import('../../wailsjs/go/main/App')
-      const view = await GetSyntheticView(viewId)
-      setSelectedView(view)
-      if (onViewSelect) {
-        onViewSelect(view)
+      try {
+        // @ts-ignore - Wails API may not be available in development
+        const App = await import('../../wailsjs/go/main/App') as any
+        const view = await App.GetSyntheticView(viewId)
+        setSelectedView(view)
+        if (onViewSelect) {
+          onViewSelect(view)
+        }
+      } catch (importError) {
+        console.warn('Wails API not available:', importError)
+        setError('Wails API not available')
       }
     } catch (err) {
       console.error('Failed to load view details:', err)
@@ -83,14 +96,20 @@ export const SyntheticViewsManager: React.FC<SyntheticViewsManagerProps> = ({
     }
 
     try {
-      const { DeleteSyntheticView } = await import('../../wailsjs/go/main/App')
-      await DeleteSyntheticView(viewId)
-      
-      // Remove from local state
-      setViews(prev => prev.filter(v => v.id !== viewId))
-      
-      if (onViewDelete) {
-        onViewDelete(viewId)
+      try {
+        // @ts-ignore - Wails API may not be available in development
+        const App = await import('../../wailsjs/go/main/App') as any
+        await App.DeleteSyntheticView(viewId)
+        
+        // Remove from local state
+        setViews(prev => prev.filter(v => v.id !== viewId))
+        
+        if (onViewDelete) {
+          onViewDelete(viewId)
+        }
+      } catch (importError) {
+        console.warn('Wails API not available:', importError)
+        setError('Wails API not available')
       }
     } catch (err) {
       console.error('Failed to delete view:', err)
@@ -101,10 +120,16 @@ export const SyntheticViewsManager: React.FC<SyntheticViewsManagerProps> = ({
   // Edit view
   const handleEditView = async (view: ViewSummary) => {
     try {
-      const { GetSyntheticView } = await import('../../wailsjs/go/main/App')
-      const viewDetails = await GetSyntheticView(view.id)
-      if (onViewEdit) {
-        onViewEdit(viewDetails)
+      try {
+        // @ts-ignore - Wails API may not be available in development
+        const App = await import('../../wailsjs/go/main/App') as any
+        const viewDetails = await App.GetSyntheticView(view.id)
+        if (onViewEdit) {
+          onViewEdit(viewDetails)
+        }
+      } catch (importError) {
+        console.warn('Wails API not available:', importError)
+        setError('Wails API not available')
       }
   } catch (err) {
       console.error('Failed to load view for editing:', err)

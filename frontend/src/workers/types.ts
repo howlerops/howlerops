@@ -342,25 +342,25 @@ export interface SharedDataConfig {
 
 // Type Guards
 export function isWorkerMessage(obj: unknown): obj is WorkerMessage {
-  return obj &&
-    typeof obj.id === 'string' &&
-    typeof obj.type === 'string' &&
-    typeof obj.timestamp === 'number' &&
-    obj.payload !== undefined;
+  return typeof obj === 'object' && obj !== null &&
+    typeof (obj as any).id === 'string' &&
+    typeof (obj as any).type === 'string' &&
+    typeof (obj as any).timestamp === 'number' &&
+    (obj as any).payload !== undefined;
 }
 
 export function isWorkerResponse(obj: unknown): obj is WorkerResponse {
-  return obj &&
-    typeof obj.id === 'string' &&
-    typeof obj.type === 'string' &&
-    typeof obj.success === 'boolean' &&
-    typeof obj.timestamp === 'number';
+  return typeof obj === 'object' && obj !== null &&
+    typeof (obj as any).id === 'string' &&
+    typeof (obj as any).type === 'string' &&
+    typeof (obj as any).success === 'boolean' &&
+    typeof (obj as any).timestamp === 'number';
 }
 
 export function isProgressUpdate(obj: unknown): obj is ProgressUpdate {
-  return obj &&
-    typeof obj.id === 'string' &&
-    typeof obj.current === 'number' &&
-    typeof obj.total === 'number' &&
-    typeof obj.percentage === 'number';
+  return typeof obj === 'object' && obj !== null &&
+    typeof (obj as any).id === 'string' &&
+    typeof (obj as any).current === 'number' &&
+    typeof (obj as any).total === 'number' &&
+    typeof (obj as any).percentage === 'number';
 }

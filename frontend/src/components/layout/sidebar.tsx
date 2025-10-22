@@ -6,8 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useConnectionStore, type DatabaseConnection } from "@/store/connection-store"
+import { useQueryStore } from "@/store/query-store"
 import { useSchemaIntrospection, SchemaNode } from "@/hooks/use-schema-introspection"
 import { SchemaVisualizerWrapper } from "@/components/schema-visualizer/schema-visualizer"
+import { ConnectionSchemaViewer } from "@/components/connection-schema-viewer"
 import { EnvironmentManager } from "@/components/environment-manager"
 import {
   Database,
@@ -35,7 +37,7 @@ interface SchemaTreeProps {
   onToggleSchema?: (schemaId: string) => void
 }
 
-function SchemaTree({ nodes, level = 0, collapsedSchemas = new Set(), onToggleSchema }: SchemaTreeProps) {
+export function SchemaTree({ nodes, level = 0, collapsedSchemas = new Set(), onToggleSchema }: SchemaTreeProps) {
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(
     new Set(nodes.filter(node => node.expanded).map(node => node.id))
   )
@@ -139,11 +141,17 @@ export function Sidebar() {
     setEnvironmentFilter,
     getFilteredConnections,
   } = useConnectionStore()
+  const { tabs, activeTabId, updateTab } = useQueryStore()
   const { schema, loading, error, refreshSchema } = useSchemaIntrospection()
   const [connectingId, setConnectingId] = useState<string | null>(null)
   const [showVisualizer, setShowVisualizer] = useState(false)
   const [collapsedSchemas, setCollapsedSchemas] = useState<Set<string>>(new Set())
   const [showEnvironmentManager, setShowEnvironmentManager] = useState(false)
+  
+  // New state for connection actions
+  const [hoveredConnectionId, setHoveredConnectionId] = useState<string | null>(null)
+  const [schemaViewConnectionId, setSchemaViewConnectionId] = useState<string | null>(null)
+  const [diagramConnectionId, setDiagramConnectionId] = useState<string | null>(null)
   
   // Get filtered connections
   const filteredConnections = getFilteredConnections()
@@ -174,6 +182,44 @@ export function Sidebar() {
       }
       return newSet
     })
+  }
+
+  const handleAddToQueryTab = (connectionId: string) => {
+    const activeTab = tabs.find(tab => tab.id === activeTabId)
+    if (!activeTab) {
+      // No active tab, could show a toast notification
+      return
+    }
+
+    // Check if connection is already in the tab
+    const isAlreadyInTab = activeTab.connectionId === connectionId || 
+      (activeTab.selectedConnectionIds && activeTab.selectedConnectionIds.includes(connectionId))
+    
+    if (isAlreadyInTab) {
+      return
+    }
+
+    // Add connection to the active tab
+    if (activeTab.selectedConnectionIds) {
+      // Multi-DB mode: add to selectedConnectionIds
+      updateTab(activeTab.id, {
+        selectedConnectionIds: [...(activeTab.selectedConnectionIds || []), connectionId]
+      })
+    } else {
+      // Single-DB mode: set connectionId
+      updateTab(activeTab.id, {
+        connectionId: connectionId,
+        selectedConnectionIds: [connectionId]
+      })
+    }
+  }
+
+  const handleViewSchema = (connectionId: string) => {
+    setSchemaViewConnectionId(connectionId)
+  }
+
+  const handleViewDiagram = (connectionId: string) => {
+    setDiagramConnectionId(connectionId)
   }
 
   return (
@@ -257,14 +303,25 @@ export function Sidebar() {
               filteredConnections.map((connection) => {
                 const isActive = activeConnection?.id === connection.id
                 const isPending = connectingId === connection.id
+                const isHovered = hoveredConnectionId === connection.id
+                const activeTab = tabs.find(tab => tab.id === activeTabId)
+                const isInActiveTab = activeTab && (
+                  activeTab.connectionId === connection.id || 
+                  (activeTab.selectedConnectionIds && activeTab.selectedConnectionIds.includes(connection.id))
+                )
 
                 return (
-                  <div key={connection.id} className="flex items-center gap-1">
+                  <div 
+                    key={connection.id} 
+                    className="flex items-center gap-1 group"
+                    onMouseEnter={() => setHoveredConnectionId(connection.id)}
+                    onMouseLeave={() => setHoveredConnectionId(null)}
+                  >
                     {/* Connection button */}
                     <Button
                       variant={isActive || isPending ? "secondary" : "ghost"}
                       size="sm"
-                      className="h-8 w-full justify-start overflow-hidden"
+                      className="h-8 flex-1 justify-start overflow-hidden"
                       disabled={isConnecting}
                       onClick={() => {
                         void handleConnectionSelect(connection)
@@ -297,6 +354,40 @@ export function Sidebar() {
                         ) : null}
                       </span>
                     </Button>
+
+                    {/* Action buttons - show on hover */}
+                    {isHovered && connection.isConnected && (
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          onClick={() => handleViewSchema(connection.id)}
+                          title="View Tables"
+                        >
+                          <Table className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          onClick={() => handleViewDiagram(connection.id)}
+                          title="View Schema Diagram"
+                        >
+                          <Network className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          onClick={() => handleAddToQueryTab(connection.id)}
+                          disabled={!activeTab || isInActiveTab}
+                          title={!activeTab ? "No active query tab" : isInActiveTab ? "Already in query tab" : "Add to Query Tab"}
+                        >
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 )
               })
@@ -374,6 +465,24 @@ export function Sidebar() {
         <SchemaVisualizerWrapper 
           schema={schema} 
           onClose={() => setShowVisualizer(false)} 
+        />,
+        document.body
+      )}
+      
+      {/* Connection Schema Viewer Modal */}
+      {schemaViewConnectionId && (
+        <ConnectionSchemaViewer
+          connectionId={schemaViewConnectionId}
+          onClose={() => setSchemaViewConnectionId(null)}
+        />
+      )}
+      
+      {/* Connection Diagram Modal */}
+      {diagramConnectionId && createPortal(
+        <SchemaVisualizerWrapper 
+          schema={[]} 
+          connectionId={diagramConnectionId}
+          onClose={() => setDiagramConnectionId(null)} 
         />,
         document.body
       )}

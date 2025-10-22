@@ -8,6 +8,8 @@ import {
   WorkerResponse,
   WorkerMessageType,
   QueryResult,
+  ColumnDefinition,
+  DataType,
   FilterCondition,
   FilterOperator,
   SortCondition,
@@ -41,7 +43,8 @@ ctx.addEventListener('message', async (event: MessageEvent<WorkerMessage>) => {
   try {
     // Handle cancellation
     if (message.type === WorkerMessageType.CANCEL_OPERATION) {
-      handleCancellation(message.payload.operationId);
+      const payload = message.payload as { operationId: string };
+      handleCancellation(payload.operationId);
       return;
     }
 
@@ -105,31 +108,31 @@ async function processMessage(message: WorkerMessage, signal: AbortSignal): Prom
       return parseQueryResults(message.payload, signal, message.id);
 
     case WorkerMessageType.FILTER_DATA:
-      return filterData(message.payload, signal, message.id);
+      return filterData(message.payload as { data: QueryResult; filters: FilterCondition[] }, signal, message.id);
 
     case WorkerMessageType.SORT_DATA:
-      return sortData(message.payload, signal, message.id);
+      return sortData(message.payload as { data: QueryResult; sorts: SortCondition[] }, signal, message.id);
 
     case WorkerMessageType.EXPORT_CSV:
-      return exportCSV(message.payload, signal, message.id);
+      return exportCSV(message.payload as { data: QueryResult; config: ExportConfig }, signal, message.id);
 
     case WorkerMessageType.EXPORT_JSON:
-      return exportJSON(message.payload, signal, message.id);
+      return exportJSON(message.payload as { data: QueryResult; config: ExportConfig }, signal, message.id);
 
     case WorkerMessageType.EXPORT_EXCEL:
-      return exportExcel(message.payload, signal, message.id);
+      return exportExcel(message.payload as { data: QueryResult; config: ExportConfig }, signal, message.id);
 
     case WorkerMessageType.CALCULATE_AGGREGATIONS:
-      return calculateAggregations(message.payload, signal, message.id);
+      return calculateAggregations(message.payload as { data: QueryResult; config: AggregationConfig }, signal, message.id);
 
     case WorkerMessageType.CALCULATE_STATISTICS:
-      return calculateStatistics(message.payload, signal, message.id);
+      return calculateStatistics(message.payload as { data: QueryResult; columns: string[] }, signal, message.id);
 
     case WorkerMessageType.VALIDATE_DATA:
-      return validateData(message.payload, signal, message.id);
+      return validateData(message.payload as { data: QueryResult; rules: ValidationRule[] }, signal, message.id);
 
     case WorkerMessageType.TRANSFORM_DATA:
-      return transformData(message.payload, signal, message.id);
+      return transformData(message.payload as { data: QueryResult; transformations: TransformationRule[] }, signal, message.id);
 
     default:
       throw new Error(`Unknown message type: ${message.type}`);
@@ -142,12 +145,13 @@ async function parseQueryResults(
   signal: AbortSignal,
   operationId: string
 ): Promise<QueryResult> {
-  const rows = Array.isArray(data.rows) ? data.rows : [];
+  const dataObj = data as { rows?: unknown[]; columns?: ColumnDefinition[]; metadata?: unknown };
+  const rows = Array.isArray(dataObj.rows) ? dataObj.rows : [];
   const total = rows.length;
   let processed = 0;
 
   // Infer column definitions if not provided
-  const columns = data.columns || inferColumns(rows);
+  const columns = dataObj.columns || inferColumns(rows);
 
   // Parse and validate each row
   const parsedRows = [];
@@ -168,7 +172,7 @@ async function parseQueryResults(
     rows: parsedRows,
     metadata: {
       totalRows: processed,
-      ...data.metadata
+      ...(dataObj.metadata as Record<string, unknown> || {})
     }
   };
 }
@@ -220,8 +224,8 @@ async function sortData(
     for (const sort of sorts) {
       if (signal.aborted) throw new Error('Operation cancelled');
 
-      const aVal = a[sort.column];
-      const bVal = b[sort.column];
+      const aVal = (a as Record<string, unknown>)[sort.column];
+      const bVal = (b as Record<string, unknown>)[sort.column];
 
       // Handle nulls
       if (aVal === null || aVal === undefined) {
@@ -289,7 +293,7 @@ async function exportCSV(
       sendProgress(operationId, processed, total, 'Exporting to CSV...');
     }
 
-    const row = data.rows[i];
+    const row = data.rows[i] as Record<string, unknown>;
     const values = data.columns.map(col => {
       const value = formatValue(row[col.name], config);
       return escapeCSVValue(value, quote, escape, delimiter);
@@ -319,8 +323,8 @@ async function exportJSON(
       sendProgress(operationId, i, total, 'Exporting to JSON...');
     }
 
-    const row = data.rows[i];
-    const formattedRow: unknown = {};
+    const row = data.rows[i] as Record<string, unknown>;
+    const formattedRow: Record<string, unknown> = {};
 
     for (const col of data.columns) {
       formattedRow[col.name] = formatValue(row[col.name], config);
@@ -351,9 +355,9 @@ async function calculateAggregations(
   payload: { data: QueryResult; config: AggregationConfig },
   signal: AbortSignal,
   operationId: string
-): Promise<unknown> {
+): Promise<Record<string, unknown>[]> {
   const { data, config } = payload;
-  const groups = new Map<string, unknown[]>();
+  const groups = new Map<string, Record<string, unknown>[]>();
   const total = data.rows.length;
 
   // Group data
@@ -365,8 +369,8 @@ async function calculateAggregations(
         sendProgress(operationId, i, total, 'Grouping data...');
       }
 
-      const row = data.rows[i];
-      const key = config.groupBy.map(col => row[col]).join('|||');
+      const row = data.rows[i] as Record<string, unknown>;
+      const key = config.groupBy.map(col => String(row[col])).join('|||');
 
       if (!groups.has(key)) {
         groups.set(key, []);
@@ -374,15 +378,15 @@ async function calculateAggregations(
       groups.get(key)!.push(row);
     }
   } else {
-    groups.set('all', data.rows);
+    groups.set('all', data.rows as Record<string, unknown>[]);
   }
 
   // Calculate aggregations for each group
-  const results = [];
+  const results: Record<string, unknown>[] = [];
   for (const [groupKey, groupRows] of groups.entries()) {
     if (signal.aborted) throw new Error('Operation cancelled');
 
-    const result: unknown = {};
+    const result: Record<string, unknown> = {};
 
     // Add group keys
     if (config.groupBy) {
@@ -405,11 +409,11 @@ async function calculateAggregations(
           result[alias] = new Set(values).size;
           break;
         case AggregationOperation.SUM:
-          result[alias] = values.reduce((sum, val) => sum + Number(val), 0);
+          result[alias] = values.reduce((sum: number, val) => sum + Number(val), 0);
           break;
         case AggregationOperation.AVG:
           result[alias] = values.length > 0
-            ? values.reduce((sum, val) => sum + Number(val), 0) / values.length
+            ? values.reduce((sum: number, val) => sum + Number(val), 0) / values.length
             : null;
           break;
         case AggregationOperation.MIN:
@@ -446,14 +450,14 @@ async function calculateStatistics(
   payload: { data: QueryResult; columns: string[] },
   signal: AbortSignal,
   _operationId: string // eslint-disable-line @typescript-eslint/no-unused-vars
-): Promise<unknown> {
+): Promise<Record<string, unknown>> {
   const { data, columns } = payload;
-  const stats: unknown = {};
+  const stats: Record<string, unknown> = {};
 
   for (const column of columns) {
     if (signal.aborted) throw new Error('Operation cancelled');
 
-    const values = data.rows.map(row => row[column]).filter(v => v != null);
+    const values = data.rows.map(row => (row as Record<string, unknown>)[column]).filter(v => v != null);
     const numericValues = values.filter(v => !isNaN(Number(v))).map(Number);
 
     stats[column] = {
@@ -464,7 +468,7 @@ async function calculateStatistics(
     };
 
     if (numericValues.length > 0) {
-      stats[column].numeric = {
+      (stats[column] as Record<string, unknown>).numeric = {
         min: Math.min(...numericValues),
         max: Math.max(...numericValues),
         mean: numericValues.reduce((sum, val) => sum + val, 0) / numericValues.length,
@@ -476,10 +480,10 @@ async function calculateStatistics(
     }
 
     if (values.length > 0 && typeof values[0] === 'string') {
-      stats[column].string = {
+      (stats[column] as Record<string, unknown>).string = {
         minLength: Math.min(...values.map(v => String(v).length)),
         maxLength: Math.max(...values.map(v => String(v).length)),
-        avgLength: values.reduce((sum, v) => sum + String(v).length, 0) / values.length
+        avgLength: values.reduce((sum: number, v) => sum + String(v).length, 0) / values.length
       };
     }
   }
@@ -492,9 +496,9 @@ async function validateData(
   payload: { data: QueryResult; rules: ValidationRule[] },
   signal: AbortSignal,
   operationId: string
-): Promise<unknown> {
+): Promise<{ valid: boolean; errors: unknown[]; summary: Record<string, unknown> }> {
   const { data, rules } = payload;
-  const errors = [];
+  const errors: unknown[] = [];
   const total = data.rows.length;
 
   for (let i = 0; i < data.rows.length; i++) {
@@ -504,7 +508,7 @@ async function validateData(
       sendProgress(operationId, i, total, 'Validating data...');
     }
 
-    const row = data.rows[i];
+    const row = data.rows[i] as Record<string, unknown>;
 
     for (const rule of rules) {
       const value = row[rule.column];
@@ -540,7 +544,7 @@ async function transformData(
   operationId: string
 ): Promise<QueryResult> {
   const { data, transformations } = payload;
-  const transformedRows = [];
+  const transformedRows: Record<string, unknown>[] = [];
   const total = data.rows.length;
 
   // Determine new columns
@@ -562,7 +566,7 @@ async function transformData(
       sendProgress(operationId, i, total, 'Transforming data...');
     }
 
-    const row = { ...data.rows[i] };
+    const row = { ...(data.rows[i] as Record<string, unknown>) } as Record<string, unknown>;
 
     for (const transform of transformations) {
       const value = row[transform.column];
@@ -583,37 +587,37 @@ async function transformData(
 
 // Helper Functions
 
-function inferColumns(rows: unknown[]): unknown[] {
+function inferColumns(rows: unknown[]): ColumnDefinition[] {
   if (rows.length === 0) return [];
 
-  const firstRow = rows[0];
+  const firstRow = rows[0] as Record<string, unknown>;
   return Object.keys(firstRow).map(key => ({
     name: key,
-    type: inferType(firstRow[key])
+    type: inferType(firstRow[key]) as DataType
   }));
 }
 
-function inferType(value: unknown): string {
-  if (value === null || value === undefined) return 'UNKNOWN';
-  if (typeof value === 'boolean') return 'BOOLEAN';
+function inferType(value: unknown): DataType {
+  if (value === null || value === undefined) return DataType.UNKNOWN;
+  if (typeof value === 'boolean') return DataType.BOOLEAN;
   if (typeof value === 'number') {
-    return Number.isInteger(value) ? 'INTEGER' : 'FLOAT';
+    return Number.isInteger(value) ? DataType.INTEGER : DataType.FLOAT;
   }
   if (typeof value === 'string') {
     // Try to detect date/time
-    if (/^\d{4}-\d{2}-\d{2}/.test(value)) return 'DATE';
-    if (/^\d{2}:\d{2}/.test(value)) return 'TIME';
-    return 'STRING';
+    if (/^\d{4}-\d{2}-\d{2}/.test(value)) return DataType.DATE;
+    if (/^\d{2}:\d{2}/.test(value)) return DataType.TIME;
+    return DataType.STRING;
   }
   if (typeof value === 'object') {
-    if (value instanceof Date) return 'DATETIME';
-    if (Array.isArray(value)) return 'ARRAY';
-    return 'JSON';
+    if (value instanceof Date) return DataType.DATETIME;
+    if (Array.isArray(value)) return DataType.ARRAY;
+    return DataType.JSON;
   }
-  return 'UNKNOWN';
+  return DataType.UNKNOWN;
 }
 
-function inferTransformationType(transform: TransformationRule): unknown {
+function inferTransformationType(transform: TransformationRule): DataType {
   switch (transform.type) {
     case TransformationType.UPPERCASE:
     case TransformationType.LOWERCASE:
@@ -622,49 +626,51 @@ function inferTransformationType(transform: TransformationRule): unknown {
     case TransformationType.SUBSTRING:
     case TransformationType.CONCAT:
     case TransformationType.DATE_FORMAT:
-      return 'STRING';
+      return DataType.STRING;
     case TransformationType.SPLIT:
-      return 'ARRAY';
+      return DataType.ARRAY;
     case TransformationType.NUMBER_FORMAT:
-      return 'NUMBER';
+      return DataType.NUMBER;
     default:
-      return 'STRING';
+      return DataType.STRING;
   }
 }
 
-function parseRow(row: unknown, columns: unknown[]): unknown {
-  const parsed: unknown = {};
+function parseRow(row: unknown, columns: ColumnDefinition[]): Record<string, unknown> {
+  const parsed: Record<string, unknown> = {};
+  const rowObj = row as Record<string, unknown>;
 
   for (const col of columns) {
-    const value = row[col.name];
+    const value = rowObj[col.name];
     parsed[col.name] = parseValue(value, col.type);
   }
 
   return parsed;
 }
 
-function parseValue(value: unknown, type: string): unknown {
+function parseValue(value: unknown, type: DataType): unknown {
   if (value === null || value === undefined) return null;
 
   switch (type) {
-    case 'INTEGER':
-      return parseInt(value, 10);
-    case 'FLOAT':
-    case 'NUMBER':
-      return parseFloat(value);
-    case 'BOOLEAN':
+    case DataType.INTEGER:
+      return parseInt(String(value), 10);
+    case DataType.FLOAT:
+    case DataType.NUMBER:
+      return parseFloat(String(value));
+    case DataType.BOOLEAN:
       return Boolean(value);
-    case 'DATE':
-    case 'DATETIME':
-      return new Date(value);
+    case DataType.DATE:
+    case DataType.DATETIME:
+      return new Date(String(value));
     default:
       return value;
   }
 }
 
 function matchesFilters(row: unknown, filters: FilterCondition[]): boolean {
+  const rowObj = row as Record<string, unknown>;
   for (const filter of filters) {
-    const value = row[filter.column];
+    const value = rowObj[filter.column];
 
     if (!matchesFilter(value, filter)) {
       return false;
@@ -680,13 +686,13 @@ function matchesFilter(value: unknown, filter: FilterCondition): boolean {
     case FilterOperator.NOT_EQUALS:
       return value !== filter.value;
     case FilterOperator.GREATER_THAN:
-      return value > filter.value;
+      return Number(value) > Number(filter.value);
     case FilterOperator.GREATER_THAN_OR_EQUALS:
-      return value >= filter.value;
+      return Number(value) >= Number(filter.value);
     case FilterOperator.LESS_THAN:
-      return value < filter.value;
+      return Number(value) < Number(filter.value);
     case FilterOperator.LESS_THAN_OR_EQUALS:
-      return value <= filter.value;
+      return Number(value) <= Number(filter.value);
     case FilterOperator.CONTAINS:
       return String(value).includes(String(filter.value));
     case FilterOperator.NOT_CONTAINS:
@@ -704,11 +710,11 @@ function matchesFilter(value: unknown, filter: FilterCondition): boolean {
     case FilterOperator.IS_NOT_NULL:
       return value !== null && value !== undefined;
     case FilterOperator.REGEX:
-      return new RegExp(filter.value).test(String(value));
+      return new RegExp(String(filter.value)).test(String(value));
     case FilterOperator.BETWEEN:
       return Array.isArray(filter.value) &&
-        value >= filter.value[0] &&
-        value <= filter.value[1];
+        Number(value) >= Number(filter.value[0]) &&
+        Number(value) <= Number(filter.value[1]);
     default:
       return false;
   }
@@ -782,27 +788,27 @@ function validateValue(value: unknown, rule: ValidationRule): string | null {
       }
       break;
     case ValidationType.MIN_LENGTH:
-      if (String(value).length < rule.config) {
+      if (String(value).length < Number(rule.config)) {
         return rule.errorMessage || `Minimum length is ${rule.config}`;
       }
       break;
     case ValidationType.MAX_LENGTH:
-      if (String(value).length > rule.config) {
+      if (String(value).length > Number(rule.config)) {
         return rule.errorMessage || `Maximum length is ${rule.config}`;
       }
       break;
     case ValidationType.MIN_VALUE:
-      if (Number(value) < rule.config) {
+      if (Number(value) < Number(rule.config)) {
         return rule.errorMessage || `Minimum value is ${rule.config}`;
       }
       break;
     case ValidationType.MAX_VALUE:
-      if (Number(value) > rule.config) {
+      if (Number(value) > Number(rule.config)) {
         return rule.errorMessage || `Maximum value is ${rule.config}`;
       }
       break;
     case ValidationType.PATTERN:
-      if (!new RegExp(rule.config).test(String(value))) {
+      if (!new RegExp(String(rule.config)).test(String(value))) {
         return rule.errorMessage || 'Value does not match required pattern';
       }
       break;
@@ -838,23 +844,37 @@ function applyTransformation(value: unknown, transform: TransformationRule): unk
       return String(value).toLowerCase();
     case TransformationType.TRIM:
       return String(value).trim();
-    case TransformationType.REPLACE:
+    case TransformationType.REPLACE: {
+      const config = transform.config as { search: string; replace: string };
       return String(value).replace(
-        new RegExp(transform.config.search, 'g'),
-        transform.config.replace
+        new RegExp(config.search, 'g'),
+        config.replace
       );
-    case TransformationType.SUBSTRING:
-      return String(value).substring(transform.config.start, transform.config.end);
-    case TransformationType.CONCAT:
-      return transform.config.prefix + String(value) + transform.config.suffix;
-    case TransformationType.SPLIT:
-      return String(value).split(transform.config.delimiter);
-    case TransformationType.DATE_FORMAT:
-      return new Date(value).toLocaleDateString(undefined, transform.config);
-    case TransformationType.NUMBER_FORMAT:
-      return Number(value).toFixed(transform.config.decimals || 2);
-    case TransformationType.CAST:
-      return parseValue(value, transform.config.targetType);
+    }
+    case TransformationType.SUBSTRING: {
+      const config = transform.config as { start: number; end: number };
+      return String(value).substring(config.start, config.end);
+    }
+    case TransformationType.CONCAT: {
+      const config = transform.config as { prefix: string; suffix: string };
+      return config.prefix + String(value) + config.suffix;
+    }
+    case TransformationType.SPLIT: {
+      const config = transform.config as { delimiter: string };
+      return String(value).split(config.delimiter);
+    }
+    case TransformationType.DATE_FORMAT: {
+      const config = transform.config as Intl.DateTimeFormatOptions;
+      return new Date(String(value)).toLocaleDateString(undefined, config);
+    }
+    case TransformationType.NUMBER_FORMAT: {
+      const config = transform.config as { decimals: number };
+      return Number(value).toFixed(config.decimals || 2);
+    }
+    case TransformationType.CAST: {
+      const config = transform.config as { targetType: DataType };
+      return parseValue(value, config.targetType);
+    }
     default:
       return value;
   }

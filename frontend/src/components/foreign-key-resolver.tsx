@@ -5,6 +5,7 @@ import { Loader2, ChevronRight, ChevronDown, Database, ExternalLink } from 'luci
 import { QueryEditableMetadata } from '@/store/query-store'
 import { CellValue } from '@/types/table'
 import { formatJson } from '@/lib/json-formatter'
+import { wailsEndpoints } from '@/lib/wails-api'
 
 interface ForeignKeyResolverProps {
   key: string
@@ -71,25 +72,49 @@ export function ForeignKeyResolver({
     try {
       await onLoadData(key)
       
-      // Simulate loading related data
-      // In a real implementation, this would make an API call
-      const mockRelatedRows = [
-        { id: 1, name: 'Related Record 1', description: 'This is a related record' },
-        { id: 2, name: 'Related Record 2', description: 'Another related record' }
-      ]
+      // Build query to fetch related records
+      const tableName = foreignKeyInfo.schema 
+        ? `"${foreignKeyInfo.schema}"."${foreignKeyInfo.tableName}"`
+        : `"${foreignKeyInfo.tableName}"`
+      
+      const escapedValue = typeof value === 'string' ? `'${value.replace(/'/g, "''")}'` : String(value)
+      const query = `SELECT * FROM ${tableName} WHERE "${foreignKeyInfo.columnName}" = ${escapedValue} LIMIT 10`
+      
+      // Execute query to get related records
+      const response = await wailsEndpoints.queries.execute(connectionId, query, {
+        limit: 10
+      })
+
+      if (!response.success || response.message) {
+        throw new Error(response.message || 'Query execution failed')
+      }
 
       setForeignKeyData({
         tableName: foreignKeyInfo.tableName,
         columnName: foreignKeyInfo.columnName,
-        relatedRows: mockRelatedRows,
+        relatedRows: (response.data.rows || []).map((row: any[]) => {
+          const record: Record<string, CellValue> = {}
+          response.data.columns.forEach((col: string, index: number) => {
+            record[col] = row[index]
+          })
+          return record
+        }),
         loading: false
       })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load foreign key data')
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load foreign key data'
+      setError(errorMessage)
+      setForeignKeyData({
+        tableName: foreignKeyInfo.tableName,
+        columnName: foreignKeyInfo.columnName,
+        relatedRows: [],
+        loading: false,
+        error: errorMessage
+      })
     } finally {
       setIsLoading(false)
     }
-  }, [foreignKeyInfo, connectionId, isLoading, key, onLoadData])
+  }, [foreignKeyInfo, connectionId, isLoading, key, onLoadData, value])
 
   // Don't render if no foreign key info
   if (!foreignKeyInfo) {
@@ -184,9 +209,10 @@ export function useForeignKeyResolver() {
   const loadForeignKeyData = useCallback(async (
     key: string,
     connectionId: string,
-    query: string
+    foreignKeyInfo: { tableName: string; columnName: string; schema?: string },
+    value: CellValue
   ): Promise<ForeignKeyData | null> => {
-    const cacheKey = `${connectionId}:${key}`
+    const cacheKey = `${connectionId}:${key}:${value}`
     
     // Check cache first
     if (cache.has(cacheKey)) {
@@ -194,22 +220,49 @@ export function useForeignKeyResolver() {
     }
 
     try {
-      // This would integrate with the existing query system
-      // For now, return mock data
-      const mockData: ForeignKeyData = {
-        tableName: 'related_table',
-        columnName: 'id',
-        relatedRows: [
-          { id: 1, name: 'Mock Related Record' }
-        ],
+      // Build query to fetch related records
+      const tableName = foreignKeyInfo.schema 
+        ? `"${foreignKeyInfo.schema}"."${foreignKeyInfo.tableName}"`
+        : `"${foreignKeyInfo.tableName}"`
+      
+      const escapedValue = typeof value === 'string' ? `'${value.replace(/'/g, "''")}'` : String(value)
+      const query = `SELECT * FROM ${tableName} WHERE "${foreignKeyInfo.columnName}" = ${escapedValue} LIMIT 10`
+      
+      // Execute query to get related records
+      const response = await wailsEndpoints.queries.execute(connectionId, query, {
+        limit: 10
+      })
+
+      if (!response.success || response.message) {
+        throw new Error(response.message || 'Query execution failed')
+      }
+
+      const data: ForeignKeyData = {
+        tableName: foreignKeyInfo.tableName,
+        columnName: foreignKeyInfo.columnName,
+        relatedRows: (response.data.rows || []).map((row: any[]) => {
+          const record: Record<string, CellValue> = {}
+          response.data.columns.forEach((col: string, index: number) => {
+            record[col] = row[index]
+          })
+          return record
+        }),
         loading: false
       }
 
-      setCache(prev => new Map(prev).set(cacheKey, mockData))
-      return mockData
+      setCache(prev => new Map(prev).set(cacheKey, data))
+      return data
     } catch (error) {
       console.error('Failed to load foreign key data:', error)
-      return null
+      const errorData: ForeignKeyData = {
+        tableName: foreignKeyInfo.tableName,
+        columnName: foreignKeyInfo.columnName,
+        relatedRows: [],
+        loading: false,
+        error: error instanceof Error ? error.message : 'Failed to load foreign key data'
+      }
+      setCache(prev => new Map(prev).set(cacheKey, errorData))
+      return errorData
     }
   }, [cache])
 

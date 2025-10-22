@@ -23,7 +23,7 @@ export function WebSocketProvider({ children, options = {} }: WebSocketProviderP
 
   const contextValue: WebSocketContextValue = useMemo(() => ({
     // Connection
-    socket: webSocket.socket,
+    socket: webSocket.getSocket(),
     connectionState: webSocket.connectionState,
     connect: webSocket.connect,
     disconnect: webSocket.disconnect,

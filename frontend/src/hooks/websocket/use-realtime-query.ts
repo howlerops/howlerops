@@ -11,6 +11,7 @@ import {
   QueryError,
   DataChunk,
   UseRealtimeQueryOptions,
+  EventHandler,
 } from '../../types/websocket';
 import { useWebSocket } from './use-websocket';
 
@@ -317,16 +318,16 @@ export function useRealtimeQuery(options: UseRealtimeQueryOptions) {
 
   // Set up event handlers
   useEffect(() => {
-    on('query:progress', handleProgress);
-    on('query:result', handleResult);
-    on('query:error', handleError);
-    on('data:chunk', handleChunk);
+    on('query:progress', handleProgress as EventHandler);
+    on('query:result', handleResult as EventHandler);
+    on('query:error', handleError as EventHandler);
+    on('data:chunk', handleChunk as EventHandler);
 
     return () => {
-      off('query:progress', handleProgress);
-      off('query:result', handleResult);
-      off('query:error', handleError);
-      off('data:chunk', handleChunk);
+      off('query:progress', handleProgress as EventHandler);
+      off('query:result', handleResult as EventHandler);
+      off('query:error', handleError as EventHandler);
+      off('data:chunk', handleChunk as EventHandler);
     };
   }, [on, off, handleProgress, handleResult, handleError, handleChunk]);
 

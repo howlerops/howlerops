@@ -46,7 +46,8 @@ import { MultiDBConnectionSelector } from "@/components/multi-db-connection-sele
 import { AISuggestionCard } from "@/components/ai-suggestion-card"
 import { GenericChatSidebar } from "@/components/generic-chat-sidebar"
 import { VisualQueryBuilder } from "@/components/visual-query-builder"
-import { QueryIR } from "@/lib/query-ir"
+import { QueryIR, generateSQL as generateSQLFromIR } from "@/lib/query-ir"
+import { waitForWails } from "@/lib/wails-runtime"
 import { buildExecutableSql } from "@/utils/sql"
 
 
@@ -405,6 +406,14 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
 
   const columnLoader: ColumnLoader = useCallback(async (sessionId: string, schema: string, tableName: string) => {
     try {
+      // Wait for Wails runtime to be ready
+      const isReady = await waitForWails(2000)
+      
+      if (!isReady) {
+        console.warn('Wails runtime not ready, skipping column load')
+        return []
+      }
+      
       const { GetTableStructure } = await import('../../wailsjs/go/main/App')
       const structure = await GetTableStructure(sessionId, schema, tableName)
 
@@ -434,7 +443,7 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
     
     // Generate SQL from IR
     try {
-      const sql = generateSQL(queryIR, 'postgres') // TODO: Get dialect from connection
+      const sql = generateSQLFromIR(queryIR, 'postgres') // TODO: Get dialect from connection
       setEditorContent(sql)
       
       if (activeTab) {
@@ -446,7 +455,7 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
     } catch (error) {
       console.error('Failed to generate SQL from visual query:', error)
     }
-  }, [activeTab, updateTab, generateSQL])
+  }, [activeTab, updateTab, generateSQLFromIR])
 
   const handleVisualSQLChange = useCallback((sql: string) => {
     setEditorContent(sql)
@@ -483,7 +492,7 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
     
     // Check if SQL has changed from visual mode
     if (isVisualMode && visualQueryIR) {
-      const generatedSQL = generateSQL(visualQueryIR, 'postgres') // TODO: Get dialect from connection
+      const generatedSQL = generateSQLFromIR(visualQueryIR, 'postgres') // TODO: Get dialect from connection
       if (value.trim() !== generatedSQL.trim()) {
         // Keep visual builder results in sync with SQL editor
       }
@@ -1312,13 +1321,6 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
                         </p>
                       </div>
 
-                      {mode === 'single' && activeConnection && (
-                        <div className="p-2 bg-muted/50 rounded-lg">
-                          <p className="text-xs font-medium text-muted-foreground mb-1">Using connection:</p>
-                          <p className="text-sm font-medium">{activeConnection.name || activeConnection.database}</p>
-                          <p className="text-xs text-muted-foreground">{activeConnection.type}</p>
-                        </div>
-                      )}
 
                       <div className="space-y-2">
                         <label className="text-sm font-medium">Available Databases & Tables:</label>
@@ -1560,11 +1562,6 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
         </DialogContent>
       </Dialog>
 
-      {!activeConnection?.isConnected && (
-        <div className="border-b bg-muted/20 p-2 text-sm text-muted-foreground">
-          Connect to a database to run queries.
-        </div>
-      )}
 
       {/* Toolbar */}
       <div className="flex items-center justify-between p-2 border-b bg-muted/30">
@@ -1620,10 +1617,10 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
         </div>
 
         <div className="text-xs text-muted-foreground">
-          {activeConnection ? (
-            <span>Connected to {activeConnection.name}</span>
+          {mode === 'multi' ? (
+            <span>Multi-database mode active</span>
           ) : (
-            <span>No database connection</span>
+            <span>Single database mode</span>
           )}
         </div>
       </div>

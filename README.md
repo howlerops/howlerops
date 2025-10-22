@@ -192,6 +192,20 @@ make fmt             # Format code
 # Run all tests
 make test
 
+# CRITICAL: Complete validation before any task
+make validate        # Runs lint + test for both frontend and backend
+
+# Frontend validation
+cd frontend
+npm run typecheck    # TypeScript type checking
+npm run lint         # ESLint validation
+npm run test:run     # Unit tests
+
+# Backend validation
+go mod tidy          # Clean up Go modules
+go fmt ./...         # Format Go code
+go test ./...        # Run Go tests
+
 # Run specific tests
 go test ./backend-go/pkg/storage/...
 cd frontend && npm run test
@@ -291,9 +305,16 @@ See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for development guidelines.
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Run tests: `make test`
-5. Run linters: `make lint`
-6. Submit pull request
+4. **CRITICAL: Complete validation checklist:**
+   - [ ] All TypeScript types are valid (`npm run typecheck`)
+   - [ ] Frontend code passes linting (`npm run lint`)
+   - [ ] Frontend tests pass (`npm run test:run`)
+   - [ ] Go modules are tidy (`go mod tidy`)
+   - [ ] Go code is formatted (`go fmt ./...`)
+   - [ ] Go tests pass (`go test ./...`)
+   - [ ] Full validation passes (`make validate`)
+   - [ ] Code compiles successfully (`make build`)
+5. Submit pull request
 
 ## Documentation
 

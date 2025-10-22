@@ -51,13 +51,13 @@ export function GrpcTestPanel() {
     const connectionId = connections.data[0].id
     try {
       await streamingQuery.execute(connectionId, testQuery, {
-        onProgress: (progress) => {
+        onProgress: (progress: unknown) => {
           console.log('Query progress:', progress)
         },
-        onRow: (row) => {
+        onRow: (row: unknown) => {
           console.log('New row received:', row)
         },
-        onMetadata: (columns) => {
+        onMetadata: (columns: unknown) => {
           console.log('Query metadata:', columns)
         },
       })
@@ -246,9 +246,9 @@ export function GrpcTestPanel() {
                         </tr>
                       </thead>
                       <tbody>
-                        {streamingQuery.result.rows.slice(0, 5).map((row, idx) => (
+                        {streamingQuery.result.rows.slice(0, 5).map((row: unknown, idx: number) => (
                           <tr key={idx}>
-                            {row.map((cell, cellIdx) => (
+                            {(row as unknown[]).map((cell: unknown, cellIdx: number) => (
                               <td key={cellIdx} className="border px-1 py-1">
                                 {String(cell)}
                               </td>

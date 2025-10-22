@@ -94,9 +94,9 @@ export function JoinBuilder({
         
         <div className="grid grid-cols-3 gap-2">
           <Select
-            value={join.on.column}
+            value={'column' in join.on ? join.on.column : ''}
             onValueChange={(value) => updateJoin(join.id, {
-              on: { ...join.on, column: value }
+              on: 'column' in join.on ? { ...join.on, column: value } as Expr : join.on
             })}
           >
             <SelectTrigger>
@@ -112,9 +112,9 @@ export function JoinBuilder({
           </Select>
 
           <Select
-            value={join.on.operator}
+            value={'operator' in join.on ? join.on.operator : ''}
             onValueChange={(value) => updateJoin(join.id, {
-              on: { ...join.on, operator: value as FilterOperator }
+              on: 'operator' in join.on ? { ...join.on, operator: value as FilterOperator } as Expr : join.on
             })}
           >
             <SelectTrigger>
@@ -129,9 +129,9 @@ export function JoinBuilder({
           </Select>
 
           <Input
-            value={String(join.on.value || '')}
+            value={'value' in join.on ? String(join.on.value || '') : ''}
             onChange={(e) => updateJoin(join.id, {
-              on: { ...join.on, value: e.target.value }
+              on: 'value' in join.on ? { ...join.on, value: e.target.value } as Expr : join.on
             })}
             placeholder="Right column or value"
           />

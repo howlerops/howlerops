@@ -326,6 +326,20 @@ func populateEditableMetadataFromStructure(metadata *EditableQueryMetadata, colu
 		return fmt.Errorf("Result set is missing primary key columns: %s", strings.Join(missingPK, ", "))
 	}
 
+	// Create foreign key lookup map
+	fkMap := make(map[string]ForeignKeyRef)
+	for _, fk := range structure.ForeignKeys {
+		for i, col := range fk.Columns {
+			if i < len(fk.ReferencedColumns) {
+				fkMap[strings.ToLower(col)] = ForeignKeyRef{
+					Table:  fk.ReferencedTable,
+					Column: fk.ReferencedColumns[i],
+					Schema: fk.ReferencedSchema,
+				}
+			}
+		}
+	}
+
 	editableColumns := make([]EditableColumn, 0, len(columns))
 	editableCount := 0
 	for _, resultCol := range columns {
@@ -345,6 +359,11 @@ func populateEditableMetadataFromStructure(metadata *EditableQueryMetadata, colu
 				columnMeta.Editable = true
 				editableCount++
 			}
+		}
+
+		// Add foreign key information if available
+		if fkRef, hasFK := fkMap[strings.ToLower(resultCol)]; hasFK {
+			columnMeta.ForeignKey = &fkRef
 		}
 
 		editableColumns = append(editableColumns, columnMeta)

@@ -52,7 +52,7 @@ const initialMetrics: ConnectionMetrics = {
 };
 
 export function useConnectionStatus() {
-  const { connectionState, socket, healthCheck, getStats } = useWebSocket();
+  const { connectionState, getSocket, healthCheck, getStats } = useWebSocket();
 
   // State
   const [metrics, setMetrics] = useState<ConnectionMetrics>(initialMetrics);
@@ -105,7 +105,7 @@ export function useConnectionStatus() {
    * Measure latency
    */
   const measureLatency = useCallback(async (): Promise<number | null> => {
-    if (!socket?.connected) return null;
+    if (!getSocket()?.connected) return null;
 
     try {
       const startTime = performance.now();
@@ -113,8 +113,8 @@ export function useConnectionStatus() {
       const latency = await new Promise<number>((resolve, reject) => {
         const timeout = setTimeout(() => reject(new Error('Ping timeout')), 5000);
 
-        socket.emit('ping');
-        socket.once('pong', () => {
+        getSocket()?.emit('ping');
+        getSocket()?.once('pong', () => {
           clearTimeout(timeout);
           const endTime = performance.now();
           resolve(endTime - startTime);
@@ -133,7 +133,7 @@ export function useConnectionStatus() {
       console.warn('Latency measurement failed:', error);
       return null;
     }
-  }, [socket]);
+  }, [getSocket]);
 
   /**
    * Assess network quality
@@ -259,16 +259,16 @@ export function useConnectionStatus() {
       // Update reconnect attempts
       newMetrics.reconnectAttempts = connectionState.reconnectAttempts;
 
+      // Assess network quality with updated metrics
+      assessNetworkQuality(newMetrics.latency, newMetrics.connectionStability);
+
+      // Calculate health with updated metrics
+      const newHealth = calculateHealth(newMetrics, connectionState.status);
+      setHealth(newHealth);
+
       return newMetrics;
     });
-
-    // Assess network quality
-    assessNetworkQuality(metrics.latency, metrics.connectionStability);
-
-    // Calculate health
-    const newHealth = calculateHealth(metrics, connectionState.status);
-    setHealth(newHealth);
-  }, [connectionState, metrics, assessNetworkQuality, calculateHealth]);
+  }, [connectionState, assessNetworkQuality, calculateHealth]);
 
   /**
    * Handle connection events
@@ -308,7 +308,7 @@ export function useConnectionStatus() {
 
       updateStabilityHistory(false);
     }
-  }, [connectionState.status, metrics.reconnectAttempts, updateStabilityHistory]);
+  }, [connectionState.status, updateStabilityHistory]);
 
   /**
    * Start periodic monitoring

@@ -26,6 +26,11 @@ export interface QueryEditableColumn {
   dataType: string
   editable: boolean
   primaryKey: boolean
+  foreignKey?: {
+    table: string
+    column: string
+    schema?: string
+  }
 }
 
 export interface QueryEditableMetadata {

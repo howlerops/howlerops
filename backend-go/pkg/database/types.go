@@ -249,11 +249,19 @@ type HealthStatus struct {
 
 // EditableColumn describes a column returned in a query and whether it is editable
 type EditableColumn struct {
-	Name       string `json:"name"`
-	ResultName string `json:"result_name"`
-	DataType   string `json:"data_type"`
-	Editable   bool   `json:"editable"`
-	PrimaryKey bool   `json:"primary_key"`
+	Name       string         `json:"name"`
+	ResultName string         `json:"result_name"`
+	DataType   string         `json:"data_type"`
+	Editable   bool           `json:"editable"`
+	PrimaryKey bool           `json:"primary_key"`
+	ForeignKey *ForeignKeyRef `json:"foreign_key,omitempty"`
+}
+
+// ForeignKeyRef represents a foreign key reference for a column
+type ForeignKeyRef struct {
+	Table  string `json:"table"`
+	Column string `json:"column"`
+	Schema string `json:"schema,omitempty"`
 }
 
 // EditableQueryMetadata captures whether a query result set supports direct editing

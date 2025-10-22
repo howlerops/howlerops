@@ -39,7 +39,7 @@ export const TableCell = memo<TableCellProps>(({
   editingState,
 }) => {
   const cellRef = useRef<HTMLDivElement>(null);
-  const doubleClickTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const doubleClickTimeoutRef = useRef<number | null>(null);
 
   const handleDoubleClick = useCallback(() => {
     if (!column.editable) return;

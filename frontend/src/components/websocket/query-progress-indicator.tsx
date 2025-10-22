@@ -4,10 +4,10 @@
  */
 
 import React, { useState, useCallback } from 'react';
-import { Progress } from '../ui/progress';
+import { Progress } from '@/components/ui/progress';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Play,
   Square,

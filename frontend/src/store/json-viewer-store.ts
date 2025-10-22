@@ -216,7 +216,7 @@ export const useJsonViewerStore = create<JsonViewerState & JsonViewerActions>((s
         (col.name || col.resultName)?.toLowerCase() === key.toLowerCase()
       )
       
-      if (column?.required) {
+      if (column?.primaryKey) {
         newValidationErrors.set(key, 'This field is required')
         set({ validationErrors: newValidationErrors })
         return false

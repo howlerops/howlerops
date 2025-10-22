@@ -698,6 +698,7 @@ type MultiQueryResponse struct {
 	ConnectionsUsed []string        `json:"connectionsUsed"`
 	Strategy        string          `json:"strategy"`
 	Error           string          `json:"error,omitempty"`
+	Editable        *EditableMetadataResponse `json:"editable,omitempty"`
 }
 
 // MultiQueryValidation represents validation result for a multi-query
@@ -713,6 +714,35 @@ type MultiQueryValidation struct {
 type CombinedSchemaResponse struct {
 	Connections map[string]*multiquery.ConnectionSchema `json:"connections"`
 	Conflicts   []multiquery.SchemaConflict             `json:"conflicts"`
+}
+
+// EditableMetadataResponse represents editable metadata for queries
+type EditableMetadataResponse struct {
+	Enabled     bool                    `json:"enabled"`
+	Reason      string                  `json:"reason,omitempty"`
+	Schema      string                  `json:"schema,omitempty"`
+	Table       string                  `json:"table,omitempty"`
+	PrimaryKeys []string                `json:"primaryKeys"`
+	Columns     []EditableColumnResponse `json:"columns"`
+	Pending     bool                    `json:"pending"`
+	JobID       string                  `json:"jobId,omitempty"`
+}
+
+// EditableColumnResponse represents an editable column
+type EditableColumnResponse struct {
+	Name        string              `json:"name"`
+	ResultName  string              `json:"resultName"`
+	DataType    string              `json:"dataType"`
+	Editable    bool                `json:"editable"`
+	PrimaryKey  bool                `json:"primaryKey"`
+	ForeignKey  *ForeignKeyResponse `json:"foreignKey,omitempty"`
+}
+
+// ForeignKeyResponse represents foreign key information
+type ForeignKeyResponse struct {
+	Table  string `json:"table"`
+	Column string `json:"column"`
+	Schema string `json:"schema,omitempty"`
 }
 
 // ExecuteMultiDatabaseQuery executes a query across multiple connections
@@ -742,14 +772,50 @@ func (s *DatabaseService) ExecuteMultiDatabaseQuery(query string, options *multi
 		"rowCount":    result.RowCount,
 	})
 
-	return &MultiQueryResponse{
+	response := &MultiQueryResponse{
 		Columns:         result.Columns,
 		Rows:            result.Rows,
 		RowCount:        result.RowCount,
 		Duration:        result.Duration.String(),
 		ConnectionsUsed: result.ConnectionsUsed,
 		Strategy:        string(result.Strategy),
-	}, nil
+	}
+	
+	// Convert editable metadata if present
+	if result.Editable != nil {
+		response.Editable = &EditableMetadataResponse{
+			Enabled:     result.Editable.Enabled,
+			Reason:      result.Editable.Reason,
+			Schema:      result.Editable.Schema,
+			Table:       result.Editable.Table,
+			PrimaryKeys: result.Editable.PrimaryKeys,
+			Pending:     result.Editable.Pending,
+			JobID:       result.Editable.JobID,
+		}
+		
+		// Convert columns
+		response.Editable.Columns = make([]EditableColumnResponse, len(result.Editable.Columns))
+		for i, col := range result.Editable.Columns {
+			response.Editable.Columns[i] = EditableColumnResponse{
+				Name:       col.Name,
+				ResultName: col.ResultName,
+				DataType:   col.DataType,
+				Editable:   col.Editable,
+				PrimaryKey: col.PrimaryKey,
+			}
+			
+			// Convert foreign key if present
+			if col.ForeignKey != nil {
+				response.Editable.Columns[i].ForeignKey = &ForeignKeyResponse{
+					Table:  col.ForeignKey.Table,
+					Column: col.ForeignKey.Column,
+					Schema: col.ForeignKey.Schema,
+				}
+			}
+		}
+	}
+	
+	return response, nil
 }
 
 // ValidateMultiQuery validates a multi-database query

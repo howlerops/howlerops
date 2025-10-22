@@ -12,6 +12,7 @@ import {
   FilterCondition,
   SortCondition,
   ExportConfig,
+  ExportFormat,
   AggregationConfig,
   ValidationRule,
   TransformationRule,
@@ -145,7 +146,7 @@ export class WorkerClient {
       }, this.config.timeout);
 
       // Store pending message
-      this.pendingMessages.set(id, { resolve, reject, timeout });
+      this.pendingMessages.set(id, { resolve: resolve as (value: unknown) => void, reject, timeout });
 
       // Send or queue message
       if (this.worker) {
@@ -211,7 +212,7 @@ export class WorkerClient {
 
   async exportCSV(
     data: QueryResult,
-    config: ExportConfig = { format: 'CSV' as const }
+    config: ExportConfig = { format: ExportFormat.CSV }
   ): Promise<string> {
     return this.sendMessage<string>(
       WorkerMessageType.EXPORT_CSV,
@@ -222,7 +223,7 @@ export class WorkerClient {
 
   async exportJSON(
     data: QueryResult,
-    config: ExportConfig = { format: 'JSON' as const }
+    config: ExportConfig = { format: ExportFormat.JSON }
   ): Promise<string> {
     return this.sendMessage<string>(
       WorkerMessageType.EXPORT_JSON,
@@ -233,7 +234,7 @@ export class WorkerClient {
 
   async exportExcel(
     data: QueryResult,
-    config: ExportConfig = { format: 'EXCEL' as const }
+    config: ExportConfig = { format: ExportFormat.EXCEL }
   ): Promise<string> {
     return this.sendMessage<string>(
       WorkerMessageType.EXPORT_EXCEL,

@@ -25,12 +25,48 @@ func (a *databaseAdapter) Execute(ctx context.Context, query string, args ...int
 	}
 
 	// Convert database.QueryResult to multiquery.QueryResult
-	return &multiquery.QueryResult{
+	multiqueryResult := &multiquery.QueryResult{
 		Columns:  result.Columns,
 		Rows:     result.Rows,
 		RowCount: result.RowCount,
 		Duration: result.Duration,
-	}, nil
+	}
+	
+	// Convert editable metadata if present
+	if result.Editable != nil {
+		multiqueryResult.Editable = &multiquery.EditableQueryMetadata{
+			Enabled:     result.Editable.Enabled,
+			Reason:      result.Editable.Reason,
+			Schema:      result.Editable.Schema,
+			Table:       result.Editable.Table,
+			PrimaryKeys: result.Editable.PrimaryKeys,
+			Pending:     result.Editable.Pending,
+			JobID:       result.Editable.JobID,
+		}
+		
+		// Convert columns
+		multiqueryResult.Editable.Columns = make([]multiquery.EditableColumn, len(result.Editable.Columns))
+		for i, col := range result.Editable.Columns {
+			multiqueryResult.Editable.Columns[i] = multiquery.EditableColumn{
+				Name:       col.Name,
+				ResultName: col.ResultName,
+				DataType:   col.DataType,
+				Editable:   col.Editable,
+				PrimaryKey: col.PrimaryKey,
+			}
+			
+			// Convert foreign key if present
+			if col.ForeignKey != nil {
+				multiqueryResult.Editable.Columns[i].ForeignKey = &multiquery.ForeignKeyRef{
+					Table:  col.ForeignKey.Table,
+					Column: col.ForeignKey.Column,
+					Schema: col.ForeignKey.Schema,
+				}
+			}
+		}
+	}
+	
+	return multiqueryResult, nil
 }
 
 // Manager manages multiple database connections
@@ -634,38 +670,117 @@ func (m *Manager) GetMultiConnectionSchema(ctx context.Context, connectionIDs []
 		Conflicts:   []multiquery.SchemaConflict{},
 	}
 
-	// Fetch schema for each connection
+	// Use channels for parallel processing
+	type schemaResult struct {
+		connID string
+		schema *multiquery.ConnectionSchema
+		err    error
+	}
+
+	resultChan := make(chan schemaResult, len(connectionIDs))
+	
+	// Process each connection in parallel
 	for _, connID := range connectionIDs {
-		// Resolve connection name to sessionId
-		resolvedID := connID
-		// Try direct lookup first (sessionId)
-		if _, exists := m.connections[connID]; !exists {
-			// Try name resolution
-			if sessionID, exists := m.connectionNames[connID]; exists {
-				resolvedID = sessionID
-			} else {
-				return nil, fmt.Errorf("connection not found: %s", connID)
+		go func(connID string) {
+			result := schemaResult{connID: connID}
+			
+			// Resolve connection name to sessionId
+			resolvedID := connID
+			// Try direct lookup first (sessionId)
+			if _, exists := m.connections[connID]; !exists {
+				// Try name resolution
+				if sessionID, exists := m.connectionNames[connID]; exists {
+					resolvedID = sessionID
+				} else {
+					result.err = fmt.Errorf("connection not found: %s", connID)
+					resultChan <- result
+					return
+				}
 			}
-		}
 
-		db, exists := m.connections[resolvedID]
-		if !exists {
-			return nil, fmt.Errorf("connection not found: %s", connID)
-		}
+			db, exists := m.connections[resolvedID]
+			if !exists {
+				result.err = fmt.Errorf("connection not found: %s", connID)
+				resultChan <- result
+				return
+			}
 
-		// Try cache first (massive performance boost!)
-		cached, err := m.schemaCache.GetCachedSchema(ctx, connID, db)
-		if err == nil && cached != nil {
-			// Use cached schema - 520x faster!
+			// Try cache first (massive performance boost!)
+			cached, err := m.schemaCache.GetCachedSchema(ctx, connID, db)
+			if err == nil && cached != nil {
+				// Use cached schema - 520x faster!
+				connSchema := &multiquery.ConnectionSchema{
+					ConnectionID: connID,
+					Schemas:      cached.Schemas,
+					Tables:       []multiquery.TableInfo{},
+				}
+
+				// Convert from cached format
+				for _, tables := range cached.Tables {
+					for _, table := range tables {
+						connSchema.Tables = append(connSchema.Tables, multiquery.TableInfo{
+							Schema:    table.Schema,
+							Name:      table.Name,
+							Type:      table.Type,
+							Comment:   table.Comment,
+							RowCount:  table.RowCount,
+							SizeBytes: table.SizeBytes,
+						})
+					}
+				}
+
+				result.schema = connSchema
+				m.logger.WithField("connection", connID).Debug("Schema loaded from cache")
+				resultChan <- result
+				return
+			}
+
+			// Cache miss - fetch fresh
+			schemas, err := db.GetSchemas(ctx)
+			if err != nil {
+				result.err = fmt.Errorf("failed to get schemas for connection %s: %w", connID, err)
+				resultChan <- result
+				return
+			}
+
+			tablesMap := make(map[string][]TableInfo)
 			connSchema := &multiquery.ConnectionSchema{
 				ConnectionID: connID,
-				Schemas:      cached.Schemas,
+				Schemas:      schemas,
 				Tables:       []multiquery.TableInfo{},
 			}
 
-			// Convert from cached format
-			for _, tables := range cached.Tables {
-				for _, table := range tables {
+			// Get tables for each schema in parallel
+			type tableResult struct {
+				schema string
+				tables []TableInfo
+				err    error
+			}
+			
+			tableChan := make(chan tableResult, len(schemas))
+			for _, schema := range schemas {
+				go func(schema string) {
+					tables, err := db.GetTables(ctx, schema)
+					tableChan <- tableResult{
+						schema: schema,
+						tables: tables,
+						err:    err,
+					}
+				}(schema)
+			}
+
+			// Collect table results
+			for i := 0; i < len(schemas); i++ {
+				tableRes := <-tableChan
+				if tableRes.err != nil {
+					m.logger.WithError(tableRes.err).Warnf("Failed to get tables for schema %s in connection %s", tableRes.schema, connID)
+					continue
+				}
+
+				tablesMap[tableRes.schema] = tableRes.tables
+
+				// Convert database.TableInfo to multiquery.TableInfo
+				for _, table := range tableRes.tables {
 					connSchema.Tables = append(connSchema.Tables, multiquery.TableInfo{
 						Schema:    table.Schema,
 						Name:      table.Name,
@@ -677,54 +792,25 @@ func (m *Manager) GetMultiConnectionSchema(ctx context.Context, connectionIDs []
 				}
 			}
 
-			combined.Connections[connID] = connSchema
-			m.logger.WithField("connection", connID).Debug("Schema loaded from cache")
-			continue
-		}
-
-		// Cache miss - fetch fresh
-		schemas, err := db.GetSchemas(ctx)
-		if err != nil {
-			m.logger.WithError(err).Warnf("Failed to get schemas for connection %s", connID)
-			continue
-		}
-
-		tablesMap := make(map[string][]TableInfo)
-		connSchema := &multiquery.ConnectionSchema{
-			ConnectionID: connID,
-			Schemas:      schemas,
-			Tables:       []multiquery.TableInfo{},
-		}
-
-		// Get tables for each schema
-		for _, schema := range schemas {
-			tables, err := db.GetTables(ctx, schema)
-			if err != nil {
-				continue
+			// Cache the schema for future use
+			if err := m.schemaCache.CacheSchema(ctx, connID, db, schemas, tablesMap); err != nil {
+				m.logger.WithError(err).Warn("Failed to cache schema")
 			}
 
-			tablesMap[schema] = tables
+			result.schema = connSchema
+			m.logger.WithField("connection", connID).Debug("Schema fetched and cached")
+			resultChan <- result
+		}(connID)
+	}
 
-			// Convert database.TableInfo to multiquery.TableInfo
-			for _, table := range tables {
-				connSchema.Tables = append(connSchema.Tables, multiquery.TableInfo{
-					Schema:    table.Schema,
-					Name:      table.Name,
-					Type:      table.Type,
-					Comment:   table.Comment,
-					RowCount:  table.RowCount,
-					SizeBytes: table.SizeBytes,
-				})
-			}
+	// Collect all results
+	for i := 0; i < len(connectionIDs); i++ {
+		result := <-resultChan
+		if result.err != nil {
+			m.logger.WithError(result.err).Warnf("Failed to load schema for connection %s", result.connID)
+			continue
 		}
-
-		// Cache the schema for future use
-		if err := m.schemaCache.CacheSchema(ctx, connID, db, schemas, tablesMap); err != nil {
-			m.logger.WithError(err).Warn("Failed to cache schema")
-		}
-
-		combined.Connections[connID] = connSchema
-		m.logger.WithField("connection", connID).Debug("Schema fetched and cached")
+		combined.Connections[result.connID] = result.schema
 	}
 
 	// Detect naming conflicts

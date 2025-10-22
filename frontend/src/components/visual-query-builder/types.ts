@@ -4,6 +4,8 @@
 
 import { FilterOperator } from '@/workers/types'
 import { QueryIR, TableRef, SelectItem, Expr, OrderBy } from '@/lib/query-ir'
+
+export type { OrderBy }
 import { FieldType } from '@/lib/type-registry'
 
 export interface ConnectionInfo {

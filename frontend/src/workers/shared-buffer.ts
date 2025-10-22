@@ -173,7 +173,7 @@ export class SharedBufferManager {
 
     // Write data types
     for (let i = 0; i < this.metadata.columnCount; i++) {
-      this.dataView.setInt8(offset, this.metadata.dataTypes[i] as number);
+      this.dataView.setInt8(offset, this.metadata.dataTypes[i] as unknown as number);
       offset += 1;
     }
   }
@@ -192,7 +192,7 @@ export class SharedBufferManager {
 
         for (let colIndex = 0; colIndex < data.columns.length; colIndex++) {
           const column = data.columns[colIndex];
-          const value = row[column.name];
+          const value = (row as Record<string, unknown>)[column.name];
 
           this.writeValue(value, column.type, rowIndex, colIndex);
         }
@@ -222,25 +222,25 @@ export class SharedBufferManager {
 
     switch (type) {
       case DataType.INTEGER:
-        this.dataView.setInt32(position, value || 0, true);
+        this.dataView.setInt32(position, (value as number) || 0, true);
         break;
 
       case DataType.FLOAT:
       case DataType.NUMBER:
-        this.dataView.setFloat64(position, value || 0, true);
+        this.dataView.setFloat64(position, (value as number) || 0, true);
         break;
 
       case DataType.BOOLEAN:
-        this.writeBooleanBit(position, rowIndex, value);
+        this.writeBooleanBit(position, rowIndex, value as boolean);
         break;
 
       case DataType.STRING:
-        this.writeString(position, value || '');
+        this.writeString(position, (value as string) || '');
         break;
 
       case DataType.DATE:
       case DataType.DATETIME: {
-        const timestamp = value instanceof Date ? value.getTime() : new Date(value).getTime();
+        const timestamp = value instanceof Date ? value.getTime() : new Date(value as string).getTime();
         this.dataView.setFloat64(position, timestamp, true);
         break;
       }
@@ -308,7 +308,7 @@ export class SharedBufferManager {
       const rows = [];
 
       for (let rowIndex = 0; rowIndex < this.metadata.currentRows; rowIndex++) {
-        const row: unknown = {};
+        const row: Record<string, unknown> = {};
 
         for (let colIndex = 0; colIndex < columns.length; colIndex++) {
           const column = columns[colIndex];

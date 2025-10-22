@@ -75,117 +75,131 @@ export function useJsonViewer({
 
   // Actions
   const openRow = useCallback((rowId: string, row: TableRow) => {
-    store.openRow(rowId, row, metadata)
-  }, [store, metadata])
+    useJsonViewerStore.getState().openRow(rowId, row, metadata)
+  }, [metadata])
 
   const closeViewer = useCallback(() => {
-    store.closeViewer()
-  }, [store])
+    useJsonViewerStore.getState().closeViewer()
+  }, [])
 
   const toggleEdit = useCallback(() => {
-    store.toggleEdit()
-  }, [store])
+    useJsonViewerStore.getState().toggleEdit()
+  }, [])
 
   const updateField = useCallback((key: string, value: CellValue) => {
+    const store = useJsonViewerStore.getState()
     store.updateField(key, value)
     
     // Validate field if metadata is available
     if (metadata) {
       store.validateField(key, value, metadata)
     }
-  }, [store, metadata])
+  }, [metadata])
 
   const saveChanges = useCallback(async (): Promise<boolean> => {
-    if (!onSave || !store.currentRowId || !store.editedData) {
+    if (!onSave) {
+      return false
+    }
+    
+    const store = useJsonViewerStore.getState()
+    if (!store.currentRowId || !store.editedData) {
       return false
     }
 
     return store.saveChanges(onSave)
-  }, [store, onSave])
+  }, [onSave])
 
   const handleSearch = useCallback((query: string) => {
+    const store = useJsonViewerStore.getState()
     store.setSearchQuery(query)
     
     // Auto-detect regex pattern
     if (isRegexQuery(query)) {
       store.setSearchOptions({ useRegex: true })
     }
-  }, [store])
+  }, [])
 
   const navigateToNextMatch = useCallback(() => {
-    store.navigateToNextMatch()
-  }, [store])
+    useJsonViewerStore.getState().navigateToNextMatch()
+  }, [])
 
   const navigateToPreviousMatch = useCallback(() => {
-    store.navigateToPreviousMatch()
-  }, [store])
+    useJsonViewerStore.getState().navigateToPreviousMatch()
+  }, [])
 
   const clearSearch = useCallback(() => {
-    store.clearSearch()
-  }, [store])
+    useJsonViewerStore.getState().clearSearch()
+  }, [])
 
   const toggleKeyExpansion = useCallback((key: string) => {
-    store.toggleKeyExpansion(key)
-  }, [store])
+    useJsonViewerStore.getState().toggleKeyExpansion(key)
+  }, [])
 
   const expandAllKeys = useCallback(() => {
-    store.expandAllKeys()
-  }, [store])
+    useJsonViewerStore.getState().expandAllKeys()
+  }, [])
 
   const collapseAllKeys = useCallback(() => {
-    store.collapseAllKeys()
-  }, [store])
+    useJsonViewerStore.getState().collapseAllKeys()
+  }, [])
 
   const toggleWordWrap = useCallback(() => {
-    store.toggleWordWrap()
-  }, [store])
+    useJsonViewerStore.getState().toggleWordWrap()
+  }, [])
 
   const toggleForeignKey = useCallback((key: string) => {
-    store.toggleForeignKey(key)
-  }, [store])
+    useJsonViewerStore.getState().toggleForeignKey(key)
+  }, [])
 
   const loadForeignKeyData = useCallback(async (key: string) => {
     if (!connectionId) return
     
     // This would integrate with the existing query system
     // For now, we'll use a placeholder
+    const store = useJsonViewerStore.getState()
     await store.loadForeignKeyData(key, connectionId, '')
-  }, [store, connectionId])
+  }, [connectionId])
 
   // Computed values
   const hasChanges = useMemo(() => {
+    const store = useJsonViewerStore.getState()
     if (!store.isEditing || !store.editedData || !rowData) return false
     
     return Object.keys(store.editedData).some(key => {
       if (key === '__rowId') return false
       return store.editedData![key] !== rowData[key]
     })
-  }, [store.isEditing, store.editedData, rowData])
+  }, [rowData])
 
   const hasValidationErrors = useMemo(() => {
+    const store = useJsonViewerStore.getState()
     return store.validationErrors.size > 0
-  }, [store.validationErrors])
+  }, [])
 
   const canSave = useMemo(() => {
+    const store = useJsonViewerStore.getState()
     return store.isEditing && hasChanges && !hasValidationErrors && !store.isSaving
-  }, [store.isEditing, hasChanges, hasValidationErrors, store.isSaving])
+  }, [hasChanges, hasValidationErrors])
 
   const currentMatch = useMemo(() => {
+    const store = useJsonViewerStore.getState()
     if (store.searchResults.currentIndex < 0 || store.searchResults.currentIndex >= store.searchResults.totalMatches) {
       return null
     }
     return store.searchResults.matches[store.searchResults.currentIndex]
-  }, [store.searchResults])
+  }, [])
 
   const isKeyExpanded = useCallback((key: string) => {
+    const store = useJsonViewerStore.getState()
     if (store.expandedKeys.has('*')) return true
     if (store.collapsedKeys.has('*')) return false
     return store.expandedKeys.has(key)
-  }, [store.expandedKeys, store.collapsedKeys])
+  }, [])
 
   const isForeignKeyExpanded = useCallback((key: string) => {
+    const store = useJsonViewerStore.getState()
     return store.expandedForeignKeys.has(key)
-  }, [store.expandedForeignKeys])
+  }, [])
 
   return {
     // State
@@ -233,7 +247,7 @@ export function useJsonViewer({
     isForeignKeyExpanded,
     
     // Search options
-    setSearchOptions: store.setSearchOptions,
+    setSearchOptions: useJsonViewerStore.getState().setSearchOptions,
     
     // Utility functions
     getTokenClass: (token: JsonToken) => {

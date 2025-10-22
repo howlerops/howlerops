@@ -11,6 +11,12 @@ import {
   UseWebSocketOptions,
   EventHandler,
   Room,
+  QueryProgress,
+  QueryResult,
+  QueryError,
+  DataChunk,
+  TableEditConflict,
+  TableRowChange,
 } from '../../types/websocket';
 
 const DEFAULT_OPTIONS: UseWebSocketOptions = {
@@ -92,37 +98,37 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
     // Route to global event handlers
     switch (event.type) {
       case 'query:progress':
-        opts.eventHandlers?.onQueryProgress?.(event.data);
+        opts.eventHandlers?.onQueryProgress?.(event.data as QueryProgress);
         break;
       case 'query:result':
-        opts.eventHandlers?.onQueryResult?.(event.data);
+        opts.eventHandlers?.onQueryResult?.(event.data as QueryResult);
         break;
       case 'query:error':
-        opts.eventHandlers?.onQueryError?.(event.data);
+        opts.eventHandlers?.onQueryError?.(event.data as QueryError);
         break;
       case 'data:chunk':
-        opts.eventHandlers?.onDataChunk?.(event.data);
+        opts.eventHandlers?.onDataChunk?.(event.data as DataChunk);
         break;
       case 'table:edit:apply':
-        opts.eventHandlers?.onTableEditApply?.(event.data);
+        opts.eventHandlers?.onTableEditApply?.(event.data as { editId: string; success: boolean; error?: string });
         break;
       case 'table:edit:conflict':
-        opts.eventHandlers?.onTableEditConflict?.(event.data);
+        opts.eventHandlers?.onTableEditConflict?.(event.data as TableEditConflict);
         break;
       case 'table:row:update':
-        opts.eventHandlers?.onTableRowUpdate?.(event.data);
+        opts.eventHandlers?.onTableRowUpdate?.(event.data as TableRowChange);
         break;
       case 'table:row:insert':
-        opts.eventHandlers?.onTableRowInsert?.(event.data);
+        opts.eventHandlers?.onTableRowInsert?.(event.data as TableRowChange);
         break;
       case 'table:row:delete':
-        opts.eventHandlers?.onTableRowDelete?.(event.data);
+        opts.eventHandlers?.onTableRowDelete?.(event.data as TableRowChange);
         break;
       case 'user:join':
-        opts.eventHandlers?.onUserJoin?.(event.data);
+        opts.eventHandlers?.onUserJoin?.(event.data as { userId: string; username: string; roomId: string });
         break;
       case 'user:leave':
-        opts.eventHandlers?.onUserLeave?.(event.data);
+        opts.eventHandlers?.onUserLeave?.(event.data as { userId: string; username: string; roomId: string });
         break;
     }
   }, [opts.eventHandlers]);
@@ -192,7 +198,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
 
         // Call user handler
         opts.eventHandlers?.onConnect?.({
-          connectionId: socket.id,
+          connectionId: socket.id || 'unknown',
           serverInfo: {},
         });
       });
@@ -250,7 +256,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       });
 
       // Connection established handler
-      socket.on('connection:established', (data: { serverInfo: unknown }) => {
+      socket.on('connection:established', (data: { serverInfo: { version: string; capabilities: { streaming: boolean; compression: boolean; binaryProtocol: boolean; } } }) => {
         setConnectionState(prev => ({
           ...prev,
           serverInfo: data.serverInfo,

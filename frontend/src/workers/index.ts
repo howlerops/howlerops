@@ -149,7 +149,7 @@ export class SQLStudioWorkers {
         messageType = WorkerMessageType.EXPORT_EXCEL;
         break;
       default:
-        throw new Error(`Unsupported export format: ${config.format}`);
+        throw new Error(`Unsupported export format: ${config.format as string}`);
     }
 
     const result = await this.workerPool.execute(
@@ -160,10 +160,10 @@ export class SQLStudioWorkers {
 
     // Apply compression if requested
     if (config.compression && config.compression !== 'NONE') {
-      return this.compressData(result, config.compression);
+      return this.compressData(result as string, config.compression as string);
     }
 
-    return result;
+    return result as string | Blob;
   }
 
   /**
@@ -317,7 +317,7 @@ export class SQLStudioWorkers {
         chunks.push(value);
       }
 
-      return new Blob(chunks, { type: 'application/octet-stream' });
+      return new Blob(chunks as BlobPart[], { type: 'application/octet-stream' });
     }
 
     // Fallback: return uncompressed blob

@@ -1,63 +1,63 @@
 package testutil
 
 import (
-\t"testing"
+	"testing"
 )
 
 // AssertNoError fails the test if err is not nil
 func AssertNoError(t *testing.T, err error) {
-\tt.Helper()
-\tif err != nil {
-\t\tt.Fatalf("unexpected error: %v", err)
-\t}
+	t.Helper()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 }
 
 // AssertError fails the test if err is nil
 func AssertError(t *testing.T, err error) {
-\tt.Helper()
-\tif err == nil {
-\t\tt.Fatal("expected error, got nil")
-\t}
+	t.Helper()
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
 }
 
 // AssertErrorContains fails if err is nil or doesn't contain substr
 func AssertErrorContains(t *testing.T, err error, substr string) {
-\tt.Helper()
-\tif err == nil {
-\t\tt.Fatal("expected error, got nil")
-\t}
-\tif !contains(err.Error(), substr) {
-\t\tt.Fatalf("error %q does not contain %q", err.Error(), substr)
-\t}
+	t.Helper()
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !contains(err.Error(), substr) {
+		t.Fatalf("error %q does not contain %q", err.Error(), substr)
+	}
 }
 
 // AssertEqual fails if got != want (simple equality check)
 func AssertEqual[T comparable](t *testing.T, got, want T) {
-\tt.Helper()
-\tif got != want {
-\t\tt.Fatalf("got %v, want %v", got, want)
-\t}
+	t.Helper()
+	if got != want {
+		t.Fatalf("got %v, want %v", got, want)
+	}
 }
 
 // AssertNotNil fails if value is nil
 func AssertNotNil(t *testing.T, value interface{}) {
-\tt.Helper()
-\tif value == nil {
-\t\tt.Fatal("expected non-nil value, got nil")
-\t}
+	t.Helper()
+	if value == nil {
+		t.Fatal("expected non-nil value, got nil")
+	}
 }
 
 // AssertNil fails if value is not nil
 func AssertNil(t *testing.T, value interface{}) {
-\tt.Helper()
-\tif value != nil {
-\t\tt.Fatalf("expected nil, got %v", value)
-\t}
+	t.Helper()
+	if value != nil {
+		t.Fatalf("expected nil, got %v", value)
+	}
 }
 
 // contains checks if s contains substr
 func contains(s, substr string) bool {
-\treturn len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
-\t\t(len(s) > 0 && len(substr) > 0 && s[:len(substr)] == substr) ||
-\t\t(len(s) > len(substr) && contains(s[1:], substr)))
+	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
+		(len(s) > 0 && len(substr) > 0 && s[:len(substr)] == substr) ||
+		(len(s) > len(substr) && contains(s[1:], substr)))
 }

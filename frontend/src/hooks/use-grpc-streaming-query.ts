@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
-import { streamingQueryClient, QueryResult, QueryProgress } from '../services/StreamingQueryClient'
+import { streamingQueryClient, QueryResult, QueryProgress, StreamingOptions } from '../services/streaming-query-client'
 import { ColumnMetadata } from '../generated/query'
 
 export interface StreamingQueryState {
@@ -11,7 +11,14 @@ export interface StreamingQueryState {
   columns: ColumnMetadata[] | null
   rowCount: number
   cancel: () => void
-  execute: (connectionId: string, sql: string, options?: unknown) => Promise<void>
+  execute: (connectionId: string, sql: string, options?: {
+    chunkSize?: number
+    timeout?: number
+    readOnly?: boolean
+    onProgress?: (progress: QueryProgress) => void
+    onRow?: (row: unknown[]) => void
+    onMetadata?: (columns: ColumnMetadata[]) => void
+  }) => Promise<void>
 }
 
 export function useGrpcStreamingQuery(): StreamingQueryState {
@@ -45,7 +52,7 @@ export function useGrpcStreamingQuery(): StreamingQueryState {
       onRow?: (row: unknown[]) => void
       onMetadata?: (columns: ColumnMetadata[]) => void
     } = {}
-  ) => {
+  ): Promise<void> => {
     // Cancel any existing query
     cancel()
 
@@ -63,7 +70,7 @@ export function useGrpcStreamingQuery(): StreamingQueryState {
         sql,
         {
           ...options,
-          onProgress: (prog) => {
+          onProgress: (prog: QueryProgress) => {
             setProgress(prog)
             setRowCount(prog.rowsProcessed)
             setIsStreaming(true)
@@ -71,13 +78,13 @@ export function useGrpcStreamingQuery(): StreamingQueryState {
               options.onProgress(prog)
             }
           },
-          onRow: (row) => {
+          onChunk: (row: unknown[]) => {
             setRowCount(prev => prev + 1)
             if (options.onRow) {
               options.onRow(row)
             }
           },
-          onMetadata: (cols) => {
+          onMetadata: (cols: ColumnMetadata[]) => {
             setColumns(cols)
             if (options.onMetadata) {
               options.onMetadata(cols)
@@ -164,7 +171,7 @@ export function useGrpcMultipleStreamingQueries() {
         })))
 
         try {
-          const result = await streamingQueryClient.executeStreamingQuery(connectionId, sql, options)
+          const result = await streamingQueryClient.executeStreamingQuery(connectionId, sql, options as StreamingOptions)
           setQueryStates(prev => {
             const newMap = new Map(prev)
             newMap.set(queryId, {
@@ -260,7 +267,7 @@ export function useGrpcQueryMonitor() {
       setActiveQueries(active)
 
       const metrics = new Map<string, QueryProgress>()
-      active.forEach(queryId => {
+      active.forEach((queryId: string) => {
         const metric = streamingQueryClient.getQueryMetrics?.(queryId)
         if (metric) {
           metrics.set(queryId, metric)

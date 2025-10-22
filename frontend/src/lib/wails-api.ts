@@ -1,10 +1,17 @@
 import * as App from '../../wailsjs/go/main/App'
+import { waitForWails, isWailsReady } from './wails-runtime'
 
 // Wails-based API client for desktop application
 export class WailsApiClient {
   // Schema introspection methods
   async getSchemas(connectionId: string) {
     try {
+      await waitForWails()
+      
+      if (!isWailsReady()) {
+        throw new Error('Wails runtime not available')
+      }
+      
       const schemas = await App.GetSchemas(connectionId)
 
       return {
@@ -30,6 +37,12 @@ export class WailsApiClient {
 
   async getTables(connectionId: string, schemaName?: string) {
     try {
+      await waitForWails()
+      
+      if (!isWailsReady()) {
+        throw new Error('Wails runtime not available')
+      }
+      
       const tables = await App.GetTables(connectionId, schemaName || '')
 
       return {
@@ -59,22 +72,28 @@ export class WailsApiClient {
 
   async getTableStructure(connectionId: string, schemaName: string, tableName: string) {
     try {
+      await waitForWails()
+      
+      if (!isWailsReady()) {
+        throw new Error('Wails runtime not available')
+      }
+      
       const structure = await App.GetTableStructure(connectionId, schemaName, tableName)
 
       return {
         data: structure.columns?.map(column => ({
           name: column.name,
-          dataType: column.dataType,
+          dataType: column.data_type,
           nullable: column.nullable,
-          defaultValue: column.defaultValue,
-          primaryKey: column.primaryKey,
+          defaultValue: column.default_value,
+          primaryKey: column.primary_key,
           unique: column.unique,
           indexed: false, // Not provided by the backend structure
           comment: '',
-          ordinalPosition: column.ordinalPosition,
-          characterMaximumLength: column.characterMaxLength,
-          numericPrecision: column.numericPrecision,
-          numericScale: column.numericScale,
+          ordinalPosition: column.ordinal_position,
+          characterMaximumLength: column.character_maximum_length,
+          numericPrecision: column.numeric_precision,
+          numericScale: column.numeric_scale,
           metadata: {}
         })) || [],
         table: {
@@ -90,7 +109,7 @@ export class WailsApiClient {
           metadata: {}
         },
         indexes: structure.indexes || [],
-        foreignKeys: structure.foreignKeys || [],
+        foreignKeys: structure.foreign_keys || [],
         triggers: structure.triggers || [],
         statistics: structure.statistics || {},
         success: true,
@@ -147,12 +166,12 @@ export class WailsApiClient {
       }
 
       const result = await App.CreateConnection({
-        type: request.type,
-        host: request.host,
-        port: request.port,
-        database: request.database,
-        username: request.username,
-        password: request.password,
+        type: request.type || 'postgresql',
+        host: request.host || 'localhost',
+        port: request.port || 5432,
+        database: request.database || '',
+        username: request.username || '',
+        password: request.password || '',
         sslMode: request.ssl_mode || 'disable',
         connectionTimeout: request.connection_timeout || 30,
         parameters
@@ -174,16 +193,28 @@ export class WailsApiClient {
 
   async testConnection(data: unknown) {
     try {
+      const connectionData = data as {
+        type?: string
+        host?: string
+        port?: number
+        database?: string
+        username?: string
+        password?: string
+        ssl_mode?: string
+        connection_timeout?: number
+        parameters?: Record<string, string>
+      }
+
       await App.TestConnection({
-        type: data.type,
-        host: data.host,
-        port: data.port,
-        database: data.database,
-        username: data.username,
-        password: data.password,
-        sslMode: data.ssl_mode || 'disable',
-        connectionTimeout: data.connection_timeout || 30,
-        parameters: data.parameters || {}
+        type: connectionData.type || 'postgresql',
+        host: connectionData.host || 'localhost',
+        port: connectionData.port || 5432,
+        database: connectionData.database || '',
+        username: connectionData.username || '',
+        password: connectionData.password || '',
+        sslMode: connectionData.ssl_mode || 'disable',
+        connectionTimeout: connectionData.connection_timeout || 30,
+        parameters: connectionData.parameters || {}
       })
 
       return {
@@ -259,7 +290,7 @@ export class WailsApiClient {
     }
   }
 
-  async executeQuery(connectionId: string, sql: string, options?: unknown) {
+  async executeQuery(connectionId: string, sql: string, options?: { limit?: number; timeout?: number }) {
     try {
       // Check if query contains @ syntax for multi-database queries
       if (shouldUseMultiDatabasePath(sql)) {
@@ -326,7 +357,7 @@ export class WailsApiClient {
     }
   }
 
-  async executeMultiDatabaseQuery(sql: string, options?: unknown) {
+  async executeMultiDatabaseQuery(sql: string, options?: { limit?: number; timeout?: number }) {
     try {
       const result = await App.ExecuteMultiDatabaseQuery({
         query: sql,
@@ -375,7 +406,16 @@ export class WailsApiClient {
 
   async updateQueryRow(payload: unknown) {
     try {
-      const response = await App.UpdateQueryRow(payload)
+      const requestPayload = payload as {
+        connectionId: string
+        query: string
+        columns: string[]
+        schema?: string
+        table?: string
+        primaryKey: Record<string, unknown>
+        values: Record<string, unknown>
+      }
+      const response = await App.UpdateQueryRow(requestPayload)
       return {
         success: response.success,
         message: response.message
@@ -440,7 +480,7 @@ export const wailsEndpoints = {
 
   // Query endpoints
   queries: {
-    execute: async (connectionId: string, sql: string, options?: unknown) => {
+    execute: async (connectionId: string, sql: string, options?: { limit?: number; timeout?: number }) => {
       return wailsApiClient.executeQuery(connectionId, sql, options)
     },
     getEditableMetadata: async (jobId: string) => {

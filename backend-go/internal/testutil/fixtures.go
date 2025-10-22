@@ -2,129 +2,128 @@
 package testutil
 
 import (
-\t"database/sql"
-\t"testing"
+	"database/sql"
+	"testing"
 
-\t_ "github.com/mattn/go-sqlite3"
-\t"github.com/sql-studio/backend-go/internal/config"
-\t"github.com/sql-studio/backend-go/pkg/database"
+	_ "github.com/mattn/go-sqlite3"
+	"github.com/sql-studio/backend-go/internal/config"
+	"github.com/sql-studio/backend-go/pkg/database"
 )
 
 // NewTestConfig creates a test configuration with sensible defaults
 func NewTestConfig() *config.Config {
-\treturn &config.Config{
-\t\tServer: config.ServerConfig{
-\t\t\tHTTPPort:     8080,
-\t\t\tGRPCPort:     9090,
-\t\t\tTLSEnabled:   false,
-\t\t\tReadTimeout:  30,
-\t\t\tWriteTimeout: 30,
-\t\t\tIdleTimeout:  60,
-\t\t},
-\t\tAuth: config.AuthConfig{
-\t\t\tJWTSecret: "test-secret-key-for-testing-only",
-\t\t\tEnabled:   true,
-\t\t},
-\t\tSecurity: config.SecurityConfig{
-\t\t\tRateLimitRPS:   100,
-\t\t\tRateLimitBurst: 200,
-\t\t\tRequestTimeout: 30,
-\t\t},
-\t}
+	return &config.Config{
+		Server: config.ServerConfig{
+			HTTPPort:     8080,
+			GRPCPort:     9090,
+			TLSEnabled:   false,
+			ReadTimeout:  30,
+			WriteTimeout: 30,
+			IdleTimeout:  60,
+		},
+		Auth: config.AuthConfig{
+			JWTSecret: "test-secret-key-for-testing-only",
+		},
+		Security: config.SecurityConfig{
+			RateLimitRPS:   100,
+			RateLimitBurst: 200,
+			RequestTimeout: 30,
+		},
+	}
 }
 
 // NewTestDBConfig creates a test database configuration
-func NewTestDBConfig() *database.Config {
-\treturn &database.Config{
-\t\tHost:     "localhost",
-\t\tPort:     3306,
-\t\tDatabase: "test",
-\t\tUsername: "test",
-\t\tPassword: "test",
-\t\tSSLMode:  "disable",
-\t}
+func NewTestDBConfig() *database.ConnectionConfig {
+	return &database.ConnectionConfig{
+		Host:     "localhost",
+		Port:     3306,
+		Database: "test",
+		Username: "test",
+		Password: "test",
+		SSLMode:  "disable",
+	}
 }
 
 // NewTestSQLiteDB creates an in-memory SQLite database for testing
 func NewTestSQLiteDB(t *testing.T) *sql.DB {
-\tt.Helper()
+	t.Helper()
 
-\tdb, err := sql.Open("sqlite3", ":memory:")
-\tif err != nil {
-\t\tt.Fatalf("failed to create in-memory SQLite database: %v", err)
-\t}
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatalf("failed to create in-memory SQLite database: %v", err)
+	}
 
-\t// Ensure cleanup
-\tt.Cleanup(func() {
-\t\tif err := db.Close(); err != nil {
-\t\t\tt.Logf("failed to close test database: %v", err)
-\t\t}
-\t})
+	// Ensure cleanup
+	t.Cleanup(func() {
+		if err := db.Close(); err != nil {
+			t.Logf("failed to close test database: %v", err)
+		}
+	})
 
-\treturn db
+	return db
 }
 
 // SetupTestSchema creates a test database schema for testing
 func SetupTestSchema(t *testing.T, db *sql.DB) {
-\tt.Helper()
+	t.Helper()
 
-\tschema := `
-\t\tCREATE TABLE IF NOT EXISTS users (
-\t\t\tid INTEGER PRIMARY KEY AUTOINCREMENT,
-\t\t\tusername TEXT NOT NULL UNIQUE,
-\t\t\temail TEXT NOT NULL UNIQUE,
-\t\t\tcreated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-\t\t);
+	schema := `
+		CREATE TABLE IF NOT EXISTS users (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			username TEXT NOT NULL UNIQUE,
+			email TEXT NOT NULL UNIQUE,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		);
 
-\t\tCREATE TABLE IF NOT EXISTS posts (
-\t\t\tid INTEGER PRIMARY KEY AUTOINCREMENT,
-\t\t\tuser_id INTEGER NOT NULL,
-\t\t\ttitle TEXT NOT NULL,
-\t\t\tcontent TEXT,
-\t\t\tcreated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-\t\t\tFOREIGN KEY (user_id) REFERENCES users(id)
-\t\t);
+		CREATE TABLE IF NOT EXISTS posts (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			user_id INTEGER NOT NULL,
+			title TEXT NOT NULL,
+			content TEXT,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (user_id) REFERENCES users(id)
+		);
 
-\t\tCREATE TABLE IF NOT EXISTS comments (
-\t\t\tid INTEGER PRIMARY KEY AUTOINCREMENT,
-\t\t\tpost_id INTEGER NOT NULL,
-\t\t\tuser_id INTEGER NOT NULL,
-\t\t\tcontent TEXT NOT NULL,
-\t\t\tcreated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-\t\t\tFOREIGN KEY (post_id) REFERENCES posts(id),
-\t\t\tFOREIGN KEY (user_id) REFERENCES users(id)
-\t\t);
-\t`
+		CREATE TABLE IF NOT EXISTS comments (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			post_id INTEGER NOT NULL,
+			user_id INTEGER NOT NULL,
+			content TEXT NOT NULL,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (post_id) REFERENCES posts(id),
+			FOREIGN KEY (user_id) REFERENCES users(id)
+		);
+	`
 
-\t_, err := db.Exec(schema)
-\tif err != nil {
-\t\tt.Fatalf("failed to setup test schema: %v", err)
-\t}
+	_, err := db.Exec(schema)
+	if err != nil {
+		t.Fatalf("failed to setup test schema: %v", err)
+	}
 }
 
 // SeedTestData inserts test data into the database
 func SeedTestData(t *testing.T, db *sql.DB) {
-\tt.Helper()
+	t.Helper()
 
-\tdata := `
-\t\tINSERT INTO users (username, email) VALUES
-\t\t\t('alice', 'alice@example.com'),
-\t\t\t('bob', 'bob@example.com'),
-\t\t\t('charlie', 'charlie@example.com');
+	data := `
+		INSERT INTO users (username, email) VALUES
+			('alice', 'alice@example.com'),
+			('bob', 'bob@example.com'),
+			('charlie', 'charlie@example.com');
 
-\t\tINSERT INTO posts (user_id, title, content) VALUES
-\t\t\t(1, 'First Post', 'This is Alice''s first post'),
-\t\t\t(1, 'Second Post', 'Alice posts again'),
-\t\t\t(2, 'Bob''s Thoughts', 'Some thoughts from Bob');
+		INSERT INTO posts (user_id, title, content) VALUES
+			(1, 'First Post', 'This is Alice''s first post'),
+			(1, 'Second Post', 'Alice posts again'),
+			(2, 'Bob''s Thoughts', 'Some thoughts from Bob');
 
-\t\tINSERT INTO comments (post_id, user_id, content) VALUES
-\t\t\t(1, 2, 'Nice post!'),
-\t\t\t(1, 3, 'I agree'),
-\t\t\t(2, 3, 'Interesting perspective');
-\t`
+		INSERT INTO comments (post_id, user_id, content) VALUES
+			(1, 2, 'Nice post!'),
+			(1, 3, 'I agree'),
+			(2, 3, 'Interesting perspective');
+	`
 
-\t_, err := db.Exec(data)
-\tif err != nil {
-\t\tt.Fatalf("failed to seed test data: %v", err)
-\t}
+	_, err := db.Exec(data)
+	if err != nil {
+		t.Fatalf("failed to seed test data: %v", err)
+	}
 }

@@ -78,7 +78,13 @@ export function useMultiConnectionSchema(): UseMultiConnectionSchemaReturn {
 
     try {
       const conns = await ListConnections();
-      setConnections(conns || []);
+      setConnections((conns || []).map(id => ({ 
+        id, 
+        name: `Connection ${id}`, 
+        type: 'unknown',
+        database: '',
+        active: true
+      })));
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       setError(`Failed to load connections: ${errorMessage}`);

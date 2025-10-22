@@ -193,7 +193,6 @@ export function PemKeyUpload({ onUpload, onError, disabled, className }: PemKeyU
             placeholder="-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA...\n-----END RSA PRIVATE KEY-----"
             label="Private Key Content"
             disabled={disabled}
-            onPaste={handlePaste}
           />
         </TabsContent>
       </Tabs>

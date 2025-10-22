@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Separator } from '@/components/ui/separator'
 import { ErrorBoundary } from '@/components/error-boundary'
 import {
   Search,
@@ -21,6 +20,7 @@ import {
   X,
   Eye,
   EyeOff,
+  Edit,
   Expand,
   ChevronDown,
   WrapText,
@@ -33,6 +33,7 @@ import { TableRow, CellValue } from '@/types/table'
 import { QueryEditableMetadata } from '@/store/query-store'
 import { useJsonViewer } from '@/hooks/use-json-viewer'
 import { JsonEditor } from './json-editor'
+import { ForeignKeySection } from './foreign-key-card'
 import { isRegexQuery } from '@/lib/json-search'
 
 interface JsonRowViewerSidebarProps {
@@ -112,7 +113,7 @@ export function JsonRowViewerSidebar({
     } else if (!open) {
       closeViewer()
     }
-  }, [open, rowData, rowId, openRow, closeViewer])
+  }, [open, rowData, rowId])
 
   const handleSave = useCallback(async () => {
     if (!onSave) return
@@ -155,6 +156,115 @@ export function JsonRowViewerSidebar({
     }
   }, [navigateToNextMatch, navigateToPreviousMatch])
 
+  // Extract foreign key fields from row data
+  const getForeignKeyFields = useCallback(() => {
+    if (!rowData || !connectionId) return []
+    
+    // Look for potential foreign key fields based on common patterns
+    const potentialForeignKeys: Array<{key: string, value: any, tableName: string, columnName: string}> = []
+    
+    Object.entries(rowData).forEach(([key, value]) => {
+      if (value === null || value === undefined) return
+      
+      // Common foreign key patterns
+      const lowerKey = key.toLowerCase()
+      
+      // Pattern 1: *_id fields (snake_case)
+      if (lowerKey.endsWith('_id') && (typeof value === 'string' || typeof value === 'number')) {
+        const tableName = lowerKey.replace('_id', '') + 's' // pluralize
+        potentialForeignKeys.push({
+          key,
+          value,
+          tableName,
+          columnName: 'id'
+        })
+      }
+      
+      // Pattern 2: *Id fields (camelCase)
+      if (lowerKey.endsWith('id') && lowerKey !== 'id' && (typeof value === 'string' || typeof value === 'number')) {
+        const baseName = lowerKey.replace('id', '')
+        if (baseName.length > 0) {
+          const tableName = baseName + 's' // pluralize
+          potentialForeignKeys.push({
+            key,
+            value,
+            tableName,
+            columnName: 'id'
+          })
+        }
+      }
+      
+      // Pattern 3: user_id, account_id, etc. (snake_case with underscore)
+      if (lowerKey.includes('_id') && (typeof value === 'string' || typeof value === 'number')) {
+        const parts = lowerKey.split('_id')
+        if (parts.length === 2 && parts[0].length > 0) {
+          const tableName = parts[0] + 's' // pluralize
+          potentialForeignKeys.push({
+            key,
+            value,
+            tableName,
+            columnName: 'id'
+          })
+        }
+      }
+      
+      // Pattern 4: Common foreign key prefixes
+      const commonPrefixes = ['user', 'account', 'organization', 'project', 'team', 'company', 'customer', 'order', 'product', 'category']
+      commonPrefixes.forEach(prefix => {
+        if (lowerKey === `${prefix}_id` || lowerKey === `${prefix}id` || lowerKey === `${prefix}Id`) {
+          const tableName = prefix + 's' // pluralize
+          potentialForeignKeys.push({
+            key,
+            value,
+            tableName,
+            columnName: 'id'
+          })
+        }
+      })
+      
+      // Pattern 5: UUID-like values that might be foreign keys
+      if (typeof value === 'string' && value.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+        // Try common table names
+        const commonTables = ['users', 'accounts', 'organizations', 'projects', 'teams', 'companies', 'customers', 'orders', 'products', 'categories']
+        commonTables.forEach(tableName => {
+          potentialForeignKeys.push({
+            key,
+            value,
+            tableName,
+            columnName: 'id'
+          })
+        })
+      }
+      
+      // Pattern 6: Numeric IDs that might be foreign keys
+      if (typeof value === 'number' && value > 0 && value < 1000000) { // Reasonable range for IDs
+        // Check if the key suggests it's a foreign key
+        if (lowerKey.includes('id') || lowerKey.includes('ref') || lowerKey.includes('fk')) {
+          const commonTables = ['users', 'accounts', 'organizations', 'projects', 'teams', 'companies', 'customers', 'orders', 'products', 'categories']
+          commonTables.forEach(tableName => {
+            potentialForeignKeys.push({
+              key,
+              value,
+              tableName,
+              columnName: 'id'
+            })
+          })
+        }
+      }
+    })
+    
+    // Remove duplicates based on key
+    const uniqueForeignKeys = potentialForeignKeys.filter((fk, index, self) => 
+      index === self.findIndex(f => f.key === fk.key)
+    )
+    
+    return uniqueForeignKeys.map(fk => ({
+      key: fk.key,
+      value: fk.value,
+      metadata: metadata!
+    }))
+  }, [rowData, connectionId, metadata])
+
   const searchStats = useMemo(() => {
     return {
       totalMatches: searchResults.totalMatches,
@@ -185,7 +295,7 @@ export function JsonRowViewerSidebar({
       }}
     >
       <Sheet open={isOpen} onOpenChange={closeViewer}>
-      <SheetContent side="right" className="w-full sm:max-w-2xl">
+      <SheetContent side="right" className="w-full sm:max-w-2xl m-4 h-[calc(100vh-2rem)] rounded-xl shadow-2xl border overflow-hidden flex flex-col">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
             <Database className="h-4 w-4" />
@@ -214,13 +324,13 @@ export function JsonRowViewerSidebar({
               >
                 {isEditing ? (
                   <>
-                    <EyeOff className="h-3 w-3 mr-1" />
-                    Edit Mode
+                    <Eye className="h-3 w-3 mr-1" />
+                    Switch to View
                   </>
                 ) : (
                   <>
-                    <Eye className="h-3 w-3 mr-1" />
-                    View Mode
+                    <Edit className="h-3 w-3 mr-1" />
+                    Switch to Edit
                   </>
                 )}
               </Button>
@@ -258,37 +368,6 @@ export function JsonRowViewerSidebar({
               </Button>
             </div>
 
-            <div className="flex items-center gap-2">
-              {/* Word Wrap Toggle */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={toggleWordWrap}
-                className={wordWrap ? "bg-muted" : ""}
-              >
-                <WrapText className="h-3 w-3" />
-              </Button>
-
-              {/* Expand/Collapse All */}
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={expandAllKeys}
-                  title="Expand All"
-                >
-                  <Expand className="h-3 w-3" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={collapseAllKeys}
-                  title="Collapse All"
-                >
-                  <ChevronDown className="h-3 w-3" />
-                </Button>
-              </div>
-            </div>
           </div>
 
           {/* Search Bar */}
@@ -393,27 +472,53 @@ export function JsonRowViewerSidebar({
             </div>
           )}
 
-          {/* JSON Content */}
+          {/* Content */}
           <div className="flex-1 min-h-0">
             <ScrollArea className="h-full">
-              <div className="p-4">
-                <JsonEditor
-                  tokens={formattedJson.tokens}
-                  data={jsonData!}
-                  isEditing={isEditing}
-                  validationErrors={validationErrors}
-                  searchMatches={searchResults.matches}
-                  currentMatchIndex={searchResults.currentIndex}
-                  wordWrap={wordWrap}
-                  expandedKeys={new Set()}
-                  collapsedKeys={new Set()}
-                  onToggleEdit={toggleEdit}
-                  onUpdateField={updateField}
-                  onToggleKeyExpansion={toggleKeyExpansion}
-                  onCopyJson={handleCopyJson}
-                  metadata={metadata}
-                  connectionId={connectionId}
-                />
+              <div className="p-4 space-y-4">
+                {/* Foreign Key Relationships */}
+                {metadata && connectionId && (
+                  <ForeignKeySection
+                    foreignKeys={getForeignKeyFields()}
+                    connectionId={connectionId}
+                    expandedKeys={new Set()}
+                    onToggleKey={toggleForeignKey}
+                    onLoadData={loadForeignKeyData}
+                  />
+                )}
+
+                {/* JSON Content */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-medium">Row Data</h3>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleCopyJson}
+                      className="h-6 px-2 text-xs"
+                    >
+                      <Copy className="h-3 w-3 mr-1" />
+                      Copy JSON
+                    </Button>
+                  </div>
+                  <JsonEditor
+                    tokens={formattedJson.tokens}
+                    data={jsonData! as Record<string, CellValue>}
+                    isEditing={isEditing}
+                    validationErrors={validationErrors}
+                    searchMatches={searchResults.matches}
+                    currentMatchIndex={searchResults.currentIndex}
+                    wordWrap={wordWrap}
+                    expandedKeys={new Set()}
+                    collapsedKeys={new Set()}
+                    onToggleEdit={toggleEdit}
+                    onUpdateField={updateField}
+                    onToggleKeyExpansion={toggleKeyExpansion}
+                    onCopyJson={handleCopyJson}
+                    metadata={metadata}
+                    connectionId={connectionId}
+                  />
+                </div>
               </div>
             </ScrollArea>
           </div>

@@ -122,7 +122,7 @@ export function useGrpcQuery() {
       connectionId: string;
       sql: string;
       options?: unknown
-    }) => wailsEndpoints.queries.execute(connectionId, sql, options),
+    }) => wailsEndpoints.queries.execute(connectionId, sql, options as { limit?: number; timeout?: number }),
   })
 }
 

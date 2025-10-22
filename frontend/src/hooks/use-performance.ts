@@ -29,7 +29,7 @@ export const usePerformance = (options: UsePerformanceOptions = {}) => {
 
   // RAF queue for smooth animations
   const rafQueueRef = useRef<Array<() => void>>([]);
-  const rafIdRef = useRef<number>();
+  const rafIdRef = useRef<number | undefined>(undefined);
   const processRAFQueueRef = useRef<(() => void) | null>(null);
 
   const processRAFQueue = useCallback(() => {
@@ -156,7 +156,7 @@ export const usePerformance = (options: UsePerformanceOptions = {}) => {
 
 // Hook for measuring component render performance
 export const useRenderPerformance = (componentName: string, enabled = false) => {
-  const renderStartRef = useRef<number>();
+  const renderStartRef = useRef<number | undefined>(undefined);
   const renderCountRef = useRef(0);
 
   useEffect(() => {

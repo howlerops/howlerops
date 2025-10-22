@@ -6,10 +6,9 @@
 import {
   PerformanceMetrics,
   MemoryUsage,
-  WorkerMessageType,
-  WorkerPoolMetrics
+  WorkerMessageType
 } from './types';
-import { WorkerPool } from './worker-pool';
+import { WorkerPool, WorkerPoolMetrics } from './worker-pool';
 
 export interface PerformanceSnapshot {
   timestamp: number;

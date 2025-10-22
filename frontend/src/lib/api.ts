@@ -52,7 +52,7 @@ export const queryClient = new QueryClient({
       staleTime: 5 * 60 * 1000, // 5 minutes
       gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
       retry: (failureCount, error: unknown) => {
-        if (error?.response?.status === 404) return false
+        if ((error as any)?.response?.status === 404) return false
         return failureCount < 3
       },
     },
@@ -64,19 +64,38 @@ export const queryClient = new QueryClient({
 
 // Helper function to convert REST connection data to gRPC format
 function convertToGrpcConnectionConfig(data: unknown): ConnectionConfig {
+  const dataObj = data as {
+    type?: string;
+    host?: string;
+    port?: number;
+    database?: string;
+    username?: string;
+    password?: string;
+    ssl_mode?: string;
+    connection_timeout?: number;
+    idle_timeout?: number;
+    max_connections?: number;
+    max_idle_connections?: number;
+    parameters?: Record<string, unknown>;
+  };
+
   const config: ConnectionConfig = {
-    type: mapDatabaseType(data.type),
-    host: data.host || '',
-    port: data.port || 0,
-    database: data.database || '',
-    username: data.username || '',
-    password: data.password || '',
-    sslMode: data.ssl_mode || 'disable',
-    connectionTimeout: data.connection_timeout || 30,
-    idleTimeout: data.idle_timeout || 300,
-    maxConnections: data.max_connections || 10,
-    maxIdleConnections: data.max_idle_connections || 5,
-    parameters: data.parameters || {},
+    type: mapDatabaseType(dataObj.type || 'postgresql'),
+    host: dataObj.host || '',
+    port: dataObj.port || 0,
+    database: dataObj.database || '',
+    username: dataObj.username || '',
+    password: dataObj.password || '',
+    sslMode: dataObj.ssl_mode || 'disable',
+    connectionTimeout: dataObj.connection_timeout || 30,
+    idleTimeout: dataObj.idle_timeout || 300,
+    maxConnections: dataObj.max_connections || 10,
+    maxIdleConnections: dataObj.max_idle_connections || 5,
+    parameters: (dataObj.parameters as Record<string, string>) || {},
+    useTunnel: false,
+    sshTunnel: undefined,
+    useVpc: false,
+    vpcConfig: undefined,
   };
   return config;
 }
@@ -150,12 +169,18 @@ export const grpcEndpoints = {
     },
 
     create: async (data: unknown) => {
+      const dataObj = data as {
+        name?: string;
+        description?: string;
+        tags?: Record<string, unknown>;
+        [key: string]: unknown;
+      };
       const config = convertToGrpcConnectionConfig(data);
       const response = await grpcWebClient.createConnection({
-        name: data.name,
-        description: data.description || '',
+        name: dataObj.name || '',
+        description: dataObj.description || '',
         config,
-        tags: data.tags || {},
+        tags: (dataObj.tags as Record<string, string>) || {},
       });
 
       return {
@@ -172,13 +197,18 @@ export const grpcEndpoints = {
     },
 
     update: async (id: string, data: unknown) => {
+      const dataObj = data as {
+        name?: string;
+        description?: string;
+        tags?: Record<string, string>;
+      };
       const config = convertToGrpcConnectionConfig(data);
       const response = await grpcWebClient.updateConnection({
         id,
-        name: data.name,
-        description: data.description || '',
+        name: dataObj.name || '',
+        description: dataObj.description || '',
         config,
-        tags: data.tags || {},
+        tags: dataObj.tags || {},
       });
 
       return {

@@ -240,11 +240,11 @@ export function GenericChatSidebar({ open, onClose, connections, schemasMap }: G
                   >
                     <div className="mb-1 flex items-center gap-2 text-xs uppercase text-muted-foreground">
                       <span>{messageEntry.role}</span>
-                      {messageEntry.metadata?.provider && (
+                      {messageEntry.metadata?.provider ? (
                         <Badge variant="outline" className="text-[10px]">
                           {String(messageEntry.metadata.provider)}
                         </Badge>
-                      )}
+                      ) : null}
                     </div>
                     <div className="whitespace-pre-wrap leading-relaxed text-sm">
                       {messageEntry.content}

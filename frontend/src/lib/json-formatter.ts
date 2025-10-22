@@ -215,11 +215,11 @@ function formatCellValue(value: CellValue): unknown {
   if (value === undefined) return undefined
   
   // Handle Date objects
-  if (value instanceof Date) {
+  if (typeof value === 'object' && value !== null && (value as any) instanceof Date) {
     return {
       _type: 'date',
-      _value: value.toISOString(),
-      _display: value.toLocaleString()
+      _value: (value as Date).toISOString(),
+      _display: (value as Date).toLocaleString()
     }
   }
   
@@ -228,7 +228,7 @@ function formatCellValue(value: CellValue): unknown {
     return {
       _type: 'buffer',
       _value: '[Buffer]',
-      _display: `Buffer(${value.length || 0} bytes)`
+      _display: `Buffer(${(value as any).length || 0} bytes)`
     }
   }
   

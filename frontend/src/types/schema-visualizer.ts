@@ -36,7 +36,7 @@ export interface EdgeConfig {
   sourceKey: string
   target: string
   targetKey: string
-  relation: 'hasOne' | 'hasMany' | 'belongsTo'
+  relation: 'hasOne' | 'hasMany' | 'belongsTo' | 'manyToMany'
   label?: string
 }
 

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { TableRow, TableAction } from '../types/table';
 import { cloneDeep } from '../utils/table';
 
@@ -24,7 +24,7 @@ interface UseOptimisticUpdatesOptions {
 
 export const useOptimisticUpdates = (
   data: TableRow[],
-  setData: (data: TableRow[]) => void,
+  setData: React.Dispatch<React.SetStateAction<TableRow[]>>,
   options: UseOptimisticUpdatesOptions = {}
 ) => {
   const {
@@ -66,12 +66,15 @@ export const useOptimisticUpdates = (
     // Restore original data
     switch (update.type) {
       case 'update': {
-        setData(prevData => {
+        setData((prevData: TableRow[]) => {
           const newData = [...prevData];
           const rollbackData = update.rollbackData as { rowId: string; columnId: string; originalValue: unknown };
           const index = newData.findIndex(row => row.id === rollbackData.rowId);
           if (index !== -1) {
-            newData[index] = { ...newData[index], [rollbackData.columnId]: rollbackData.originalValue };
+            newData[index] = { 
+              ...newData[index], 
+              [rollbackData.columnId]: rollbackData.originalValue 
+            } as TableRow;
           }
           return newData;
         });
@@ -80,13 +83,13 @@ export const useOptimisticUpdates = (
 
       case 'create': {
         const rollbackData = update.rollbackData as { id: string };
-        setData(prevData => prevData.filter(row => row.id !== rollbackData.id));
+        setData((prevData: TableRow[]) => prevData.filter(row => row.id !== rollbackData.id));
         break;
       }
 
       case 'delete': {
         const rollbackData = update.rollbackData as TableRow;
-        setData(prevData => [...prevData, rollbackData]);
+        setData((prevData: TableRow[]) => [...prevData, rollbackData]);
         break;
       }
     }
@@ -285,7 +288,7 @@ export const useOptimisticUpdates = (
   useEffect(() => {
     const timeouts = timeoutsRef.current;
     return () => {
-      Array.from(timeouts).forEach(timeout => clearTimeout(timeout));
+      timeouts.forEach(timeout => clearTimeout(timeout));
       timeouts.clear();
     };
   }, []);

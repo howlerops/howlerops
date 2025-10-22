@@ -6,12 +6,12 @@
 import React, { useState, useCallback } from 'react';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from '../ui/popover';
+} from '@/components/ui/popover';
 import {
   Clock,
   CheckCircle,

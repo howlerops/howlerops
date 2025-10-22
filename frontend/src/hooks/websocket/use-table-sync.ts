@@ -12,6 +12,7 @@ import {
   UseTableSyncOptions,
   OptimisticUpdate,
   OptimisticState,
+  EventHandler,
 } from '../../types/websocket';
 import { useWebSocket } from './use-websocket';
 
@@ -593,18 +594,18 @@ export function useTableSync(options: UseTableSyncOptions) {
 
   // Set up event handlers
   useEffect(() => {
-    on('table:edit:apply', handleEditApply);
-    on('table:edit:conflict', handleConflict);
-    on('table:row:update', handleRowChange);
-    on('table:row:insert', handleRowChange);
-    on('table:row:delete', handleRowChange);
+    on('table:edit:apply', handleEditApply as EventHandler);
+    on('table:edit:conflict', handleConflict as EventHandler);
+    on('table:row:update', handleRowChange as EventHandler);
+    on('table:row:insert', handleRowChange as EventHandler);
+    on('table:row:delete', handleRowChange as EventHandler);
 
     return () => {
-      off('table:edit:apply', handleEditApply);
-      off('table:edit:conflict', handleConflict);
-      off('table:row:update', handleRowChange);
-      off('table:row:insert', handleRowChange);
-      off('table:row:delete', handleRowChange);
+      off('table:edit:apply', handleEditApply as EventHandler);
+      off('table:edit:conflict', handleConflict as EventHandler);
+      off('table:row:update', handleRowChange as EventHandler);
+      off('table:row:insert', handleRowChange as EventHandler);
+      off('table:row:delete', handleRowChange as EventHandler);
     };
   }, [on, off, handleEditApply, handleConflict, handleRowChange]);
 

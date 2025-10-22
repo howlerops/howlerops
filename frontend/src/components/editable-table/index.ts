@@ -1,6 +1,5 @@
 // Main component
 export { EditableTable } from './editable-table';
-export { EditableTableDemo } from './editable-table-demo';
 
 // Sub-components
 export { TableCell } from './table-cell';

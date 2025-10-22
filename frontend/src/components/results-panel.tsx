@@ -31,7 +31,7 @@ export function ResultsPanel({ onFixWithAI }: ResultsPanelProps = {}) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setShowHistory(false)
     }
-  }, [hasHistory, showHistory])
+  }, [hasHistory])
 
   /* eslint-disable react-hooks/preserve-manual-memoization */
   const numericColumns = useMemo(() => {
@@ -56,7 +56,7 @@ export function ResultsPanel({ onFixWithAI }: ResultsPanelProps = {}) {
     } else if (!selectedMetric || !numericColumns.includes(selectedMetric)) {
       setSelectedMetric(numericColumns[0])
     }
-  }, [numericColumns, selectedMetric])
+  }, [numericColumns])
 
   const metricValues = useMemo(() => {
     if (!latestResult || !selectedMetric) return []

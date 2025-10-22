@@ -128,6 +128,7 @@ func (e *Executor) executeSingle(
 		Duration:        queryResult.Duration,
 		ConnectionsUsed: []string{connID},
 		Strategy:        StrategyAuto,
+		Editable:        queryResult.Editable,
 	}, nil
 }
 
@@ -172,6 +173,7 @@ func (e *Executor) executeFederated(
 			Duration:        queryResult.Duration,
 			ConnectionsUsed: parsed.RequiredConnections,
 			Strategy:        StrategyFederated,
+			Editable:        queryResult.Editable,
 		}, nil
 	}
 

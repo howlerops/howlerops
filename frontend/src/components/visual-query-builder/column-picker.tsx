@@ -31,7 +31,7 @@ export function ColumnPicker({
     const fieldType = typeRegistry.inferFieldType({
       name: column.name,
       dataType: column.dataType,
-      isNullable: column.isNullable,
+      isNullable: column.isNullable ? 'true' : 'false',
       isPrimaryKey: column.isPrimaryKey,
       isForeignKey: column.isForeignKey,
       enumValues: column.enumValues
@@ -55,7 +55,7 @@ export function ColumnPicker({
     const fieldType = typeRegistry.inferFieldType({
       name: column.name,
       dataType: column.dataType,
-      isNullable: column.isNullable,
+      isNullable: column.isNullable ? 'true' : 'false',
       isPrimaryKey: column.isPrimaryKey,
       isForeignKey: column.isForeignKey,
       enumValues: column.enumValues
@@ -221,7 +221,7 @@ export function ColumnPicker({
                       </label>
                       <Select
                         value={selectedItem.aggregate || ''}
-                        onValueChange={(value) => handleAggregateChange(column.name, value)}
+                        onValueChange={(value) => handleAggregateChange(column.name, value as '' | 'count' | 'sum' | 'avg' | 'min' | 'max')}
                       >
                         <SelectTrigger className="mt-1">
                           <SelectValue placeholder="None" />

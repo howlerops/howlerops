@@ -68,7 +68,40 @@ make test
    make validate
    ```
 
-3. **Submit Pull Request**
+3. **CRITICAL: Complete Validation Checklist**
+   Before submitting any changes, ensure ALL validation steps pass:
+   
+   **Frontend Validation:**
+   ```bash
+   cd frontend
+   npm run typecheck    # TypeScript type checking
+   npm run lint         # ESLint validation
+   npm run test:run     # Unit tests
+   ```
+   
+   **Backend Validation:**
+   ```bash
+   go mod tidy          # Clean up Go modules
+   go fmt ./...         # Format Go code
+   go test ./...        # Run Go tests
+   ```
+   
+   **Full Validation:**
+   ```bash
+   make validate        # Runs lint + test for both frontend and backend
+   ```
+   
+   **Task completion checklist:**
+   - [ ] All TypeScript types are valid (`npm run typecheck`)
+   - [ ] Frontend code passes linting (`npm run lint`)
+   - [ ] Frontend tests pass (`npm run test:run`)
+   - [ ] Go modules are tidy (`go mod tidy`)
+   - [ ] Go code is formatted (`go fmt ./...`)
+   - [ ] Go tests pass (`go test ./...`)
+   - [ ] Full validation passes (`make validate`)
+   - [ ] Code compiles successfully (`make build`)
+
+4. **Submit Pull Request**
    - Fill out the PR template completely
    - Reference related issues
    - Ensure CI passes

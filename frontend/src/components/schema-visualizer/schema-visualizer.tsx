@@ -10,7 +10,7 @@ import {
   Connection,
   ReactFlowProvider,
   Node,
-  OnEdgeClick,
+  Edge,
 } from 'reactflow'
 import 'reactflow/dist/style.css'
 
@@ -55,6 +55,7 @@ import {
 interface SchemaVisualizerProps {
   schema: SchemaNode[]
   onClose: () => void
+  connectionId?: string
 }
 
 export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
@@ -132,13 +133,13 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
           })
 
           const { nodes: flowNodes, edges: flowEdges } = SchemaConfigBuilder.toReactFlowNodes(config)
-          setNodes(flowNodes)
-          setEdges(flowEdges)
+          setNodes(flowNodes as Node[])
+          setEdges(flowEdges as Edge[])
 
           console.log('ReactFlow nodes and edges:', {
             nodes: flowNodes.length,
             edges: flowEdges.length,
-            edgeTypes: flowEdges.map(e => e.type)
+            edgeTypes: flowEdges.map((e: any) => e.type)
           })
 
           // Smart layout selection based on table count
@@ -337,8 +338,8 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
   )
 
   // Handle edge click (show inspector)
-  const handleEdgeClick: OnEdgeClick = useCallback(
-    (event, edge) => {
+  const handleEdgeClick = useCallback(
+    (event: React.MouseEvent, edge: Edge) => {
       event.stopPropagation()
 
       if (!schemaConfig) return
@@ -621,10 +622,139 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
 
 // Wrapper with ReactFlowProvider and Error Boundary
 export function SchemaVisualizerWrapper(props: SchemaVisualizerProps) {
+  const [loadedSchema, setLoadedSchema] = useState<SchemaNode[]>(props.schema)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // Load schema for specific connection if connectionId is provided
+  useEffect(() => {
+    if (!props.connectionId) {
+      setLoadedSchema(props.schema)
+      return
+    }
+
+    const loadConnectionSchema = async () => {
+      setLoading(true)
+      setError(null)
+
+      try {
+        // Import the Wails API dynamically
+        const { GetSchemas, GetTables } = await import('../../../wailsjs/go/main/App')
+        
+        // Get the connection from the store
+        const { useConnectionStore } = await import('@/store/connection-store')
+        const connections = useConnectionStore.getState().connections
+        const connection = connections.find(conn => conn.id === props.connectionId)
+        
+        if (!connection?.sessionId) {
+          throw new Error('Connection not found or not connected')
+        }
+
+        const schemas = await GetSchemas(connection.sessionId)
+
+        if (!schemas || !Array.isArray(schemas)) {
+          throw new Error('Failed to load schemas')
+        }
+
+        // Get tables for each schema
+        const schemaNames = (schemas as string[]) || []
+        const allTables: Array<{ name: string; schema: string }> = []
+        
+        for (const schemaName of schemaNames) {
+          try {
+            const tables = await GetTables(connection.sessionId, schemaName)
+            if (Array.isArray(tables)) {
+              allTables.push(...tables.map(table => ({
+                name: table.name || '',
+                schema: schemaName
+              })))
+            }
+          } catch (err) {
+            console.warn(`Failed to load tables for schema ${schemaName}:`, err)
+          }
+        }
+
+        // Convert to SchemaNode format
+        const schemaNodes: SchemaNode[] = []
+
+        // Process each schema
+        for (const schemaName of schemaNames) {
+          const schemaTables = allTables.filter(t => t.schema === schemaName)
+          
+          // Skip migration table and internal postgres tables
+          const nonMigrationTables = schemaTables.filter(t => 
+            t.name !== 'schema_migrations' && 
+            t.name !== 'goose_db_version' &&
+            t.name !== '_prisma_migrations' &&
+            !t.name.startsWith('__drizzle') &&
+            !schemaName.startsWith('pg_temp') &&
+            !schemaName.startsWith('pg_toast')
+          )
+          
+          // Skip empty schemas
+          if (nonMigrationTables.length === 0) {
+            continue
+          }
+          
+          const tablesWithColumns: SchemaNode[] = nonMigrationTables.map(table => ({
+            id: `${props.connectionId}-${schemaName}-${table.name}`,
+            name: table.name,
+            type: 'table' as const,
+            schema: table.schema,
+            children: [] // Columns loaded on demand
+          }))
+          
+          schemaNodes.push({
+            id: `${props.connectionId}-${schemaName}`,
+            name: schemaName,
+            type: 'schema' as const,
+            children: tablesWithColumns
+          })
+        }
+
+        setLoadedSchema(schemaNodes)
+      } catch (err) {
+        console.error('Failed to load schema:', err)
+        setError(err instanceof Error ? err.message : 'Failed to load schema')
+        setLoadedSchema([])
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadConnectionSchema()
+  }, [props.connectionId, props.schema])
+
+  if (loading) {
+    return (
+      <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
+        <Card className="w-96 h-64 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading schema...</p>
+          </div>
+        </Card>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
+        <Card className="w-96 h-64 flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-destructive mb-4">{error}</p>
+            <Button onClick={props.onClose}>Close</Button>
+          </div>
+        </Card>
+      </div>
+    )
+  }
+
   return (
     <SchemaErrorBoundary onReset={() => window.location.reload()}>
       <ReactFlowProvider>
-        <SchemaVisualizer {...props} />
+        <SchemaVisualizer {...props} schema={loadedSchema} />
       </ReactFlowProvider>
     </SchemaErrorBoundary>
   )

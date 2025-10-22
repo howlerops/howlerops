@@ -49,7 +49,10 @@ export function VisualQueryBuilder({
       setQueryState({
         connections: [], // Will be set by connection selection
         from: initialQuery.from,
-        joins: initialQuery.joins || [],
+        joins: (initialQuery.joins || []).map((join, index) => ({
+          ...join,
+          id: `join-${index}`
+        })),
         select: initialQuery.select,
         where: initialQuery.where,
         orderBy: initialQuery.orderBy || [],

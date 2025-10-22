@@ -271,24 +271,42 @@ func (m *MySQLDatabase) computeEditableMetadata(ctx context.Context, query strin
 		return metadata, true, nil
 	}
 
+	// Create foreign key lookup map
+	fkMap := make(map[string]ForeignKeyRef)
+	for _, fk := range structure.ForeignKeys {
+		for i, col := range fk.Columns {
+			if i < len(fk.ReferencedColumns) {
+				fkMap[strings.ToLower(col)] = ForeignKeyRef{
+					Table:  fk.ReferencedTable,
+					Column: fk.ReferencedColumns[i],
+					Schema: fk.ReferencedSchema,
+				}
+			}
+		}
+	}
+
 	editableColumns := make([]EditableColumn, 0, len(columns))
 	for _, col := range columns {
-		if colInfo, exists := columnMap[strings.ToLower(col)]; exists {
-			editableColumns = append(editableColumns, EditableColumn{
-				Name:       colInfo.Name,
-				ResultName: colInfo.Name,
-				DataType:   colInfo.DataType,
-				Editable:   true,
-				PrimaryKey: colInfo.PrimaryKey,
-			})
-		} else {
-			editableColumns = append(editableColumns, EditableColumn{
-				Name:       col,
-				ResultName: col,
-				Editable:   false,
-				PrimaryKey: false,
-			})
+		columnMeta := EditableColumn{
+			Name:       col,
+			ResultName: col,
+			Editable:   false,
+			PrimaryKey: false,
 		}
+
+		if colInfo, exists := columnMap[strings.ToLower(col)]; exists {
+			columnMeta.Name = colInfo.Name
+			columnMeta.DataType = colInfo.DataType
+			columnMeta.Editable = true
+			columnMeta.PrimaryKey = colInfo.PrimaryKey
+		}
+
+		// Add foreign key information if available
+		if fkRef, hasFK := fkMap[strings.ToLower(col)]; hasFK {
+			columnMeta.ForeignKey = &fkRef
+		}
+
+		editableColumns = append(editableColumns, columnMeta)
 	}
 
 	metadata.Enabled = true

@@ -50,19 +50,19 @@ export class SchemaConfigBuilder {
               .map((col) => ({
                 id: col.id,
                 name: col.name.split(' ')[0], // Remove type info for display
-                type: col.metadata?.dataType || 'unknown',
-                description: col.metadata?.description,
+                type: (col.metadata as any)?.dataType || 'unknown',
+                description: (col.metadata as any)?.description,
                 isPrimaryKey: col.name.includes('PK'),
                 isForeignKey: col.name.includes('FK'),
-                isNullable: col.metadata?.isNullable,
-                defaultValue: col.metadata?.defaultValue,
+                isNullable: (col.metadata as any)?.isNullable,
+                defaultValue: (col.metadata as any)?.defaultValue,
               }))
 
             const tableConfig: TableConfig = {
               id: tableNode.id,
               name: tableNode.name,
               schema: schemaNode.name,
-              description: tableNode.metadata?.description,
+              description: (tableNode.metadata as any)?.description,
               columns,
             }
 
@@ -124,7 +124,11 @@ export class SchemaConfigBuilder {
     }))
 
     const edges = config.edges.map((edge) => {
-      let edgeStyle = {
+      let edgeStyle: {
+        stroke: string;
+        strokeWidth: number;
+        strokeDasharray?: string;
+      } = {
         stroke: '#64748b',
         strokeWidth: 2,
       }

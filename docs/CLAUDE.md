@@ -123,6 +123,42 @@ Services in the `services/` directory follow this pattern:
 - Query execution happens through the backend DatabaseService
 - Results are streamed back to the frontend via WebSocket when needed
 
+## Task Completion Requirements
+
+**CRITICAL: Before considering any task complete, you MUST run the following validation steps:**
+
+1. **Frontend Validation:**
+   ```bash
+   cd frontend
+   npm run typecheck    # TypeScript type checking
+   npm run lint         # ESLint validation
+   npm run test:run     # Unit tests
+   ```
+
+2. **Backend Validation:**
+   ```bash
+   go mod tidy          # Clean up Go modules
+   go fmt ./...         # Format Go code
+   go test ./...        # Run Go tests
+   ```
+
+3. **Full Validation:**
+   ```bash
+   make validate        # Runs lint + test for both frontend and backend
+   ```
+
+**Task completion checklist:**
+- [ ] All TypeScript types are valid (`npm run typecheck`)
+- [ ] Frontend code passes linting (`npm run lint`)
+- [ ] Frontend tests pass (`npm run test:run`)
+- [ ] Go modules are tidy (`go mod tidy`)
+- [ ] Go code is formatted (`go fmt ./...`)
+- [ ] Go tests pass (`go test ./...`)
+- [ ] Full validation passes (`make validate`)
+- [ ] Code compiles successfully (`make build`)
+
+**Never mark a task as complete without running these validation steps.**
+
 ## Important Notes
 
 - This is a Wails desktop application, not a traditional web app

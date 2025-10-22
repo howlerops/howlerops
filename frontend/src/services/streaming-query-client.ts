@@ -53,6 +53,10 @@ export class StreamingQueryClient extends EventEmitter {
     progress: QueryProgress;
   }> = new Map();
 
+  private chunkBuffers: Map<string, unknown[]> = new Map();
+  private metrics: Map<string, QueryProgress> = new Map();
+  private apiUrl: string = '/api';
+
   constructor() {
     super();
     this.setupMemoryMonitoring();
@@ -276,9 +280,9 @@ export class StreamingQueryClient extends EventEmitter {
    * Cancel an active streaming query
    */
   cancelQuery(queryId: string): boolean {
-    const controller = this.activeStreams.get(queryId);
-    if (controller) {
-      controller.abort();
+    const stream = this.activeStreams.get(queryId);
+    if (stream) {
+      stream.controller.abort();
       this.activeStreams.delete(queryId);
       this.emit('cancelled', queryId);
       return true;
@@ -317,7 +321,7 @@ export class StreamingQueryClient extends EventEmitter {
         lastError = error as Error;
 
         // Don't retry on abort
-        if (error.name === 'AbortError') {
+        if ((error as any).name === 'AbortError') {
           throw error;
         }
       }
@@ -452,8 +456,8 @@ export class StreamingQueryClient extends EventEmitter {
    * Clear all active streams
    */
   clearAllStreams(): void {
-    this.activeStreams.forEach((controller, queryId) => {
-      controller.abort();
+    this.activeStreams.forEach((stream, queryId) => {
+      stream.controller.abort();
       this.emit('cancelled', queryId);
     });
 

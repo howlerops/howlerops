@@ -108,6 +108,20 @@ make build-linux   # Linux executable
 # Run tests
 make test
 
+# CRITICAL: Complete validation before any task
+make validate        # Runs lint + test for both frontend and backend
+
+# Frontend validation
+cd frontend
+npm run typecheck    # TypeScript type checking
+npm run lint         # ESLint validation
+npm run test:run     # Unit tests
+
+# Backend validation
+go mod tidy          # Clean up Go modules
+go fmt ./...         # Format Go code
+go test ./...        # Run Go tests
+
 # Start development server (opens desktop app)
 make dev
 

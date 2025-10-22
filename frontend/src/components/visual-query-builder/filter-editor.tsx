@@ -71,12 +71,24 @@ const buildConditionsFromExpr = (
       }
     }
 
-    return {
-      id: createId('group'),
-      operator: node.operator,
-      conditions: node.conditions.map(convert),
-      not: node.not,
+    if ('operator' in node && 'conditions' in node) {
+      return {
+        id: createId('group'),
+        operator: node.operator,
+        conditions: node.conditions.map(convert),
+        not: node.not,
+      }
     }
+
+    // Handle Exists case - convert to a simple condition for now
+    // This might need more sophisticated handling depending on requirements
+    return {
+      id: createId('condition'),
+      column: 'EXISTS',
+      operator: '=' as FilterOperator,
+      value: 'true',
+      not: node.not,
+    } as FilterCondition
   }
 
   const root = convert(expr)
@@ -144,14 +156,14 @@ export function FilterEditor({
   // Update condition
   const updateCondition = (id: string, updates: Partial<FilterCondition>) => {
     setConditions(prev => prev.map(condition => 
-      condition.id === id ? { ...condition, ...updates } : condition
+      condition.id === id ? { ...condition, ...updates } as FilterCondition : condition
     ))
   }
 
   // Update group
   const updateGroup = (id: string, updates: Partial<FilterGroup>) => {
     setConditions(prev => prev.map(condition => 
-      condition.id === id ? { ...condition, ...updates } : condition
+      condition.id === id ? { ...condition, ...updates } as FilterGroup : condition
     ))
   }
 
@@ -163,7 +175,7 @@ export function FilterEditor({
     const fieldType = typeRegistry.inferFieldType({
       name: column.name,
       dataType: column.dataType,
-      isNullable: column.isNullable,
+      isNullable: column.isNullable ? 'true' : 'false',
       isPrimaryKey: column.isPrimaryKey,
       isForeignKey: column.isForeignKey,
       enumValues: column.enumValues
@@ -185,7 +197,7 @@ export function FilterEditor({
     const fieldType = typeRegistry.inferFieldType({
       name: column.name,
       dataType: column.dataType,
-      isNullable: column.isNullable,
+      isNullable: column.isNullable ? 'true' : 'false',
       isPrimaryKey: column.isPrimaryKey,
       isForeignKey: column.isForeignKey,
       enumValues: column.enumValues

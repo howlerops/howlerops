@@ -122,14 +122,14 @@ export class AISchemaContextBuilder {
         name: table.name,
         columns: (table.children || []).map(col => ({
           name: col.name,
-          dataType: col.dataType || 'unknown',
-          nullable: col.nullable || false,
-          primaryKey: col.primaryKey,
-          unique: col.unique,
-          defaultValue: col.defaultValue
+          dataType: (col.metadata as any)?.dataType || 'unknown',
+          nullable: (col.metadata as any)?.nullable || false,
+          primaryKey: (col.metadata as any)?.primaryKey,
+          unique: (col.metadata as any)?.unique,
+          defaultValue: (col.metadata as any)?.defaultValue
         })),
         primaryKeys: (table.children || [])
-          .filter(col => col.primaryKey)
+          .filter(col => (col.metadata as any)?.primaryKey)
           .map(col => col.name),
         foreignKeys: [] // TODO: Extract foreign key information if available
       }))
