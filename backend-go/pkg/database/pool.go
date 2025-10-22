@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"github.com/sql-studio/backend-go/pkg/crypto"
 )
 
 // ConnectionPool manages database connections with pooling
@@ -23,11 +24,11 @@ type ConnectionPool struct {
 }
 
 // NewConnectionPool creates a new connection pool
-func NewConnectionPool(config ConnectionConfig, logger *logrus.Logger) (*ConnectionPool, error) {
+func NewConnectionPool(config ConnectionConfig, secretStore crypto.SecretStore, logger *logrus.Logger) (*ConnectionPool, error) {
 	pool := &ConnectionPool{
 		config:        config,
 		logger:        logger,
-		tunnelManager: NewSSHTunnelManager(logger),
+		tunnelManager: NewSSHTunnelManager(secretStore, logger),
 	}
 
 	if err := pool.connect(); err != nil {

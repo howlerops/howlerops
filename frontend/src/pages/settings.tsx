@@ -4,6 +4,7 @@ import { Switch } from "@/components/ui/switch"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { PageErrorBoundary } from "@/components/page-error-boundary"
 import { useTheme } from "@/hooks/use-theme"
 import { ArrowLeft, Brain, Key, Server, AlertTriangle, Download, Play, CheckCircle } from "lucide-react"
 import { useNavigate } from "react-router-dom"
@@ -141,7 +142,8 @@ export function Settings() {
   }
 
   return (
-    <div className="flex flex-1 h-full min-h-0 w-full flex-col overflow-y-auto">
+    <PageErrorBoundary pageName="Settings">
+      <div className="flex flex-1 h-full min-h-0 w-full flex-col overflow-y-auto">
       <div className="container mx-auto p-6 max-w-4xl">
         <div className="flex items-center gap-4 mb-6">
         <Button
@@ -1045,8 +1047,9 @@ You can also start it manually by running: ollama serve`)
             Save Settings
           </Button>
         </div>
+        </div>
       </div>
     </div>
-    </div>
+    </PageErrorBoundary>
   )
 }

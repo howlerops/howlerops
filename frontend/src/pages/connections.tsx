@@ -1,5 +1,10 @@
 import { ConnectionManager } from "@/components/connection-manager"
+import { PageErrorBoundary } from "@/components/page-error-boundary"
 
 export function Connections() {
-  return <ConnectionManager />
+  return (
+    <PageErrorBoundary pageName="Connections">
+      <ConnectionManager />
+    </PageErrorBoundary>
+  )
 }

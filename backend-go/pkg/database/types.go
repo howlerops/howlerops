@@ -35,13 +35,15 @@ type SSHTunnelConfig struct {
 	Port                 int           `json:"port"`
 	User                 string        `json:"user"`
 	AuthMethod           SSHAuthMethod `json:"auth_method"`
-	Password             string        `json:"password,omitempty"`
-	PrivateKey           string        `json:"private_key,omitempty"`             // PEM-encoded private key content
-	PrivateKeyPath       string        `json:"private_key_path,omitempty"`        // Path to private key file
-	KnownHostsPath       string        `json:"known_hosts_path,omitempty"`        // Path to known_hosts file
-	StrictHostKeyChecking bool          `json:"strict_host_key_checking"`          // Whether to verify host key
-	Timeout              time.Duration `json:"timeout,omitempty"`                 // Connection timeout
-	KeepAliveInterval    time.Duration `json:"keep_alive_interval,omitempty"`     // Keep-alive interval
+	Password             string        `json:"password,omitempty"`             // Deprecated: use SecretStore
+	PrivateKey           string        `json:"private_key,omitempty"`          // Deprecated: use SecretStore
+	PrivateKeyPath       string        `json:"private_key_path,omitempty"`    // Deprecated: use SecretStore
+	PrivateKeyName       string        `json:"private_key_name,omitempty"`    // Reference to secret in SecretStore
+	KnownHostsPath       string        `json:"known_hosts_path,omitempty"`    // Path to known_hosts file
+	StrictHostKeyChecking bool          `json:"strict_host_key_checking"`      // Whether to verify host key
+	Timeout              time.Duration `json:"timeout,omitempty"`             // Connection timeout
+	KeepAliveInterval    time.Duration `json:"keep_alive_interval,omitempty"` // Keep-alive interval
+	ConnectionID         string        `json:"connection_id,omitempty"`       // ID for loading secrets
 }
 
 // VPCConfig holds VPC/Private Link configuration for cloud providers

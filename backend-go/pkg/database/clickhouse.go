@@ -20,7 +20,7 @@ type ClickHouseDatabase struct {
 
 // NewClickHouseDatabase creates a new ClickHouse database instance
 func NewClickHouseDatabase(config ConnectionConfig, logger *logrus.Logger) (*ClickHouseDatabase, error) {
-	pool, err := NewConnectionPool(config, logger)
+	pool, err := NewConnectionPool(config, nil, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create ClickHouse connection pool: %w", err)
 	}
@@ -35,7 +35,7 @@ func NewClickHouseDatabase(config ConnectionConfig, logger *logrus.Logger) (*Cli
 // Connect establishes a connection to ClickHouse
 func (c *ClickHouseDatabase) Connect(ctx context.Context, config ConnectionConfig) error {
 	c.config = config
-	pool, err := NewConnectionPool(config, c.logger)
+	pool, err := NewConnectionPool(config, nil, c.logger)
 	if err != nil {
 		return fmt.Errorf("failed to connect to ClickHouse: %w", err)
 	}

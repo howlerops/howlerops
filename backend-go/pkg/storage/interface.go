@@ -3,6 +3,8 @@ package storage
 import (
 	"context"
 	"time"
+
+	"github.com/sql-studio/backend-go/pkg/crypto"
 )
 
 // Redeclare Document locally to avoid import cycles
@@ -61,6 +63,9 @@ type Storage interface {
 	// Team operations (no-op in local mode)
 	GetTeam(ctx context.Context) (*Team, error)
 	GetTeamMembers(ctx context.Context) ([]*TeamMember, error)
+	
+	// Secret management
+	GetSecretStore() crypto.SecretStore
 	
 	// Lifecycle
 	Close() error

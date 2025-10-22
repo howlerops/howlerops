@@ -23,7 +23,7 @@ type PostgresDatabase struct {
 
 // NewPostgresDatabase creates a new PostgreSQL database instance
 func NewPostgresDatabase(config ConnectionConfig, logger *logrus.Logger) (*PostgresDatabase, error) {
-	pool, err := NewConnectionPool(config, logger)
+	pool, err := NewConnectionPool(config, nil, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create PostgreSQL connection pool: %w", err)
 	}
@@ -39,7 +39,7 @@ func NewPostgresDatabase(config ConnectionConfig, logger *logrus.Logger) (*Postg
 // Connect establishes a connection to PostgreSQL
 func (p *PostgresDatabase) Connect(ctx context.Context, config ConnectionConfig) error {
 	p.config = config
-	pool, err := NewConnectionPool(config, p.logger)
+	pool, err := NewConnectionPool(config, nil, p.logger)
 	if err != nil {
 		return fmt.Errorf("failed to connect to PostgreSQL: %w", err)
 	}

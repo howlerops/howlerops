@@ -15,12 +15,14 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/sql-studio/backend-go/internal/rag"
+	"github.com/sql-studio/backend-go/pkg/crypto"
 )
 
 // LocalSQLiteStorage implements Storage interface for local solo mode
 type LocalSQLiteStorage struct {
 	db          *sql.DB
 	vectorStore rag.VectorStore
+	secretStore *SecretStore
 	userID      string
 	mode        Mode
 	logger      *logrus.Logger
@@ -329,9 +331,21 @@ func NewLocalStorage(config *LocalStorageConfig, logger *logrus.Logger) (*LocalS
 		return nil, fmt.Errorf("failed to initialize vector store: %w", err)
 	}
 
+	// Create secret store
+	secretStore := NewSecretStore(db, logger)
+
+	// Create migration manager and run migrations
+	migrationManager := NewMigrationManager(db, secretStore, logger)
+	ctx := context.Background()
+	if err := migrationManager.RunMigrations(ctx); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to run migrations: %w", err)
+	}
+
 	storage := &LocalSQLiteStorage{
 		db:          db,
 		vectorStore: vectorStore,
+		secretStore: secretStore,
 		userID:      config.UserID,
 		mode:        ModeSolo,
 		logger:      logger,
@@ -924,6 +938,11 @@ func (s *LocalSQLiteStorage) Close() error {
 	}
 	s.logger.Info("Local storage closed")
 	return nil
+}
+
+// GetSecretStore returns the secret store for this storage instance
+func (s *LocalSQLiteStorage) GetSecretStore() crypto.SecretStore {
+	return s.secretStore
 }
 
 // Mode information

@@ -34,13 +34,21 @@ const VirtualRow = memo(React.forwardRef<HTMLTableRowElement, {
   tableColumns: TableColumn[];
   isVirtual?: boolean;
   virtualItem?: unknown;
-}>(({ row }, ref) => {
+  onRowClick?: (rowId: string, rowData: TableRow) => void;
+}>(({ row, onRowClick }, ref) => {
   const rowData = row as { original: { __rowId: string }; getVisibleCells: () => unknown[] };
+  
+  const handleRowClick = useCallback(() => {
+    if (onRowClick && rowData.original.__rowId) {
+      onRowClick(rowData.original.__rowId, rowData.original);
+    }
+  }, [onRowClick, rowData.original]);
   
   return (
     <tr
       ref={ref}
-      className="border-b border-border hover:bg-muted/50"
+      className="border-b border-border hover:bg-muted/50 cursor-pointer"
+      onClick={handleRowClick}
     >
       {rowData.getVisibleCells().map((cell: unknown) => {
         const cellData = cell as { id: string; column: { getSize: () => number; columnDef: { cell: unknown } }; getContext: () => object };
@@ -66,6 +74,7 @@ export const EditableTable: React.FC<EditableTableProps> = ({
   onDataChange,
   onCellEdit, // eslint-disable-line @typescript-eslint/no-unused-vars
   onRowSelect,
+  onRowClick,
   onSort,
   onFilter,
   onExport,
@@ -421,6 +430,7 @@ export const EditableTable: React.FC<EditableTableProps> = ({
                         tableColumns={tableColumns}
                         isVirtual={true}
                         virtualItem={virtualItem}
+                        onRowClick={onRowClick}
                         ref={virtualizer.measureElement}
                       />
                     );
@@ -448,6 +458,7 @@ export const EditableTable: React.FC<EditableTableProps> = ({
                     actions={actions}
                     tableColumns={tableColumns}
                     isVirtual={false}
+                    onRowClick={onRowClick}
                   />
                 ))
               )}

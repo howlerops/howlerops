@@ -59,15 +59,6 @@ export function VisualQueryBuilder({
     }
   }, [initialQuery])
 
-  // Load table columns when table changes
-  useEffect(() => {
-    if (queryState.from) {
-      loadTableColumns(queryState.from)
-    } else {
-      setTableColumns([])
-    }
-  }, [queryState.from, loadTableColumns])
-
   // Load table columns from schema
   const loadTableColumns = useCallback(async (table: TableRef) => {
     // Find table in schemas
@@ -92,6 +83,15 @@ export function VisualQueryBuilder({
       setTableColumns([])
     }
   }, [schemas])
+
+  // Load table columns when table changes
+  useEffect(() => {
+    if (queryState.from) {
+      loadTableColumns(queryState.from)
+    } else {
+      setTableColumns([])
+    }
+  }, [queryState.from, loadTableColumns])
 
   // Handle connection changes
   const handleConnectionsChange = (connectionIds: string[]) => {

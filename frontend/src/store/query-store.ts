@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { devtools } from 'zustand/middleware'
+import { devtools, persist } from 'zustand/middleware'
 import { wailsEndpoints } from '@/lib/wails-api'
 import { EventsOn } from '../../wailsjs/runtime/runtime'
 import { useConnectionStore, type DatabaseConnection } from './connection-store'
@@ -83,7 +83,7 @@ interface NormalisedRowsResult {
 }
 
 const MAX_EDITABLE_METADATA_ATTEMPTS = 20
-const editableMetadataTimers = new Map<string, ReturnType<typeof setTimeout>>()
+const editableMetadataTimers = new Map<string, number>()
 const editableMetadataTargets = new Map<string, string>()
 
 function cleanupEditableMetadataJob(jobId: string) {
@@ -296,7 +296,9 @@ function parseDurationMs(duration?: string): number {
 }
 
 export const useQueryStore = create<QueryState>()(
-  devtools((set, get) => {
+  devtools(
+    persist(
+      (set, get) => {
     const scheduleEditablePoll = (jobId: string, resultId: string, attempt = 0) => {
       const resultExists = get().results.some(result => result.id === resultId)
       if (!resultExists) {
@@ -571,7 +573,7 @@ export const useQueryStore = create<QueryState>()(
               error: message,
               editable: null,
               query,
-              connectionId,
+              connectionId: connectionId || undefined,
             })
             return
           }
@@ -610,7 +612,7 @@ export const useQueryStore = create<QueryState>()(
             error: undefined,
             editable: editableMetadata,
             query,
-            connectionId,
+            connectionId: connectionId || undefined,
           })
 
           const jobId = editableMetadata?.jobId || editableMetadata?.job_id
@@ -634,7 +636,7 @@ export const useQueryStore = create<QueryState>()(
             error: error instanceof Error ? error.message : 'Unknown error occurred',
             editable: null,
             query,
-            connectionId,
+            connectionId: connectionId || undefined,
           })
         } finally {
           get().updateTab(tabId, { isExecuting: false })
@@ -753,9 +755,18 @@ export const useQueryStore = create<QueryState>()(
         }))
       },
     }
-  }, {
+  },
+  {
     name: 'query-store',
-  })
+    partialize: (state) => ({
+      tabs: state.tabs,
+      activeTabId: state.activeTabId,
+    }),
+  }
+),
+{
+  name: 'query-store',
+})
 )
 
 if (typeof window !== 'undefined') {

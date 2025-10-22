@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from "react"
 import { QueryEditor, type QueryEditorHandle } from "@/components/query-editor"
 import { ResultsPanel } from "@/components/results-panel"
+import { PageErrorBoundary } from "@/components/page-error-boundary"
 import { useQueryMode } from "@/hooks/use-query-mode"
 
 const MIN_PANEL_FRACTION = 0.02
@@ -41,33 +42,35 @@ export function Dashboard() {
   }, [])
 
   return (
-    <div
-      ref={containerRef}
-      className="flex flex-1 h-full min-h-0 w-full flex-col overflow-hidden"
-    >
+    <PageErrorBoundary pageName="Dashboard">
       <div
-        className="flex min-h-[200px] flex-col border-b overflow-hidden"
-        style={{ flexGrow: editorFraction, flexShrink: 1, flexBasis: 0 }}
+        ref={containerRef}
+        className="flex flex-1 h-full min-h-0 w-full flex-col overflow-hidden"
       >
-        <QueryEditor ref={queryEditorRef} mode={mode} />
-      </div>
+        <div
+          className="flex min-h-[200px] flex-col border-b overflow-hidden"
+          style={{ flexGrow: editorFraction, flexShrink: 1, flexBasis: 0 }}
+        >
+          <QueryEditor ref={queryEditorRef} mode={mode} />
+        </div>
 
-      <div
-        className="relative h-2 cursor-row-resize bg-border hover:bg-primary/40"
-        onMouseDown={handleResizeStart}
-        role="separator"
-        aria-orientation="horizontal"
-        aria-label="Resize editor and results panels"
-      >
-        <div className="absolute inset-x-4 top-1/2 h-0.5 -translate-y-1/2 rounded bg-muted-foreground/50" />
-      </div>
+        <div
+          className="relative h-2 cursor-row-resize bg-border hover:bg-primary/40"
+          onMouseDown={handleResizeStart}
+          role="separator"
+          aria-orientation="horizontal"
+          aria-label="Resize editor and results panels"
+        >
+          <div className="absolute inset-x-4 top-1/2 h-0.5 -translate-y-1/2 rounded bg-muted-foreground/50" />
+        </div>
 
-      <div
-        className="flex min-h-[64px] flex-col overflow-hidden"
-        style={{ flexGrow: 1 - editorFraction, flexShrink: 1, flexBasis: 0 }}
-      >
-        <ResultsPanel onFixWithAI={handleFixWithAI} />
+        <div
+          className="flex min-h-[64px] flex-col overflow-hidden"
+          style={{ flexGrow: 1 - editorFraction, flexShrink: 1, flexBasis: 0 }}
+        >
+          <ResultsPanel onFixWithAI={handleFixWithAI} />
+        </div>
       </div>
-    </div>
+    </PageErrorBoundary>
   )
 }

@@ -22,7 +22,7 @@ type MySQLDatabase struct {
 
 // NewMySQLDatabase creates a new MySQL database instance
 func NewMySQLDatabase(config ConnectionConfig, logger *logrus.Logger) (*MySQLDatabase, error) {
-	pool, err := NewConnectionPool(config, logger)
+	pool, err := NewConnectionPool(config, nil, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create MySQL connection pool: %w", err)
 	}
@@ -38,7 +38,7 @@ func NewMySQLDatabase(config ConnectionConfig, logger *logrus.Logger) (*MySQLDat
 // Connect establishes a connection to MySQL
 func (m *MySQLDatabase) Connect(ctx context.Context, config ConnectionConfig) error {
 	m.config = config
-	pool, err := NewConnectionPool(config, m.logger)
+	pool, err := NewConnectionPool(config, nil, m.logger)
 	if err != nil {
 		return fmt.Errorf("failed to connect to MySQL: %w", err)
 	}

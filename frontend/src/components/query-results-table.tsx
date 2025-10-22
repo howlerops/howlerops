@@ -2,13 +2,14 @@ import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { Database, Clock, Save, AlertCircle, Download, Search, Inbox, Loader2, CheckCircle2 } from 'lucide-react'
 
 import { EditableTable } from './editable-table/editable-table'
+import { JsonRowViewerSidebar } from './json-row-viewer-sidebar'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
 import { TableColumn, ExportOptions, TableRow } from '../types/table'
 import { QueryEditableMetadata, QueryResultRow, useQueryStore } from '../store/query-store'
 import { wailsEndpoints } from '../lib/wails-api'
-import type { EditableTableContext } from '../types/table'
+import type { CellValue, EditableTableContext } from '../types/table'
 import { toast } from '../hooks/use-toast'
 
 interface QueryResultsTableProps {
@@ -385,6 +386,11 @@ export const QueryResultsTable = ({
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null)
+  
+  // JSON viewer state
+  const [jsonViewerOpen, setJsonViewerOpen] = useState(false)
+  const [selectedRowId, setSelectedRowId] = useState<string | null>(null)
+  const [selectedRowData, setSelectedRowData] = useState<TableRow | null>(null)
 
   const updateResultRows = useQueryStore((state) => state.updateResultRows)
   const columnsLookup = useMemo(() => buildColumnsLookup(metadata), [metadata])
@@ -664,6 +670,83 @@ export const QueryResultsTable = ({
     }
   }, [])
 
+  // JSON viewer handlers
+  const handleRowClick = useCallback((rowId: string, rowData: TableRow) => {
+    setSelectedRowId(rowId)
+    setSelectedRowData(rowData)
+    setJsonViewerOpen(true)
+  }, [])
+
+  const handleCloseJsonViewer = useCallback(() => {
+    setJsonViewerOpen(false)
+    setSelectedRowId(null)
+    setSelectedRowData(null)
+  }, [])
+
+  const handleJsonViewerSave = useCallback(async (rowId: string, data: Record<string, CellValue>): Promise<boolean> => {
+    if (!connectionId || !metadata?.enabled) return false
+
+    try {
+      // Build primary key for the update
+      const originalRow = originalRows[rowId]
+      if (!originalRow) return false
+
+      const primaryKey = buildPrimaryKeyMap(originalRow, metadata, columnsLookup)
+      if (!primaryKey) return false
+
+      // Prepare the update
+      const changedValues: Record<string, unknown> = {}
+      columnNames.forEach((columnName) => {
+        const currentValue = data[columnName]
+        const originalValue = originalRow[columnName]
+
+        const valuesAreEqual =
+          currentValue === originalValue ||
+          (currentValue == null && originalValue == null)
+
+        const metaColumn = metadata?.columns?.find((col) => {
+          const candidate = col.resultName ?? col.name
+          return candidate ? candidate.toLowerCase() === columnName.toLowerCase() : false
+        })
+
+        if (!valuesAreEqual && metaColumn?.editable) {
+          changedValues[columnName] = currentValue
+        }
+      })
+
+      if (Object.keys(changedValues).length === 0) return true
+
+      const response = await wailsEndpoints.queries.updateRow({
+        connectionId,
+        query,
+        columns: columnNames,
+        schema: metadata?.schema,
+        table: metadata?.table,
+        primaryKey,
+        values: changedValues,
+      })
+
+      if (!response.success) {
+        throw new Error(response.message || 'Failed to save changes')
+      }
+
+      // Update the table data
+      const currentRows = resolveCurrentRows()
+      const updatedRows = currentRows.map(row => 
+        row.__rowId === rowId 
+          ? { ...row, ...changedValues }
+          : row
+      )
+      
+      updateResultRows(resultId, updatedRows, originalRows)
+      
+      return true
+    } catch (error) {
+      console.error('JSON viewer save failed:', error)
+      return false
+    }
+  }, [connectionId, metadata, originalRows, columnsLookup, columnNames, query, resolveCurrentRows, updateResultRows, resultId])
+
   const handleCellEdit = useCallback(async (
     rowId: string,
     columnId: string,
@@ -838,6 +921,7 @@ export const QueryResultsTable = ({
           height="100%"
           onExport={handleExport}
           onCellEdit={handleCellEdit}
+          onRowClick={handleRowClick}
           toolbar={renderToolbar}
           footer={null}
         />
@@ -866,6 +950,18 @@ export const QueryResultsTable = ({
             : 'No pending changes'}
         </span>
       </div>
+
+      {/* JSON Row Viewer Sidebar */}
+      <JsonRowViewerSidebar
+        open={jsonViewerOpen}
+        onClose={handleCloseJsonViewer}
+        rowData={selectedRowData}
+        rowId={selectedRowId}
+        columns={columnNames}
+        metadata={metadata}
+        connectionId={connectionId}
+        onSave={handleJsonViewerSave}
+      />
     </div>
   )
 }

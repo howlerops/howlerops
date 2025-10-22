@@ -1,5 +1,7 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 import { StreamAIQueryAgent } from '../../wailsjs/go/main/App'
+import { main } from '../../wailsjs/go/models'
 import { EventsOn } from '../../wailsjs/runtime/runtime'
 import { useAIMemoryStore } from '@/store/ai-memory-store'
 import { showHybridNotification } from '@/lib/wails-ai-api'
@@ -264,7 +266,9 @@ function appendMessage(state: AIQueryAgentState, sessionId: string, message: Age
   }
 }
 
-export const useAIQueryAgentStore = create<AIQueryAgentState>((set, get) => ({
+export const useAIQueryAgentStore = create<AIQueryAgentState>()(
+  persist(
+    (set, get) => ({
   sessions: {},
   activeSessionId: null,
   streamingTurnId: undefined,
@@ -473,19 +477,21 @@ export const useAIQueryAgentStore = create<AIQueryAgentState>((set, get) => ({
     }))
 
     try {
-      const response = await StreamAIQueryAgent({
-        sessionId: options.sessionId,
-        message: options.message,
-        provider: options.provider,
-        model: options.model,
-        connectionId: options.connectionId,
-        connectionIds: options.connectionIds,
-        schemaContext: options.schemaContext,
-        context: options.context,
-        temperature: options.temperature,
-        maxTokens: options.maxTokens,
-        maxRows: options.maxRows,
-      })
+      const response = await StreamAIQueryAgent(
+        main.AIQueryAgentRequest.createFrom({
+          sessionId: options.sessionId,
+          message: options.message,
+          provider: options.provider,
+          model: options.model,
+          connectionId: options.connectionId,
+          connectionIds: options.connectionIds,
+          schemaContext: options.schemaContext,
+          context: options.context,
+          temperature: options.temperature,
+          maxTokens: options.maxTokens,
+          maxRows: options.maxRows,
+        })
+      )
 
       if (response?.error) {
         throw new Error(response.error)
@@ -556,20 +562,22 @@ export const useAIQueryAgentStore = create<AIQueryAgentState>((set, get) => ({
           title: session.title,
           createdAt: session.createdAt,
           updatedAt: session.updatedAt,
-          messages: (session.messages || []).map(msg => ({
-            id: msg.id,
-            agent: typeof msg.metadata?.agent === 'string' ? (msg.metadata.agent as string) : msg.role === 'user' ? 'user' : 'assistant',
-            role: msg.role,
-            title: typeof msg.metadata?.title === 'string' ? (msg.metadata.title as string) : undefined,
-            content: msg.content,
-            createdAt: msg.timestamp,
-            attachments: Array.isArray(msg.metadata?.attachments)
-              ? (msg.metadata.attachments as AgentAttachment[])
-              : undefined,
-            provider: typeof msg.metadata?.provider === 'string' ? (msg.metadata.provider as string) : undefined,
-            model: typeof msg.metadata?.model === 'string' ? (msg.metadata.model as string) : undefined,
-            tokensUsed: typeof msg.metadata?.tokensUsed === 'number' ? (msg.metadata.tokensUsed as number) : undefined,
-          })),
+          messages: (session.messages || [])
+            .filter(msg => msg.role !== 'system') // Filter out system messages
+            .map(msg => ({
+              id: msg.id,
+              agent: typeof msg.metadata?.agent === 'string' ? (msg.metadata.agent as string) : msg.role === 'user' ? 'user' : 'assistant',
+              role: msg.role === 'user' ? 'user' : 'assistant', // Ensure only user or assistant
+              title: typeof msg.metadata?.title === 'string' ? (msg.metadata.title as string) : undefined,
+              content: msg.content,
+              createdAt: msg.timestamp,
+              attachments: Array.isArray(msg.metadata?.attachments)
+                ? (msg.metadata.attachments as AgentAttachment[])
+                : undefined,
+              provider: typeof msg.metadata?.provider === 'string' ? (msg.metadata.provider as string) : undefined,
+              model: typeof msg.metadata?.model === 'string' ? (msg.metadata.model as string) : undefined,
+              tokensUsed: typeof msg.metadata?.tokensUsed === 'number' ? (msg.metadata.tokensUsed as number) : undefined,
+            })),
           status: 'idle',
         }
       }
@@ -584,7 +592,16 @@ export const useAIQueryAgentStore = create<AIQueryAgentState>((set, get) => ({
       isHydrated: true,
     }))
   },
-}))
+}),
+{
+  name: 'ai-query-agent-store',
+  partialize: (state) => ({
+    sessions: state.sessions,
+    activeSessionId: state.activeSessionId,
+    isHydrated: state.isHydrated,
+  }),
+}
+))
 
 if (typeof window !== 'undefined') {
   EventsOn('ai:query-agent:stream', (payload: unknown) => {

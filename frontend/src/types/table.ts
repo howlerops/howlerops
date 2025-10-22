@@ -35,6 +35,7 @@ export interface EditableTableProps {
   onDataChange?: (data: TableRow[]) => void;
   onCellEdit?: (rowId: string, columnId: string, value: CellValue) => Promise<boolean>;
   onRowSelect?: (selectedRows: string[]) => void;
+  onRowClick?: (rowId: string, rowData: TableRow) => void;
   onSort?: (sorting: SortingState) => void;
   onFilter?: (filters: ColumnFiltersState) => void;
   onExport?: (options: ExportOptions) => void;
@@ -235,4 +236,30 @@ export interface TableMetrics {
     start: number;
     end: number;
   };
+}
+
+export interface JsonViewerState {
+  isOpen: boolean;
+  currentRow: TableRow | null;
+  currentRowId: string | null;
+  isEditing: boolean;
+  editedData: Record<string, CellValue> | null;
+  validationErrors: Map<string, string>;
+  wordWrap: boolean;
+  expandedKeys: Set<string>;
+  collapsedKeys: Set<string>;
+  searchQuery: string;
+  searchResults: {
+    matches: any[];
+    currentIndex: number;
+    totalMatches: number;
+  };
+  useRegex: boolean;
+  searchKeys: boolean;
+  searchValues: boolean;
+  expandedForeignKeys: Set<string>;
+  foreignKeyCache: Map<string, any>;
+  isLoading: boolean;
+  isSaving: boolean;
+  saveError: string | null;
 }

@@ -171,11 +171,11 @@ const defaultState: AIState = {
   providerSynced: false,
 }
 
-type WailsMemorySession = InstanceType<typeof wailsModels.AIMemorySession>
-type WailsMemoryMessage = InstanceType<typeof wailsModels.AIMemoryMessage>
+type WailsMemorySession = InstanceType<typeof wailsModels.AIMemorySessionPayload>
+type WailsMemoryMessage = InstanceType<typeof wailsModels.AIMemoryMessagePayload>
 
 const serializeMemorySessions = (sessions: MemorySession[]): WailsMemorySession[] => {
-  return sessions.map(session => wailsModels.AIMemorySession.createFrom({
+  return sessions.map(session => wailsModels.AIMemorySessionPayload.createFrom({
     id: session.id,
     title: session.title,
     createdAt: session.createdAt,
@@ -183,7 +183,7 @@ const serializeMemorySessions = (sessions: MemorySession[]): WailsMemorySession[
     summary: session.summary ?? '',
     summaryTokens: session.summaryTokens ?? 0,
     metadata: session.metadata ?? {},
-    messages: session.messages.map(message => wailsModels.AIMemoryMessage.createFrom({
+    messages: session.messages.map(message => wailsModels.AIMemoryMessagePayload.createFrom({
       role: message.role,
       content: message.content,
       timestamp: message.timestamp,
@@ -616,7 +616,7 @@ export const useAIStore = create<AIState & AIActions>()(
 
           if (config.syncMemories) {
             try {
-              const recalled = await RecallAIMemorySessions(query, 5)
+              const recalled = await RecallAIMemorySessions(prompt, 5)
               if (Array.isArray(recalled) && recalled.length > 0) {
                 const recallContext = recalled
                   .map((item) => {

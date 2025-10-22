@@ -1,7 +1,6 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
@@ -26,6 +25,8 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
+import { SecretInput } from "@/components/secret-input"
+import { PemKeyUpload } from "@/components/pem-key-upload"
 import { useConnectionStore, DatabaseTypeString, SSHTunnelConfig, VPCConfig } from "@/store/connection-store"
 import { DatabaseConnection } from "@/store/connection-store"
 import { SSHAuthMethod } from "@/generated/database"
@@ -51,6 +52,7 @@ interface ConnectionFormData {
   sshPassword: string
   sshPrivateKey: string
   sshPrivateKeyPath: string
+  sshPrivateKeyPassphrase: string
   sshKnownHostsPath: string
   sshStrictHostKeyChecking: boolean
   sshTimeoutSeconds: string
@@ -91,6 +93,7 @@ const defaultFormData: ConnectionFormData = {
   sshPassword: '',
   sshPrivateKey: '',
   sshPrivateKeyPath: '',
+  sshPrivateKeyPassphrase: '',
   sshKnownHostsPath: '',
   sshStrictHostKeyChecking: true,
   sshTimeoutSeconds: '30',
@@ -416,13 +419,14 @@ export function ConnectionManager() {
                       <Label htmlFor="password" className="text-right">
                         Password
                       </Label>
-                      <Input
-                        id="password"
-                        type="password"
-                        value={formData.password}
-                        onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                        className="col-span-3"
-                      />
+                      <div className="col-span-3">
+                        <SecretInput
+                          id="password"
+                          value={formData.password}
+                          onChange={(value) => setFormData(prev => ({ ...prev, password: value }))}
+                          placeholder="Enter database password"
+                        />
+                      </div>
                     </div>
                   </>
                 )}
@@ -617,45 +621,38 @@ export function ConnectionManager() {
                                 <Label htmlFor="sshPassword" className="text-right">
                                   SSH Password
                                 </Label>
-                                <Input
-                                  id="sshPassword"
-                                  type="password"
-                                  value={formData.sshPassword}
-                                  onChange={(e) => setFormData(prev => ({ ...prev, sshPassword: e.target.value }))}
-                                  className="col-span-3"
-                                  required
-                                />
+                                <div className="col-span-3">
+                                  <SecretInput
+                                    id="sshPassword"
+                                    value={formData.sshPassword}
+                                    onChange={(value) => setFormData(prev => ({ ...prev, sshPassword: value }))}
+                                    placeholder="Enter SSH password"
+                                    required
+                                  />
+                                </div>
                               </div>
                             )}
 
                             {formData.sshAuthMethod === SSHAuthMethod.SSH_AUTH_METHOD_PRIVATE_KEY && (
-                              <>
-                                <div className="grid grid-cols-4 items-center gap-4">
-                                  <Label htmlFor="sshPrivateKeyPath" className="text-right">
-                                    Private Key Path
-                                  </Label>
-                                  <Input
-                                    id="sshPrivateKeyPath"
-                                    value={formData.sshPrivateKeyPath}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, sshPrivateKeyPath: e.target.value }))}
-                                    className="col-span-3"
-                                    placeholder="~/.ssh/id_rsa"
+                              <div className="grid grid-cols-4 items-start gap-4">
+                                <Label className="text-right pt-2">
+                                  Private Key
+                                </Label>
+                                <div className="col-span-3">
+                                  <PemKeyUpload
+                                    onUpload={(keyContent) => setFormData(prev => ({ ...prev, sshPrivateKey: keyContent }))}
+                                    onError={(error) => console.error('PEM key error:', error)}
                                   />
+                                  <div className="mt-2">
+                                    <SecretInput
+                                      value={formData.sshPrivateKeyPassphrase}
+                                      onChange={(value) => setFormData(prev => ({ ...prev, sshPrivateKeyPassphrase: value }))}
+                                      placeholder="Key passphrase (if encrypted)"
+                                      label="Key Passphrase (Optional)"
+                                    />
+                                  </div>
                                 </div>
-                                <div className="grid grid-cols-4 items-start gap-4">
-                                  <Label htmlFor="sshPrivateKey" className="text-right pt-2">
-                                    Or Paste Key
-                                  </Label>
-                                  <Textarea
-                                    id="sshPrivateKey"
-                                    value={formData.sshPrivateKey}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, sshPrivateKey: e.target.value }))}
-                                    className="col-span-3"
-                                    rows={4}
-                                    placeholder="-----BEGIN RSA PRIVATE KEY-----"
-                                  />
-                                </div>
-                              </>
+                              </div>
                             )}
 
                             {/* Advanced SSH Options */}

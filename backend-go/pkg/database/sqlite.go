@@ -22,7 +22,7 @@ type SQLiteDatabase struct {
 
 // NewSQLiteDatabase creates a new SQLite database instance
 func NewSQLiteDatabase(config ConnectionConfig, logger *logrus.Logger) (*SQLiteDatabase, error) {
-	pool, err := NewConnectionPool(config, logger)
+	pool, err := NewConnectionPool(config, nil, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create SQLite connection pool: %w", err)
 	}
@@ -38,7 +38,7 @@ func NewSQLiteDatabase(config ConnectionConfig, logger *logrus.Logger) (*SQLiteD
 // Connect establishes a connection to SQLite
 func (s *SQLiteDatabase) Connect(ctx context.Context, config ConnectionConfig) error {
 	s.config = config
-	pool, err := NewConnectionPool(config, s.logger)
+	pool, err := NewConnectionPool(config, nil, s.logger)
 	if err != nil {
 		return fmt.Errorf("failed to connect to SQLite: %w", err)
 	}

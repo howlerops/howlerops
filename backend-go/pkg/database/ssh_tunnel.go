@@ -12,6 +12,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
+	"github.com/sql-studio/backend-go/pkg/crypto"
 )
 
 // SSHTunnel represents an active SSH tunnel
@@ -33,16 +34,18 @@ type SSHTunnel struct {
 
 // SSHTunnelManager manages SSH tunnels for database connections
 type SSHTunnelManager struct {
-	tunnels map[string]*SSHTunnel
-	mu      sync.RWMutex
-	logger  *logrus.Logger
+	tunnels     map[string]*SSHTunnel
+	secretStore crypto.SecretStore
+	mu          sync.RWMutex
+	logger      *logrus.Logger
 }
 
 // NewSSHTunnelManager creates a new SSH tunnel manager
-func NewSSHTunnelManager(logger *logrus.Logger) *SSHTunnelManager {
+func NewSSHTunnelManager(secretStore crypto.SecretStore, logger *logrus.Logger) *SSHTunnelManager {
 	return &SSHTunnelManager{
-		tunnels: make(map[string]*SSHTunnel),
-		logger:  logger,
+		tunnels:     make(map[string]*SSHTunnel),
+		secretStore: secretStore,
+		logger:      logger,
 	}
 }
 
@@ -53,7 +56,7 @@ func (m *SSHTunnelManager) EstablishTunnel(ctx context.Context, config *SSHTunne
 	}
 
 	// Create SSH client configuration
-	sshConfig, err := m.buildSSHConfig(config)
+	sshConfig, err := m.buildSSHConfig(ctx, config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build SSH config: %w", err)
 	}
@@ -173,31 +176,66 @@ func (m *SSHTunnelManager) CloseAll() error {
 }
 
 // buildSSHConfig creates an SSH client configuration from SSHTunnelConfig
-func (m *SSHTunnelManager) buildSSHConfig(config *SSHTunnelConfig) (*ssh.ClientConfig, error) {
+func (m *SSHTunnelManager) buildSSHConfig(ctx context.Context, config *SSHTunnelConfig) (*ssh.ClientConfig, error) {
 	authMethods := make([]ssh.AuthMethod, 0)
 
 	// Configure authentication
 	switch config.AuthMethod {
 	case SSHAuthPassword:
-		if config.Password == "" {
+		var password string
+
+		// Try to load password from SecretStore first
+		if m.secretStore != nil && config.ConnectionID != "" {
+			passwordBytes, secretErr := m.secretStore.GetSecret(ctx, config.ConnectionID, crypto.SecretTypeSSHPassword)
+			if secretErr == nil {
+				password = string(passwordBytes)
+			} else {
+				// Fall back to plaintext password (deprecated)
+				password = config.Password
+			}
+		} else {
+			password = config.Password
+		}
+
+		if password == "" {
 			return nil, fmt.Errorf("password is required for password authentication")
 		}
-		authMethods = append(authMethods, ssh.Password(config.Password))
+		authMethods = append(authMethods, ssh.Password(password))
 
 	case SSHAuthPrivateKey:
 		var keyData []byte
 		var err error
 
-		// Try to read from PrivateKey first (direct content), then PrivateKeyPath
-		if config.PrivateKey != "" {
-			keyData = []byte(config.PrivateKey)
-		} else if config.PrivateKeyPath != "" {
-			keyData, err = ioutil.ReadFile(config.PrivateKeyPath)
-			if err != nil {
-				return nil, fmt.Errorf("failed to read private key file: %w", err)
+		// Try to load private key from SecretStore first
+		if m.secretStore != nil && config.ConnectionID != "" {
+			keyBytes, secretErr := m.secretStore.GetSecret(ctx, config.ConnectionID, crypto.SecretTypeSSHPrivateKey)
+			if secretErr == nil {
+				keyData = keyBytes
+			} else {
+				// Fall back to plaintext private key (deprecated)
+				if config.PrivateKey != "" {
+					keyData = []byte(config.PrivateKey)
+				} else if config.PrivateKeyPath != "" {
+					keyData, err = ioutil.ReadFile(config.PrivateKeyPath)
+					if err != nil {
+						return nil, fmt.Errorf("failed to read private key file: %w", err)
+					}
+				}
 			}
 		} else {
-			return nil, fmt.Errorf("private key or private key path is required for key authentication")
+			// Fall back to plaintext private key (deprecated)
+			if config.PrivateKey != "" {
+				keyData = []byte(config.PrivateKey)
+			} else if config.PrivateKeyPath != "" {
+				keyData, err = ioutil.ReadFile(config.PrivateKeyPath)
+				if err != nil {
+					return nil, fmt.Errorf("failed to read private key file: %w", err)
+				}
+			}
+		}
+
+		if len(keyData) == 0 {
+			return nil, fmt.Errorf("private key is required for key authentication")
 		}
 
 		signer, err := ssh.ParsePrivateKey(keyData)
