@@ -16,6 +16,7 @@ import { Moon, Sun, Plus, Settings, Sparkles, Database } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useNavigate } from "react-router-dom"
 import { HowlerOpsIcon } from "@/components/ui/howlerops-icon"
+import { TierBadge } from "@/components/tier-badge"
 
 export function Header() {
   const location = useLocation()
@@ -91,6 +92,10 @@ export function Header() {
         </div>
 
         <div className="ml-auto flex items-center space-x-4">
+          <TierBadge
+            variant="header"
+            onClick={() => navigate('/settings?tab=tier')}
+          />
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

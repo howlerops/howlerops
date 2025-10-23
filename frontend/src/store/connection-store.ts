@@ -3,6 +3,7 @@ import { devtools, persist } from 'zustand/middleware'
 import { wailsEndpoints } from '@/lib/wails-api'
 import { SSHAuthMethod } from '@/generated/database'
 import { getSecureStorage, migratePasswordsFromLocalStorage } from '@/lib/secure-storage'
+import { useTierStore } from './tier-store'
 
 export type DatabaseTypeString =
   | 'postgresql'
@@ -101,6 +102,29 @@ export const useConnectionStore = create<ConnectionState>()(
         availableEnvironments: [],
 
         addConnection: (connectionData) => {
+          // Check tier limit before adding
+          const currentConnections = get().connections.length
+          const tierStore = useTierStore.getState()
+          const limitCheck = tierStore.checkLimit('connections', currentConnections + 1)
+
+          if (!limitCheck.allowed) {
+            console.warn('Connection limit reached:', limitCheck)
+            // Dispatch event for upgrade prompt
+            window.dispatchEvent(
+              new CustomEvent('showUpgradeDialog', {
+                detail: {
+                  limit: 'connections',
+                  currentTier: tierStore.currentTier,
+                  usage: currentConnections,
+                  limit: limitCheck.limit,
+                },
+              })
+            )
+            throw new Error(
+              `Connection limit reached. Current tier allows ${limitCheck.limit} connections.`
+            )
+          }
+
           const newConnection: DatabaseConnection = {
             ...connectionData,
             id: crypto.randomUUID(),
