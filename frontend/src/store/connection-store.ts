@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
 import { wailsEndpoints } from '@/lib/wails-api'
 import { SSHAuthMethod } from '@/generated/database'
+import { getSecureStorage, migratePasswordsFromLocalStorage } from '@/lib/secure-storage'
 
 export type DatabaseTypeString =
   | 'postgresql'
@@ -106,10 +107,29 @@ export const useConnectionStore = create<ConnectionState>()(
             isConnected: false,
           }
 
+          // Store sensitive credentials in secure storage (sessionStorage)
+          const secureStorage = getSecureStorage()
+          secureStorage.setCredentials(newConnection.id, {
+            password: connectionData.password,
+            sshPassword: connectionData.sshTunnel?.password,
+            sshPrivateKey: connectionData.sshTunnel?.privateKey
+          })
+
+          // Remove passwords from the connection object before storing
+          const safeConnection = {
+            ...newConnection,
+            password: undefined,
+            sshTunnel: newConnection.sshTunnel ? {
+              ...newConnection.sshTunnel,
+              password: undefined,
+              privateKey: undefined
+            } : undefined
+          }
+
           set((state) => ({
-            connections: [...state.connections, newConnection],
+            connections: [...state.connections, safeConnection],
           }))
-          
+
           // Auto-connect if enabled
           if (get().autoConnectEnabled) {
             // Delay slightly to ensure state is updated
@@ -124,18 +144,54 @@ export const useConnectionStore = create<ConnectionState>()(
         },
 
         updateConnection: (id, updates) => {
-          set((state) => ({
-            connections: state.connections.map((conn) =>
-              conn.id === id ? { ...conn, ...updates } : conn
-            ),
-            activeConnection:
-              state.activeConnection?.id === id
-                ? { ...state.activeConnection, ...updates }
-                : state.activeConnection,
-          }))
+          // If updating password or SSH credentials, store in secure storage
+          if (updates.password || updates.sshTunnel?.password || updates.sshTunnel?.privateKey) {
+            const secureStorage = getSecureStorage()
+            const existing = secureStorage.getCredentials(id) || { connectionId: id }
+            secureStorage.setCredentials(id, {
+              password: updates.password ?? existing.password,
+              sshPassword: updates.sshTunnel?.password ?? existing.sshPassword,
+              sshPrivateKey: updates.sshTunnel?.privateKey ?? existing.sshPrivateKey
+            })
+
+            // Remove passwords from updates
+            const safeUpdates = {
+              ...updates,
+              password: undefined,
+              sshTunnel: updates.sshTunnel ? {
+                ...updates.sshTunnel,
+                password: undefined,
+                privateKey: undefined
+              } : updates.sshTunnel
+            }
+
+            set((state) => ({
+              connections: state.connections.map((conn) =>
+                conn.id === id ? { ...conn, ...safeUpdates } : conn
+              ),
+              activeConnection:
+                state.activeConnection?.id === id
+                  ? { ...state.activeConnection, ...safeUpdates }
+                  : state.activeConnection,
+            }))
+          } else {
+            set((state) => ({
+              connections: state.connections.map((conn) =>
+                conn.id === id ? { ...conn, ...updates } : conn
+              ),
+              activeConnection:
+                state.activeConnection?.id === id
+                  ? { ...state.activeConnection, ...updates }
+                  : state.activeConnection,
+            }))
+          }
         },
 
         removeConnection: (id) => {
+          // Remove from secure storage
+          const secureStorage = getSecureStorage()
+          secureStorage.removeCredentials(id)
+
           set((state) => ({
             connections: state.connections.filter((conn) => conn.id !== id),
             activeConnection: state.activeConnection?.id === id ? null : state.activeConnection,
@@ -160,6 +216,10 @@ export const useConnectionStore = create<ConnectionState>()(
 
           set({ isConnecting: true })
           try {
+            // Retrieve password from secure storage
+            const secureStorage = getSecureStorage()
+            const credentials = secureStorage.getCredentials(connectionId)
+
             const alias = connection.name?.trim()
             const aliasParameters: Record<string, string> = {}
 
@@ -184,7 +244,7 @@ export const useConnectionStore = create<ConnectionState>()(
               port: connection.port ?? 0,
               database: connection.database,
               username: connection.username ?? '',
-              password: connection.password ?? '',
+              password: credentials?.password ?? '',
               parameters: aliasParameters,
             })
 
@@ -327,8 +387,18 @@ export const useConnectionStore = create<ConnectionState>()(
       {
         name: 'connection-store',
         partialize: (state) => ({
-          connections: state.connections.map(({ sessionId, isConnected, lastUsed, ...rest }) => { // eslint-disable-line @typescript-eslint/no-unused-vars
-            return { ...rest }
+          connections: state.connections.map(({ sessionId, isConnected, lastUsed, password, ...rest }) => { // eslint-disable-line @typescript-eslint/no-unused-vars
+            // Strip sensitive credentials and connection state
+            const { sshTunnel, ...safeRest } = rest
+            return {
+              ...safeRest,
+              // Strip passwords from SSH tunnel config
+              sshTunnel: sshTunnel ? {
+                ...sshTunnel,
+                password: undefined,
+                privateKey: undefined
+              } : undefined
+            }
           }),
           autoConnectEnabled: state.autoConnectEnabled,
           activeEnvironmentFilter: state.activeEnvironmentFilter,
@@ -340,15 +410,19 @@ export const useConnectionStore = create<ConnectionState>()(
           }
           if (!state) return
 
+          // Migrate any passwords from localStorage to sessionStorage
+          migratePasswordsFromLocalStorage()
+
           state.connections = state.connections.map((connection) => ({
             ...connection,
             sessionId: undefined,
             isConnected: false,
             lastUsed: undefined,
+            password: undefined, // Ensure no passwords in rehydrated state
           }))
           state.activeConnection = null
           // Keep autoConnectEnabled and activeEnvironmentFilter on rehydrate
-          
+
           // Refresh available environments
           state.refreshAvailableEnvironments()
         },

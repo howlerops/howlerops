@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useConnectionStore } from '@/store/connection-store'
-import { wailsEndpoints } from '@/lib/wails-api'
+import { useSchemaStore, type SchemaNode } from '@/store/schema-store'
 
 interface SyntheticViewColumn {
   name: string
@@ -59,21 +59,13 @@ const normaliseSyntheticView = (view: unknown): SyntheticViewDefinition | null =
   }
 }
 
-export interface SchemaNode {
-  id: string
-  name: string
-  type: 'database' | 'schema' | 'table' | 'column'
-  children?: SchemaNode[]
-  expanded?: boolean
-  metadata?: unknown
-}
+// Re-export SchemaNode from the centralized store
+export type { SchemaNode } from '@/store/schema-store'
 
-// Schema cache with persistence
+// Deprecated: Old SchemaCache - replaced by centralized useSchemaStore
+// Keeping for backward compatibility during migration
 class SchemaCache {
   private static instance: SchemaCache
-  private cache: Map<string, { data: SchemaNode[], timestamp: number }> = new Map()
-  private readonly CACHE_EXPIRY = 24 * 60 * 60 * 1000 // 24 hours
-  private readonly STORAGE_KEY = 'howlerops-schema-cache'
 
   static getInstance(): SchemaCache {
     if (!SchemaCache.instance) {
@@ -82,257 +74,41 @@ class SchemaCache {
     return SchemaCache.instance
   }
 
-  constructor() {
-    this.loadFromStorage()
+  get(_key: string): SchemaNode[] | null {
+    return null // Deprecated - use useSchemaStore instead
   }
 
-  private loadFromStorage() {
-    // ❌ DISABLED: localStorage quota exceeded with large schemas (312 tables)
-    // Session-only caching via in-memory Map is sufficient
-    // Backend caching (schema_cache.go) provides persistence
-    return
+  set(_key: string, _data: SchemaNode[]) {
+    // Deprecated - use useSchemaStore instead
   }
 
-  private saveToStorage() {
-    // ❌ DISABLED: localStorage quota exceeded with large schemas (312 tables)
-    // Session-only caching via in-memory Map is sufficient
-    // Backend caching (schema_cache.go) provides persistence
-    return
-  }
-
-  get(key: string): SchemaNode[] | null {
-    const entry = this.cache.get(key)
-    if (!entry) return null
-    
-    const now = Date.now()
-    if ((now - entry.timestamp) > this.CACHE_EXPIRY) {
-      this.cache.delete(key)
-      return null
-    }
-    
-    return entry.data
-  }
-
-  set(key: string, data: SchemaNode[]) {
-    this.cache.set(key, {
-      data,
-      timestamp: Date.now()
-    })
-    // No localStorage persistence needed (backend caching handles it)
-  }
-
-  clear(key?: string) {
-    if (key) {
-      this.cache.delete(key)
-    } else {
-      this.cache.clear()
-    }
-    // No localStorage persistence needed
+  clear(_key?: string) {
+    // Deprecated - use useSchemaStore instead
   }
 
   clearExpired() {
-    const now = Date.now()
-    const expiredKeys: string[] = []
-    
-    this.cache.forEach((value, key) => {
-      if ((now - value.timestamp) > this.CACHE_EXPIRY) {
-        expiredKeys.push(key)
-      }
-    })
-    
-    expiredKeys.forEach(key => this.cache.delete(key))
-    // No localStorage persistence needed
+    // Deprecated - use useSchemaStore instead
   }
 }
 
+/**
+ * Simplified hook for schema introspection using centralized store
+ *
+ * @deprecated Consider using useSchemaStore directly for more control
+ */
 export function useSchemaIntrospection() {
   const { activeConnection } = useConnectionStore()
+  const getSchema = useSchemaStore((state) => state.getSchema)
+  const isLoading = useSchemaStore((state) => state.isLoading)
+  const getError = useSchemaStore((state) => state.getError)
+  const invalidate = useSchemaStore((state) => state.invalidate)
+  const invalidateAll = useSchemaStore((state) => state.invalidateAll)
+
   const [schema, setSchema] = useState<SchemaNode[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const cacheRef = useRef<SchemaCache>(SchemaCache.getInstance())
 
-  // Helper function for formatting column names
-  const formatColumnName = useCallback((column: {
-    name: string;
-    dataType?: string;
-    characterMaximumLength?: number;
-    numericPrecision?: number;
-    numericScale?: number;
-    isNullable?: string;
-    columnDefault?: string | null;
-    isPrimaryKey?: boolean;
-    isForeignKey?: boolean;
-  }): string => {
-    let formattedName = column.name
-
-    if (column.dataType) {
-      let typeStr = column.dataType
-      if (column.characterMaximumLength) {
-        typeStr += `(${column.characterMaximumLength})`
-      } else if (column.numericPrecision) {
-        typeStr += `(${column.numericPrecision}`
-        if (column.numericScale) {
-          typeStr += `,${column.numericScale}`
-        }
-        typeStr += ')'
-      }
-      formattedName += `: ${typeStr}`
-    }
-
-    const badges = []
-    if (column.isPrimaryKey) badges.push('PK')
-    if (column.isForeignKey) badges.push('FK')
-    if (column.isNullable === 'NO') badges.push('NOT NULL')
-
-    if (badges.length > 0) {
-      formattedName += ` [${badges.join(', ')}]`
-    }
-
-    return formattedName
-  }, [])
-
-  const fetchSchema = useCallback(async (connectionId: string, cacheKey: string, force = false) => {
-    if (!force) {
-      const cached = cacheRef.current.get(cacheKey)
-      if (cached) {
-        setSchema(cached)
-        setLoading(false)
-        setError(null)
-        return
-      }
-    }
-
-    setLoading(true)
-    setError(null)
-
-    try {
-      // Fetch schemas/databases
-      const schemasResponse = await wailsEndpoints.schema.databases(connectionId)
-      
-      // Also fetch synthetic views
-      let syntheticViews: SyntheticViewDefinition[] = []
-      try {
-        const { GetSyntheticSchema } = await import('../../wailsjs/go/main/App')
-        const syntheticSchema = await GetSyntheticSchema() as { views?: unknown }
-        if (syntheticSchema && Array.isArray(syntheticSchema.views)) {
-          syntheticViews = syntheticSchema.views
-            .map(normaliseSyntheticView)
-            .filter((view): view is SyntheticViewDefinition => view !== null)
-        }
-      } catch (err) {
-        console.warn('Failed to load synthetic views:', err)
-      }
-
-      if (!schemasResponse.success || !schemasResponse.data) {
-        throw new Error(schemasResponse.message || 'Failed to fetch schemas')
-      }
-
-      const schemaNodes: SchemaNode[] = []
-
-      // For each schema, fetch tables
-      for (const schemaInfo of schemasResponse.data) {
-        const schemaNode: SchemaNode = {
-          id: schemaInfo.name,
-          name: schemaInfo.name,
-          type: 'schema',
-          expanded: schemaInfo.name === 'public', // Expand 'public' by default
-          children: []
-        }
-
-        // Fetch tables for this schema
-        const tablesResponse = await wailsEndpoints.schema.tables(
-          connectionId,
-          schemaInfo.name
-        )
-
-        if (tablesResponse.success && tablesResponse.data) {
-          schemaNode.children = await Promise.all(
-            tablesResponse.data.map(async (tableInfo, tableIndex) => {
-              const tableId = `${schemaInfo.name}.${tableInfo.name}.${tableIndex}`
-              const tableNode: SchemaNode = {
-                id: tableId,
-                name: tableInfo.name,
-                type: 'table',
-                children: [],
-                metadata: {
-                  rowCount: tableInfo.rowCount,
-                  sizeBytes: tableInfo.sizeBytes,
-                  comment: tableInfo.comment
-                }
-              }
-
-              // Fetch columns for this table
-              try {
-                const columnsResponse = await wailsEndpoints.schema.columns(
-                  connectionId,
-                  schemaInfo.name,
-                  tableInfo.name
-                )
-
-                if (columnsResponse.success && columnsResponse.data) {
-                  tableNode.children = columnsResponse.data.map((columnInfo, columnIndex) => ({
-                    id: `${tableId}.${columnInfo.name}.${columnIndex}`,
-                    name: formatColumnName(columnInfo),
-                    type: 'column' as const,
-                    metadata: columnInfo
-                  }))
-                }
-              } catch (err) {
-                console.error(`Failed to fetch columns for ${tableInfo.name}:`, err)
-              }
-
-              return tableNode
-            })
-          )
-        }
-
-        schemaNodes.push(schemaNode)
-      }
-
-      // Add synthetic views as a special schema
-      if (syntheticViews.length > 0) {
-        const syntheticSchemaNode: SchemaNode = {
-          id: 'synthetic',
-          name: 'synthetic',
-          type: 'schema',
-          expanded: true,
-          children: syntheticViews.map((view, index) => ({
-            id: `synthetic.${view.name}.${index}`,
-            name: view.name,
-            type: 'table' as const,
-            children: view.columns?.map((col, colIndex) => ({
-              id: `synthetic.${view.name}.${col.name}.${colIndex}`,
-              name: col.name,
-              type: 'column' as const,
-              metadata: {
-                dataType: col.type,
-                readOnly: true,
-                synthetic: true
-              }
-            })) || [],
-            metadata: {
-              readOnly: true,
-              synthetic: true,
-              comment: 'Synthetic federated view'
-            }
-          }))
-        }
-        schemaNodes.push(syntheticSchemaNode)
-      }
-
-      setSchema(schemaNodes)
-      cacheRef.current.set(cacheKey, schemaNodes)
-    } catch (err) {
-      console.error('Schema introspection error:', err)
-      setError(err instanceof Error ? err.message : 'Failed to fetch schema')
-      setSchema([])
-    } finally {
-      setLoading(false)
-    }
-  }, [formatColumnName])
-
-  // Add useEffect hook here after fetchSchema is defined
+  // Fetch schema when connection changes
   useEffect(() => {
     if (!activeConnection?.isConnected || !activeConnection.sessionId) {
       setSchema([])
@@ -341,37 +117,52 @@ export function useSchemaIntrospection() {
       return
     }
 
-    const cacheKey = activeConnection.sessionId ?? activeConnection.id
-    if (cacheKey) {
-      const cached = cacheRef.current.get(cacheKey)
-      if (cached) {
-        setSchema(cached)
+    const sessionId = activeConnection.sessionId
+
+    // Update loading state
+    setLoading(isLoading(sessionId))
+    setError(getError(sessionId) || null)
+
+    // Fetch from store
+    getSchema(sessionId, activeConnection.name)
+      .then((schemas) => {
+        setSchema(schemas)
         setLoading(false)
         setError(null)
-        return
-      }
-    }
-
-    fetchSchema(activeConnection.sessionId, activeConnection.sessionId ?? activeConnection.id ?? '', false)
-    // fetchSchema is stable via useCallback, no need to include in deps
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeConnection?.isConnected, activeConnection?.sessionId, activeConnection?.id])
+      })
+      .catch((err) => {
+        console.error('Failed to load schema:', err)
+        setSchema([])
+        setLoading(false)
+        setError(err instanceof Error ? err.message : 'Failed to load schema')
+      })
+  }, [activeConnection?.isConnected, activeConnection?.sessionId, activeConnection?.name, getSchema, isLoading, getError])
 
   const refreshSchema = useCallback(() => {
     if (activeConnection?.isConnected && activeConnection.sessionId) {
-      const cacheKey = activeConnection.sessionId ?? activeConnection.id ?? ''
-      cacheRef.current.clear(cacheKey)
-      fetchSchema(activeConnection.sessionId, cacheKey, true)
+      invalidate(activeConnection.sessionId)
+      getSchema(activeConnection.sessionId, activeConnection.name, true)
+        .then((schemas) => {
+          setSchema(schemas)
+          setLoading(false)
+          setError(null)
+        })
+        .catch((err) => {
+          console.error('Failed to refresh schema:', err)
+          setError(err instanceof Error ? err.message : 'Failed to refresh schema')
+        })
     }
-  }, [activeConnection?.isConnected, activeConnection?.sessionId, activeConnection?.id, fetchSchema])
+  }, [activeConnection?.isConnected, activeConnection?.sessionId, activeConnection?.name, getSchema, invalidate])
 
   const clearCache = useCallback(() => {
-    cacheRef.current.clear()
+    if (activeConnection?.sessionId) {
+      invalidate(activeConnection.sessionId)
+    }
     setSchema([])
-  }, [])
+  }, [activeConnection?.sessionId, invalidate])
 
   const clearExpiredCache = useCallback(() => {
-    cacheRef.current.clearExpired()
+    // No-op - store handles expiration automatically
   }, [])
 
   return { schema, loading, error, refreshSchema, clearCache, clearExpiredCache }
