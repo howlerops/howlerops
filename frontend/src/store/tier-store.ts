@@ -330,6 +330,7 @@ export const useTierStore = create<TierStore>()(
               percentage: 0,
               isNearLimit: false,
               isAtLimit: false,
+              isUnlimited: true,
             }
           }
 
@@ -345,6 +346,7 @@ export const useTierStore = create<TierStore>()(
             percentage: Math.min(100, percentage),
             isNearLimit,
             isAtLimit,
+            isUnlimited: false,
           }
         },
 

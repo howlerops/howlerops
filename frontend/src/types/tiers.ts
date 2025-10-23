@@ -96,4 +96,5 @@ export interface LimitCheckResult {
   percentage: number // 0-100
   isNearLimit: boolean // < 20% remaining
   isAtLimit: boolean // >= 100%
+  isUnlimited: boolean // true if limit is null
 }

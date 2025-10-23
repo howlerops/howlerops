@@ -4,7 +4,12 @@
       "Bash(find /Users/jacob/projects/amplifier/ai_working/howlerops/backend-go -name \"*_test.go\" -type f -exec wc -l {} +)",
       "Bash(for pkg in internal/middleware internal/rag internal/ai pkg/database)",
       "Bash(do echo \"=== $pkg ===\")",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(npm run typecheck)",
+      "Bash(wails dev:*)",
+      "Bash(npm run build:*)",
+      "Bash(git add:*)",
+      "Bash(npm run test:*)"
     ],
     "deny": [],
     "ask": []
