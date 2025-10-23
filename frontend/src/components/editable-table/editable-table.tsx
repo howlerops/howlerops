@@ -51,11 +51,12 @@ const VirtualRow = memo(React.forwardRef<HTMLTableRowElement, {
       onClick={handleRowClick}
     >
       {rowData.getVisibleCells().map((cell: unknown) => {
-        const cellData = cell as { id: string; column: { getSize: () => number; columnDef: { cell: unknown } }; getContext: () => object };
+        const cellData = cell as { id: string; column: { getSize: () => number; columnDef: { cell: unknown; meta?: { sticky?: 'left' | 'right' } } }; getContext: () => object };
+        const sticky = cellData.column.columnDef.meta?.sticky;
         return (
           <td
             key={cellData.id}
-            className="px-3 py-2 text-sm"
+            className={`px-3 py-2 text-sm ${sticky ? `sticky ${sticky === 'right' ? 'right-0' : 'left-0'} bg-background z-10 shadow-sm` : ''}`}
             style={{ width: cellData.column.getSize() }}
           >
             {flexRender(cellData.column.columnDef.cell as ((props: object) => React.ReactNode) | React.ReactNode, cellData.getContext())}
@@ -91,6 +92,7 @@ export const EditableTable: React.FC<EditableTableProps> = ({
   toolbar,
   footer,
   onDirtyChange,
+  customCellRenderers = {},
 }) => {
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const {
@@ -118,9 +120,27 @@ export const EditableTable: React.FC<EditableTableProps> = ({
         enableSorting: col.sortable !== false,
         enableColumnFilter: col.filterable !== false,
         enableResizing: enableColumnResizing,
+        meta: {
+          sticky: col.sticky,
+          originalColumn: col,
+        },
         cell: ({ row, column, getValue }) => {
           const rawColumnId = column.id ?? (column as unknown as { columnDef?: { id?: string; accessorKey?: string } }).columnDef?.id ?? (column as unknown as { columnDef?: { id?: string; accessorKey?: string } }).columnDef?.accessorKey;
           const currentColumnId = String(rawColumnId ?? columnId);
+
+          // Check if there's a custom renderer for this column
+          const customRenderer = customCellRenderers[currentColumnId];
+          if (customRenderer) {
+            return (
+              <div
+                data-row-id={row.original.__rowId!}
+                data-column-id={currentColumnId}
+              >
+                {customRenderer(getValue() as CellValue, row.original)}
+              </div>
+            );
+          }
+
           return (
             <div
               data-row-id={row.original.__rowId!}

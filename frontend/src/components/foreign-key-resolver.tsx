@@ -8,7 +8,7 @@ import { formatJson } from '@/lib/json-formatter'
 import { wailsEndpoints } from '@/lib/wails-api'
 
 interface ForeignKeyResolverProps {
-  key: string
+  fieldKey: string
   value: CellValue
   metadata?: QueryEditableMetadata | null
   connectionId?: string
@@ -26,7 +26,7 @@ interface ForeignKeyData {
 }
 
 export function ForeignKeyResolver({
-  key,
+  fieldKey,
   value,
   metadata,
   connectionId,
@@ -42,8 +42,8 @@ export function ForeignKeyResolver({
   const foreignKeyInfo = useMemo(() => {
     if (!metadata?.columns) return null
 
-    const column = metadata.columns.find(col => 
-      (col.name || col.resultName)?.toLowerCase() === key.toLowerCase()
+    const column = metadata.columns.find(col =>
+      (col.name || col.resultName)?.toLowerCase() === fieldKey.toLowerCase()
     )
 
     if (!column?.foreignKey) return null
@@ -53,15 +53,15 @@ export function ForeignKeyResolver({
       columnName: column.foreignKey.column,
       schema: column.foreignKey.schema
     }
-  }, [key, metadata])
+  }, [fieldKey, metadata])
 
   const handleToggle = useCallback(() => {
-    onToggle(key)
-    
+    onToggle(fieldKey)
+
     if (!isExpanded && !foreignKeyData && foreignKeyInfo) {
       loadForeignKeyData()
     }
-  }, [key, isExpanded, foreignKeyData, foreignKeyInfo, onToggle])
+  }, [fieldKey, isExpanded, foreignKeyData, foreignKeyInfo, onToggle])
 
   const loadForeignKeyData = useCallback(async () => {
     if (!foreignKeyInfo || !connectionId || isLoading) return
@@ -70,7 +70,7 @@ export function ForeignKeyResolver({
     setError(null)
 
     try {
-      await onLoadData(key)
+      await onLoadData(fieldKey)
       
       // Build query to fetch related records
       const tableName = foreignKeyInfo.schema 
@@ -114,7 +114,7 @@ export function ForeignKeyResolver({
     } finally {
       setIsLoading(false)
     }
-  }, [foreignKeyInfo, connectionId, isLoading, key, onLoadData, value])
+  }, [foreignKeyInfo, connectionId, isLoading, fieldKey, onLoadData, value])
 
   // Don't render if no foreign key info
   if (!foreignKeyInfo) {

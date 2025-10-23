@@ -3,12 +3,12 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { 
-  ChevronDown, 
-  ChevronRight, 
-  ExternalLink, 
-  Database, 
-  Loader2, 
+import {
+  ChevronDown,
+  ChevronRight,
+  ExternalLink,
+  Database,
+  Loader2,
   AlertCircle,
   Eye,
   Table,
@@ -17,6 +17,7 @@ import {
 import { QueryEditableMetadata } from '@/store/query-store'
 import { CellValue } from '@/types/table'
 import { wailsEndpoints } from '@/lib/wails-api'
+import { toast } from '@/hooks/use-toast'
 
 interface ForeignKeyRecord {
   [key: string]: CellValue
@@ -33,7 +34,7 @@ interface ForeignKeyData {
 }
 
 interface ForeignKeyCardProps {
-  key: string
+  fieldKey: string
   value: CellValue
   metadata: QueryEditableMetadata
   connectionId: string
@@ -43,7 +44,7 @@ interface ForeignKeyCardProps {
 }
 
 export function ForeignKeyCard({
-  key: fieldKey,
+  fieldKey,
   value,
   metadata,
   connectionId,
@@ -81,18 +82,28 @@ export function ForeignKeyCard({
   }, [fieldKey, isExpanded, foreignKeyData, foreignKeyInfo, onToggle])
 
   const loadForeignKeyData = useCallback(async () => {
-    if (!foreignKeyInfo || !connectionId || isLoading) return
+    if (!foreignKeyInfo || isLoading) return
+
+    // Check if we have a connection ID
+    if (!connectionId) {
+      toast({
+        title: 'Foreign key expansion not available',
+        description: 'Foreign key expansion is not available for multi-database queries. Please run a single-database query to explore relationships.',
+        variant: 'destructive'
+      })
+      return
+    }
 
     setIsLoading(true)
     setError(null)
 
     try {
       await onLoadData(fieldKey)
-      
+
       // Build query to fetch related records
       const escapedValue = typeof value === 'string' ? `'${value.replace(/'/g, "''")}'` : String(value)
       const query = `SELECT * FROM ${foreignKeyInfo.schema ? `"${foreignKeyInfo.schema}"."${foreignKeyInfo.tableName}"` : `"${foreignKeyInfo.tableName}"`} WHERE "${foreignKeyInfo.columnName}" = ${escapedValue} LIMIT 10`
-      
+
       // Execute query to get related records
       const response = await wailsEndpoints.queries.execute(connectionId, query, {
         limit: 10
@@ -305,6 +316,7 @@ export function ForeignKeySection({
         {foreignKeys.map(({ key, value, metadata }) => (
           <ForeignKeyCard
             key={key}
+            fieldKey={key}
             value={value}
             metadata={metadata}
             connectionId={connectionId}

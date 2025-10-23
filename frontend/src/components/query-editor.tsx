@@ -49,6 +49,7 @@ import { VisualQueryBuilder } from "@/components/visual-query-builder"
 import { QueryIR, generateSQL as generateSQLFromIR } from "@/lib/query-ir"
 import { waitForWails } from "@/lib/wails-runtime"
 import { buildExecutableSql } from "@/utils/sql"
+import { SelectDatabasePrompt } from "@/components/select-database-prompt"
 
 
 export interface QueryEditorProps {
@@ -143,9 +144,13 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
 
   // Diagnostics panel state
   const [showDiagnostics, setShowDiagnostics] = useState(false)
-  
+
   // Multi-DB connection selector state
   const [showConnectionSelector, setShowConnectionSelector] = useState(false)
+
+  // Database selection prompt state
+  const [showDatabasePrompt, setShowDatabasePrompt] = useState(false)
+  const [pendingQuery, setPendingQuery] = useState<string | null>(null)
 
   // Expose methods to parent components
   useImperativeHandle(ref, () => ({
@@ -499,6 +504,22 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
     }
   }
 
+  const handleDatabaseSelected = useCallback(async (connectionId: string) => {
+    if (!activeTab || !pendingQuery) return
+
+    // Update the tab with the selected connection
+    updateTab(activeTab.id, {
+      connectionId,
+      selectedConnectionIds: [connectionId]
+    })
+
+    // Execute the pending query
+    await executeQuery(activeTab.id, pendingQuery)
+
+    // Clear pending state
+    setPendingQuery(null)
+  }, [activeTab, pendingQuery, updateTab, executeQuery])
+
   const handleExecuteQuery = useCallback(async () => {
     if (!activeTab) return
 
@@ -506,31 +527,34 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
     const selectedText = editorRef.current?.getSelectedText?.() ?? ''
     const cursorOffset = editorRef.current?.getCursorOffset?.() ?? currentEditorValue.length
 
+    // Determine the query to execute
+    let queryToExecute: string
     if (selectedText.trim().length > 0) {
-      const cleanedSelection = selectedText.trim()
-      setLastExecutionError(null)
+      queryToExecute = selectedText.trim()
+    } else {
+      const executableQuery = buildExecutableSql(currentEditorValue, {
+        selectionText: selectedText,
+        cursorOffset,
+      })
 
-      if (currentEditorValue !== editorContent) {
-        setEditorContent(currentEditorValue)
-        updateTab(activeTab.id, {
-          content: currentEditorValue,
-          isDirty: currentEditorValue !== activeTab.content,
-        })
+      if (!executableQuery) {
+        return
       }
 
-      await executeQuery(activeTab.id, cleanedSelection)
+      queryToExecute = executableQuery
+    }
+
+    // Check if we have a connection selected
+    const hasConnection = activeTab.connectionId || (activeTab.selectedConnectionIds && activeTab.selectedConnectionIds.length > 0)
+
+    if (!hasConnection) {
+      // No connection selected - show the prompt
+      setPendingQuery(queryToExecute)
+      setShowDatabasePrompt(true)
       return
     }
 
-    const executableQuery = buildExecutableSql(currentEditorValue, {
-      selectionText: selectedText,
-      cursorOffset,
-    })
-
-    if (!executableQuery) {
-      return
-    }
-
+    // We have a connection - proceed with execution
     setLastExecutionError(null)
 
     if (currentEditorValue !== editorContent) {
@@ -541,7 +565,7 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
       })
     }
 
-    await executeQuery(activeTab.id, executableQuery)
+    await executeQuery(activeTab.id, queryToExecute)
   }, [activeTab, editorContent, executeQuery, updateTab])
 
   // Keyboard shortcut for executing query (Ctrl/Cmd+Enter)
@@ -1098,23 +1122,31 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
                         onValueChange={(value) => handleTabConnectionChange(tab.id, value)}
                         disabled={isConnecting}
                       >
-                        <SelectTrigger className="h-6 w-32 text-xs">
-                          <SelectValue placeholder={isConnecting ? "Connecting..." : "Select DB"} />
+                        <SelectTrigger
+                          className={cn(
+                            "h-6 w-32 text-xs",
+                            !tab.connectionId && "border-accent text-accent-foreground bg-accent/10"
+                          )}
+                          title={!tab.connectionId ? "No database selected - select one to execute queries" : undefined}
+                        >
+                          <SelectValue placeholder={isConnecting ? "Connecting..." : "⚠️ Select DB"} />
                         </SelectTrigger>
                         <SelectContent>
                           {!tab.connectionId && (
-                            <div className="px-2 py-1.5 text-xs text-accent-foreground border-b">
-                              ⚠️ Please select a connection
+                            <div className="px-2 py-1.5 text-xs text-accent-foreground bg-accent/10 border-b flex items-center gap-2">
+                              <AlertCircle className="h-3 w-3" />
+                              <span>Please select a connection</span>
                             </div>
                           )}
                           {connections.map((conn) => (
                             <SelectItem key={conn.id} value={conn.id}>
                               <div className="flex items-center gap-2">
-                                <span>{conn.name}</span>
+                                <Database className="h-3 w-3" />
+                                <span className="flex-1">{conn.name}</span>
                                 {conn.isConnected ? (
-                                  <span className="text-xs text-primary">●</span>
+                                  <span className="text-xs text-green-500 font-bold" title="Connected">●</span>
                                 ) : (
-                                  <span className="text-xs text-muted-foreground">○</span>
+                                  <span className="text-xs text-muted-foreground" title="Not connected">○</span>
                                 )}
                               </div>
                             </SelectItem>
@@ -1570,11 +1602,10 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
             size="sm"
             onClick={handleExecuteQuery}
             disabled={
-              !activeConnection?.isConnected ||
-              !activeConnection.sessionId ||
               !editorContent.trim() ||
               !!activeTab?.isExecuting
             }
+            title={!activeTab?.connectionId ? "Select a database to execute this query" : undefined}
           >
             {activeTab?.isExecuting ? (
               <Square className="h-4 w-4 mr-2" />
@@ -1670,6 +1701,18 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
           filteredConnections={getFilteredConnections()}
         />
       )}
+
+      {/* Database Selection Prompt */}
+      <SelectDatabasePrompt
+        isOpen={showDatabasePrompt}
+        onClose={() => {
+          setShowDatabasePrompt(false)
+          setPendingQuery(null)
+        }}
+        onSelect={handleDatabaseSelected}
+        connections={connections}
+        currentConnectionId={activeTab?.connectionId}
+      />
         </>
       )}
     </div>

@@ -255,13 +255,14 @@ export function JsonEditor({
         {/* Foreign key resolver */}
           <ForeignKeyResolver
             key={`fk-${key}`}
+            fieldKey={key}
             value={value}
-          metadata={metadata}
-          connectionId={connectionId}
-          isExpanded={isExpanded}
-          onToggle={onToggleKeyExpansion}
-          onLoadData={() => Promise.resolve()}
-        />
+            metadata={metadata}
+            connectionId={connectionId}
+            isExpanded={isExpanded}
+            onToggle={onToggleKeyExpansion}
+            onLoadData={() => Promise.resolve()}
+          />
       </div>
     )
   }, [isEditing, onToggleKeyExpansion, handleStartEdit, handleSaveEdit, handleCancelEdit, editValue, metadata, connectionId])

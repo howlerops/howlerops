@@ -85,10 +85,13 @@ export function SchemaTree({ nodes, level = 0, collapsedSchemas = new Set(), onT
                 `pl-${2 + level * 4}`
               )}
               onClick={() => {
+                // Always toggle expansion for nodes with children
+                if (hasChildren) {
+                  toggleNode(node.id)
+                }
+                // Additionally call schema toggle callback if provided
                 if (node.type === 'schema' && onToggleSchema) {
                   onToggleSchema(node.id)
-                } else if (hasChildren) {
-                  toggleNode(node.id)
                 }
               }}
             >

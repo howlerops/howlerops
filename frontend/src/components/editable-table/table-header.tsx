@@ -122,6 +122,8 @@ export const TableHeader: React.FC<ColumnHeaderProps> = ({
     );
   };
 
+  const sticky = (header.column.columnDef.meta as { sticky?: 'left' | 'right' } | undefined)?.sticky;
+
   return (
     <th
       className={cn(
@@ -130,7 +132,8 @@ export const TableHeader: React.FC<ColumnHeaderProps> = ({
         {
           'cursor-pointer hover:bg-gray-100': canSort,
           'cursor-default': !canSort,
-        }
+        },
+        sticky && `sticky ${sticky === 'right' ? 'right-0' : 'left-0'} z-20 shadow-sm`
       )}
       style={{ width: header.getSize() }}
       onClick={handleSort}

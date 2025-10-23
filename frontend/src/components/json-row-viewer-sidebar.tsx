@@ -30,7 +30,7 @@ import {
   CheckCircle2
 } from 'lucide-react'
 import { TableRow, CellValue } from '@/types/table'
-import { QueryEditableMetadata } from '@/store/query-store'
+import { QueryEditableMetadata, QueryEditableColumn } from '@/store/query-store'
 import { useJsonViewer } from '@/hooks/use-json-viewer'
 import { JsonEditor } from './json-editor'
 import { ForeignKeySection } from './foreign-key-card'
@@ -79,6 +79,7 @@ export function JsonRowViewerSidebar({
     hasValidationErrors,
     canSave,
     currentMatch,
+    expandedForeignKeys,
     openRow,
     closeViewer,
     toggleEdit,
@@ -156,114 +157,125 @@ export function JsonRowViewerSidebar({
     }
   }, [navigateToNextMatch, navigateToPreviousMatch])
 
+  // Simple pluralization helper
+  const pluralize = useCallback((word: string): string => {
+    // Common irregular plurals
+    const irregulars: Record<string, string> = {
+      'person': 'people',
+      'child': 'children',
+      'category': 'categories',
+      'company': 'companies'
+    }
+
+    if (irregulars[word]) return irregulars[word]
+
+    // Simple pluralization rules
+    if (word.endsWith('y') && !['a', 'e', 'i', 'o', 'u'].includes(word[word.length - 2])) {
+      return word.slice(0, -1) + 'ies'
+    }
+    if (word.endsWith('s') || word.endsWith('x') || word.endsWith('z') || word.endsWith('ch') || word.endsWith('sh')) {
+      return word + 'es'
+    }
+    return word + 's'
+  }, [])
+
   // Extract foreign key fields from row data
   const getForeignKeyFields = useCallback(() => {
-    if (!rowData || !connectionId) return []
-    
-    // Look for potential foreign key fields based on common patterns
-    const potentialForeignKeys: Array<{key: string, value: any, tableName: string, columnName: string}> = []
-    
-    Object.entries(rowData).forEach(([key, value]) => {
-      if (value === null || value === undefined) return
-      
-      // Common foreign key patterns
-      const lowerKey = key.toLowerCase()
-      
-      // Pattern 1: *_id fields (snake_case)
-      if (lowerKey.endsWith('_id') && (typeof value === 'string' || typeof value === 'number')) {
-        const tableName = lowerKey.replace('_id', '') + 's' // pluralize
-        potentialForeignKeys.push({
-          key,
-          value,
-          tableName,
-          columnName: 'id'
-        })
-      }
-      
-      // Pattern 2: *Id fields (camelCase)
-      if (lowerKey.endsWith('id') && lowerKey !== 'id' && (typeof value === 'string' || typeof value === 'number')) {
-        const baseName = lowerKey.replace('id', '')
-        if (baseName.length > 0) {
-          const tableName = baseName + 's' // pluralize
-          potentialForeignKeys.push({
-            key,
-            value,
-            tableName,
-            columnName: 'id'
-          })
-        }
-      }
-      
-      // Pattern 3: user_id, account_id, etc. (snake_case with underscore)
-      if (lowerKey.includes('_id') && (typeof value === 'string' || typeof value === 'number')) {
-        const parts = lowerKey.split('_id')
-        if (parts.length === 2 && parts[0].length > 0) {
-          const tableName = parts[0] + 's' // pluralize
-          potentialForeignKeys.push({
-            key,
-            value,
-            tableName,
-            columnName: 'id'
-          })
-        }
-      }
-      
-      // Pattern 4: Common foreign key prefixes
-      const commonPrefixes = ['user', 'account', 'organization', 'project', 'team', 'company', 'customer', 'order', 'product', 'category']
-      commonPrefixes.forEach(prefix => {
-        if (lowerKey === `${prefix}_id` || lowerKey === `${prefix}id` || lowerKey === `${prefix}Id`) {
-          const tableName = prefix + 's' // pluralize
-          potentialForeignKeys.push({
-            key,
-            value,
-            tableName,
-            columnName: 'id'
-          })
+    if (!rowData) return []
+
+    const foreignKeys: Array<{key: string, value: CellValue, metadata: QueryEditableMetadata}> = []
+    const addedKeys = new Set<string>() // Track added keys to avoid duplicates
+
+    // Strategy 1: Use actual foreign key metadata from the query result (most accurate)
+    if (metadata?.columns) {
+      metadata.columns.forEach(column => {
+        const columnName = column.resultName || column.name
+        if (column.foreignKey && columnName in rowData) {
+          const value = rowData[columnName]
+          // Only include if the value exists and isn't null
+          if (value !== null && value !== undefined && !addedKeys.has(columnName)) {
+            // Create a metadata object with this specific FK info for the ForeignKeyCard
+            const fkMetadata: QueryEditableMetadata = {
+              ...metadata,
+              columns: [column] // Only pass the relevant column
+            }
+            foreignKeys.push({
+              key: columnName,
+              value,
+              metadata: fkMetadata
+            })
+            addedKeys.add(columnName)
+          }
         }
       })
-      
-      // Pattern 5: UUID-like values that might be foreign keys
-      if (typeof value === 'string' && value.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
-        // Try common table names
-        const commonTables = ['users', 'accounts', 'organizations', 'projects', 'teams', 'companies', 'customers', 'orders', 'products', 'categories']
-        commonTables.forEach(tableName => {
-          potentialForeignKeys.push({
-            key,
-            value,
-            tableName,
-            columnName: 'id'
-          })
-        })
-      }
-      
-      // Pattern 6: Numeric IDs that might be foreign keys
-      if (typeof value === 'number' && value > 0 && value < 1000000) { // Reasonable range for IDs
-        // Check if the key suggests it's a foreign key
-        if (lowerKey.includes('id') || lowerKey.includes('ref') || lowerKey.includes('fk')) {
-          const commonTables = ['users', 'accounts', 'organizations', 'projects', 'teams', 'companies', 'customers', 'orders', 'products', 'categories']
-          commonTables.forEach(tableName => {
-            potentialForeignKeys.push({
-              key,
-              value,
-              tableName,
-              columnName: 'id'
-            })
-          })
+    }
+
+    // Strategy 2: Pattern-based detection for common foreign key naming conventions
+    // Only use this if we didn't find any FK metadata
+    if (foreignKeys.length === 0) {
+      const detectedKeys = new Map<string, {tableName: string, columnName: string}>()
+
+      Object.entries(rowData).forEach(([key, value]) => {
+        if (value === null || value === undefined || key === '__rowId') return
+        if (!(typeof value === 'string' || typeof value === 'number')) return
+
+        const lowerKey = key.toLowerCase()
+
+        // Pattern 1: Explicit *_id suffix (snake_case)
+        if (lowerKey.endsWith('_id') && !detectedKeys.has(key)) {
+          const baseName = lowerKey.slice(0, -3) // Remove '_id'
+          if (baseName.length > 0) {
+            const tableName = pluralize(baseName)
+            detectedKeys.set(key, { tableName, columnName: 'id' })
+          }
         }
-      }
-    })
-    
-    // Remove duplicates based on key
-    const uniqueForeignKeys = potentialForeignKeys.filter((fk, index, self) => 
-      index === self.findIndex(f => f.key === fk.key)
-    )
-    
-    return uniqueForeignKeys.map(fk => ({
-      key: fk.key,
-      value: fk.value,
-      metadata: metadata!
-    }))
-  }, [rowData, connectionId, metadata])
+
+        // Pattern 2: CamelCase *Id suffix
+        else if (lowerKey.endsWith('id') && lowerKey !== 'id' && lowerKey.length > 2 && !detectedKeys.has(key)) {
+          const baseName = lowerKey.slice(0, -2) // Remove 'id'
+          if (baseName.length > 0 && !lowerKey.includes('_')) {
+            const tableName = pluralize(baseName)
+            detectedKeys.set(key, { tableName, columnName: 'id' })
+          }
+        }
+      })
+
+      // Convert detected keys to foreign key objects
+      detectedKeys.forEach((fkInfo, key) => {
+        const value = rowData[key]
+
+        // Create synthetic metadata with foreign key info
+        const syntheticColumn: QueryEditableColumn = {
+          name: key,
+          resultName: key,
+          dataType: typeof value === 'number' ? 'integer' : 'text',
+          editable: false,
+          primaryKey: false,
+          foreignKey: {
+            table: fkInfo.tableName,
+            column: fkInfo.columnName,
+            schema: metadata?.schema
+          }
+        }
+
+        const fkMetadata: QueryEditableMetadata = {
+          enabled: false,
+          schema: metadata?.schema,
+          table: metadata?.table,
+          primaryKeys: [],
+          columns: [syntheticColumn]
+        }
+
+        foreignKeys.push({
+          key,
+          value,
+          metadata: fkMetadata
+        })
+      })
+    }
+
+    return foreignKeys
+  }, [rowData, metadata, pluralize])
 
   const searchStats = useMemo(() => {
     return {
@@ -477,15 +489,18 @@ export function JsonRowViewerSidebar({
             <ScrollArea className="h-full">
               <div className="p-4 space-y-4">
                 {/* Foreign Key Relationships */}
-                {metadata && connectionId && (
-                  <ForeignKeySection
-                    foreignKeys={getForeignKeyFields()}
-                    connectionId={connectionId}
-                    expandedKeys={new Set()}
-                    onToggleKey={toggleForeignKey}
-                    onLoadData={loadForeignKeyData}
-                  />
-                )}
+                {(() => {
+                  const fkFields = getForeignKeyFields()
+                  return fkFields.length > 0 && (
+                    <ForeignKeySection
+                      foreignKeys={fkFields}
+                      connectionId={connectionId || ''}
+                      expandedKeys={expandedForeignKeys}
+                      onToggleKey={toggleForeignKey}
+                      onLoadData={loadForeignKeyData}
+                    />
+                  )
+                })()}
 
                 {/* JSON Content */}
                 <div>

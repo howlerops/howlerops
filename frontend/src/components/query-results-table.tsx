@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
-import { Database, Clock, Save, AlertCircle, Download, Search, Inbox, Loader2, CheckCircle2 } from 'lucide-react'
+import { Database, Clock, Save, AlertCircle, Download, Search, Inbox, Loader2, CheckCircle2, Eye } from 'lucide-react'
 
 import { EditableTable } from './editable-table/editable-table'
 import { JsonRowViewerSidebar } from './json-row-viewer-sidebar'
@@ -38,8 +38,6 @@ interface ToolbarProps {
   onSave: () => void
   onExport: (options: ExportOptions) => Promise<void>
   metadata?: QueryEditableMetadata | null
-  saveError?: string | null
-  saveSuccess?: string | null
   onDiscardChanges?: () => void
   onJumpToFirstError?: () => void
 }
@@ -194,8 +192,6 @@ const QueryResultsToolbar = ({
   onSave,
   onExport,
   metadata,
-  saveError,
-  saveSuccess,
   onDiscardChanges,
   onJumpToFirstError,
 }: ToolbarProps) => {
@@ -209,55 +205,12 @@ const QueryResultsToolbar = ({
   const canSaveWithValidation = canSave && !hasValidationErrors
 
   return (
-    <div className="flex flex-col gap-3 border-b border-gray-200 bg-background px-1 py-1">
-      {(saveError || saveSuccess || (!metadata?.enabled && metadata?.reason)) && (
-        <div className="flex flex-col gap-2 text-xs">
-          {saveError && (
-            <div className="flex items-center gap-2 rounded border border-destructive/40 bg-destructive/10 px-3 py-2 text-destructive">
-              <AlertCircle className="h-4 w-4" />
-              <span>{saveError}</span>
-            </div>
-          )}
-          {!saveError && saveSuccess && (
-            <div className="rounded border border-primary bg-primary/10 px-3 py-2 text-primary">
-              {saveSuccess}
-            </div>
-          )}
-          {!metadata?.enabled && metadata?.reason && (
-            <div className="flex items-center gap-2 rounded border border-accent bg-accent/10 px-3 py-2 text-accent-foreground">
-              <AlertCircle className="h-4 w-4" />
-              <span>{metadata.reason}</span>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Validation and changes summary */}
-      {(dirtyCount > 0 || invalidCellsCount > 0) && (
-        <div className="flex items-center gap-2 text-xs">
-          {dirtyCount > 0 && (
-            <div className="flex items-center gap-1 px-2 py-1 bg-accent/10 border border-accent rounded">
-              <span className="text-accent-foreground">
-                {dirtyCount} unsaved change{dirtyCount === 1 ? '' : 's'}
-              </span>
-            </div>
-          )}
-          {invalidCellsCount > 0 && (
-            <div className="flex items-center gap-1 px-2 py-1 bg-destructive/10 border border-destructive rounded">
-              <AlertCircle className="h-3 w-3 text-destructive" />
-              <span className="text-destructive">
-                {invalidCellsCount} validation error{invalidCellsCount === 1 ? '' : 's'}
-              </span>
-              {onJumpToFirstError && (
-                <button
-                  onClick={onJumpToFirstError}
-                  className="text-destructive hover:text-destructive/80 underline"
-                >
-                  Jump to first error
-                </button>
-              )}
-            </div>
-          )}
+    <div className="flex flex-col gap-2 border-b border-gray-200 bg-background px-1 py-1">
+      {/* Show non-editable reason if applicable */}
+      {!metadata?.enabled && metadata?.reason && (
+        <div className="flex items-center gap-2 rounded border border-accent bg-accent/10 px-3 py-2 text-accent-foreground text-xs">
+          <AlertCircle className="h-4 w-4" />
+          <span>{metadata.reason}</span>
         </div>
       )}
 
@@ -274,6 +227,33 @@ const QueryResultsToolbar = ({
 
         <div className="flex items-center gap-3">
           <span className="text-xs text-muted-foreground">{formatTimestamp(executedAt)}</span>
+
+          {/* Unsaved changes indicator */}
+          {dirtyCount > 0 && (
+            <div className="flex items-center gap-1 px-2 py-1 bg-accent/10 border border-accent rounded text-xs">
+              <span className="text-accent-foreground">
+                {dirtyCount} unsaved{dirtyCount === 1 ? '' : ''}
+              </span>
+            </div>
+          )}
+
+          {/* Validation errors indicator */}
+          {invalidCellsCount > 0 && (
+            <div className="flex items-center gap-1 px-2 py-1 bg-destructive/10 border border-destructive rounded text-xs">
+              <AlertCircle className="h-3 w-3 text-destructive" />
+              <span className="text-destructive">
+                {invalidCellsCount} error{invalidCellsCount === 1 ? '' : 's'}
+              </span>
+              {onJumpToFirstError && (
+                <button
+                  onClick={onJumpToFirstError}
+                  className="text-destructive hover:text-destructive/80 underline ml-1"
+                >
+                  Jump
+                </button>
+              )}
+            </div>
+          )}
           
           {/* Export Button */}
           <ExportButton context={context} onExport={onExport} />
@@ -384,8 +364,6 @@ export const QueryResultsTable = ({
   const columnNames = Array.isArray(columns) ? columns : []
   const [dirtyRowIds, setDirtyRowIds] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
-  const [saveError, setSaveError] = useState<string | null>(null)
-  const [saveSuccess, setSaveSuccess] = useState<string | null>(null)
   
   // JSON viewer state
   const [jsonViewerOpen, setJsonViewerOpen] = useState(false)
@@ -398,18 +376,9 @@ export const QueryResultsTable = ({
 
   useEffect(() => {
     setDirtyRowIds([])
-    setSaveError(null)
     tableContextRef.current?.actions.clearDirtyRows?.()
     tableContextRef.current?.actions.resetTable?.()
   }, [rows, resultId])
-
-  useEffect(() => {
-    if (!saveSuccess) return
-    const timeout = window.setTimeout(() => {
-      setSaveSuccess(null)
-    }, 4000)
-    return () => window.clearTimeout(timeout)
-  }, [saveSuccess])
 
   const resolveCurrentRows = useCallback((): QueryResultRow[] => {
     const contextRows = tableContextRef.current?.data as QueryResultRow[] | undefined
@@ -424,7 +393,11 @@ export const QueryResultsTable = ({
       return
     }
     if (!connectionId) {
-      setSaveError('No active connection. Please select a connection and try again.')
+      toast({
+        title: 'No active connection',
+        description: 'Please select a connection and try again.',
+        variant: 'destructive'
+      })
       return
     }
     if (dirtyRowIds.length === 0) {
@@ -436,14 +409,16 @@ export const QueryResultsTable = ({
       const isValid = tableContextRef.current.actions.validateAllCells()
       if (!isValid) {
         const invalidCells = tableContextRef.current.actions.getInvalidCells()
-        setSaveError(`Cannot save: ${invalidCells.length} validation error${invalidCells.length === 1 ? '' : 's'} found. Please fix all errors before saving.`)
+        toast({
+          title: 'Validation errors',
+          description: `Cannot save: ${invalidCells.length} validation error${invalidCells.length === 1 ? '' : 's'} found. Please fix all errors before saving.`,
+          variant: 'destructive'
+        })
         return
       }
     }
 
     setSaving(true)
-    setSaveError(null)
-    setSaveSuccess(null)
 
     try {
       for (const rowId of dirtyRowIds) {
@@ -502,9 +477,18 @@ export const QueryResultsTable = ({
       setDirtyRowIds([])
       tableContextRef.current?.actions.clearDirtyRows()
       tableContextRef.current?.actions.clearInvalidCells()
-      setSaveSuccess('Changes saved successfully.')
+
+      toast({
+        title: 'Success',
+        description: 'Changes saved successfully.',
+        variant: 'default'
+      })
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : 'Failed to save changes')
+      toast({
+        title: 'Save failed',
+        description: error instanceof Error ? error.message : 'Failed to save changes',
+        variant: 'destructive'
+      })
     } finally {
       setSaving(false)
     }
@@ -545,7 +529,7 @@ export const QueryResultsTable = ({
   }, [metadata?.enabled, dirtyRowIds.length, handleSave])
 
   const tableColumns: TableColumn[] = useMemo(() => {
-    return columnNames.map<TableColumn>((columnName) => {
+    const dataColumns = columnNames.map<TableColumn>((columnName) => {
       const metaColumn = metadata?.columns?.find((col) => {
         const candidate = (col.resultName ?? col.name)?.toLowerCase()
         return candidate ? candidate === columnName.toLowerCase() : false
@@ -562,6 +546,22 @@ export const QueryResultsTable = ({
         minWidth: 120,
       }
     })
+
+    // Add sticky actions column at the beginning (left side)
+    const actionsColumn: TableColumn = {
+      id: '__actions',
+      accessorKey: '__actions',
+      header: '',
+      type: 'text',
+      editable: false,
+      sortable: false,
+      filterable: false,
+      minWidth: 50,
+      maxWidth: 50,
+      sticky: 'left',
+    }
+
+    return [actionsColumn, ...dataColumns]
   }, [columnNames, metadata])
 
   // const handleExportCsv = useCallback(() => {
@@ -649,8 +649,6 @@ export const QueryResultsTable = ({
     if (tableContextRef.current) {
       tableContextRef.current.actions.resetTable()
       setDirtyRowIds([])
-      setSaveError(null)
-      setSaveSuccess(null)
     }
   }, [])
 
@@ -847,9 +845,6 @@ export const QueryResultsTable = ({
   // Memoize onDirtyChange to prevent infinite re-renders
   const handleDirtyChange = useCallback((ids: string[]) => {
     setDirtyRowIds(ids)
-    if (ids.length > 0) {
-      setSaveSuccess(null)
-    }
   }, [])
 
   // Memoize toolbar function to prevent infinite re-renders
@@ -870,14 +865,12 @@ export const QueryResultsTable = ({
         onSave={handleSave}
         onExport={handleExport}
         metadata={metadata}
-        saveError={saveError}
-        saveSuccess={saveSuccess}
         onDiscardChanges={handleDiscardChanges}
         onJumpToFirstError={handleJumpToFirstError}
       />
     )
-  }, [rowCount, columnNames.length, executionTimeMs, executedAt, dirtyRowIds.length, 
-      canSave, saving, handleSave, handleExport, metadata, saveError, saveSuccess,
+  }, [rowCount, columnNames.length, executionTimeMs, executedAt, dirtyRowIds.length,
+      canSave, saving, handleSave, handleExport, metadata,
       handleDiscardChanges, handleJumpToFirstError])
 
   const safeAffectedRows = Number.isFinite(affectedRows) ? affectedRows : 0
@@ -887,6 +880,33 @@ export const QueryResultsTable = ({
     safeAffectedRows === 1
       ? '1 row affected.'
       : `${safeAffectedRows.toLocaleString()} rows affected.`
+
+  // Add __actions value to each row for the actions column
+  const rowsWithActions = useMemo(() => {
+    return rows.map(row => ({
+      ...row,
+      __actions: row.__rowId, // Store the rowId so we can use it in the cell renderer
+    }))
+  }, [rows])
+
+  // Custom cell renderer for the actions column
+  const renderActionsCell = useCallback((value: CellValue, row: TableRow) => {
+    const rowId = row.__rowId as string
+    return (
+      <div className="flex items-center justify-center">
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            handleRowClick(rowId, row)
+          }}
+          className="p-1 hover:bg-accent rounded transition-colors"
+          title="View row details"
+        >
+          <Eye className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+        </button>
+      </div>
+    )
+  }, [handleRowClick])
 
   return (
     <div className="flex flex-1 min-h-0 flex-col">
@@ -910,7 +930,7 @@ export const QueryResultsTable = ({
         </div>
       ) : (
         <EditableTable
-          data={rows as TableRow[]}
+          data={rowsWithActions as TableRow[]}
           columns={tableColumns}
           onDirtyChange={handleDirtyChange}
           enableMultiSelect={false}
@@ -921,9 +941,11 @@ export const QueryResultsTable = ({
           height="100%"
           onExport={handleExport}
           onCellEdit={handleCellEdit}
-          onRowClick={handleRowClick}
           toolbar={renderToolbar}
           footer={null}
+          customCellRenderers={{
+            __actions: renderActionsCell
+          }}
         />
       )}
 

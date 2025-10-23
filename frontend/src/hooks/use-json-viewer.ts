@@ -218,7 +218,8 @@ export function useJsonViewer({
     isLoading: store.isLoading,
     isSaving: store.isSaving,
     saveError: store.saveError,
-    
+    expandedForeignKeys: store.expandedForeignKeys,
+
     // Computed
     jsonData,
     formattedJson,
@@ -226,7 +227,7 @@ export function useJsonViewer({
     hasValidationErrors,
     canSave,
     currentMatch,
-    
+
     // Actions
     openRow,
     closeViewer,
@@ -245,10 +246,10 @@ export function useJsonViewer({
     loadForeignKeyData,
     isKeyExpanded,
     isForeignKeyExpanded,
-    
+
     // Search options
     setSearchOptions: useJsonViewerStore.getState().setSearchOptions,
-    
+
     // Utility functions
     getTokenClass: (token: JsonToken) => {
       // This would be imported from json-formatter

@@ -462,7 +462,7 @@ export const useQueryStore = create<QueryState>()(
           isDirty: false,
           isExecuting: false,
           connectionId: initialConnectionId,
-          selectedConnectionIds: connectionState?.connections?.filter((c: DatabaseConnection) => c.isConnected).map((c: DatabaseConnection) => c.id) || [],
+          selectedConnectionIds: initialConnectionId ? [initialConnectionId] : [],
           environmentSnapshot,
           aiSessionId: options?.aiSessionId,
         }
@@ -578,7 +578,7 @@ export const useQueryStore = create<QueryState>()(
               error: message,
               editable: null,
               query,
-              connectionId: connectionId || undefined,
+              connectionId: effectiveConnectionId, // Use the actual connection that executed the query
             })
             return
           }
@@ -617,7 +617,7 @@ export const useQueryStore = create<QueryState>()(
             error: undefined,
             editable: editableMetadata,
             query,
-            connectionId: connectionId || undefined,
+            connectionId: effectiveConnectionId, // Use the actual connection that executed the query
           })
 
           const jobId = editableMetadata?.jobId || editableMetadata?.job_id
@@ -641,7 +641,7 @@ export const useQueryStore = create<QueryState>()(
             error: error instanceof Error ? error.message : 'Unknown error occurred',
             editable: null,
             query,
-            connectionId: connectionId || undefined,
+            connectionId: effectiveConnectionId, // Use the actual connection that executed the query
           })
         } finally {
           get().updateTab(tabId, { isExecuting: false })

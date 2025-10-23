@@ -21,6 +21,7 @@ export interface TableColumn {
   editable?: boolean;
   required?: boolean;
   options?: string[]; // For select type
+  sticky?: 'left' | 'right'; // For sticky columns
   validation?: {
     pattern?: RegExp;
     min?: number;
@@ -53,6 +54,7 @@ export interface EditableTableProps {
   toolbar?: ReactNode | EditableTableRenderer;
   footer?: ReactNode | EditableTableRenderer;
   onDirtyChange?: (dirtyRowIds: string[]) => void;
+  customCellRenderers?: Record<string, (value: CellValue, row: TableRow) => ReactNode>;
 }
 
 export interface EditableTableContext {
