@@ -262,6 +262,7 @@ export const useConnectionStore = create<ConnectionState>()(
             }
 
             const response = await wailsEndpoints.connections.create({
+              id: connectionId, // Pass stored connection ID for reconnecting
               name: connection.name,
               type: connection.type,
               host: connection.host ?? '',

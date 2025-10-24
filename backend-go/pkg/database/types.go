@@ -56,6 +56,7 @@ type VPCConfig struct {
 
 // ConnectionConfig holds database connection configuration
 type ConnectionConfig struct {
+	ID                string            `json:"id,omitempty"` // Optional stored connection ID for reconnecting
 	Type              DatabaseType      `json:"type" validate:"required"`
 	Host              string            `json:"host"`
 	Port              int               `json:"port"`

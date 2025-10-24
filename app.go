@@ -52,6 +52,7 @@ type App struct {
 
 // ConnectionRequest represents a database connection request
 type ConnectionRequest struct {
+	ID                string            `json:"id,omitempty"`          // Optional stored connection ID
 	Type              string            `json:"type"`
 	Host              string            `json:"host"`
 	Port              int               `json:"port"`
@@ -615,6 +616,7 @@ func (a *App) CreateConnection(req ConnectionRequest) (*ConnectionInfo, error) {
 
 	// Convert request to internal config
 	config := database.ConnectionConfig{
+		ID:       req.ID, // Pass stored connection ID for reconnecting
 		Type:     database.DatabaseType(req.Type),
 		Host:     req.Host,
 		Port:     req.Port,

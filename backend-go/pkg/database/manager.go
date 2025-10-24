@@ -174,6 +174,15 @@ func (m *Manager) CreateConnection(ctx context.Context, config ConnectionConfig)
 		}
 	}
 
+	// Also register the stored connection ID if provided (for reconnecting to saved connections)
+	if config.ID != "" {
+		m.connectionNames[config.ID] = connectionID
+		m.logger.WithFields(logrus.Fields{
+			"stored_id":  config.ID,
+			"session_id": connectionID,
+		}).Debug("Registered stored connection ID as alias")
+	}
+
 	// Create connection metadata
 	connection := &Connection{
 		ID:        connectionID,

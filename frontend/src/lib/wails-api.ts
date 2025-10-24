@@ -133,6 +133,7 @@ export class WailsApiClient {
   async createConnection(data: unknown) {
     try {
       const request = (data || {}) as {
+        id?: string
         type?: string
         host?: string
         port?: number
@@ -166,6 +167,7 @@ export class WailsApiClient {
       }
 
       const result = await App.CreateConnection({
+        id: request.id || '', // Pass stored connection ID for reconnecting
         type: request.type || 'postgresql',
         host: request.host || 'localhost',
         port: request.port || 5432,
