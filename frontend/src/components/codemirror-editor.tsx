@@ -62,11 +62,19 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorRef, CodeMirrorEditor
     const editorRef = useRef<HTMLDivElement>(null)
     const viewRef = useRef<EditorView | null>(null)
     const valueRef = useRef(value)
+    const onChangeRef = useRef(onChange)
+    const onExecuteRef = useRef(onExecute)
 
     // Update value ref
     useEffect(() => {
       valueRef.current = value
     }, [value])
+
+    // Update callback refs
+    useEffect(() => {
+      onChangeRef.current = onChange
+      onExecuteRef.current = onExecute
+    }, [onChange, onExecute])
 
     // Initialize editor
     useEffect(() => {
@@ -92,10 +100,10 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorRef, CodeMirrorEditor
         highlightSelectionMatches(),
         keymap.of([
           // Cmd/Ctrl+Enter to execute query
-          ...(onExecute ? [{
+          ...(onExecuteRef.current ? [{
             key: 'Mod-Enter',
             run: () => {
-              onExecute()
+              onExecuteRef.current?.()
               return true
             }
           }] : []),
@@ -123,7 +131,9 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorRef, CodeMirrorEditor
           },
         }),
         ...basicSetup,
-        ...createSQLExtensions(theme, columnLoader, onChange),
+        ...createSQLExtensions(theme, columnLoader, (value: string) => {
+          onChangeRef.current?.(value)
+        }),
         EditorView.editable.of(!readOnly),
         EditorState.readOnly.of(readOnly)
       ]
@@ -164,7 +174,7 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorRef, CodeMirrorEditor
         view.destroy()
         viewRef.current = null
       }
-    }, [columnLoader, theme, onChange, onMount, onExecute, readOnly, placeholder])
+    }, [columnLoader, theme, onMount, readOnly, placeholder])
 
     // Update value when prop changes
     useEffect(() => {
