@@ -97,7 +97,7 @@ export function Header() {
 
           <TierBadge
             variant="header"
-            onClick={() => navigate('/settings?tab=tier')}
+            onClick={() => navigate('/dashboard')}
           />
 
           <DropdownMenu>

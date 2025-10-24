@@ -94,21 +94,21 @@ function getTierColorClasses(tier: TierLevel): {
   switch (tier) {
     case 'local':
       return {
-        badge: 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200',
-        text: 'text-gray-700',
-        background: 'bg-gray-50',
+        badge: 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700',
+        text: 'text-gray-700 dark:text-gray-300',
+        background: 'bg-gray-50 dark:bg-gray-900',
       }
     case 'individual':
       return {
-        badge: 'bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200',
-        text: 'text-blue-700',
-        background: 'bg-blue-50',
+        badge: 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800 hover:bg-blue-200 dark:hover:bg-blue-800',
+        text: 'text-blue-700 dark:text-blue-300',
+        background: 'bg-blue-50 dark:bg-blue-950',
       }
     case 'team':
       return {
-        badge: 'bg-purple-100 text-purple-700 border-purple-200 hover:bg-purple-200',
-        text: 'text-purple-700',
-        background: 'bg-purple-50',
+        badge: 'bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800 hover:bg-purple-200 dark:hover:bg-purple-800',
+        text: 'text-purple-700 dark:text-purple-300',
+        background: 'bg-purple-50 dark:bg-purple-950',
       }
   }
 }
@@ -265,17 +265,17 @@ export function TierBadge({
             <div
               className={cn(
                 'p-2 rounded-lg',
-                tier === 'local' && 'bg-gray-200',
-                tier === 'individual' && 'bg-blue-200',
-                tier === 'team' && 'bg-purple-200'
+                tier === 'local' && 'bg-gray-200 dark:bg-gray-700',
+                tier === 'individual' && 'bg-blue-200 dark:bg-blue-800',
+                tier === 'team' && 'bg-purple-200 dark:bg-purple-800'
               )}
             >
               {React.cloneElement(icon as React.ReactElement, {
                 className: cn(
                   'w-5 h-5',
-                  tier === 'local' && 'text-gray-700',
-                  tier === 'individual' && 'text-blue-700',
-                  tier === 'team' && 'text-purple-700'
+                  tier === 'local' && 'text-gray-700 dark:text-gray-300',
+                  tier === 'individual' && 'text-blue-700 dark:text-blue-300',
+                  tier === 'team' && 'text-purple-700 dark:text-purple-300'
                 ),
               })}
             </div>

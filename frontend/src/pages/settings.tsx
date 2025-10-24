@@ -149,7 +149,7 @@ export function Settings() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => navigate(-1)}
+          onClick={() => navigate('/dashboard')}
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back
@@ -1040,7 +1040,7 @@ You can also start it manually by running: ollama serve`)
 
         {/* Save Button */}
         <div className="flex justify-end gap-4">
-          <Button variant="outline" onClick={() => navigate(-1)}>
+          <Button variant="outline" onClick={() => navigate('/dashboard')}>
             Cancel
           </Button>
           <Button onClick={handleSaveSettings} disabled={!hasUnsavedChanges}>
