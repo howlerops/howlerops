@@ -52,7 +52,9 @@
       "Bash(go list:*)",
       "Bash(go doc:*)",
       "Bash(npm run type-check:*)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": []
