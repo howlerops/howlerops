@@ -47,10 +47,10 @@ redis:
   idle_timeout: "5m"
 
 log:
-  level: "info"
-  format: "json"
+  level: "debug"
+  format: "text"
   output: "stdout"
-  file: ""
+  file: "./logs/app.log"
   max_size: 100
   max_backups: 3
   max_age: 28
@@ -81,6 +81,30 @@ metrics:
   port: 9100
   namespace: "sql_studio"
   subsystem: "backend"
+
+# Email Service Configuration
+email:
+  provider: "resend"
+  api_key: "${RESEND_API_KEY}"
+  from_email: "noreply@sqlstudio.io"
+  from_name: "SQL Studio"
+  base_url: "https://app.sqlstudio.io"
+
+# Cloud Sync Configuration
+sync:
+  enabled: true
+  max_upload_size: 10485760  # 10MB
+  conflict_strategy: "last_write_wins"
+  retention_days: 30
+  max_history_items: 1000
+  enable_sanitization: true
+  rate_limit_rpm: 10  # 10 requests per minute per user
+
+# Turso Database Configuration
+turso:
+  url: "${TURSO_URL}"
+  auth_token: "${TURSO_AUTH_TOKEN}"
+  max_connections: 25
 
 # Multi-Database Query Configuration
 multiquery:

@@ -1,0 +1,324 @@
+# =============================================================================
+# golangci-lint Configuration for SQL Studio Backend
+# =============================================================================
+# This configuration enables comprehensive linting with sensible defaults for
+# production Go applications. It balances code quality with practicality.
+#
+# Run locally: golangci-lint run
+# Run with auto-fix: golangci-lint run --fix
+# =============================================================================
+
+# Linter execution settings
+run:
+  # Timeout for analysis
+  timeout: 5m
+
+  # Which dirs to skip: issues from them won't be reported
+  skip-dirs:
+    - vendor
+    - third_party
+    - testdata
+    - examples
+    - .github
+
+  # Which files to skip: they will be analyzed but issues won't be reported
+  skip-files:
+    - ".*\\.pb\\.go$"
+    - ".*_gen\\.go$"
+    - ".*\\.mock\\.go$"
+
+  # Enable Go modules
+  modules-download-mode: readonly
+
+  # Allow multiple parallel golangci-lint instances
+  allow-parallel-runners: true
+
+# Output configuration
+output:
+  # Format: colored-line-number|line-number|json|tab|checkstyle|code-climate
+  format: colored-line-number
+
+  # Print lines of code with issue
+  print-issued-lines: true
+
+  # Print linter name in the end of issue text
+  print-linter-name: true
+
+  # Make issues output unique by line
+  uniq-by-line: true
+
+  # Sort results by: filepath, line and column
+  sort-results: true
+
+# Linters configuration
+linters:
+  # Disable all linters by default
+  disable-all: true
+
+  # Enable specific linters
+  enable:
+    # Bugs and correctness
+    - errcheck        # Checks for unchecked errors
+    - gosimple        # Simplify code
+    - govet          # Standard Go vet
+    - ineffassign    # Detects ineffectual assignments
+    - staticcheck    # Go static analysis
+    - typecheck      # Type-checks Go code
+    - unused         # Checks for unused code
+
+    # Style and formatting
+    - gofmt          # Checks code is gofmt-ed
+    - goimports      # Checks import ordering
+    - misspell       # Finds commonly misspelled words
+    - whitespace     # Detects trailing whitespace
+
+    # Complexity
+    - gocyclo        # Cyclomatic complexity
+    - gocognit       # Cognitive complexity
+    - nestif         # Reports deeply nested if statements
+
+    # Performance
+    - prealloc       # Finds slice declarations that could be preallocated
+
+    # Security
+    - gosec          # Security problems
+
+    # Error handling
+    - errorlint      # Error wrapping
+
+    # Best practices
+    - goconst        # Finds repeated strings that could be constants
+    - gocritic       # Comprehensive diagnostics
+    - revive         # Fast, configurable, extensible linter
+    - unconvert      # Unnecessary type conversions
+
+    # Code quality
+    - dupword        # Checks for duplicate words
+    - durationcheck  # Check for two durations multiplied together
+    - nilerr         # Finds code that returns nil even if it checks that error is not nil
+
+# Linters settings
+linters-settings:
+  # errcheck - Check for unchecked errors
+  errcheck:
+    # Report about not checking of errors in type assertions: `a := b.(MyStruct)`
+    check-type-assertions: true
+
+    # Report about assignment of errors to blank identifier: `num, _ := strconv.Atoi(numStr)`
+    check-blank: false
+
+    # List of functions to exclude from checking
+    exclude-functions:
+      - (io.Closer).Close
+      - (*database/sql.Rows).Close
+      - (*database/sql.Stmt).Close
+
+  # govet - Standard Go vet
+  govet:
+    # Report about shadowed variables
+    check-shadowing: true
+
+    # Enable all analyzers
+    enable-all: true
+
+    # Disable specific analyzers
+    disable:
+      - fieldalignment  # Too strict for most use cases
+
+  # gocyclo - Cyclomatic complexity
+  gocyclo:
+    # Minimal cyclomatic complexity to report
+    min-complexity: 15
+
+  # gocognit - Cognitive complexity
+  gocognit:
+    # Minimal cognitive complexity to report
+    min-complexity: 20
+
+  # nestif - Nested if statements
+  nestif:
+    # Minimal complexity to report
+    min-complexity: 5
+
+  # gosec - Security issues
+  gosec:
+    # Exclude specific rules (by ID)
+    excludes:
+      - G104  # Audit errors not checked (covered by errcheck)
+      - G304  # File path from user input (intentional for file operations)
+
+    # Severity level
+    severity: medium
+
+    # Confidence level
+    confidence: medium
+
+  # goconst - Repeated strings
+  goconst:
+    # Minimal length of string constant
+    min-len: 3
+
+    # Minimum occurrences to report
+    min-occurrences: 3
+
+    # Ignore test files
+    ignore-tests: true
+
+  # misspell - Commonly misspelled words
+  misspell:
+    # Locale to use (US or UK)
+    locale: US
+
+  # revive - Fast, configurable linter
+  revive:
+    # Minimal confidence to report issues
+    confidence: 0.8
+
+    # Enable all rules
+    enable-all-rules: false
+
+    # Rules to enable
+    rules:
+      - name: blank-imports
+      - name: context-as-argument
+      - name: context-keys-type
+      - name: dot-imports
+      - name: error-return
+      - name: error-strings
+      - name: error-naming
+      - name: exported
+      - name: if-return
+      - name: increment-decrement
+      - name: var-naming
+      - name: var-declaration
+      - name: package-comments
+      - name: range
+      - name: receiver-naming
+      - name: time-naming
+      - name: unexported-return
+      - name: indent-error-flow
+      - name: errorf
+      - name: empty-block
+      - name: superfluous-else
+      - name: unused-parameter
+      - name: unreachable-code
+      - name: redefines-builtin-id
+
+  # gocritic - Comprehensive diagnostics
+  gocritic:
+    # Enable multiple checks by tags
+    enabled-tags:
+      - diagnostic
+      - style
+      - performance
+
+    # Disable specific checks
+    disabled-checks:
+      - ifElseChain      # Too opinionated
+      - singleCaseSwitch # Sometimes clearer than if
+
+  # whitespace - Trailing whitespace
+  whitespace:
+    multi-if: false
+    multi-func: false
+
+  # prealloc - Preallocate slices
+  prealloc:
+    # Report preallocation suggestions only on simple loops that have no returns/breaks/continues/gotos
+    simple: true
+    range-loops: true
+    for-loops: false
+
+  # errorlint - Error wrapping
+  errorlint:
+    # Check whether fmt.Errorf uses the %w verb for formatting errors
+    errorf: true
+
+    # Check for plain type assertions and type switches
+    asserts: true
+
+    # Check for plain error comparisons
+    comparison: true
+
+# Issues configuration
+issues:
+  # Maximum issues count per linter
+  max-issues-per-linter: 0
+
+  # Maximum count of issues with the same text
+  max-same-issues: 0
+
+  # Show only new issues
+  new: false
+
+  # Fix found issues (if supported by linter)
+  fix: false
+
+  # Exclude rules by path
+  exclude-rules:
+    # Exclude some linters from running on tests files
+    - path: _test\.go
+      linters:
+        - gocyclo
+        - errcheck
+        - dupl
+        - gosec
+        - goconst
+        - funlen
+        - gocognit
+
+    # Exclude linters for generated files
+    - path: ".*\\.pb\\.go"
+      linters:
+        - all
+
+    # Exclude known issues
+    - text: "Error return value of .((os\\.)?std(out|err)\\..*|.*Close|.*Flush|os\\.Remove(All)?|.*printf?|os\\.(Un)?Setenv). is not checked"
+      linters:
+        - errcheck
+
+    # Exclude "G404: Use of weak random number generator" in test files
+    - path: _test\.go
+      text: "G404:"
+      linters:
+        - gosec
+
+  # Independently of option `exclude` we use default exclude patterns,
+  # it can be disabled by this option. To list all
+  # excluded by default patterns execute `golangci-lint run --help`.
+  exclude-use-default: true
+
+# Severity configuration
+severity:
+  # Default value is empty string
+  default-severity: error
+
+  # If set, only issues with severity greater than or equal to this value will be reported
+  # Supported values: error, warning, info
+  rules:
+    - linters:
+        - revive
+      severity: warning
+
+# =============================================================================
+# Usage Examples
+# =============================================================================
+# Run all enabled linters:
+#   golangci-lint run
+#
+# Run with auto-fix:
+#   golangci-lint run --fix
+#
+# Run only fast linters:
+#   golangci-lint run --fast
+#
+# Run on specific path:
+#   golangci-lint run ./internal/...
+#
+# Generate report in different format:
+#   golangci-lint run --out-format=json > report.json
+#   golangci-lint run --out-format=checkstyle > report.xml
+#
+# Run with verbose output:
+#   golangci-lint run -v
+# =============================================================================

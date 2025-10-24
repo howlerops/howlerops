@@ -1,0 +1,371 @@
+# Service Level Objectives (SLO) Configuration for SQL Studio
+# Defines SLOs, error budgets, and burn rate alerts
+
+# ============================================================================
+# SLO Definitions
+# ============================================================================
+
+slos:
+  # Availability SLO: 99.9% uptime (allows ~43 minutes downtime per month)
+  - name: availability
+    target: 0.999
+    window: 30d
+    description: "Percentage of successful HTTP requests (non-5xx responses)"
+
+    # SLI (Service Level Indicator) calculation
+    sli:
+      success_metric: |
+        sum(rate(sql_studio_http_requests_total{status!~"5.."}[5m]))
+      total_metric: |
+        sum(rate(sql_studio_http_requests_total[5m]))
+
+    # Alert thresholds for burn rate
+    alerts:
+      # Fast burn (exhausts 2% error budget in 1 hour)
+      - name: fast_burn
+        severity: critical
+        for: 5m
+        burn_rate: 14.4
+        short_window: 1h
+        long_window: 6h
+
+      # Moderate burn (exhausts 5% error budget in 6 hours)
+      - name: moderate_burn
+        severity: warning
+        for: 15m
+        burn_rate: 6
+        short_window: 6h
+        long_window: 24h
+
+      # Slow burn (exhausts 10% error budget in 3 days)
+      - name: slow_burn
+        severity: info
+        for: 1h
+        burn_rate: 1
+        short_window: 3d
+        long_window: 7d
+
+  # Latency SLO: 95% of requests complete in <200ms
+  - name: latency
+    target: 0.95
+    window: 30d
+    description: "Percentage of requests completing in under 200ms"
+
+    sli:
+      success_metric: |
+        sum(rate(sql_studio_http_request_duration_seconds_bucket{le="0.2"}[5m]))
+      total_metric: |
+        sum(rate(sql_studio_http_request_duration_seconds_count[5m]))
+
+    alerts:
+      - name: fast_burn
+        severity: warning
+        for: 10m
+        burn_rate: 10
+        short_window: 1h
+        long_window: 6h
+
+  # Query Success Rate: 99.5% of queries succeed
+  - name: query_success
+    target: 0.995
+    window: 30d
+    description: "Percentage of database queries that complete successfully"
+
+    sli:
+      success_metric: |
+        sum(rate(sql_studio_database_queries_total{status="success"}[5m]))
+      total_metric: |
+        sum(rate(sql_studio_database_queries_total[5m]))
+
+    alerts:
+      - name: fast_burn
+        severity: critical
+        for: 5m
+        burn_rate: 14.4
+        short_window: 1h
+        long_window: 6h
+
+  # Sync Success Rate: 99.5% of sync operations succeed
+  - name: sync_success
+    target: 0.995
+    window: 30d
+    description: "Percentage of sync operations that complete successfully"
+
+    sli:
+      success_metric: |
+        sum(rate(sql_studio_sync_operations_total{status="success"}[5m]))
+      total_metric: |
+        sum(rate(sql_studio_sync_operations_total[5m]))
+
+    alerts:
+      - name: fast_burn
+        severity: warning
+        for: 10m
+        burn_rate: 10
+        short_window: 1h
+        long_window: 6h
+
+---
+# Prometheus Recording Rules for SLO Tracking
+# Add these to prometheus/recording-rules.yml
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: slo-recording-rules
+  namespace: monitoring
+data:
+  slo-rules.yml: |
+    groups:
+      - name: slo_availability
+        interval: 30s
+        rules:
+          # 5-minute SLI
+          - record: slo:availability:sli_5m
+            expr: |
+              sum(rate(sql_studio_http_requests_total{status!~"5.."}[5m]))
+              /
+              sum(rate(sql_studio_http_requests_total[5m]))
+
+          # 1-hour SLI
+          - record: slo:availability:sli_1h
+            expr: |
+              sum(rate(sql_studio_http_requests_total{status!~"5.."}[1h]))
+              /
+              sum(rate(sql_studio_http_requests_total[1h]))
+
+          # 6-hour SLI
+          - record: slo:availability:sli_6h
+            expr: |
+              sum(rate(sql_studio_http_requests_total{status!~"5.."}[6h]))
+              /
+              sum(rate(sql_studio_http_requests_total[6h]))
+
+          # 30-day SLI (actual SLO measurement)
+          - record: slo:availability:sli_30d
+            expr: |
+              sum(rate(sql_studio_http_requests_total{status!~"5.."}[30d]))
+              /
+              sum(rate(sql_studio_http_requests_total[30d]))
+
+          # Error budget remaining (30-day window)
+          - record: slo:availability:error_budget_remaining
+            expr: |
+              (
+                (1 - 0.999) * sum(increase(sql_studio_http_requests_total[30d]))
+                -
+                sum(increase(sql_studio_http_requests_total{status=~"5.."}[30d]))
+              )
+              /
+              (
+                (1 - 0.999) * sum(increase(sql_studio_http_requests_total[30d]))
+              )
+
+          # Burn rate (1-hour window)
+          - record: slo:availability:burn_rate_1h
+            expr: |
+              (1 - slo:availability:sli_1h) / (1 - 0.999)
+
+          # Burn rate (6-hour window)
+          - record: slo:availability:burn_rate_6h
+            expr: |
+              (1 - slo:availability:sli_6h) / (1 - 0.999)
+
+      - name: slo_latency
+        interval: 30s
+        rules:
+          # Latency SLI (5-minute)
+          - record: slo:latency:sli_5m
+            expr: |
+              sum(rate(sql_studio_http_request_duration_seconds_bucket{le="0.2"}[5m]))
+              /
+              sum(rate(sql_studio_http_request_duration_seconds_count[5m]))
+
+          # Latency SLI (30-day)
+          - record: slo:latency:sli_30d
+            expr: |
+              sum(rate(sql_studio_http_request_duration_seconds_bucket{le="0.2"}[30d]))
+              /
+              sum(rate(sql_studio_http_request_duration_seconds_count[30d]))
+
+          # Error budget remaining
+          - record: slo:latency:error_budget_remaining
+            expr: |
+              (
+                (1 - 0.95) * sum(increase(sql_studio_http_request_duration_seconds_count[30d]))
+                -
+                sum(increase(sql_studio_http_request_duration_seconds_count[30d]))
+                +
+                sum(increase(sql_studio_http_request_duration_seconds_bucket{le="0.2"}[30d]))
+              )
+              /
+              (
+                (1 - 0.95) * sum(increase(sql_studio_http_request_duration_seconds_count[30d]))
+              )
+
+---
+# Prometheus Alert Rules for SLO Violations
+# Add these to prometheus/alerts.yml
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: slo-alert-rules
+  namespace: monitoring
+data:
+  slo-alerts.yml: |
+    groups:
+      - name: slo_alerts
+        interval: 30s
+        rules:
+          # ================================================================
+          # Availability SLO Alerts
+          # ================================================================
+
+          # Fast burn: 2% of error budget in 1 hour
+          - alert: AvailabilitySLOFastBurn
+            expr: |
+              (
+                slo:availability:burn_rate_1h > 14.4
+                and
+                slo:availability:burn_rate_6h > 14.4
+              )
+            for: 5m
+            labels:
+              severity: critical
+              slo: availability
+            annotations:
+              summary: "High error budget burn rate for availability SLO"
+              description: "Burning through error budget at {{ $value }}x normal rate. At this rate, monthly budget will be exhausted in {{ humanizeDuration (mul 2592000 (div 0.02 $value)) }}."
+              runbook: "https://docs.sqlstudio.io/runbooks/slo-availability-fast-burn"
+
+          # Moderate burn: 5% of error budget in 6 hours
+          - alert: AvailabilitySLOModerateBurn
+            expr: |
+              (
+                slo:availability:burn_rate_6h > 6
+                and
+                slo:availability:burn_rate_6h <= 14.4
+              )
+            for: 15m
+            labels:
+              severity: warning
+              slo: availability
+            annotations:
+              summary: "Moderate error budget burn rate for availability SLO"
+              description: "Burning through error budget at {{ $value }}x normal rate."
+
+          # Error budget exhausted
+          - alert: AvailabilitySLOBudgetExhausted
+            expr: |
+              slo:availability:error_budget_remaining <= 0
+            for: 5m
+            labels:
+              severity: critical
+              slo: availability
+            annotations:
+              summary: "Availability SLO error budget exhausted"
+              description: "The 30-day error budget for availability has been completely consumed. Current SLI: {{ $value | humanizePercentage }}."
+
+          # Low error budget warning
+          - alert: AvailabilitySLOBudgetLow
+            expr: |
+              slo:availability:error_budget_remaining < 0.25
+              and
+              slo:availability:error_budget_remaining > 0
+            for: 1h
+            labels:
+              severity: warning
+              slo: availability
+            annotations:
+              summary: "Availability SLO error budget low"
+              description: "Only {{ $value | humanizePercentage }} of error budget remaining for the month."
+
+          # ================================================================
+          # Latency SLO Alerts
+          # ================================================================
+
+          # Fast burn for latency
+          - alert: LatencySLOFastBurn
+            expr: |
+              (1 - slo:latency:sli_5m) / (1 - 0.95) > 10
+            for: 10m
+            labels:
+              severity: warning
+              slo: latency
+            annotations:
+              summary: "High error budget burn rate for latency SLO"
+              description: "Latency SLO is burning error budget at {{ $value }}x normal rate."
+
+          # Error budget exhausted
+          - alert: LatencySLOBudgetExhausted
+            expr: |
+              slo:latency:error_budget_remaining <= 0
+            for: 5m
+            labels:
+              severity: warning
+              slo: latency
+            annotations:
+              summary: "Latency SLO error budget exhausted"
+              description: "The 30-day error budget for latency has been consumed."
+
+---
+# SLO Dashboard Configuration
+# This defines the Grafana dashboard structure for SLO tracking
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: slo-dashboard-config
+  namespace: monitoring
+data:
+  README.md: |
+    # SLO Dashboard
+
+    ## Panels
+
+    ### 1. Current SLI (30-day rolling)
+    - Gauge showing current 30-day SLI
+    - Threshold at SLO target (0.999 for availability)
+    - Green if above target, red if below
+
+    ### 2. Error Budget Remaining
+    - Bar gauge showing percentage of error budget left
+    - 100% = full budget, 0% = exhausted
+    - Color coding: Green >50%, Yellow 25-50%, Red <25%
+
+    ### 3. Burn Rate (multi-window)
+    - Graph showing burn rate over time
+    - Multiple windows: 1h, 6h, 24h
+    - Threshold lines for alert levels
+
+    ### 4. SLI Trend (30 days)
+    - Time series graph of SLI over 30 days
+    - Shows daily SLI values
+    - Horizontal line at SLO target
+
+    ### 5. Error Budget Consumption
+    - Cumulative graph showing budget used over month
+    - Linear "ideal" burn line
+    - Actual consumption line
+
+    ### 6. Availability by Endpoint
+    - Table showing SLI per endpoint
+    - Helps identify which endpoints are causing SLO violations
+
+    ## PromQL Queries
+
+    Current SLI:
+    ```
+    slo:availability:sli_30d
+    ```
+
+    Error Budget Remaining:
+    ```
+    slo:availability:error_budget_remaining
+    ```
+
+    Burn Rate (1h):
+    ```
+    slo:availability:burn_rate_1h
+    ```

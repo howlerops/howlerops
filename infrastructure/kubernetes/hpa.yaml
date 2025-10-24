@@ -1,0 +1,287 @@
+# =============================================================================
+# SQL Studio - Horizontal Pod Autoscalers
+# =============================================================================
+# Auto-scaling configuration for backend and frontend based on:
+# - CPU utilization
+# - Memory utilization
+# - Custom metrics (requests per second)
+# =============================================================================
+
+# Backend HPA
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: sql-studio-backend-hpa
+  namespace: sql-studio
+  labels:
+    app: sql-studio
+    component: backend
+  annotations:
+    description: "Auto-scaling for backend API based on CPU and memory"
+spec:
+  # Target deployment
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: sql-studio-backend
+
+  # Replica limits
+  minReplicas: 2
+  maxReplicas: 10
+
+  # Scaling behavior
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300  # Wait 5 minutes before scaling down
+      policies:
+        - type: Percent
+          value: 50  # Scale down by max 50% of current pods
+          periodSeconds: 60
+        - type: Pods
+          value: 1   # Or remove 1 pod at a time
+          periodSeconds: 60
+      selectPolicy: Min  # Choose the policy that scales down the least
+
+    scaleUp:
+      stabilizationWindowSeconds: 0  # Scale up immediately
+      policies:
+        - type: Percent
+          value: 100  # Can double the number of pods
+          periodSeconds: 30
+        - type: Pods
+          value: 2    # Or add 2 pods at a time
+          periodSeconds: 30
+      selectPolicy: Max  # Choose the policy that scales up the most
+
+  # Metrics to scale on
+  metrics:
+    # CPU utilization
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70  # Target 70% CPU usage
+
+    # Memory utilization
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80  # Target 80% memory usage
+
+    # Custom metric: Requests per second (requires metrics server)
+    # Uncomment if you have custom metrics configured
+    # - type: Pods
+    #   pods:
+    #     metric:
+    #       name: http_requests_per_second
+    #     target:
+    #       type: AverageValue
+    #       averageValue: "100"
+
+---
+# Frontend HPA
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: sql-studio-frontend-hpa
+  namespace: sql-studio
+  labels:
+    app: sql-studio
+    component: frontend
+  annotations:
+    description: "Auto-scaling for frontend based on CPU"
+spec:
+  # Target deployment
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: sql-studio-frontend
+
+  # Replica limits
+  minReplicas: 2
+  maxReplicas: 8
+
+  # Scaling behavior
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 50
+          periodSeconds: 60
+        - type: Pods
+          value: 1
+          periodSeconds: 60
+      selectPolicy: Min
+
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 30
+        - type: Pods
+          value: 2
+          periodSeconds: 30
+      selectPolicy: Max
+
+  # Metrics to scale on
+  metrics:
+    # CPU utilization (main metric for static content)
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+
+    # Memory utilization
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+
+---
+# =============================================================================
+# Vertical Pod Autoscaler (VPA) - Optional
+# =============================================================================
+# VPA automatically adjusts CPU and memory requests/limits
+# Note: VPA and HPA should not target the same metrics to avoid conflicts
+# Use VPA in "recommend" mode with HPA, or in "auto" mode without HPA
+
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: sql-studio-backend-vpa
+  namespace: sql-studio
+  labels:
+    app: sql-studio
+    component: backend
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: sql-studio-backend
+
+  # Update policy
+  updatePolicy:
+    updateMode: "Off"  # Recommend mode - only provide recommendations
+    # Options: "Off", "Initial", "Recreate", "Auto"
+
+  # Resource policy
+  resourcePolicy:
+    containerPolicies:
+      - containerName: backend
+        minAllowed:
+          cpu: 100m
+          memory: 256Mi
+        maxAllowed:
+          cpu: 1000m
+          memory: 2Gi
+        controlledResources:
+          - cpu
+          - memory
+        # Don't scale based on these resources
+        # controlledValues: RequestsAndLimits
+
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: sql-studio-frontend-vpa
+  namespace: sql-studio
+  labels:
+    app: sql-studio
+    component: frontend
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: sql-studio-frontend
+
+  updatePolicy:
+    updateMode: "Off"
+
+  resourcePolicy:
+    containerPolicies:
+      - containerName: frontend
+        minAllowed:
+          cpu: 50m
+          memory: 128Mi
+        maxAllowed:
+          cpu: 500m
+          memory: 1Gi
+        controlledResources:
+          - cpu
+          - memory
+
+---
+# =============================================================================
+# HPA Configuration Notes
+# =============================================================================
+#
+# Metrics Server Requirement:
+# HPA requires metrics-server to be installed in the cluster:
+#   kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+#
+# Verify metrics-server is running:
+#   kubectl get deployment metrics-server -n kube-system
+#   kubectl top nodes
+#   kubectl top pods -n sql-studio
+#
+# Monitor HPA status:
+#   kubectl get hpa -n sql-studio
+#   kubectl describe hpa sql-studio-backend-hpa -n sql-studio
+#   kubectl get hpa sql-studio-backend-hpa -n sql-studio --watch
+#
+# View HPA events:
+#   kubectl get events -n sql-studio --sort-by='.lastTimestamp' | grep HorizontalPodAutoscaler
+#
+# Test auto-scaling:
+# 1. Generate load:
+#    kubectl run -it --rm load-generator --image=busybox --restart=Never -- /bin/sh
+#    while true; do wget -q -O- http://sql-studio-backend.sql-studio.svc.cluster.local:8500/health; done
+#
+# 2. Watch scaling:
+#    kubectl get hpa -n sql-studio --watch
+#
+# Custom Metrics (Advanced):
+# For custom metrics like RPS, you need:
+# 1. Prometheus Adapter or similar metrics adapter
+# 2. ServiceMonitor to scrape metrics
+# 3. Custom metric definition
+#
+# Example Prometheus Adapter configuration:
+#   rules:
+#     - seriesQuery: 'http_requests_total{namespace="sql-studio"}'
+#       resources:
+#         overrides:
+#           namespace: {resource: "namespace"}
+#           pod: {resource: "pod"}
+#       name:
+#         matches: "^(.*)_total$"
+#         as: "${1}_per_second"
+#       metricsQuery: 'rate(<<.Series>>{<<.LabelMatchers>>}[1m])'
+#
+# VPA vs HPA:
+# - HPA: Scales number of pods (horizontal)
+# - VPA: Adjusts resource requests/limits (vertical)
+# - Can be used together carefully:
+#   * HPA scales on custom metrics or CPU/memory
+#   * VPA in "recommend" mode provides resource recommendations
+#   * Don't use VPA in "auto" mode with HPA on the same metrics
+#
+# Best Practices:
+# 1. Start with conservative targets (70-80% utilization)
+# 2. Set appropriate stabilization windows to avoid flapping
+# 3. Monitor actual resource usage before tuning
+# 4. Test scaling behavior under load
+# 5. Set reasonable min/max replica counts based on traffic patterns
+# 6. Use pod disruption budgets with HPA
+# 7. Ensure sufficient cluster capacity for max replicas
+# =============================================================================

@@ -468,7 +468,7 @@ func (a *App) initializeStorageManager(ctx context.Context) error {
 	a.duckdbEngine = duckdbEngine
 	
 	a.logger.WithFields(logrus.Fields{
-		"mode":    manager.GetMode().String(),
+		"mode":    string(manager.GetMode()),
 		"user_id": manager.GetUserID(),
 	}).Info("Storage manager initialized")
 

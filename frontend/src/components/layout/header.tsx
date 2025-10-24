@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils"
 import { useNavigate } from "react-router-dom"
 import { HowlerOpsIcon } from "@/components/ui/howlerops-icon"
 import { TierBadge } from "@/components/tier-badge"
+import { AuthButton } from "@/components/auth/auth-button"
 
 export function Header() {
   const location = useLocation()
@@ -92,6 +93,8 @@ export function Header() {
         </div>
 
         <div className="ml-auto flex items-center space-x-4">
+          <AuthButton />
+
           <TierBadge
             variant="header"
             onClick={() => navigate('/settings?tab=tier')}

@@ -609,13 +609,23 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
   const handleCreateSqlTab = useCallback(() => {
     const tabId = createTab('New Query', {
       type: 'sql',
-      connectionId: activeConnection?.id,
+      connectionId: mode === 'single' ? activeConnection?.id : undefined,
     })
+
+    // In multi-DB mode, select all filtered connections
+    if (mode === 'multi') {
+      const allFilteredIds = getFilteredConnections().map(c => c.id)
+      updateTab(tabId, {
+        selectedConnectionIds: allFilteredIds,
+        connectionId: undefined, // No single connection in multi-mode
+      })
+    }
+
     setActiveTab(tabId)
-    if (activeConnection) {
+    if (activeConnection && mode === 'single') {
       setGlobalActiveConnection(activeConnection)
     }
-  }, [createTab, activeConnection, setActiveTab, setGlobalActiveConnection])
+  }, [mode, createTab, activeConnection, getFilteredConnections, updateTab, setActiveTab, setGlobalActiveConnection])
 
   const handleCreateAiTab = useCallback(() => {
     const sessionId = createAgentSession({

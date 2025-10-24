@@ -11,6 +11,48 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: (id) => {
+          // Vendor chunks
+          if (id.includes('node_modules')) {
+            if (id.includes('react') || id.includes('react-dom')) {
+              return 'vendor-react';
+            }
+            if (id.includes('@radix-ui')) {
+              return 'vendor-ui';
+            }
+            if (id.includes('recharts')) {
+              return 'vendor-charts';
+            }
+            if (id.includes('codemirror') || id.includes('@uiw/react-codemirror')) {
+              return 'vendor-editor';
+            }
+            if (id.includes('date-fns') || id.includes('lodash')) {
+              return 'vendor-utils';
+            }
+            if (id.includes('sql-formatter')) {
+              return 'vendor-sql';
+            }
+            return 'vendor-misc';
+          }
+          // Feature chunks
+          if (id.includes('src/components/query')) {
+            return 'feature-query';
+          }
+          if (id.includes('src/components/sync')) {
+            return 'feature-sync';
+          }
+          if (id.includes('src/lib/ai')) {
+            return 'feature-ai';
+          }
+        },
+      },
+    },
+    chunkSizeWarningLimit: 500,
+    reportCompressedSize: true,
+  },
   server: {
     proxy: {
       // REST API proxy (for backward compatibility)

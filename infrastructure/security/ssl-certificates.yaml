@@ -1,0 +1,354 @@
+# =============================================================================
+# SQL Studio - SSL/TLS Certificate Configuration
+# =============================================================================
+# Automated certificate management using cert-manager
+# =============================================================================
+
+# =============================================================================
+# ClusterIssuer - Let's Encrypt Production
+# =============================================================================
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+  labels:
+    app: sql-studio
+spec:
+  acme:
+    # ACME server URL
+    server: https://acme-v02.api.letsencrypt.org/directory
+
+    # Email for expiration notifications
+    email: admin@sql-studio.app
+
+    # Private key secret
+    privateKeySecretRef:
+      name: letsencrypt-prod-key
+
+    # Solvers
+    solvers:
+      # HTTP-01 challenge
+      - http01:
+          ingress:
+            class: nginx
+        selector:
+          dnsZones:
+            - 'sql-studio.app'
+            - '*.sql-studio.app'
+
+      # DNS-01 challenge (for wildcard certificates)
+      - dns01:
+          cloudflare:
+            email: admin@sql-studio.app
+            apiTokenSecretRef:
+              name: cloudflare-api-token
+              key: api-token
+        selector:
+          dnsZones:
+            - 'sql-studio.app'
+            - '*.sql-studio.app'
+
+---
+# =============================================================================
+# ClusterIssuer - Let's Encrypt Staging (for testing)
+# =============================================================================
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-staging
+  labels:
+    app: sql-studio
+spec:
+  acme:
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    email: admin@sql-studio.app
+    privateKeySecretRef:
+      name: letsencrypt-staging-key
+    solvers:
+      - http01:
+          ingress:
+            class: nginx
+
+---
+# =============================================================================
+# Certificate - Main Domain
+# =============================================================================
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: sql-studio-cert
+  namespace: sql-studio
+  labels:
+    app: sql-studio
+spec:
+  # Secret where certificate will be stored
+  secretName: sql-studio-tls
+
+  # Certificate duration
+  duration: 2160h  # 90 days
+  renewBefore: 360h  # 15 days before expiry
+
+  # Subject
+  subject:
+    organizations:
+      - SQL Studio
+
+  # Common name
+  commonName: sql-studio.app
+
+  # DNS names covered by certificate
+  dnsNames:
+    - sql-studio.app
+    - www.sql-studio.app
+    - api.sql-studio.app
+
+  # Issuer reference
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+    group: cert-manager.io
+
+  # Private key settings
+  privateKey:
+    algorithm: RSA
+    encoding: PKCS1
+    size: 2048
+    rotationPolicy: Always
+
+  # Usages
+  usages:
+    - digital signature
+    - key encipherment
+    - server auth
+
+---
+# =============================================================================
+# Certificate - Wildcard (optional)
+# =============================================================================
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: sql-studio-wildcard-cert
+  namespace: sql-studio
+  labels:
+    app: sql-studio
+spec:
+  secretName: sql-studio-wildcard-tls
+  duration: 2160h
+  renewBefore: 360h
+
+  commonName: "*.sql-studio.app"
+  dnsNames:
+    - "*.sql-studio.app"
+    - sql-studio.app
+
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+
+  privateKey:
+    algorithm: RSA
+    size: 2048
+
+---
+# =============================================================================
+# Certificate - Staging Environment
+# =============================================================================
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: sql-studio-staging-cert
+  namespace: sql-studio
+  labels:
+    app: sql-studio
+    environment: staging
+spec:
+  secretName: sql-studio-staging-tls
+  duration: 2160h
+  renewBefore: 360h
+
+  commonName: staging.sql-studio.app
+  dnsNames:
+    - staging.sql-studio.app
+    - staging-api.sql-studio.app
+
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+
+---
+# =============================================================================
+# Cloudflare API Token Secret (for DNS-01 challenge)
+# =============================================================================
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cloudflare-api-token
+  namespace: cert-manager
+type: Opaque
+stringData:
+  api-token: YOUR_CLOUDFLARE_API_TOKEN
+  # Create token at: https://dash.cloudflare.com/profile/api-tokens
+  # Permissions: Zone:DNS:Edit, Zone:Zone:Read
+
+---
+# =============================================================================
+# Certificate Monitoring
+# =============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cert-monitor-config
+  namespace: sql-studio
+data:
+  check-certs.sh: |
+    #!/bin/bash
+    # Check certificate expiration
+
+    NAMESPACE="sql-studio"
+    CERTS=$(kubectl get certificates -n $NAMESPACE -o json)
+
+    echo "$CERTS" | jq -r '.items[] |
+      "\(.metadata.name): \(.status.renewalTime // "Not Ready")"'
+
+    # Alert if certificate expires soon
+    EXPIRING=$(echo "$CERTS" | jq -r '.items[] |
+      select(.status.renewalTime | fromdateiso8601 < (now + 86400*7)) |
+      .metadata.name')
+
+    if [ -n "$EXPIRING" ]; then
+      echo "WARNING: Certificates expiring soon: $EXPIRING"
+      # Send alert
+    fi
+
+---
+# =============================================================================
+# CronJob - Certificate Expiration Check
+# =============================================================================
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cert-expiration-check
+  namespace: sql-studio
+spec:
+  schedule: "0 0 * * *"  # Daily at midnight
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: cert-monitor
+          restartPolicy: Never
+          containers:
+            - name: check
+              image: bitnami/kubectl:latest
+              command: ["/bin/bash", "/scripts/check-certs.sh"]
+              volumeMounts:
+                - name: scripts
+                  mountPath: /scripts
+          volumes:
+            - name: scripts
+              configMap:
+                name: cert-monitor-config
+                defaultMode: 0755
+
+---
+# =============================================================================
+# ServiceAccount for Certificate Monitoring
+# =============================================================================
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cert-monitor
+  namespace: sql-studio
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: cert-reader
+  namespace: sql-studio
+rules:
+  - apiGroups: ["cert-manager.io"]
+    resources: ["certificates"]
+    verbs: ["get", "list", "watch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: cert-monitor-binding
+  namespace: sql-studio
+subjects:
+  - kind: ServiceAccount
+    name: cert-monitor
+    namespace: sql-studio
+roleRef:
+  kind: Role
+  name: cert-reader
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# =============================================================================
+# Usage Instructions
+# =============================================================================
+#
+# 1. Install cert-manager:
+#    kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.13.0/cert-manager.yaml
+#
+# 2. Verify cert-manager is running:
+#    kubectl get pods -n cert-manager
+#
+# 3. Create Cloudflare API token secret (if using DNS-01):
+#    kubectl create secret generic cloudflare-api-token \
+#      --namespace=cert-manager \
+#      --from-literal=api-token=YOUR_TOKEN
+#
+# 4. Apply cluster issuer and certificates:
+#    kubectl apply -f ssl-certificates.yaml
+#
+# 5. Check certificate status:
+#    kubectl get certificates -n sql-studio
+#    kubectl describe certificate sql-studio-cert -n sql-studio
+#
+# 6. Check certificate secret:
+#    kubectl get secret sql-studio-tls -n sql-studio
+#    kubectl describe secret sql-studio-tls -n sql-studio
+#
+# 7. View certificate details:
+#    kubectl get secret sql-studio-tls -n sql-studio -o jsonpath='{.data.tls\.crt}' | \
+#      base64 -d | openssl x509 -text -noout
+#
+# 8. Force certificate renewal:
+#    kubectl delete secret sql-studio-tls -n sql-studio
+#    # cert-manager will recreate it automatically
+#
+# 9. Test certificate:
+#    curl -vI https://sql-studio.app
+#    openssl s_client -connect sql-studio.app:443 -servername sql-studio.app
+#
+# 10. Monitor certificate expiration:
+#     kubectl logs -f cronjob/cert-expiration-check -n sql-studio
+#
+# =============================================================================
+# Troubleshooting
+# =============================================================================
+#
+# Certificate not issuing:
+#   kubectl describe certificate sql-studio-cert -n sql-studio
+#   kubectl describe certificaterequest -n sql-studio
+#   kubectl describe order -n sql-studio
+#   kubectl describe challenge -n sql-studio
+#   kubectl logs -n cert-manager deployment/cert-manager
+#
+# HTTP-01 challenge failing:
+#   - Ensure ingress is accessible from internet
+#   - Check ingress controller logs
+#   - Verify DNS points to ingress IP
+#   - Check firewall rules allow port 80
+#
+# DNS-01 challenge failing:
+#   - Verify Cloudflare API token has correct permissions
+#   - Check cert-manager logs for DNS errors
+#   - Ensure DNS zone is correct
+#
+# =============================================================================

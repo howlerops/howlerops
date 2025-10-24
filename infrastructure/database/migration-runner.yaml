@@ -1,0 +1,341 @@
+# =============================================================================
+# SQL Studio - Database Migration Runner (Kubernetes Job)
+# =============================================================================
+# Kubernetes job for running database migrations safely in production
+# =============================================================================
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: sql-studio-db-migrate
+  namespace: sql-studio
+  labels:
+    app: sql-studio
+    component: migration
+  annotations:
+    description: "Database migration job"
+spec:
+  # Keep completed pods for inspection
+  ttlSecondsAfterFinished: 600  # 10 minutes
+
+  # Don't retry on failure - migrations should be idempotent
+  backoffLimit: 0
+
+  template:
+    metadata:
+      labels:
+        app: sql-studio
+        component: migration
+    spec:
+      restartPolicy: Never
+
+      # Service account (if needed)
+      serviceAccountName: sql-studio-backend
+
+      # Init container to wait for database availability
+      initContainers:
+        - name: wait-for-db
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for database to be ready..."
+              until wget -q --spider -T 5 ${TURSO_URL}/health 2>/dev/null; do
+                echo "Database not ready, waiting..."
+                sleep 5
+              done
+              echo "Database is ready!"
+          env:
+            - name: TURSO_URL
+              valueFrom:
+                secretKeyRef:
+                  name: sql-studio-secrets
+                  key: turso-url
+
+      # Migration container
+      containers:
+        - name: migrate
+          image: gcr.io/YOUR_PROJECT_ID/sql-studio-backend:latest
+          imagePullPolicy: IfNotPresent
+
+          command:
+            - /app/sql-studio-backend
+            - migrate
+            - up
+
+          # Environment variables
+          env:
+            - name: TURSO_URL
+              valueFrom:
+                secretKeyRef:
+                  name: sql-studio-secrets
+                  key: turso-url
+            - name: TURSO_AUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: sql-studio-secrets
+                  key: turso-auth-token
+            - name: MIGRATION_DIR
+              value: "/app/migrations"
+            - name: LOG_LEVEL
+              value: "info"
+            - name: LOG_FORMAT
+              value: "json"
+
+          # Resource limits
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+
+          # Security context
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1001
+            capabilities:
+              drop:
+                - ALL
+
+          # Volume mounts
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+
+      # Volumes
+      volumes:
+        - name: tmp
+          emptyDir: {}
+
+---
+# =============================================================================
+# Migration Rollback Job
+# =============================================================================
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: sql-studio-db-rollback
+  namespace: sql-studio
+  labels:
+    app: sql-studio
+    component: migration
+  annotations:
+    description: "Database migration rollback job"
+spec:
+  ttlSecondsAfterFinished: 3600  # Keep for 1 hour
+  backoffLimit: 0
+  # Manual trigger only - set to Suspend initially
+  suspend: true
+
+  template:
+    metadata:
+      labels:
+        app: sql-studio
+        component: migration
+    spec:
+      restartPolicy: Never
+      serviceAccountName: sql-studio-backend
+
+      containers:
+        - name: rollback
+          image: gcr.io/YOUR_PROJECT_ID/sql-studio-backend:latest
+          command:
+            - /app/sql-studio-backend
+            - migrate
+            - down
+            - "1"  # Rollback 1 migration
+
+          env:
+            - name: TURSO_URL
+              valueFrom:
+                secretKeyRef:
+                  name: sql-studio-secrets
+                  key: turso-url
+            - name: TURSO_AUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: sql-studio-secrets
+                  key: turso-auth-token
+            - name: MIGRATION_DIR
+              value: "/app/migrations"
+
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1001
+            capabilities:
+              drop:
+                - ALL
+
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+
+      volumes:
+        - name: tmp
+          emptyDir: {}
+
+---
+# =============================================================================
+# Pre-deployment Hook (Helm)
+# =============================================================================
+# If using Helm, this runs migrations before deployment
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: sql-studio-db-migrate-{{ .Release.Revision }}
+  namespace: sql-studio
+  labels:
+    app: sql-studio
+    component: migration
+  annotations:
+    "helm.sh/hook": pre-upgrade,pre-install
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  ttlSecondsAfterFinished: 600
+  backoffLimit: 2
+
+  template:
+    metadata:
+      labels:
+        app: sql-studio
+        component: migration
+    spec:
+      restartPolicy: Never
+      serviceAccountName: sql-studio-backend
+
+      containers:
+        - name: migrate
+          image: gcr.io/YOUR_PROJECT_ID/sql-studio-backend:{{ .Values.image.tag }}
+          command: ["/app/sql-studio-backend", "migrate", "up"]
+
+          env:
+            - name: TURSO_URL
+              valueFrom:
+                secretKeyRef:
+                  name: sql-studio-secrets
+                  key: turso-url
+            - name: TURSO_AUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: sql-studio-secrets
+                  key: turso-auth-token
+
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+
+---
+# =============================================================================
+# CronJob for Migration Status Check
+# =============================================================================
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: sql-studio-migration-check
+  namespace: sql-studio
+  labels:
+    app: sql-studio
+    component: migration
+spec:
+  schedule: "0 0 * * *"  # Daily at midnight
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  concurrencyPolicy: Forbid
+
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: sql-studio
+            component: migration
+        spec:
+          restartPolicy: Never
+          serviceAccountName: sql-studio-backend
+
+          containers:
+            - name: check
+              image: gcr.io/YOUR_PROJECT_ID/sql-studio-backend:latest
+              command: ["/app/sql-studio-backend", "migrate", "version"]
+
+              env:
+                - name: TURSO_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: sql-studio-secrets
+                      key: turso-url
+                - name: TURSO_AUTH_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: sql-studio-secrets
+                      key: turso-auth-token
+
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  cpu: 100m
+                  memory: 128Mi
+
+---
+# =============================================================================
+# Usage Instructions
+# =============================================================================
+#
+# Run migrations manually:
+#   kubectl apply -f migration-runner.yaml
+#   kubectl logs -f job/sql-studio-db-migrate -n sql-studio
+#
+# Check migration status:
+#   kubectl get jobs -n sql-studio -l component=migration
+#   kubectl logs job/sql-studio-db-migrate -n sql-studio
+#
+# Rollback (if needed):
+#   kubectl patch job sql-studio-db-rollback -n sql-studio -p '{"spec":{"suspend":false}}'
+#   kubectl logs -f job/sql-studio-db-rollback -n sql-studio
+#
+# Delete completed jobs:
+#   kubectl delete job sql-studio-db-migrate -n sql-studio
+#
+# View migration history:
+#   kubectl exec -it deployment/sql-studio-backend -n sql-studio -- \
+#     /app/sql-studio-backend migrate version
+#
+# =============================================================================
+# Integration with CI/CD
+# =============================================================================
+#
+# GitHub Actions example:
+#   - name: Run migrations
+#     run: |
+#       kubectl apply -f infrastructure/database/migration-runner.yaml
+#       kubectl wait --for=condition=complete --timeout=300s \
+#         job/sql-studio-db-migrate -n sql-studio
+#       if [ $? -ne 0 ]; then
+#         echo "Migration failed"
+#         kubectl logs job/sql-studio-db-migrate -n sql-studio
+#         exit 1
+#       fi
+#
+# =============================================================================

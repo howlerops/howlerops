@@ -164,7 +164,7 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorRef, CodeMirrorEditor
         view.destroy()
         viewRef.current = null
       }
-    }, [columnLoader])
+    }, [columnLoader, theme, onChange, onMount, onExecute, readOnly, placeholder])
 
     // Update value when prop changes
     useEffect(() => {
@@ -182,16 +182,6 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorRef, CodeMirrorEditor
         })
       }
     }, [value])
-
-    // Update theme
-    useEffect(() => {
-      const view = viewRef.current
-      if (!view) return
-
-      // Recreate editor with new theme
-      // Note: This is a simplified approach. In production, you might want to
-      // use compartments for dynamic theme switching
-    }, [theme])
 
     // Update schema, connections, and mode
     useEffect(() => {

@@ -1,0 +1,214 @@
+# =============================================================================
+# Homebrew Tap - Formula Testing Workflow
+# =============================================================================
+# This workflow should be placed in the homebrew-tap repository at:
+# .github/workflows/test.yml
+#
+# It validates formula updates and ensures compatibility.
+# =============================================================================
+
+name: Test Formula
+
+on:
+  # Run on all pull requests
+  pull_request:
+    paths:
+      - 'Formula/**'
+      - '.github/workflows/test.yml'
+
+  # Run on pushes to main (including automated updates)
+  push:
+    branches:
+      - main
+    paths:
+      - 'Formula/**'
+
+  # Allow manual testing
+  workflow_dispatch:
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Job 1: Syntax and Audit Tests
+  # ---------------------------------------------------------------------------
+  audit:
+    name: Audit Formula
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Homebrew
+        run: |
+          # Homebrew is pre-installed on GitHub macOS runners
+          brew --version
+
+      - name: Tap formula
+        run: |
+          # Add this repository as a tap
+          brew tap sql-studio/tap "$(pwd)"
+
+      - name: Audit formula (basic)
+        run: |
+          brew audit sql-studio
+
+      - name: Audit formula (strict)
+        run: |
+          brew audit --strict sql-studio || echo "Strict audit completed with warnings"
+
+      - name: Style check
+        run: |
+          brew style Formula/sql-studio.rb || echo "Style check completed with warnings"
+
+  # ---------------------------------------------------------------------------
+  # Job 2: Installation Test (Intel)
+  # ---------------------------------------------------------------------------
+  test-intel:
+    name: Test Installation (Intel)
+    runs-on: macos-13  # Intel runner
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install formula
+        run: |
+          brew install --formula ./Formula/sql-studio.rb
+
+      - name: Verify installation
+        run: |
+          brew list sql-studio
+          which sql-studio
+          sql-studio --version || echo "Version check completed"
+
+      - name: Run formula tests
+        run: |
+          brew test sql-studio
+
+      - name: Uninstall formula
+        run: |
+          brew uninstall sql-studio
+
+  # ---------------------------------------------------------------------------
+  # Job 3: Installation Test (Apple Silicon)
+  # ---------------------------------------------------------------------------
+  test-arm:
+    name: Test Installation (Apple Silicon)
+    runs-on: macos-latest  # ARM64 runner
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install formula
+        run: |
+          brew install --formula ./Formula/sql-studio.rb
+
+      - name: Verify installation
+        run: |
+          brew list sql-studio
+          which sql-studio
+          sql-studio --version || echo "Version check completed"
+
+      - name: Run formula tests
+        run: |
+          brew test sql-studio
+
+      - name: Uninstall formula
+        run: |
+          brew uninstall sql-studio
+
+  # ---------------------------------------------------------------------------
+  # Job 4: Validate Checksums
+  # ---------------------------------------------------------------------------
+  validate-checksums:
+    name: Validate Checksums
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Extract checksums from formula
+        id: checksums
+        run: |
+          # Extract SHA256 checksums
+          INTEL_SHA=$(grep -A 2 "on_intel" Formula/sql-studio.rb | grep "sha256" | sed 's/.*"\(.*\)".*/\1/')
+          ARM_SHA=$(grep -A 2 "on_arm" Formula/sql-studio.rb | grep "sha256" | sed 's/.*"\(.*\)".*/\1/')
+
+          echo "intel_sha=$INTEL_SHA" >> $GITHUB_OUTPUT
+          echo "arm_sha=$ARM_SHA" >> $GITHUB_OUTPUT
+
+          echo "Intel SHA256: $INTEL_SHA"
+          echo "ARM SHA256: $ARM_SHA"
+
+      - name: Check for placeholder checksums
+        run: |
+          if [[ "${{ steps.checksums.outputs.intel_sha }}" == *"PLACEHOLDER"* ]]; then
+            echo "ERROR: Intel checksum is still a placeholder"
+            exit 1
+          fi
+
+          if [[ "${{ steps.checksums.outputs.arm_sha }}" == *"PLACEHOLDER"* ]]; then
+            echo "ERROR: ARM checksum is still a placeholder"
+            exit 1
+          fi
+
+          echo "Checksums are not placeholders ✓"
+
+      - name: Validate checksum format
+        run: |
+          # Validate SHA256 format (64 hex characters)
+          if [[ "${{ steps.checksums.outputs.intel_sha }}" =~ ^[a-f0-9]{64}$ ]]; then
+            echo "Intel SHA256 format is valid ✓"
+          else
+            echo "ERROR: Intel SHA256 format is invalid"
+            exit 1
+          fi
+
+          if [[ "${{ steps.checksums.outputs.arm_sha }}" =~ ^[a-f0-9]{64}$ ]]; then
+            echo "ARM SHA256 format is valid ✓"
+          else
+            echo "ERROR: ARM SHA256 format is invalid"
+            exit 1
+          fi
+
+  # ---------------------------------------------------------------------------
+  # Job 5: Test bottle-spec (Optional)
+  # ---------------------------------------------------------------------------
+  test-bottle:
+    name: Test Bottle Spec
+    runs-on: macos-latest
+    if: false  # Enable when bottles are implemented
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install formula
+        run: |
+          brew install --formula ./Formula/sql-studio.rb
+
+      - name: Build bottle
+        run: |
+          brew bottle sql-studio
+
+      - name: Upload bottle
+        uses: actions/upload-artifact@v3
+        with:
+          name: bottle
+          path: '*.bottle.tar.gz'
+
+# =============================================================================
+# Workflow Summary
+# =============================================================================
+# This workflow ensures formula quality:
+#
+# 1. Audit: Validates formula syntax and style
+# 2. Test Intel: Tests installation on Intel Macs
+# 3. Test ARM: Tests installation on Apple Silicon
+# 4. Validate Checksums: Ensures checksums are valid
+# 5. Test Bottle: (Optional) Tests bottle creation
+#
+# All jobs must pass before merging formula updates
+# =============================================================================

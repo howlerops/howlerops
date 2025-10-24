@@ -1,0 +1,70 @@
+{{ define "email.default.subject" }}
+[{{ .Status | toUpper }}] {{ .GroupLabels.alertname }} - SQL Studio
+{{ end }}
+
+{{ define "email.default.html" }}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+        .header { background-color: {{ if eq .Status "firing" }}#d32f2f{{ else }}#388e3c{{ end }}; color: white; padding: 15px; border-radius: 5px; }
+        .alert { background-color: #f5f5f5; padding: 15px; margin: 10px 0; border-left: 4px solid {{ if eq .Status "firing" }}#d32f2f{{ else }}#388e3c{{ end }}; }
+        .label { font-weight: bold; color: #666; }
+        .value { margin-left: 10px; }
+        .footer { margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 12px; color: #666; }
+        .button { display: inline-block; padding: 10px 20px; background-color: #1976d2; color: white; text-decoration: none; border-radius: 3px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>{{ .Status | toUpper }}: {{ .GroupLabels.alertname }}</h1>
+            <p>{{ .Alerts.Firing | len }} firing, {{ .Alerts.Resolved | len }} resolved</p>
+        </div>
+
+        {{ if .Alerts.Firing }}
+        <h2 style="color: #d32f2f;">Firing Alerts</h2>
+        {{ range .Alerts.Firing }}
+        <div class="alert">
+            <p><span class="label">Summary:</span><span class="value">{{ .Annotations.summary }}</span></p>
+            <p><span class="label">Description:</span><span class="value">{{ .Annotations.description }}</span></p>
+            <p><span class="label">Severity:</span><span class="value">{{ .Labels.severity }}</span></p>
+            <p><span class="label">Component:</span><span class="value">{{ .Labels.component }}</span></p>
+            <p><span class="label">Started:</span><span class="value">{{ .StartsAt.Format "2006-01-02 15:04:05 MST" }}</span></p>
+            {{ if .Annotations.runbook }}
+            <p><a href="{{ .Annotations.runbook }}" class="button">View Runbook</a></p>
+            {{ end }}
+            <details>
+                <summary>All Labels</summary>
+                <ul>
+                {{ range .Labels.SortedPairs }}
+                    <li><strong>{{ .Name }}:</strong> {{ .Value }}</li>
+                {{ end }}
+                </ul>
+            </details>
+        </div>
+        {{ end }}
+        {{ end }}
+
+        {{ if .Alerts.Resolved }}
+        <h2 style="color: #388e3c;">Resolved Alerts</h2>
+        {{ range .Alerts.Resolved }}
+        <div class="alert">
+            <p><span class="label">Summary:</span><span class="value">{{ .Annotations.summary }}</span></p>
+            <p><span class="label">Duration:</span><span class="value">{{ .StartsAt.Format "2006-01-02 15:04:05" }} - {{ .EndsAt.Format "15:04:05 MST" }}</span></p>
+        </div>
+        {{ end }}
+        {{ end }}
+
+        <div class="footer">
+            <p>This is an automated alert from SQL Studio monitoring system.</p>
+            <p>Alert generated at: {{ .CommonAnnotations.timestamp | default "N/A" }}</p>
+            <p><a href="https://grafana.sqlstudio.io">View Dashboards</a> | <a href="https://prometheus.sqlstudio.io">View Prometheus</a></p>
+        </div>
+    </div>
+</body>
+</html>
+{{ end }}

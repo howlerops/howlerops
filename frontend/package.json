@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "(tsc -b || true) && vite build",
+    "analyze": "vite build --mode analyze && npx vite-bundle-visualizer",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit --project tsconfig.app.json",
     "preview": "vite preview",

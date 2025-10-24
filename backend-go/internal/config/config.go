@@ -18,6 +18,9 @@ type Config struct {
 	Log      LogConfig      `mapstructure:"log"`
 	Security SecurityConfig `mapstructure:"security"`
 	Metrics  MetricsConfig  `mapstructure:"metrics"`
+	Email    EmailConfig    `mapstructure:"email"`
+	Sync     SyncConfig     `mapstructure:"sync"`
+	Turso    TursoConfig    `mapstructure:"turso"`
 }
 
 // ServerConfig holds server configuration
@@ -109,8 +112,48 @@ type MetricsConfig struct {
 	Subsystem string `mapstructure:"subsystem"`
 }
 
+// EmailConfig holds email service configuration
+type EmailConfig struct {
+	Provider  string `mapstructure:"provider"`   // resend, smtp
+	APIKey    string `mapstructure:"api_key"`
+	FromEmail string `mapstructure:"from_email"`
+	FromName  string `mapstructure:"from_name"`
+	BaseURL   string `mapstructure:"base_url"`   // Base URL for email links
+}
+
+// SyncConfig holds sync service configuration
+type SyncConfig struct {
+	Enabled            bool   `mapstructure:"enabled"`
+	MaxUploadSize      int64  `mapstructure:"max_upload_size"`       // bytes
+	ConflictStrategy   string `mapstructure:"conflict_strategy"`     // last_write_wins, keep_both, user_choice
+	RetentionDays      int    `mapstructure:"retention_days"`
+	MaxHistoryItems    int    `mapstructure:"max_history_items"`
+	EnableSanitization bool   `mapstructure:"enable_sanitization"`
+	RateLimitRPM       int    `mapstructure:"rate_limit_rpm"`        // requests per minute
+}
+
+// TursoConfig holds Turso database configuration
+type TursoConfig struct {
+	URL            string `mapstructure:"url"`
+	AuthToken      string `mapstructure:"auth_token"`
+	MaxConnections int    `mapstructure:"max_connections"`
+}
+
 // Load loads configuration from various sources
 func Load() (*Config, error) {
+	// Create temporary logger for config loading
+	// Note: We can't use logrus here yet as it creates a circular dependency
+	// tempLogger := &logrus.Logger{
+	// 	Out:       os.Stdout,
+	// 	Formatter: &logrus.TextFormatter{},
+	// 	Level:     logrus.InfoLevel,
+	// }
+
+	// Load environment variables from .env files
+	if err := LoadEnv(nil); err != nil {
+		return nil, fmt.Errorf("failed to load environment: %w", err)
+	}
+
 	// Set default values
 	setDefaults()
 
@@ -131,7 +174,7 @@ func Load() (*Config, error) {
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.AutomaticEnv()
 
-	// Read configuration file
+	// Read configuration file (optional)
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
 			return nil, fmt.Errorf("failed to read config file: %w", err)
@@ -145,12 +188,72 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 
+	// Override with direct environment variables (higher priority)
+	overrideFromEnv(&config)
+
+	// Ensure critical values have defaults if empty
+	config.Log.Output = strings.TrimSpace(config.Log.Output)
+	if config.Log.Output == "" {
+		config.Log.Output = "stdout"
+	}
+	config.Log.Format = strings.TrimSpace(config.Log.Format)
+	if config.Log.Format == "" {
+		config.Log.Format = "text"
+	}
+	config.Log.Level = strings.TrimSpace(config.Log.Level)
+	if config.Log.Level == "" {
+		config.Log.Level = "info"
+	}
+
 	// Validate configuration
 	if err := validate(&config); err != nil {
 		return nil, fmt.Errorf("config validation failed: %w", err)
 	}
 
 	return &config, nil
+}
+
+// overrideFromEnv overrides config values with environment variables
+func overrideFromEnv(config *Config) {
+	// Server configuration
+	config.Server.HTTPPort = GetEnvInt("SERVER_HTTP_PORT", config.Server.HTTPPort)
+	config.Server.GRPCPort = GetEnvInt("SERVER_GRPC_PORT", config.Server.GRPCPort)
+	config.Server.Environment = GetEnvString("ENVIRONMENT", config.Server.Environment)
+
+	// Turso configuration
+	if tursoURL := GetEnvString("TURSO_URL", ""); tursoURL != "" {
+		config.Turso.URL = tursoURL
+	}
+	config.Turso.AuthToken = GetEnvString("TURSO_AUTH_TOKEN", config.Turso.AuthToken)
+
+	// Email configuration
+	if resendKey := GetEnvString("RESEND_API_KEY", ""); resendKey != "" {
+		config.Email.APIKey = resendKey
+	}
+	if fromEmail := GetEnvString("RESEND_FROM_EMAIL", ""); fromEmail != "" {
+		config.Email.FromEmail = fromEmail
+	}
+
+	// Auth configuration
+	if jwtSecret := GetEnvString("JWT_SECRET", ""); jwtSecret != "" {
+		config.Auth.JWTSecret = jwtSecret
+	}
+	config.Auth.JWTExpiration = GetEnvDuration("JWT_EXPIRATION", config.Auth.JWTExpiration)
+	config.Auth.RefreshExpiration = GetEnvDuration("JWT_REFRESH_EXPIRATION", config.Auth.RefreshExpiration)
+
+	// Logging configuration
+	if logLevel := GetEnvString("LOG_LEVEL", ""); logLevel != "" {
+		config.Log.Level = logLevel
+	}
+	if logFormat := GetEnvString("LOG_FORMAT", ""); logFormat != "" {
+		config.Log.Format = logFormat
+	}
+	if logOutput := GetEnvString("LOG_OUTPUT", ""); logOutput != "" {
+		config.Log.Output = logOutput
+	}
+
+	// Metrics configuration
+	config.Metrics.Port = GetEnvInt("SERVER_METRICS_PORT", config.Metrics.Port)
 }
 
 // setDefaults sets default configuration values
@@ -225,6 +328,25 @@ func setDefaults() {
 	viper.SetDefault("metrics.port", 9100)
 	viper.SetDefault("metrics.namespace", "sql_studio")
 	viper.SetDefault("metrics.subsystem", "backend")
+
+	// Email defaults
+	viper.SetDefault("email.provider", "resend")
+	viper.SetDefault("email.from_email", "noreply@sqlstudio.io")
+	viper.SetDefault("email.from_name", "SQL Studio")
+	viper.SetDefault("email.base_url", "http://localhost:3000")
+
+	// Sync defaults
+	viper.SetDefault("sync.enabled", true)
+	viper.SetDefault("sync.max_upload_size", 10*1024*1024) // 10MB
+	viper.SetDefault("sync.conflict_strategy", "last_write_wins")
+	viper.SetDefault("sync.retention_days", 30)
+	viper.SetDefault("sync.max_history_items", 1000)
+	viper.SetDefault("sync.enable_sanitization", true)
+	viper.SetDefault("sync.rate_limit_rpm", 10)
+
+	// Turso defaults
+	viper.SetDefault("turso.url", "file:./data/development.db")
+	viper.SetDefault("turso.max_connections", 25)
 }
 
 // validate validates the configuration

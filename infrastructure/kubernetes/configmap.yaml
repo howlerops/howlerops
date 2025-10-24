@@ -1,0 +1,224 @@
+# =============================================================================
+# SQL Studio - ConfigMap
+# =============================================================================
+# Non-sensitive configuration values for backend and frontend
+# =============================================================================
+
+# Backend Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sql-studio-backend-config
+  namespace: sql-studio
+  labels:
+    app: sql-studio
+    component: backend
+data:
+  # Server configuration
+  SERVER_HTTP_PORT: "8500"
+  SERVER_GRPC_PORT: "9500"
+  METRICS_PORT: "9100"
+  ENVIRONMENT: "production"
+
+  # Logging configuration
+  LOG_LEVEL: "info"
+  LOG_FORMAT: "json"
+  LOG_OUTPUT: "stdout"
+
+  # Database configuration (non-sensitive)
+  DATABASE_MAX_OPEN_CONNS: "25"
+  DATABASE_MAX_IDLE_CONNS: "10"
+  DATABASE_CONN_MAX_LIFETIME: "30m"
+  DATABASE_CONN_MAX_IDLE_TIME: "10m"
+
+  # Authentication configuration
+  JWT_EXPIRATION: "24h"
+  JWT_REFRESH_EXPIRATION: "168h"  # 7 days
+  MAGIC_LINK_EXPIRATION: "15m"
+
+  # Rate limiting
+  RATE_LIMIT_ENABLED: "true"
+  RATE_LIMIT_REQUESTS_PER_MINUTE: "60"
+  RATE_LIMIT_BURST: "10"
+
+  # CORS configuration
+  CORS_ALLOWED_ORIGINS: "https://sql-studio.app,https://www.sql-studio.app"
+  CORS_ALLOWED_METHODS: "GET,POST,PUT,DELETE,OPTIONS"
+  CORS_ALLOWED_HEADERS: "Authorization,Content-Type,Accept,Origin,User-Agent"
+  CORS_ALLOW_CREDENTIALS: "true"
+  CORS_MAX_AGE: "86400"
+
+  # Feature flags
+  FEATURE_EMAIL_AUTH: "true"
+  FEATURE_CLOUD_SYNC: "true"
+  FEATURE_AI_QUERY: "false"  # Not implemented yet
+
+  # Sync configuration
+  SYNC_BATCH_SIZE: "100"
+  SYNC_MAX_RETRIES: "3"
+  SYNC_RETRY_DELAY: "1s"
+
+  # Timezone
+  TZ: "UTC"
+
+---
+# Frontend Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sql-studio-frontend-config
+  namespace: sql-studio
+  labels:
+    app: sql-studio
+    component: frontend
+data:
+  # Backend API URL
+  backend-api-url: "https://api.sql-studio.app"
+
+  # Environment
+  environment: "production"
+
+  # Feature flags
+  feature-cloud-sync: "true"
+  feature-email-auth: "true"
+
+  # Analytics (optional)
+  enable-analytics: "false"
+
+---
+# nginx Configuration for Frontend
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+  namespace: sql-studio
+  labels:
+    app: sql-studio
+    component: frontend
+data:
+  # Custom nginx configuration
+  nginx.conf: |
+    user nginx;
+    worker_processes auto;
+    error_log /var/log/nginx/error.log warn;
+    pid /var/run/nginx.pid;
+
+    events {
+      worker_connections 1024;
+      use epoll;
+      multi_accept on;
+    }
+
+    http {
+      include /etc/nginx/mime.types;
+      default_type application/octet-stream;
+
+      log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for"';
+
+      access_log /var/log/nginx/access.log main;
+
+      sendfile on;
+      tcp_nopush on;
+      tcp_nodelay on;
+      keepalive_timeout 65;
+      types_hash_max_size 2048;
+      server_tokens off;
+
+      # Gzip compression
+      gzip on;
+      gzip_vary on;
+      gzip_proxied any;
+      gzip_comp_level 6;
+      gzip_types text/plain text/css text/xml text/javascript
+                 application/json application/javascript application/xml+rss
+                 application/rss+xml font/truetype font/opentype
+                 application/vnd.ms-fontobject image/svg+xml;
+
+      # Brotli compression (if module available)
+      # brotli on;
+      # brotli_comp_level 6;
+      # brotli_types text/plain text/css text/xml text/javascript
+      #              application/json application/javascript;
+
+      server {
+        listen 80;
+        server_name _;
+        root /usr/share/nginx/html;
+        index index.html;
+
+        # Security headers
+        add_header X-Frame-Options "DENY" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-XSS-Protection "1; mode=block" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+        # Health check endpoint
+        location /health {
+          access_log off;
+          return 200 "healthy\n";
+          add_header Content-Type text/plain;
+        }
+
+        # Cache static assets
+        location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+          expires 1y;
+          add_header Cache-Control "public, immutable";
+          access_log off;
+        }
+
+        # SPA routing - serve index.html for all routes
+        location / {
+          try_files $uri $uri/ /index.html;
+          add_header Cache-Control "no-cache, no-store, must-revalidate";
+        }
+
+        # Disable access to hidden files
+        location ~ /\. {
+          deny all;
+          access_log off;
+          log_not_found off;
+        }
+      }
+    }
+
+---
+# Monitoring Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: monitoring-config
+  namespace: sql-studio
+  labels:
+    app: sql-studio
+data:
+  # Prometheus scraping configuration
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+
+    scrape_configs:
+      - job_name: 'sql-studio-backend'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - sql-studio
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_component]
+            action: keep
+            regex: backend
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            target_label: __address__
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)

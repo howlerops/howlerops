@@ -1,0 +1,466 @@
+# =============================================================================
+# SQL Studio - Turso Production Database Configuration
+# =============================================================================
+# Production database setup and configuration for Turso (libSQL)
+# =============================================================================
+
+# Database Configuration
+database:
+  name: sql-studio-production
+  type: turso
+  driver: libsql
+
+  # Primary database location
+  primary_region: ord  # Chicago (closest to us-central1)
+
+  # Read replicas (for global distribution)
+  replicas:
+    - region: iad  # Washington DC (East US)
+      priority: 1
+    - region: sjc  # San Jose (West US)
+      priority: 2
+    - region: fra  # Frankfurt (Europe)
+      priority: 3
+    - region: syd  # Sydney (Asia-Pacific)
+      priority: 4
+
+  # Connection configuration
+  connection:
+    url: ${TURSO_URL}  # libsql://your-database.turso.io
+    auth_token: ${TURSO_AUTH_TOKEN}
+
+    # Connection pool settings
+    max_open_connections: 25
+    max_idle_connections: 10
+    connection_max_lifetime: 30m
+    connection_max_idle_time: 10m
+
+    # Timeouts
+    dial_timeout: 5s
+    read_timeout: 30s
+    write_timeout: 30s
+
+  # Performance tuning
+  performance:
+    # Enable HTTP pipelining
+    enable_http2: true
+
+    # Connection reuse
+    keep_alive: true
+    keep_alive_timeout: 30s
+
+    # Batch writes
+    batch_size: 100
+    batch_timeout: 10ms
+
+  # Sync configuration
+  sync:
+    enabled: true
+    interval: 5s  # Sync from primary to replicas every 5s
+    mode: async   # async or sync
+
+---
+# =============================================================================
+# Backup and Recovery Configuration
+# =============================================================================
+backup:
+  # Automatic backups (Turso managed)
+  automatic:
+    enabled: true
+    frequency: hourly
+    retention: 7d  # Keep backups for 7 days
+
+  # Point-in-time recovery
+  point_in_time_recovery:
+    enabled: true
+    retention: 7d
+
+  # Manual backup commands
+  manual:
+    # Create backup
+    create: |
+      turso db backup create sql-studio-production
+
+    # List backups
+    list: |
+      turso db backup list sql-studio-production
+
+    # Restore from backup
+    restore: |
+      turso db backup restore sql-studio-production BACKUP_ID
+
+---
+# =============================================================================
+# Schema Migration Strategy
+# =============================================================================
+migration:
+  tool: golang-migrate
+  source: file://./migrations
+  database: ${TURSO_URL}
+
+  # Migration files location
+  migrations_path: /app/migrations
+
+  # Version table
+  version_table: schema_migrations
+  version_table_schema: public
+
+  # Migration execution
+  execution:
+    # Lock table to prevent concurrent migrations
+    lock_table: true
+    lock_timeout: 5m
+
+    # Dry run mode
+    dry_run: false
+
+    # Transaction mode (all migrations in one transaction)
+    transaction_mode: true
+
+  # Rollback strategy
+  rollback:
+    # Automatically rollback failed migrations
+    auto_rollback: true
+
+    # Number of migrations to rollback
+    steps: 1
+
+---
+# =============================================================================
+# Database Schema
+# =============================================================================
+schema:
+  # Schema version
+  version: 1
+
+  # Core tables
+  tables:
+    - name: users
+      description: "User accounts and authentication"
+      indexes:
+        - columns: [email]
+          unique: true
+        - columns: [created_at]
+
+    - name: credentials
+      description: "Encrypted database credentials"
+      indexes:
+        - columns: [user_id, connection_id]
+          unique: true
+
+    - name: connections
+      description: "User database connections"
+      indexes:
+        - columns: [user_id]
+        - columns: [created_at]
+
+    - name: sync_operations
+      description: "Cloud sync operation log"
+      indexes:
+        - columns: [user_id, status]
+        - columns: [created_at]
+
+  # Performance optimizations
+  optimizations:
+    # Create indexes
+    indexes:
+      enabled: true
+      analyze_after_creation: true
+
+    # Vacuum (SQLite maintenance)
+    vacuum:
+      enabled: true
+      schedule: weekly
+
+    # Analyze (update statistics)
+    analyze:
+      enabled: true
+      schedule: daily
+
+---
+# =============================================================================
+# Monitoring and Metrics
+# =============================================================================
+monitoring:
+  # Database metrics
+  metrics:
+    - name: connection_count
+      query: "SELECT COUNT(*) FROM pg_stat_activity"
+      interval: 60s
+
+    - name: database_size
+      query: "SELECT pg_database_size(current_database())"
+      interval: 300s
+
+    - name: query_performance
+      query: "SELECT * FROM pg_stat_statements"
+      interval: 60s
+
+  # Alerts
+  alerts:
+    - name: high_connection_count
+      condition: connection_count > 20
+      severity: warning
+
+    - name: slow_queries
+      condition: query_time > 1s
+      severity: warning
+
+    - name: replication_lag
+      condition: lag > 10s
+      severity: critical
+
+---
+# =============================================================================
+# Security Configuration
+# =============================================================================
+security:
+  # Authentication
+  authentication:
+    method: token  # Turso uses auth tokens
+    token_rotation: monthly
+
+  # Encryption
+  encryption:
+    # Encryption at rest (Turso managed)
+    at_rest: true
+
+    # Encryption in transit
+    in_transit: true
+    tls_version: 1.3
+
+  # Access control
+  access_control:
+    # Read-only replicas
+    read_only_replicas: true
+
+    # IP allowlist (if supported)
+    ip_allowlist:
+      enabled: false
+      ranges: []
+
+  # Audit logging
+  audit:
+    enabled: true
+    log_queries: false  # Don't log query contents (privacy)
+    log_connections: true
+    log_errors: true
+
+---
+# =============================================================================
+# Disaster Recovery Plan
+# =============================================================================
+disaster_recovery:
+  # Recovery Time Objective (RTO)
+  rto: 1h  # Back online within 1 hour
+
+  # Recovery Point Objective (RPO)
+  rpo: 1h  # Accept up to 1 hour of data loss
+
+  # Backup strategy
+  backup_strategy:
+    primary: automatic_hourly_backups
+    secondary: point_in_time_recovery
+    tertiary: manual_backups_before_major_changes
+
+  # Recovery procedures
+  recovery_procedures:
+    - step: 1
+      action: "Identify the issue and scope of data loss"
+      command: "turso db backup list sql-studio-production"
+
+    - step: 2
+      action: "Create a new database from backup"
+      command: "turso db backup restore sql-studio-production BACKUP_ID"
+
+    - step: 3
+      action: "Verify data integrity"
+      command: "Run data validation queries"
+
+    - step: 4
+      action: "Update application configuration"
+      command: "Update TURSO_URL environment variable"
+
+    - step: 5
+      action: "Restart application services"
+      command: "kubectl rollout restart deployment/sql-studio-backend"
+
+    - step: 6
+      action: "Monitor for errors"
+      command: "kubectl logs -f deployment/sql-studio-backend"
+
+---
+# =============================================================================
+# Turso CLI Commands
+# =============================================================================
+turso_commands:
+  # Database management
+  create_database: |
+    turso db create sql-studio-production --location ord
+
+  # Add replica
+  add_replica: |
+    turso db replicas create sql-studio-production --location iad
+
+  # List replicas
+  list_replicas: |
+    turso db replicas list sql-studio-production
+
+  # Get connection URL
+  get_url: |
+    turso db show sql-studio-production --url
+
+  # Create auth token
+  create_token: |
+    turso db tokens create sql-studio-production
+
+  # Token with expiration
+  create_token_expiry: |
+    turso db tokens create sql-studio-production --expiration 30d
+
+  # Read-only token
+  create_readonly_token: |
+    turso db tokens create sql-studio-production --read-only
+
+  # List tokens
+  list_tokens: |
+    turso db tokens list sql-studio-production
+
+  # Revoke token
+  revoke_token: |
+    turso db tokens revoke sql-studio-production TOKEN_NAME
+
+  # Database info
+  show_info: |
+    turso db show sql-studio-production
+
+  # Database usage
+  show_usage: |
+    turso db usage sql-studio-production
+
+  # List databases
+  list_databases: |
+    turso db list
+
+  # Delete database (DANGEROUS)
+  delete_database: |
+    turso db destroy sql-studio-production
+
+---
+# =============================================================================
+# Application Configuration
+# =============================================================================
+application_config:
+  # Environment variables
+  environment:
+    TURSO_URL: "libsql://sql-studio-production-USERNAME.turso.io"
+    TURSO_AUTH_TOKEN: "eyJhbGc..."
+    DATABASE_MAX_OPEN_CONNS: "25"
+    DATABASE_MAX_IDLE_CONNS: "10"
+    DATABASE_CONN_MAX_LIFETIME: "30m"
+    DATABASE_CONN_MAX_IDLE_TIME: "10m"
+
+  # Go configuration (backend)
+  go_config: |
+    import (
+      "database/sql"
+      _ "github.com/tursodatabase/libsql-client-go/libsql"
+    )
+
+    db, err := sql.Open("libsql", os.Getenv("TURSO_URL")+"?authToken="+os.Getenv("TURSO_AUTH_TOKEN"))
+    if err != nil {
+      log.Fatal(err)
+    }
+
+    db.SetMaxOpenConns(25)
+    db.SetMaxIdleConns(10)
+    db.SetConnMaxLifetime(30 * time.Minute)
+    db.SetConnMaxIdleTime(10 * time.Minute)
+
+---
+# =============================================================================
+# Cost Optimization
+# =============================================================================
+cost_optimization:
+  # Turso pricing tiers
+  current_tier: pro  # free, pro, or enterprise
+
+  # Expected usage
+  expected_usage:
+    rows_read: 1000000/month
+    rows_written: 100000/month
+    storage: 1GB
+    replicas: 4
+
+  # Cost breakdown (estimate)
+  estimated_cost:
+    base: $29/month  # Pro tier
+    overage: $0  # Included in pro
+    total: $29/month
+
+  # Optimization strategies
+  strategies:
+    - "Use read replicas for read-heavy workloads"
+    - "Batch writes to reduce write operations"
+    - "Archive old data to reduce storage"
+    - "Monitor usage and adjust tier as needed"
+    - "Use connection pooling to reduce connections"
+
+---
+# =============================================================================
+# Testing and Validation
+# =============================================================================
+testing:
+  # Connection test
+  connection_test: |
+    curl -X POST \
+      -H "Authorization: Bearer ${TURSO_AUTH_TOKEN}" \
+      "${TURSO_URL}/v2/pipeline" \
+      -d '{"requests": [{"type": "execute", "stmt": {"sql": "SELECT 1"}}]}'
+
+  # Performance test
+  performance_test:
+    tool: k6
+    script: |
+      import sql from 'k6/x/sql';
+
+      const db = sql.open('libsql', process.env.TURSO_URL);
+
+      export default function () {
+        sql.query(db, 'SELECT * FROM users LIMIT 10');
+      }
+
+  # Load test
+  load_test:
+    concurrent_connections: 100
+    duration: 5m
+    queries_per_second: 1000
+
+---
+# =============================================================================
+# Documentation Links
+# =============================================================================
+documentation:
+  turso_docs: https://docs.turso.tech/
+  libsql_docs: https://github.com/tursodatabase/libsql
+  cli_docs: https://docs.turso.tech/reference/turso-cli
+  go_client: https://github.com/tursodatabase/libsql-client-go
+  pricing: https://turso.tech/pricing
+
+# =============================================================================
+# Setup Checklist
+# =============================================================================
+setup_checklist:
+  - "[ ] Create Turso account"
+  - "[ ] Install Turso CLI: brew install tursodatabase/tap/turso"
+  - "[ ] Login: turso auth login"
+  - "[ ] Create database: turso db create sql-studio-production"
+  - "[ ] Add replicas for global distribution"
+  - "[ ] Create auth token with appropriate expiration"
+  - "[ ] Add secrets to Kubernetes/Cloud Run"
+  - "[ ] Run database migrations"
+  - "[ ] Test connection from application"
+  - "[ ] Configure backups"
+  - "[ ] Set up monitoring and alerts"
+  - "[ ] Document connection details"
+  - "[ ] Test disaster recovery procedure"

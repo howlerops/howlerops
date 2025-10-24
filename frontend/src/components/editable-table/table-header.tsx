@@ -49,13 +49,13 @@ export const TableHeader: React.FC<ColumnHeaderProps> = ({
         <ChevronUp
           className={cn(
             'h-3 w-3 transition-colors',
-            sortDirection === 'asc' ? 'text-primary' : 'text-gray-400'
+            sortDirection === 'asc' ? 'text-primary' : 'text-muted-foreground'
           )}
         />
         <ChevronDown
           className={cn(
             'h-3 w-3 -mt-1 transition-colors',
-            sortDirection === 'desc' ? 'text-primary' : 'text-gray-400'
+            sortDirection === 'desc' ? 'text-primary' : 'text-muted-foreground'
           )}
         />
       </span>
@@ -71,10 +71,10 @@ export const TableHeader: React.FC<ColumnHeaderProps> = ({
       <button
         onClick={handleFilterToggle}
         className={cn(
-          'ml-1 p-1 rounded hover:bg-gray-200 transition-colors',
+          'ml-1 p-1 rounded hover:bg-muted transition-colors',
           {
             'text-primary': hasFilter || showFilter,
-            'text-gray-400': !hasFilter && !showFilter,
+            'text-muted-foreground': !hasFilter && !showFilter,
           }
         )}
         title="Filter column"
@@ -107,7 +107,7 @@ export const TableHeader: React.FC<ColumnHeaderProps> = ({
     if (!showFilter) return null;
 
     return (
-      <div className="absolute top-full left-0 right-0 z-50 mt-1 p-2 bg-white border border-gray-300 rounded shadow-lg">
+      <div className="absolute top-full left-0 right-0 z-50 mt-1 p-2 bg-popover border border-border rounded shadow-lg">
         <input
           type="text"
           value={filterValue}
@@ -115,7 +115,7 @@ export const TableHeader: React.FC<ColumnHeaderProps> = ({
           onKeyDown={handleFilterKeyDown}
           onBlur={() => setShowFilter(false)}
           placeholder={`Filter ${header.column.columnDef.header}...`}
-          className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-2 py-1 text-sm bg-background text-foreground border border-input rounded focus:outline-none focus:ring-2 focus:ring-ring"
           autoFocus
         />
       </div>
@@ -127,10 +127,10 @@ export const TableHeader: React.FC<ColumnHeaderProps> = ({
   return (
     <th
       className={cn(
-        'relative bg-gray-50 border-b border-gray-200 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider',
+        'relative bg-muted/50 border-b border-border px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider',
         'select-none',
         {
-          'cursor-pointer hover:bg-gray-100': canSort,
+          'cursor-pointer hover:bg-muted': canSort,
           'cursor-default': !canSort,
         },
         sticky && `sticky ${sticky === 'right' ? 'right-0' : 'left-0'} z-20 shadow-sm`
@@ -156,8 +156,8 @@ export const TableHeader: React.FC<ColumnHeaderProps> = ({
 
       {/* Column reordering handle */}
       {header.column.getCanPin() && (
-        <div className="absolute left-0 top-0 h-full w-4 cursor-move flex items-center justify-center hover:bg-gray-200">
-          <GripVertical className="h-3 w-3 text-gray-400" />
+        <div className="absolute left-0 top-0 h-full w-4 cursor-move flex items-center justify-center hover:bg-muted">
+          <GripVertical className="h-3 w-3 text-muted-foreground" />
         </div>
       )}
     </th>

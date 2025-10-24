@@ -1,5 +1,6 @@
 import { Header } from "./header"
 import { Sidebar } from "./sidebar"
+import { InvitationBanner } from "@/components/InvitationBanner"
 
 interface MainLayoutProps {
   children: React.ReactNode
@@ -9,6 +10,7 @@ export function MainLayout({ children }: MainLayoutProps) {
   return (
     <div className="flex h-screen flex-col">
       <Header />
+      <InvitationBanner />
       <div className="flex flex-1 min-h-0 overflow-hidden">
         <Sidebar />
         <main className="flex-1 bg-bg relative flex min-h-0 overflow-hidden">

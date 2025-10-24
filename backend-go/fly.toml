@@ -1,0 +1,394 @@
+# =============================================================================
+# Fly.io Production Configuration for SQL Studio Backend
+# =============================================================================
+# This configuration deploys the SQL Studio backend to Fly.io with:
+# - Auto-scaling from 0 to 10 machines based on traffic
+# - Comprehensive health checks for automatic recovery
+# - Multi-region support for global low latency (optional)
+# - Cost-optimized resource allocation with scale-to-zero
+# - Production-grade security and monitoring
+#
+# Prerequisites:
+#   1. Install flyctl: https://fly.io/docs/hands-on/install-flyctl/
+#   2. Sign up/login: flyctl auth login
+#   3. Create app: flyctl apps create sql-studio-backend
+#   4. Set secrets: See "Secret Management" section below
+#
+# Deploy:
+#   flyctl deploy
+#
+# Documentation: https://fly.io/docs/reference/configuration/
+# =============================================================================
+
+# Application name (must be unique across Fly.io)
+# Change this to your preferred name
+app = "sql-studio-backend"
+
+# Primary region (closest to your primary users)
+# Common regions:
+#   - iad: US East (Ashburn, Virginia) - Low latency for East Coast
+#   - ord: US Central (Chicago, Illinois) - Good for overall US coverage
+#   - sjc: US West (San Jose, California) - Low latency for West Coast
+#   - lhr: Europe (London) - Low latency for Europe
+#   - nrt: Asia (Tokyo) - Low latency for Asia
+# List all regions: flyctl platform regions
+primary_region = "iad"
+
+# Graceful shutdown configuration
+# SIGTERM allows your app to finish processing requests before shutdown
+kill_signal = "SIGTERM"
+kill_timeout = "30s"  # Wait 30s for graceful shutdown before SIGKILL
+
+# =============================================================================
+# Build Configuration
+# =============================================================================
+[build]
+  # Use the Dockerfile in the current directory
+  dockerfile = "Dockerfile"
+
+  # Build arguments (passed to Docker during build)
+  [build.args]
+    VERSION = "fly-production"
+
+# =============================================================================
+# Environment Variables
+# =============================================================================
+# Non-sensitive configuration (public values only)
+# Secrets MUST be set via: flyctl secrets set KEY=value
+# Never commit secrets to this file!
+[env]
+  ENVIRONMENT = "production"
+  SERVER_HTTP_PORT = "8080"      # Fly.io expects port 8080 by default
+  SERVER_GRPC_PORT = "9090"
+  METRICS_PORT = "9100"
+  LOG_LEVEL = "info"
+  LOG_FORMAT = "json"
+  LOG_OUTPUT = "stdout"
+  TZ = "UTC"
+
+# =============================================================================
+# HTTP Service Configuration
+# =============================================================================
+# This configures the public-facing HTTP service with auto-scaling
+[http_service]
+  # Internal port that your app listens on (must match SERVER_HTTP_PORT)
+  internal_port = 8080
+
+  # Force HTTPS (redirect HTTP to HTTPS automatically)
+  force_https = true
+
+  # Auto start/stop machines based on traffic (cost optimization)
+  auto_stop_machines = "stop"    # Stop machines after 5 minutes of inactivity
+  auto_start_machines = true     # Auto-start machines on incoming requests
+
+  # Minimum machines running (0 = scale to zero when idle, saves costs)
+  min_machines_running = 0
+
+  # Processes to monitor
+  processes = ["app"]
+
+  # Concurrency limits (requests per machine)
+  # soft_limit: Start provisioning new machines when reached
+  # hard_limit: Maximum concurrent requests before rejecting
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 80    # Start scaling at 80 concurrent requests
+    hard_limit = 100   # Hard limit at 100 concurrent requests
+
+# =============================================================================
+# Health Checks
+# =============================================================================
+# Fly.io uses these to determine if your app is healthy and ready for traffic
+[[http_service.checks]]
+  grace_period = "15s"   # Wait 15s after start before first check
+  interval = "30s"       # Check every 30 seconds
+  method = "GET"
+  timeout = "5s"         # Timeout after 5 seconds
+  path = "/health"       # Your app's health endpoint
+
+  # Custom headers for health checks
+  [http_service.checks.headers]
+    User-Agent = "Fly-Health-Check/1.0"
+
+# =============================================================================
+# Virtual Machine Configuration
+# =============================================================================
+# Resource allocation per machine
+# Pricing guide: https://fly.io/docs/about/pricing/
+[[vm]]
+  # CPU type:
+  #   - "shared": Shared CPUs (cheaper, good for most apps)
+  #   - "performance": Dedicated CPUs (more expensive, better performance)
+  cpu_kind = "shared"
+
+  # Number of CPUs
+  # Shared: 1-8 CPUs
+  # Performance: 1-64 CPUs
+  cpus = 1
+
+  # Memory in MB
+  # Shared CPU options: 256, 512, 1024, 2048, 4096, 8192
+  # Performance options: 1024-524288
+  # Recommendation: 512MB is sufficient for most Go apps
+  memory_mb = 512
+
+# =============================================================================
+# Metrics Configuration (Optional - Prometheus Endpoint)
+# =============================================================================
+# Expose Prometheus metrics for monitoring (internal network only)
+# Uncomment if you want to scrape metrics externally
+#
+# [[services]]
+#   internal_port = 9100
+#   protocol = "tcp"
+#
+#   # Only accessible within Fly.io private network
+#   [[services.ports]]
+#     port = 9100
+#     handlers = ["http"]
+#
+#   [[services.tcp_checks]]
+#     grace_period = "10s"
+#     interval = "30s"
+#     timeout = "5s"
+
+# =============================================================================
+# Deployment Strategy
+# =============================================================================
+[deploy]
+  # Deployment strategy
+  # - "rolling": Zero-downtime rolling update (recommended)
+  # - "immediate": Deploy all at once (faster, but downtime)
+  strategy = "rolling"
+
+  # Release command (runs before deployment, useful for migrations)
+  # Example: Run database migrations before deploying new version
+  # release_command = "./sql-studio-backend migrate"
+
+  # Deployment wait time before considering it failed
+  wait_timeout = "5m"
+
+  # Maximum unavailable machines during rolling deployment (30%)
+  max_unavailable = 0.3
+
+# =============================================================================
+# Experimental Features
+# =============================================================================
+[experimental]
+  # Automatically rollback if new deployment is unhealthy
+  auto_rollback = true
+
+  # Enable private networking between machines
+  private_network = true
+
+# =============================================================================
+# Multi-Region Configuration (Optional - High Availability)
+# =============================================================================
+# Deploy to multiple regions for global low latency and high availability
+# WARNING: This increases costs as you run machines in multiple locations
+#
+# Recommended multi-region setup:
+# - US East: iad (Ashburn, VA)
+# - US West: sjc (San Jose, CA)
+# - Europe: lhr (London, UK)
+# - Asia: nrt (Tokyo, Japan)
+#
+# Uncomment and adjust based on your user distribution:
+#
+# [regions]
+#   # US regions
+#   iad = { min = 1, max = 5 }  # Primary region
+#   ord = { min = 0, max = 3 }  # Central US
+#   sjc = { min = 0, max = 3 }  # West Coast
+#
+#   # International regions (uncomment as needed)
+#   # lhr = { min = 0, max = 2 }  # London (Europe)
+#   # ams = { min = 0, max = 2 }  # Amsterdam (Europe)
+#   # fra = { min = 0, max = 2 }  # Frankfurt (Europe)
+#   # nrt = { min = 0, max = 2 }  # Tokyo (Asia)
+#   # sin = { min = 0, max = 2 }  # Singapore (Asia)
+#   # syd = { min = 0, max = 2 }  # Sydney (Australia)
+
+# =============================================================================
+# Persistent Storage (Optional)
+# =============================================================================
+# IMPORTANT: SQL Studio is designed as stateless with Turso remote database
+# Only uncomment if you need persistent local storage for caching, etc.
+# Note: Volumes persist data across deployments but tie machines to regions
+#
+# [[mounts]]
+#   source = "sql_studio_data"
+#   destination = "/app/data"
+#   initial_size = "1GB"
+
+# =============================================================================
+# Secret Management
+# =============================================================================
+# Secrets are set via flyctl CLI and NOT committed to this file
+# This is a security best practice
+#
+# Required secrets for SQL Studio:
+#
+#   1. Database credentials:
+#      flyctl secrets set TURSO_URL="libsql://your-db-your-org.turso.io"
+#      flyctl secrets set TURSO_AUTH_TOKEN="your-turso-auth-token"
+#
+#   2. Authentication:
+#      flyctl secrets set JWT_SECRET="your-super-secret-jwt-key-min-64-chars"
+#
+#   3. Email service:
+#      flyctl secrets set RESEND_API_KEY="re_your_resend_api_key"
+#
+# List all secrets:
+#   flyctl secrets list
+#
+# Unset a secret:
+#   flyctl secrets unset SECRET_NAME
+#
+# Bulk import from .env file:
+#   flyctl secrets import < .env.production
+#
+# View secret values (only shows names, not values):
+#   flyctl secrets list
+
+# =============================================================================
+# Monitoring & Operations
+# =============================================================================
+# Fly.io provides built-in monitoring and operations tools:
+#
+# View logs (real-time):
+#   flyctl logs
+#
+# View logs (filtered):
+#   flyctl logs --region iad
+#   flyctl logs | grep ERROR
+#
+# View application status:
+#   flyctl status
+#   flyctl status --all
+#
+# View machine details:
+#   flyctl machine list
+#
+# SSH into a running machine:
+#   flyctl ssh console
+#
+# Open interactive shell:
+#   flyctl ssh console --pty
+#
+# Execute command in machine:
+#   flyctl ssh console -C "ls -la /app"
+#
+# View metrics dashboard:
+#   flyctl dashboard
+#
+# Scale up/down:
+#   flyctl scale count 3                    # Scale to 3 machines
+#   flyctl scale vm shared-cpu-1x --memory 1024  # Change VM size
+#   flyctl scale count 0 --region iad       # Scale region to 0
+#
+# Restart all machines:
+#   flyctl machine restart
+#
+# View current configuration:
+#   flyctl config show
+
+# =============================================================================
+# Cost Optimization Guide
+# =============================================================================
+# 1. Scale to zero (current config):
+#    - min_machines_running = 0
+#    - Machines stop after 5 minutes of no traffic
+#    - Auto-start on first request (~1-2 second cold start)
+#    - Cost: $0 when idle + per-request compute time
+#
+# 2. Shared CPUs (current config):
+#    - cpu_kind = "shared"
+#    - 70-80% cheaper than dedicated CPUs
+#    - Sufficient for most web applications
+#
+# 3. Right-size memory:
+#    - 256MB: $1.94/month (minimal Go app)
+#    - 512MB: $3.47/month (recommended, current config)
+#    - 1GB: $6.54/month (high traffic or memory-intensive)
+#
+# 4. Single region start:
+#    - Deploy to one region initially
+#    - Add regions only when needed for latency
+#    - Each additional region ~doubles costs
+#
+# 5. Monitor and adjust:
+#    - Use flyctl dashboard to view usage
+#    - Adjust resources based on actual needs
+#    - Review Fly.io billing dashboard monthly
+#
+# Estimated monthly costs (as of 2024):
+#   - Low traffic (scale-to-zero): $0-5/month
+#   - Medium traffic (1 machine 50% time): $5-15/month
+#   - High traffic (2-3 machines): $15-50/month
+#   - Bandwidth: 100GB/month included, then $0.02/GB
+#
+# Official pricing: https://fly.io/docs/about/pricing/
+
+# =============================================================================
+# Deployment Checklist
+# =============================================================================
+# Before first deployment:
+#   [ ] Install flyctl: curl -L https://fly.io/install.sh | sh
+#   [ ] Login: flyctl auth login
+#   [ ] Create app: flyctl apps create sql-studio-backend
+#   [ ] Set all required secrets (see Secret Management section)
+#   [ ] Review and update fly.toml configuration
+#   [ ] Test Dockerfile builds locally: docker build -t test .
+#
+# Deploy:
+#   [ ] Deploy: flyctl deploy
+#   [ ] Check status: flyctl status
+#   [ ] View logs: flyctl logs
+#   [ ] Test health endpoint: curl https://your-app.fly.dev/health
+#   [ ] Monitor for errors: flyctl logs | grep ERROR
+#
+# Post-deployment:
+#   [ ] Set up monitoring alerts
+#   [ ] Document the deployment URL
+#   [ ] Test all critical endpoints
+#   [ ] Set up custom domain (optional): flyctl certs add yourdomain.com
+#   [ ] Configure DNS (if using custom domain)
+#   [ ] Review initial costs in Fly.io dashboard
+
+# =============================================================================
+# Troubleshooting
+# =============================================================================
+# Common issues and solutions:
+#
+# 1. Deployment fails:
+#    - Check logs: flyctl logs
+#    - Verify secrets are set: flyctl secrets list
+#    - Test Docker build locally: docker build -t test .
+#    - Check health endpoint returns 200: curl http://localhost:8080/health
+#
+# 2. High costs:
+#    - Check machine count: flyctl status
+#    - Verify scale-to-zero is working: flyctl machine list
+#    - Review auto_stop_machines setting
+#    - Check for stuck machines: flyctl machine list --all
+#
+# 3. Slow cold starts:
+#    - Optimize Dockerfile (multi-stage build, smaller image)
+#    - Set min_machines_running = 1 (sacrifices scale-to-zero)
+#    - Use Fly.io's keep-alive service
+#
+# 4. Connection errors:
+#    - Verify port in fly.toml matches app port (8080)
+#    - Check health checks are passing: flyctl checks
+#    - Review firewall rules
+#
+# 5. Out of memory errors:
+#    - Increase memory_mb in [[vm]] section
+#    - Check for memory leaks: flyctl ssh console -C "free -m"
+#    - Profile application memory usage
+#
+# Get help:
+#   - Fly.io Community: https://community.fly.io/
+#   - Documentation: https://fly.io/docs/
+#   - Status page: https://status.fly.io/

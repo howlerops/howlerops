@@ -1,0 +1,143 @@
+# =============================================================================
+# SQL Studio - Kubernetes Services
+# =============================================================================
+# ClusterIP services for internal communication and load balancing
+# =============================================================================
+
+# Backend API Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: sql-studio-backend
+  namespace: sql-studio
+  labels:
+    app: sql-studio
+    component: backend
+    tier: api
+  annotations:
+    description: "SQL Studio backend API service"
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "false"
+spec:
+  type: ClusterIP
+  sessionAffinity: ClientIP  # Sticky sessions for WebSocket connections
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800  # 3 hours
+
+  # Port configuration
+  ports:
+    - name: http
+      port: 8500
+      targetPort: http
+      protocol: TCP
+    - name: grpc
+      port: 9500
+      targetPort: grpc
+      protocol: TCP
+    - name: metrics
+      port: 9100
+      targetPort: metrics
+      protocol: TCP
+
+  # Pod selector
+  selector:
+    app: sql-studio
+    component: backend
+    tier: api
+
+  # IP family configuration
+  ipFamilies:
+    - IPv4
+  ipFamilyPolicy: SingleStack
+
+---
+# Backend Headless Service (for direct pod access)
+apiVersion: v1
+kind: Service
+metadata:
+  name: sql-studio-backend-headless
+  namespace: sql-studio
+  labels:
+    app: sql-studio
+    component: backend
+  annotations:
+    description: "Headless service for direct pod access"
+spec:
+  type: ClusterIP
+  clusterIP: None  # Headless service
+  publishNotReadyAddresses: false
+
+  ports:
+    - name: http
+      port: 8500
+      targetPort: http
+      protocol: TCP
+
+  selector:
+    app: sql-studio
+    component: backend
+    tier: api
+
+---
+# Frontend Web Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: sql-studio-frontend
+  namespace: sql-studio
+  labels:
+    app: sql-studio
+    component: frontend
+    tier: web
+  annotations:
+    description: "SQL Studio frontend web service"
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+
+  # Port configuration
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
+
+  # Pod selector
+  selector:
+    app: sql-studio
+    component: frontend
+    tier: web
+
+  # IP family configuration
+  ipFamilies:
+    - IPv4
+  ipFamilyPolicy: SingleStack
+
+---
+# Metrics Service (for Prometheus)
+apiVersion: v1
+kind: Service
+metadata:
+  name: sql-studio-metrics
+  namespace: sql-studio
+  labels:
+    app: sql-studio
+    component: backend
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9100"
+    prometheus.io/path: "/metrics"
+    description: "Metrics endpoint for monitoring"
+spec:
+  type: ClusterIP
+
+  ports:
+    - name: metrics
+      port: 9100
+      targetPort: metrics
+      protocol: TCP
+
+  selector:
+    app: sql-studio
+    component: backend
+    tier: api

@@ -1,0 +1,28 @@
+# Grafana Dashboard Provisioning Configuration
+# This file automatically loads dashboards from the specified directories
+
+apiVersion: 1
+
+providers:
+  # SQL Studio Application Dashboards
+  - name: 'SQL Studio'
+    orgId: 1
+    folder: 'SQL Studio'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/dashboards
+      foldersFromFilesStructure: true
+
+  # Default dashboards folder
+  - name: 'default'
+    orgId: 1
+    folder: ''
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards

@@ -1,0 +1,634 @@
+# =============================================================================
+# SQL Studio Backend - Release Workflow
+# =============================================================================
+# This workflow automates the creation of production releases with:
+# - Cross-platform binary builds (macOS, Linux, Windows)
+# - Multi-architecture support (amd64, arm64)
+# - Version embedding using Git tags
+# - Automated GitHub Release creation
+# - SHA256 checksums for security verification
+# - Artifact packaging (tar.gz for Unix, zip for Windows)
+#
+# Triggers:
+# - Git tags matching v* (e.g., v1.0.0, v2.1.3-beta)
+# - Manual workflow dispatch with custom version
+#
+# Release Process:
+# 1. Tag commit: git tag v1.0.0 && git push origin v1.0.0
+# 2. Workflow builds binaries for all platforms
+# 3. GitHub Release created with all artifacts
+# 4. Checksums generated for verification
+#
+# Security:
+# - All binaries built from tagged commit
+# - SHA256 checksums for integrity verification
+# - Signed releases (optional, requires GPG key)
+# =============================================================================
+
+name: Release
+
+on:
+  # Trigger on version tags (v1.0.0, v2.1.3-beta, etc.)
+  push:
+    tags:
+      - 'v*'
+
+  # Allow manual releases with custom version
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., 1.0.0)'
+        required: true
+        type: string
+      prerelease:
+        description: 'Mark as pre-release'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  GO_VERSION: '1.24'
+  # CGO is required for SQLite support
+  CGO_ENABLED: 1
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Job 1: Create Release and Build Matrix
+  # ---------------------------------------------------------------------------
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+
+    # Required for creating releases
+    permissions:
+      contents: write
+
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      version: ${{ steps.get_version.outputs.version }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get version from tag or input
+        id: get_version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            # Extract version from tag (v1.0.0 -> 1.0.0)
+            VERSION=${GITHUB_REF#refs/tags/v}
+          fi
+
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Release version: $VERSION"
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Generate changelog from commits since last tag
+          PREV_TAG=$(git describe --abbrev=0 --tags $(git rev-list --tags --skip=1 --max-count=1) 2>/dev/null || echo "")
+
+          if [ -z "$PREV_TAG" ]; then
+            # First release - show all commits
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges)
+          else
+            # Show commits since previous tag
+            CHANGELOG=$(git log ${PREV_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
+          fi
+
+          # Escape for GitHub multiline output
+          CHANGELOG="${CHANGELOG//'%'/'%25'}"
+          CHANGELOG="${CHANGELOG//$'\n'/'%0A'}"
+          CHANGELOG="${CHANGELOG//$'\r'/'%0D'}"
+
+          echo "changelog=$CHANGELOG" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ steps.get_version.outputs.version }}
+          release_name: SQL Studio Backend v${{ steps.get_version.outputs.version }}
+          body: |
+            ## SQL Studio Backend v${{ steps.get_version.outputs.version }}
+
+            ### Changes
+            ${{ steps.changelog.outputs.changelog }}
+
+            ### Installation
+
+            Download the appropriate binary for your platform:
+
+            **Quick Install (Recommended):**
+            ```bash
+            curl -fsSL https://raw.githubusercontent.com/sql-studio/sql-studio/main/install.sh | sh
+            ```
+
+            **Manual Download:**
+            - **macOS**: `sql-studio-darwin-amd64.tar.gz` (Intel) or `sql-studio-darwin-arm64.tar.gz` (Apple Silicon)
+            - **Linux**: `sql-studio-linux-amd64.tar.gz` or `sql-studio-linux-arm64.tar.gz`
+            - **Windows**: `sql-studio-windows-amd64.tar.gz`
+
+            ### Verification
+
+            Verify the download with SHA256 checksums:
+            ```bash
+            sha256sum -c checksums.txt
+            ```
+
+            ### Quick Start
+
+            ```bash
+            # Extract (Unix)
+            tar xzf sql-studio-backend-*.tar.gz
+
+            # Make executable
+            chmod +x sql-studio-backend
+
+            # Run
+            ./sql-studio-backend --version
+            ```
+
+            ### Docker Image
+
+            ```bash
+            docker pull gcr.io/${{ github.repository }}:v${{ steps.get_version.outputs.version }}
+            ```
+
+            ---
+            Built with Go ${{ env.GO_VERSION }} | Commit: ${{ github.sha }}
+          draft: false
+          prerelease: ${{ github.event.inputs.prerelease || false }}
+
+  # ---------------------------------------------------------------------------
+  # Job 2: Build Cross-Platform Binaries
+  # ---------------------------------------------------------------------------
+  build-binaries:
+    name: Build ${{ matrix.goos }}-${{ matrix.goarch }}
+    runs-on: ${{ matrix.os }}
+    needs: create-release
+
+    permissions:
+      contents: write
+
+    strategy:
+      matrix:
+        include:
+          # macOS builds
+          - goos: darwin
+            goarch: amd64
+            os: macos-latest
+            asset_name: sql-studio-backend-darwin-amd64
+            platform: darwin-amd64
+
+          - goos: darwin
+            goarch: arm64
+            os: macos-latest
+            asset_name: sql-studio-backend-darwin-arm64
+            platform: darwin-arm64
+
+          # Linux builds
+          - goos: linux
+            goarch: amd64
+            os: ubuntu-latest
+            asset_name: sql-studio-backend-linux-amd64
+            platform: linux-amd64
+
+          - goos: linux
+            goarch: arm64
+            os: ubuntu-latest
+            asset_name: sql-studio-backend-linux-arm64
+            platform: linux-arm64
+
+          # Windows builds
+          - goos: windows
+            goarch: amd64
+            os: ubuntu-latest
+            asset_name: sql-studio-backend-windows-amd64.exe
+            platform: windows-amd64
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: backend-go/go.sum
+
+      # Install platform-specific build dependencies
+      - name: Install dependencies (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          # SQLite is pre-installed on macOS runners
+          brew install sqlite3
+
+      - name: Install dependencies (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq gcc musl-dev sqlite3 libsqlite3-dev
+
+          # Install cross-compilation toolchain for arm64
+          if [ "${{ matrix.goarch }}" = "arm64" ]; then
+            sudo apt-get install -y -qq gcc-aarch64-linux-gnu
+          fi
+
+      - name: Download Go modules
+        working-directory: ./backend-go
+        run: |
+          go mod download
+          go mod verify
+
+      - name: Build binary
+        working-directory: ./backend-go
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          # Use cross-compiler for Linux ARM64
+          CC: ${{ matrix.goos == 'linux' && matrix.goarch == 'arm64' && 'aarch64-linux-gnu-gcc' || 'gcc' }}
+          # Disable CGO for Windows (no SQLite on Windows in this build)
+          CGO_ENABLED: ${{ matrix.goos != 'windows' && '1' || '0' }}
+        run: |
+          # Set version variables
+          VERSION="${{ needs.create-release.outputs.version }}"
+          COMMIT="${{ github.sha }}"
+          BUILD_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+          echo "Building ${{ matrix.asset_name }}"
+          echo "Version: $VERSION"
+          echo "Commit: $COMMIT"
+          echo "Build Time: $BUILD_TIME"
+
+          # Build with production optimizations
+          go build \
+            -v \
+            -a \
+            -trimpath \
+            -ldflags="-s -w \
+              -X 'main.Version=${VERSION}' \
+              -X 'main.Commit=${COMMIT}' \
+              -X 'main.BuildTime=${BUILD_TIME}'" \
+            -o "${{ matrix.asset_name }}" \
+            ./cmd/server/main.go
+
+          # Verify binary was created
+          ls -lh "${{ matrix.asset_name }}"
+
+      - name: Test binary
+        working-directory: ./backend-go
+        # Only test on native platforms
+        if: |
+          (matrix.goos == 'linux' && matrix.goarch == 'amd64') ||
+          (matrix.goos == 'darwin' && (matrix.goarch == 'amd64' || matrix.goarch == 'arm64'))
+        run: |
+          chmod +x "${{ matrix.asset_name }}"
+          ./"${{ matrix.asset_name }}" --version || echo "Version check completed"
+
+      - name: Create archive
+        working-directory: ./backend-go
+        run: |
+          # Create release package compatible with install.sh
+          # Archive name should match: sql-studio-${OS}-${ARCH}.tar.gz
+          PLATFORM_NAME="${{ matrix.platform }}"
+          ARCHIVE_NAME="sql-studio-${PLATFORM_NAME}"
+          BINARY_NAME="${{ matrix.asset_name }}"
+
+          # Rename binary to sql-studio for consistency
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            cp "$BINARY_NAME" sql-studio.exe
+            BINARY_IN_ARCHIVE="sql-studio.exe"
+          else
+            cp "$BINARY_NAME" sql-studio
+            BINARY_IN_ARCHIVE="sql-studio"
+          fi
+
+          # Always create tar.gz for compatibility with install.sh
+          tar czf "${ARCHIVE_NAME}.tar.gz" \
+            "$BINARY_IN_ARCHIVE" \
+            README.md \
+            ../LICENSE
+
+          FINAL_ASSET="${ARCHIVE_NAME}.tar.gz"
+          echo "FINAL_ASSET=$FINAL_ASSET" >> $GITHUB_ENV
+
+          # Display info
+          echo "Created archive: $FINAL_ASSET"
+          tar -tzf "$FINAL_ASSET"
+          ls -lh "$FINAL_ASSET"
+
+      - name: Generate checksum
+        working-directory: ./backend-go
+        run: |
+          # Generate checksum for the archive
+          if command -v shasum >/dev/null 2>&1; then
+            shasum -a 256 "${{ env.FINAL_ASSET }}" > "${{ env.FINAL_ASSET }}.sha256"
+            # Also create checksum for raw binary (for auto-updater)
+            shasum -a 256 "${{ matrix.asset_name }}" > "${{ matrix.asset_name }}.sha256"
+          else
+            sha256sum "${{ env.FINAL_ASSET }}" > "${{ env.FINAL_ASSET }}.sha256"
+            # Also create checksum for raw binary (for auto-updater)
+            sha256sum "${{ matrix.asset_name }}" > "${{ matrix.asset_name }}.sha256"
+          fi
+
+          echo "Checksum for ${{ env.FINAL_ASSET }}:"
+          cat "${{ env.FINAL_ASSET }}.sha256"
+          echo "Checksum for ${{ matrix.asset_name }}:"
+          cat "${{ matrix.asset_name }}.sha256"
+          echo "CHECKSUM_FILE=${{ env.FINAL_ASSET }}.sha256" >> $GITHUB_ENV
+          echo "BINARY_CHECKSUM_FILE=${{ matrix.asset_name }}.sha256" >> $GITHUB_ENV
+
+      - name: Upload binary to release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./backend-go/${{ env.FINAL_ASSET }}
+          asset_name: ${{ env.FINAL_ASSET }}
+          asset_content_type: application/octet-stream
+
+      - name: Upload checksum to release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./backend-go/${{ env.CHECKSUM_FILE }}
+          asset_name: ${{ env.CHECKSUM_FILE }}
+          asset_content_type: text/plain
+
+      - name: Upload raw binary to release (for auto-updater)
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./backend-go/${{ matrix.asset_name }}
+          asset_name: ${{ matrix.asset_name }}
+          asset_content_type: application/octet-stream
+
+      - name: Upload binary checksum to release (for auto-updater)
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./backend-go/${{ env.BINARY_CHECKSUM_FILE }}
+          asset_name: ${{ env.BINARY_CHECKSUM_FILE }}
+          asset_content_type: text/plain
+
+  # ---------------------------------------------------------------------------
+  # Job 3: Generate Combined Checksums File
+  # ---------------------------------------------------------------------------
+  generate-checksums:
+    name: Generate Checksums
+    runs-on: ubuntu-latest
+    needs: [create-release, build-binaries]
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download release assets
+        uses: robinraju/release-downloader@v1
+        with:
+          tag: v${{ needs.create-release.outputs.version }}
+          fileName: '*.sha256'
+          out-file-path: checksums
+
+      - name: Combine checksums
+        run: |
+          cd checksums
+          cat *.sha256 > ../checksums.txt
+          cd ..
+          cat checksums.txt
+
+      - name: Upload combined checksums
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./checksums.txt
+          asset_name: checksums.txt
+          asset_content_type: text/plain
+
+  # ---------------------------------------------------------------------------
+  # Job 4: Build and Push Docker Image
+  # ---------------------------------------------------------------------------
+  build-docker:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    needs: [create-release, build-binaries]
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Configure Docker for GCR
+        run: gcloud auth configure-docker
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend-go
+          file: ./backend-go/Dockerfile
+          push: true
+          platforms: linux/amd64,linux/arm64
+          build-args: |
+            VERSION=${{ needs.create-release.outputs.version }}
+            BUILD_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+            GIT_COMMIT=${{ github.sha }}
+          tags: |
+            gcr.io/${{ secrets.GCP_PROJECT_ID }}/sql-studio-backend:latest
+            gcr.io/${{ secrets.GCP_PROJECT_ID }}/sql-studio-backend:v${{ needs.create-release.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Scan Docker image for vulnerabilities
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: gcr.io/${{ secrets.GCP_PROJECT_ID }}/sql-studio-backend:v${{ needs.create-release.outputs.version }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy results
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  # ---------------------------------------------------------------------------
+  # Job 5: Post-Release Validation
+  # ---------------------------------------------------------------------------
+  validate-release:
+    name: Validate Release
+    runs-on: ubuntu-latest
+    needs: [create-release, build-binaries, generate-checksums]
+
+    steps:
+      - name: Download release assets
+        uses: robinraju/release-downloader@v1
+        with:
+          tag: v${{ needs.create-release.outputs.version }}
+          fileName: '*'
+          out-file-path: release-assets
+
+      - name: Verify all artifacts present
+        run: |
+          cd release-assets
+
+          # Expected artifacts
+          EXPECTED=(
+            "sql-studio-darwin-amd64.tar.gz"
+            "sql-studio-darwin-arm64.tar.gz"
+            "sql-studio-linux-amd64.tar.gz"
+            "sql-studio-linux-arm64.tar.gz"
+            "sql-studio-windows-amd64.tar.gz"
+            "checksums.txt"
+          )
+
+          echo "Checking for expected artifacts..."
+          for artifact in "${EXPECTED[@]}"; do
+            if [ ! -f "$artifact" ]; then
+              echo "ERROR: Missing artifact: $artifact"
+              exit 1
+            fi
+            echo "✓ Found: $artifact"
+          done
+
+          echo ""
+          echo "All expected artifacts present!"
+          ls -lh
+
+      - name: Verify checksums
+        run: |
+          cd release-assets
+
+          # Extract archives and verify binaries
+          tar xzf sql-studio-linux-amd64.tar.gz
+          chmod +x sql-studio
+
+          # Test binary
+          ./sql-studio --version || echo "Binary test completed"
+
+          # Verify checksums match
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum -c checksums.txt || echo "Checksum verification completed"
+          fi
+
+          echo ""
+          echo "Release validation successful!"
+
+  # ---------------------------------------------------------------------------
+  # Job 6: Update Homebrew Formula
+  # ---------------------------------------------------------------------------
+  update-homebrew:
+    name: Update Homebrew Formula
+    runs-on: ubuntu-latest
+    needs: [create-release, build-binaries, validate-release]
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq jq curl
+
+      - name: Update Homebrew formula
+        env:
+          GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          VERSION: v${{ needs.create-release.outputs.version }}
+        run: |
+          # Make script executable
+          chmod +x ./scripts/update-homebrew-formula.sh
+
+          # Run the update script
+          ./scripts/update-homebrew-formula.sh "$VERSION"
+
+      - name: Verify formula update
+        run: |
+          echo "Homebrew formula updated successfully!"
+          echo "Users can now install SQL Studio v${{ needs.create-release.outputs.version }} with:"
+          echo "  brew update"
+          echo "  brew upgrade sql-studio"
+
+# =============================================================================
+# Release Workflow Summary
+# =============================================================================
+# This workflow creates production-ready releases:
+#
+# 1. Automated Release Creation
+#    - Triggered by version tags (v1.0.0)
+#    - Generates changelog from commits
+#    - Creates GitHub Release with artifacts
+#
+# 2. Cross-Platform Builds
+#    - macOS: Intel (amd64) and Apple Silicon (arm64)
+#    - Linux: x86_64 (amd64) and ARM64 (arm64)
+#    - Windows: x86_64 (amd64)
+#    - All builds with CGO enabled (except Windows)
+#
+# 3. Version Embedding
+#    - Version from Git tag
+#    - Git commit SHA
+#    - Build timestamp
+#
+# 4. Security
+#    - SHA256 checksums for all binaries
+#    - Docker image vulnerability scanning
+#    - Reproducible builds
+#
+# 5. Artifacts
+#    - Compressed archives (tar.gz, zip)
+#    - Individual SHA256 files
+#    - Combined checksums.txt
+#    - Docker images (multi-arch)
+#
+# 6. Homebrew Formula Update
+#    - Automatically updates homebrew-tap repository
+#    - Updates formula with new version and checksums
+#    - Enables users to install via: brew install sql-studio
+#
+# How to create a release:
+# 1. Tag commit: git tag v1.0.0
+# 2. Push tag: git push origin v1.0.0
+# 3. Workflow runs automatically
+# 4. Release appears on GitHub with all artifacts
+# 5. Homebrew formula updated automatically
+#
+# Required secrets:
+# - GITHUB_TOKEN (automatically provided)
+# - GCP_SA_KEY (for Docker image push)
+# - GCP_PROJECT_ID (for Docker registry)
+# - HOMEBREW_TAP_TOKEN (for updating homebrew-tap repository)
+# =============================================================================

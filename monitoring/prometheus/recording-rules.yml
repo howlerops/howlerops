@@ -1,0 +1,324 @@
+# Prometheus Recording Rules for SQL Studio
+# Pre-computes frequently used queries to improve dashboard performance
+
+groups:
+  # ============================================================================
+  # HTTP Request Metrics
+  # ============================================================================
+  - name: http_request_aggregations
+    interval: 30s
+    rules:
+      # Request rate by endpoint
+      - record: job:http_requests:rate5m
+        expr: |
+          sum(rate(http_request_duration_seconds_count[5m])) by (job, endpoint, method)
+
+      # Request rate by status code
+      - record: job:http_requests_by_status:rate5m
+        expr: |
+          sum(rate(http_request_duration_seconds_count[5m])) by (job, status)
+
+      # Total request rate
+      - record: job:http_requests_total:rate5m
+        expr: |
+          sum(rate(http_request_duration_seconds_count[5m])) by (job)
+
+      # Error rate by endpoint
+      - record: job:http_errors:rate5m
+        expr: |
+          sum(rate(http_request_duration_seconds_count{status=~"5.."}[5m])) by (job, endpoint)
+
+      # Error rate percentage
+      - record: job:http_error_rate:ratio
+        expr: |
+          sum(rate(http_request_duration_seconds_count{status=~"5.."}[5m])) by (job)
+          /
+          sum(rate(http_request_duration_seconds_count[5m])) by (job)
+
+  # ============================================================================
+  # HTTP Latency Metrics
+  # ============================================================================
+  - name: http_latency_aggregations
+    interval: 30s
+    rules:
+      # p50 latency by endpoint
+      - record: job:http_request_duration:p50
+        expr: |
+          histogram_quantile(0.50,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (job, endpoint, le)
+          )
+
+      # p95 latency by endpoint
+      - record: job:http_request_duration:p95
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (job, endpoint, le)
+          )
+
+      # p99 latency by endpoint
+      - record: job:http_request_duration:p99
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (job, endpoint, le)
+          )
+
+      # Average latency by endpoint
+      - record: job:http_request_duration:avg
+        expr: |
+          sum(rate(http_request_duration_seconds_sum[5m])) by (job, endpoint)
+          /
+          sum(rate(http_request_duration_seconds_count[5m])) by (job, endpoint)
+
+  # ============================================================================
+  # Database Query Metrics
+  # ============================================================================
+  - name: database_query_aggregations
+    interval: 30s
+    rules:
+      # Query rate
+      - record: job:database_queries:rate5m
+        expr: |
+          sum(rate(database_query_duration_seconds_count[5m])) by (job, operation)
+
+      # Query error rate
+      - record: job:database_query_errors:rate5m
+        expr: |
+          sum(rate(database_query_duration_seconds_count{status="error"}[5m])) by (job, operation)
+
+      # Query error rate percentage
+      - record: job:database_query_error_rate:ratio
+        expr: |
+          sum(rate(database_query_duration_seconds_count{status="error"}[5m])) by (job)
+          /
+          sum(rate(database_query_duration_seconds_count[5m])) by (job)
+
+      # p95 query duration
+      - record: job:database_query_duration:p95
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(database_query_duration_seconds_bucket[5m])) by (job, operation, le)
+          )
+
+      # p99 query duration
+      - record: job:database_query_duration:p99
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(database_query_duration_seconds_bucket[5m])) by (job, operation, le)
+          )
+
+      # Average query duration
+      - record: job:database_query_duration:avg
+        expr: |
+          sum(rate(database_query_duration_seconds_sum[5m])) by (job, operation)
+          /
+          sum(rate(database_query_duration_seconds_count[5m])) by (job, operation)
+
+  # ============================================================================
+  # Authentication Metrics
+  # ============================================================================
+  - name: auth_aggregations
+    interval: 30s
+    rules:
+      # Login attempts rate
+      - record: job:auth_attempts:rate5m
+        expr: |
+          sum(rate(auth_attempts_total[5m])) by (job, status)
+
+      # Failed auth rate
+      - record: job:auth_failures:rate5m
+        expr: |
+          sum(rate(auth_attempts_total{status="failed"}[5m])) by (job)
+
+      # Auth failure percentage
+      - record: job:auth_failure_rate:ratio
+        expr: |
+          sum(rate(auth_attempts_total{status="failed"}[5m])) by (job)
+          /
+          sum(rate(auth_attempts_total[5m])) by (job)
+
+      # Account lockouts rate
+      - record: job:auth_lockouts:rate5m
+        expr: |
+          sum(rate(auth_lockouts_total[5m])) by (job)
+
+  # ============================================================================
+  # Sync Service Metrics
+  # ============================================================================
+  - name: sync_aggregations
+    interval: 30s
+    rules:
+      # Sync operations rate
+      - record: job:sync_operations:rate5m
+        expr: |
+          sum(rate(sync_operations_total[5m])) by (job, operation, status)
+
+      # Sync failure rate
+      - record: job:sync_failures:rate5m
+        expr: |
+          sum(rate(sync_operations_total{status="failed"}[5m])) by (job, operation)
+
+      # Sync failure percentage
+      - record: job:sync_failure_rate:ratio
+        expr: |
+          sum(rate(sync_operations_total{status="failed"}[5m])) by (job)
+          /
+          sum(rate(sync_operations_total[5m])) by (job)
+
+      # Sync duration p95
+      - record: job:sync_duration:p95
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(sync_duration_seconds_bucket[5m])) by (job, operation, le)
+          )
+
+  # ============================================================================
+  # Resource Usage Metrics
+  # ============================================================================
+  - name: resource_usage_aggregations
+    interval: 30s
+    rules:
+      # CPU usage by pod
+      - record: pod:container_cpu_usage:rate5m
+        expr: |
+          sum(rate(container_cpu_usage_seconds_total{namespace="sql-studio"}[5m])) by (pod, container)
+
+      # Memory usage by pod
+      - record: pod:container_memory_usage:bytes
+        expr: |
+          sum(container_memory_working_set_bytes{namespace="sql-studio"}) by (pod, container)
+
+      # Memory usage percentage
+      - record: pod:container_memory_usage:ratio
+        expr: |
+          sum(container_memory_working_set_bytes{namespace="sql-studio"}) by (pod, container)
+          /
+          sum(container_spec_memory_limit_bytes{namespace="sql-studio"}) by (pod, container)
+
+      # Network receive rate
+      - record: pod:container_network_receive:rate5m
+        expr: |
+          sum(rate(container_network_receive_bytes_total{namespace="sql-studio"}[5m])) by (pod)
+
+      # Network transmit rate
+      - record: pod:container_network_transmit:rate5m
+        expr: |
+          sum(rate(container_network_transmit_bytes_total{namespace="sql-studio"}[5m])) by (pod)
+
+  # ============================================================================
+  # Business Metrics
+  # ============================================================================
+  - name: business_metrics
+    interval: 1m
+    rules:
+      # Active users (unique user IDs in last 5 minutes)
+      - record: job:active_users:count5m
+        expr: |
+          count(count by (user_id) (
+            rate(http_request_duration_seconds_count{user_id!=""}[5m]) > 0
+          ))
+
+      # Queries executed per minute
+      - record: job:queries_executed:rate1m
+        expr: |
+          sum(rate(database_query_duration_seconds_count[1m])) by (job)
+
+      # New user signups per hour
+      - record: job:user_signups:rate1h
+        expr: |
+          sum(increase(user_registrations_total[1h])) by (job)
+
+      # Organizations created per day
+      - record: job:organizations_created:rate1d
+        expr: |
+          sum(increase(organizations_created_total[1d])) by (job)
+
+  # ============================================================================
+  # Connection Pool Metrics
+  # ============================================================================
+  - name: connection_pool_aggregations
+    interval: 30s
+    rules:
+      # Connection pool utilization
+      - record: job:connection_pool_utilization:ratio
+        expr: |
+          database_connections_active / database_connections_max
+
+      # Connection pool available
+      - record: job:connection_pool_available:count
+        expr: |
+          database_connections_max - database_connections_active
+
+      # Connection open rate
+      - record: job:connections_opened:rate5m
+        expr: |
+          sum(rate(database_connections_opened_total[5m])) by (job)
+
+      # Connection close rate
+      - record: job:connections_closed:rate5m
+        expr: |
+          sum(rate(database_connections_closed_total[5m])) by (job)
+
+  # ============================================================================
+  # SLI/SLO Metrics
+  # ============================================================================
+  - name: sli_slo_metrics
+    interval: 30s
+    rules:
+      # Availability SLI (successful requests / total requests)
+      - record: sli:availability:ratio_5m
+        expr: |
+          sum(rate(http_request_duration_seconds_count{status!~"5.."}[5m]))
+          /
+          sum(rate(http_request_duration_seconds_count[5m]))
+
+      # Latency SLI (requests under 200ms / total requests)
+      - record: sli:latency:ratio_5m
+        expr: |
+          sum(rate(http_request_duration_seconds_bucket{le="0.2"}[5m]))
+          /
+          sum(rate(http_request_duration_seconds_count[5m]))
+
+      # Error budget burn rate (5m)
+      - record: slo:error_budget_burn_rate:5m
+        expr: |
+          (1 - sli:availability:ratio_5m) / (1 - 0.999)
+
+      # Error budget burn rate (1h)
+      - record: slo:error_budget_burn_rate:1h
+        expr: |
+          (
+            1 - (
+              sum(rate(http_request_duration_seconds_count{status!~"5.."}[1h]))
+              /
+              sum(rate(http_request_duration_seconds_count[1h]))
+            )
+          ) / (1 - 0.999)
+
+  # ============================================================================
+  # Aggregated Top-N Metrics
+  # ============================================================================
+  - name: top_n_aggregations
+    interval: 1m
+    rules:
+      # Top 10 slowest endpoints
+      - record: top10:http_request_duration:p95
+        expr: |
+          topk(10,
+            histogram_quantile(0.95,
+              sum(rate(http_request_duration_seconds_bucket[5m])) by (endpoint, le)
+            )
+          )
+
+      # Top 10 endpoints by error count
+      - record: top10:http_errors:count
+        expr: |
+          topk(10,
+            sum(increase(http_request_duration_seconds_count{status=~"5.."}[5m])) by (endpoint)
+          )
+
+      # Top 10 endpoints by request count
+      - record: top10:http_requests:count
+        expr: |
+          topk(10,
+            sum(increase(http_request_duration_seconds_count[5m])) by (endpoint)
+          )

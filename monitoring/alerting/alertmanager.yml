@@ -1,0 +1,217 @@
+# AlertManager Configuration for SQL Studio
+# Handles alert routing, grouping, and notifications
+
+global:
+  # Global SMTP configuration for email alerts
+  smtp_smarthost: 'smtp.gmail.com:587'
+  smtp_from: 'alerts@sqlstudio.io'
+  smtp_auth_username: 'alerts@sqlstudio.io'
+  smtp_auth_password: 'your-smtp-password'
+  smtp_require_tls: true
+
+  # Slack webhook URL (can be overridden per receiver)
+  slack_api_url: 'https://hooks.slack.com/services/YOUR/WEBHOOK/URL'
+
+  # PagerDuty integration key
+  pagerduty_url: 'https://events.pagerduty.com/v2/enqueue'
+
+  # Resolve timeout - how long to wait before declaring an alert resolved
+  resolve_timeout: 5m
+
+# Templates for notification messages
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+# Route tree for alert routing
+route:
+  # Default receiver for all alerts
+  receiver: 'team-notifications'
+
+  # Group alerts by these labels
+  group_by: ['alertname', 'cluster', 'namespace']
+
+  # Wait time before sending initial notification
+  group_wait: 10s
+
+  # Wait time before sending notification about new alerts in existing group
+  group_interval: 10s
+
+  # Wait time before resending a notification
+  repeat_interval: 12h
+
+  # Child routes with specific matching criteria
+  routes:
+    # Critical alerts go to PagerDuty immediately
+    - match:
+        severity: critical
+      receiver: 'pagerduty'
+      group_wait: 0s
+      repeat_interval: 5m
+      continue: true  # Also send to other matching routes
+
+    # Critical alerts also go to Slack critical channel
+    - match:
+        severity: critical
+      receiver: 'slack-critical'
+      group_wait: 0s
+
+    # Warning alerts go to Slack warnings channel
+    - match:
+        severity: warning
+      receiver: 'slack-warnings'
+
+    # Security alerts go to security team
+    - match:
+        component: security
+      receiver: 'security-team'
+      group_wait: 0s
+      repeat_interval: 1h
+
+    # Database alerts go to database team
+    - match:
+        component: database
+      receiver: 'database-team'
+
+    # Infrastructure alerts go to DevOps team
+    - match:
+        component: kubernetes
+      receiver: 'devops-team'
+
+    # Business alerts (lower priority)
+    - match:
+        type: business
+      receiver: 'business-team'
+      group_interval: 1h
+      repeat_interval: 24h
+
+# Inhibition rules - suppress certain alerts when others are firing
+inhibit_rules:
+  # Inhibit warning if critical is firing for same alert
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'namespace', 'pod']
+
+  # Inhibit pod alerts if node is down
+  - source_match:
+      alertname: 'NodeDown'
+    target_match_re:
+      alertname: 'Pod.*'
+    equal: ['node']
+
+  # Inhibit service alerts if all pods are down
+  - source_match:
+      alertname: 'PodCrashLooping'
+    target_match:
+      alertname: 'ServiceDown'
+    equal: ['namespace', 'service']
+
+# Alert receivers - where to send notifications
+receivers:
+  # Default team notifications (email + Slack)
+  - name: 'team-notifications'
+    email_configs:
+      - to: 'team@sqlstudio.io'
+        headers:
+          Subject: '[SQL Studio] {{ .GroupLabels.alertname }}'
+        html: '{{ template "email.default.html" . }}'
+    slack_configs:
+      - channel: '#alerts'
+        title: '{{ template "slack.default.title" . }}'
+        text: '{{ template "slack.default.text" . }}'
+        color: '{{ if eq .Status "firing" }}danger{{ else }}good{{ end }}'
+
+  # PagerDuty for critical alerts
+  - name: 'pagerduty'
+    pagerduty_configs:
+      - service_key: 'your-pagerduty-integration-key'
+        description: '{{ template "pagerduty.default.description" . }}'
+        severity: '{{ .CommonLabels.severity }}'
+        details:
+          firing: '{{ template "pagerduty.default.instances" .Alerts.Firing }}'
+          resolved: '{{ template "pagerduty.default.instances" .Alerts.Resolved }}'
+          num_firing: '{{ .Alerts.Firing | len }}'
+          num_resolved: '{{ .Alerts.Resolved | len }}'
+
+  # Slack critical channel
+  - name: 'slack-critical'
+    slack_configs:
+      - channel: '#critical-alerts'
+        username: 'AlertManager'
+        icon_emoji: ':rotating_light:'
+        title: 'CRITICAL: {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          *Alert:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          *Severity:* {{ .Labels.severity }}
+          *Runbook:* {{ .Annotations.runbook }}
+          {{ end }}
+        color: 'danger'
+        send_resolved: true
+
+  # Slack warnings channel
+  - name: 'slack-warnings'
+    slack_configs:
+      - channel: '#warnings'
+        title: 'Warning: {{ .GroupLabels.alertname }}'
+        text: '{{ template "slack.default.text" . }}'
+        color: 'warning'
+
+  # Security team (email + Slack)
+  - name: 'security-team'
+    email_configs:
+      - to: 'security@sqlstudio.io'
+        headers:
+          Subject: '[SECURITY] {{ .GroupLabels.alertname }}'
+          Priority: 'high'
+    slack_configs:
+      - channel: '#security-alerts'
+        title: 'Security Alert: {{ .GroupLabels.alertname }}'
+        color: 'danger'
+
+  # Database team
+  - name: 'database-team'
+    email_configs:
+      - to: 'database-team@sqlstudio.io'
+    slack_configs:
+      - channel: '#database-alerts'
+        title: 'Database Alert: {{ .GroupLabels.alertname }}'
+
+  # DevOps team
+  - name: 'devops-team'
+    email_configs:
+      - to: 'devops@sqlstudio.io'
+    slack_configs:
+      - channel: '#devops-alerts'
+        title: 'Infrastructure Alert: {{ .GroupLabels.alertname }}'
+
+  # Business team
+  - name: 'business-team'
+    email_configs:
+      - to: 'business@sqlstudio.io'
+    slack_configs:
+      - channel: '#business-metrics'
+        title: 'Business Metric Alert: {{ .GroupLabels.alertname }}'
+        color: 'warning'
+
+  # Webhook receiver (for custom integrations)
+  - name: 'webhook'
+    webhook_configs:
+      - url: 'http://sql-studio-backend/api/alerts/webhook'
+        send_resolved: true
+
+  # Null receiver (discard alerts)
+  - name: 'null'
+
+# Kubernetes ConfigMap
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-config
+  namespace: monitoring
+data:
+  alertmanager.yml: |
+    {{ include (datasource "config").Path . }}

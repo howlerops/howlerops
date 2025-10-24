@@ -1,0 +1,215 @@
+# =============================================================================
+# SQL Studio - Namespace Configuration
+# =============================================================================
+# Isolated namespace for SQL Studio application with resource quotas
+# =============================================================================
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: sql-studio
+  labels:
+    name: sql-studio
+    environment: production
+    team: platform
+    cost-center: engineering
+  annotations:
+    description: "SQL Studio application namespace"
+    contact: "platform-team@sql-studio.app"
+
+---
+# =============================================================================
+# Resource Quota
+# =============================================================================
+# Limits total resources that can be consumed in the namespace
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: sql-studio-quota
+  namespace: sql-studio
+  labels:
+    app: sql-studio
+  annotations:
+    description: "Resource limits for SQL Studio namespace"
+spec:
+  hard:
+    # Compute resources
+    requests.cpu: "4"           # Total CPU requests
+    requests.memory: "8Gi"      # Total memory requests
+    limits.cpu: "8"             # Total CPU limits
+    limits.memory: "16Gi"       # Total memory limits
+
+    # Storage resources
+    requests.storage: "50Gi"    # Total storage requests
+    persistentvolumeclaims: "10" # Max number of PVCs
+
+    # Object counts
+    pods: "50"                  # Max number of pods
+    services: "20"              # Max number of services
+    configmaps: "20"            # Max number of configmaps
+    secrets: "20"               # Max number of secrets
+    replicationcontrollers: "10"
+    services.loadbalancers: "2"
+    services.nodeports: "0"     # No NodePort services
+
+---
+# =============================================================================
+# Limit Range
+# =============================================================================
+# Default and maximum resource limits for pods/containers
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: sql-studio-limits
+  namespace: sql-studio
+  labels:
+    app: sql-studio
+  annotations:
+    description: "Default and maximum resource limits"
+spec:
+  limits:
+    # Container limits
+    - type: Container
+      default:
+        cpu: 500m        # Default CPU limit
+        memory: 512Mi    # Default memory limit
+      defaultRequest:
+        cpu: 100m        # Default CPU request
+        memory: 128Mi    # Default memory request
+      max:
+        cpu: "2"         # Max CPU per container
+        memory: 2Gi      # Max memory per container
+      min:
+        cpu: 50m         # Min CPU per container
+        memory: 64Mi     # Min memory per container
+      maxLimitRequestRatio:
+        cpu: 4           # Max ratio of limit/request
+        memory: 4
+
+    # Pod limits
+    - type: Pod
+      max:
+        cpu: "4"         # Max CPU per pod
+        memory: 4Gi      # Max memory per pod
+      min:
+        cpu: 50m
+        memory: 64Mi
+
+    # PVC limits
+    - type: PersistentVolumeClaim
+      max:
+        storage: 10Gi    # Max storage per PVC
+      min:
+        storage: 1Gi
+
+---
+# =============================================================================
+# Network Policy for Namespace Isolation
+# =============================================================================
+# Deny traffic from other namespaces by default
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: deny-from-other-namespaces
+  namespace: sql-studio
+  labels:
+    app: sql-studio
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow from same namespace
+    - from:
+        - podSelector: {}
+
+    # Allow from ingress-nginx namespace
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+
+    # Allow from monitoring namespace
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring
+
+    # Allow from kube-system (for DNS, health checks)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+
+---
+# =============================================================================
+# Staging Namespace (Optional)
+# =============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: sql-studio-staging
+  labels:
+    name: sql-studio-staging
+    environment: staging
+    team: platform
+  annotations:
+    description: "SQL Studio staging environment"
+
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: staging-quota
+  namespace: sql-studio-staging
+spec:
+  hard:
+    requests.cpu: "2"
+    requests.memory: "4Gi"
+    limits.cpu: "4"
+    limits.memory: "8Gi"
+    pods: "20"
+    services: "10"
+
+---
+# =============================================================================
+# Namespace Management Commands
+# =============================================================================
+#
+# Create namespace:
+#   kubectl apply -f namespace.yaml
+#
+# View namespace details:
+#   kubectl describe namespace sql-studio
+#
+# Check resource quotas:
+#   kubectl get resourcequota -n sql-studio
+#   kubectl describe resourcequota sql-studio-quota -n sql-studio
+#
+# Check current resource usage:
+#   kubectl get resourcequota sql-studio-quota -n sql-studio -o yaml
+#
+# Check limit ranges:
+#   kubectl get limitrange -n sql-studio
+#   kubectl describe limitrange sql-studio-limits -n sql-studio
+#
+# List all resources in namespace:
+#   kubectl get all -n sql-studio
+#
+# Delete namespace (CAUTION - deletes everything):
+#   kubectl delete namespace sql-studio
+#
+# Monitor namespace resource usage:
+#   kubectl top pods -n sql-studio
+#   kubectl top nodes --namespace sql-studio
+#
+# Set default namespace (optional):
+#   kubectl config set-context --current --namespace=sql-studio
+#
+# View namespace labels:
+#   kubectl get namespace sql-studio --show-labels
+#
+# Add label to namespace:
+#   kubectl label namespace sql-studio new-label=value
+#
+# =============================================================================

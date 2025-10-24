@@ -1,0 +1,67 @@
+# Grafana Datasource Provisioning Configuration
+# This file automatically provisions the Prometheus datasource when Grafana starts
+
+apiVersion: 1
+
+datasources:
+  # Prometheus datasource for metrics
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      timeInterval: 15s
+      queryTimeout: 60s
+      httpMethod: POST
+    version: 1
+
+  # Prometheus for long-term storage (if using remote write)
+  - name: Prometheus-LongTerm
+    type: prometheus
+    access: proxy
+    url: http://prometheus-long-term:9090
+    isDefault: false
+    editable: false
+    jsonData:
+      timeInterval: 1m
+      queryTimeout: 120s
+      httpMethod: POST
+    version: 1
+
+  # Loki for logs (if using Loki for log aggregation)
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    isDefault: false
+    editable: false
+    jsonData:
+      maxLines: 1000
+    version: 1
+
+  # Jaeger for distributed tracing
+  - name: Jaeger
+    type: jaeger
+    access: proxy
+    url: http://jaeger-query:16686
+    isDefault: false
+    editable: false
+    version: 1
+
+  # Elasticsearch for logs (alternative to Loki)
+  - name: Elasticsearch
+    type: elasticsearch
+    access: proxy
+    url: http://elasticsearch:9200
+    database: "[sql-studio-logs-]YYYY.MM.DD"
+    isDefault: false
+    editable: false
+    jsonData:
+      esVersion: 7
+      timeField: "@timestamp"
+      logMessageField: message
+      logLevelField: level
+      interval: Daily
+    version: 1

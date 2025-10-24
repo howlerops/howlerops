@@ -1,19 +1,42 @@
 # HowlerOps SQL Studio
 
-**A powerful, local-first desktop SQL client with AI-powered features**
+**A powerful, cloud-enabled desktop SQL client with AI-powered features and multi-device sync**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Latest Release](https://img.shields.io/github/v/release/yourusername/sql-studio?include_prereleases)](https://github.com/yourusername/sql-studio/releases)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/yourusername/sql-studio/ci-cd.yml?branch=main)](https://github.com/yourusername/sql-studio/actions)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/yourusername/sql-studio?filename=backend-go%2Fgo.mod)](https://github.com/yourusername/sql-studio/blob/main/backend-go/go.mod)
+[![codecov](https://codecov.io/gh/yourusername/sql-studio/branch/main/graph/badge.svg)](https://codecov.io/gh/yourusername/sql-studio)
+[![Phase 2 Complete](https://img.shields.io/badge/Phase%202-Complete-success)](docs/progress-tracker.md)
 
 ## Features
 
 ### 🚀 Core Capabilities
 
-- **Multi-Database Support** - Connect to PostgreSQL, MySQL, SQLite, and more
+- **Multi-Database Support** - Connect to PostgreSQL, MySQL, SQLite, MongoDB, ElasticSearch, and more
 - **Multi-Database Queries** - Query across multiple databases with `@connection.schema.table` syntax
 - **AI-Powered SQL Generation** - Generate SQL from natural language
 - **Smart Query Suggestions** - Context-aware query completion
 - **Query History** - Track all your queries with performance metrics
 - **Schema Explorer** - Browse tables, views, and relationships
+
+### ☁️ Cloud Sync (Phase 2 - NEW!)
+
+- **Multi-Device Sync** - Access your queries, connections, and history across all devices
+- **Automatic Conflict Resolution** - Smart merging with three resolution strategies
+- **Offline-First** - Work offline, sync automatically when connected
+- **Secure Cloud Storage** - Powered by Turso with edge replication
+- **Credential Protection** - Passwords never leave your device
+- **Real-Time Updates** - See changes across devices in seconds
+
+### 🔐 Authentication & Security
+
+- **JWT Authentication** - Secure token-based authentication
+- **Email Verification** - Verify your account via email
+- **Password Reset** - Secure password recovery flow
+- **Auto Token Refresh** - Seamless session management
+- **Encrypted Storage** - Database credentials encrypted at rest
+- **Sanitized Sync** - Sensitive data never synced to cloud
 
 ### 🤖 AI Features
 
@@ -23,23 +46,61 @@
 - **Smart Autocomplete** - Context-aware SQL suggestions
 - **RAG-Powered Context** - Learns from your schema and past queries
 
-### 💾 Storage
+### 💾 Hybrid Storage
 
-- **Local-First Architecture** - All data stored locally in SQLite
-- **Encrypted Credentials** - Database passwords encrypted at rest
+- **Local-First Architecture** - All data stored locally in SQLite/IndexedDB
+- **Cloud Backup** - Optional Turso cloud sync for multi-device access
 - **Offline Capable** - Works completely offline
-- **Zero Dependencies** - No external services required
-- **Team Mode Ready** - Optional Turso sync for team collaboration (coming soon)
+- **Automatic Sync** - Background synchronization when online
+- **Conflict Detection** - Intelligent merge strategies for concurrent edits
+
+## Installation
+
+### Quick Install (Recommended)
+
+Install SQL Studio with a single command:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/sql-studio/sql-studio/main/install.sh | sh
+```
+
+**Other options:**
+
+```bash
+# Install specific version
+curl -fsSL https://raw.githubusercontent.com/sql-studio/sql-studio/main/install.sh | sh -s -- --version v2.0.0
+
+# Preview what will be installed (dry-run)
+curl -fsSL https://raw.githubusercontent.com/sql-studio/sql-studio/main/install.sh | sh -s -- --dry-run
+
+# Verbose output for troubleshooting
+curl -fsSL https://raw.githubusercontent.com/sql-studio/sql-studio/main/install.sh | sh -s -- --verbose
+```
+
+**Supported platforms:**
+- macOS (Intel & Apple Silicon)
+- Linux (x86_64, ARM64, ARM)
+- Windows (via Git Bash or WSL)
+
+📖 **[Full installation guide](docs/INSTALLATION.md)** | 📋 **[Quick reference](INSTALL_QUICK_REFERENCE.md)**
+
+### Alternative Methods
+
+- **Homebrew** (coming soon): `brew install sqlstudio/tap/sqlstudio`
+- **Direct Download**: [Latest Release](https://github.com/yourusername/sql-studio/releases/latest)
+- **Build from Source**: See [Development](#development) section below
+
+For detailed installation instructions, platform-specific guides, and troubleshooting, see [INSTALL.md](INSTALL.md).
 
 ## Quick Start
 
-### Prerequisites
+### Prerequisites (Development Only)
 
 - **Go** 1.21+
 - **Node.js** 22.12+ (recommended) or 20.19+
 - **Wails CLI** v2.10.2+
 
-### Installation
+### Development Setup
 
 ```bash
 # Clone the repository
@@ -84,39 +145,81 @@ On first launch:
 
 ## Architecture
 
-### Local-First Design
+### Hybrid Cloud Architecture (Phase 2)
+
+SQL Studio uses a **hybrid local-first + cloud sync** architecture for the best of both worlds:
 
 ```
-┌─────────────────────────────────────┐
-│         Wails Desktop App           │
-├─────────────────────────────────────┤
-│                                     │
-│  ┌──────────────┐  ┌─────────────┐ │
-│  │  Frontend    │  │  Backend    │ │
-│  │  React/TS    │◄─┤  Go         │ │
-│  └──────────────┘  └─────────────┘ │
-│                           │         │
-│                           ▼         │
-│                   ┌───────────────┐ │
-│                   │ Storage Mgr   │ │
-│                   └───────────────┘ │
-│                           │         │
-│        ┌──────────────────┼────────┐│
-│        ▼                  ▼        ││
-│  ┌──────────┐      ┌──────────┐   ││
-│  │local.db  │      │vectors.db│   ││
-│  │(Data)    │      │(RAG/AI)  │   ││
-│  └──────────┘      └──────────┘   ││
-└─────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│                   Desktop Application                    │
+│              (Wails - React + Go Backend)               │
+└─────────────────────┬───────────────────────────────────┘
+                      │
+         ┌────────────┴────────────┐
+         │                         │
+         ▼                         ▼
+  ┌─────────────┐          ┌──────────────┐
+  │   Local     │          │    Cloud     │
+  │  SQLite DB  │◄────────►│  Turso DB    │
+  │  (Primary)  │   Sync   │  (Backup)    │
+  └─────────────┘          └──────┬───────┘
+                                  │
+                     ┌────────────┴────────────┐
+                     │                         │
+                     ▼                         ▼
+              ┌─────────────┐          ┌──────────────┐
+              │   Resend    │          │   GitHub     │
+              │  (Emails)   │          │  (Releases)  │
+              └─────────────┘          └──────────────┘
 ```
+
+### Key Components
+
+**Frontend (React 19 + TypeScript)**:
+- React components with shadcn/ui
+- Zustand state management
+- IndexedDB for browser storage
+- WebSocket for real-time updates
+
+**Backend (Go)**:
+- Wails v2 desktop framework
+- RESTful API endpoints
+- JWT authentication
+- gRPC for future services
+
+**Storage Layers**:
+- **Local**: SQLite (desktop) or IndexedDB (browser) - primary storage
+- **Cloud**: Turso/libSQL database with edge replication
+- **Sync Engine**: Bidirectional sync with conflict resolution
+
+**External Services**:
+- **Turso**: Cloud database with global edge replication
+- **Resend**: Transactional email delivery
+- **GitHub Actions**: CI/CD and automated releases
+
+### Data Flow
+
+1. **Local-First**: All operations happen locally first (fast, offline-capable)
+2. **Background Sync**: Changes sync to cloud in the background
+3. **Conflict Detection**: Automatic detection when devices modify same data
+4. **Resolution**: Three strategies (Last Write Wins, Keep Both, User Choice)
+5. **Multi-Device**: Changes propagate to other devices in real-time
 
 ### Storage Location
 
-All data is stored in `~/.howlerops/`:
-- `local.db` - Connections, queries, settings
+**Desktop Application** (`~/.howlerops/`):
+- `local.db` - Connections, queries, settings (primary storage)
 - `vectors.db` - AI embeddings and RAG data
-- `backups/` - Automatic backups
+- `backups/` - Automatic local backups
 - `logs/` - Application logs
+
+**Cloud Storage** (Turso):
+- Connection metadata (passwords stored locally only)
+- Saved queries
+- Sanitized query history
+- Sync state and conflict resolution
+
+📖 **[Complete Architecture Documentation](ARCHITECTURE.md)**
 
 ## Configuration
 
@@ -277,6 +380,15 @@ ls -la ~/.howlerops/
 sqlite3 ~/.howlerops/local.db < backend-go/pkg/storage/migrations/001_init_local_storage.sql
 ```
 
+### Cloud Sync Not Working
+
+1. **Check authentication**: Click user menu → verify logged in
+2. **Check network**: Ensure internet connection is active
+3. **View sync status**: Look for sync indicator in header
+4. **Check conflicts**: Go to Settings → Sync → View Conflicts
+5. **Force sync**: Click "Sync Now" in settings
+6. **Check logs**: `tail -f ~/.howlerops/logs/sync.log`
+
 ### AI Features Not Working
 
 1. Check AI provider keys in Settings → AI
@@ -318,11 +430,42 @@ See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for development guidelines.
 
 ## Documentation
 
-- [Storage Architecture](docs/STORAGE_ARCHITECTURE.md)
-- [Migration from Qdrant](docs/MIGRATION_FROM_QDRANT.md)
-- [AI Setup Guide](docs/AI_SETUP_GUIDE.md)
-- [Multi-Database Queries](docs/PART_1_MULTI_DATABASE_QUERY.md)
-- [AI/RAG Integration](docs/PART_2_AI_RAG_INTEGRATION.md)
+### User Guides
+
+- [User Guide](docs/USER_GUIDE.md) - Complete user manual (NEW)
+- [Installation Guide](INSTALL.md) - Detailed installation instructions for all platforms
+- [Quick Start Guide](INSTALL_QUICK_REFERENCE.md) - Get started in 5 minutes
+- [AI Setup Guide](docs/AI_SETUP_GUIDE.md) - Configure AI providers
+- [Multi-Database Queries](docs/PART_1_MULTI_DATABASE_QUERY.md) - Cross-database queries
+- [AI/RAG Integration](docs/PART_2_AI_RAG_INTEGRATION.md) - AI features
+
+### Phase 2 Documentation (Cloud Sync & Auth)
+
+- [Architecture Overview](ARCHITECTURE.md) - System design and components (NEW)
+- [API Reference](API_REFERENCE.md) - Complete API documentation (NEW)
+- [Cloud Sync Guide](docs/README-TURSO-SYNC.md) - Multi-device synchronization
+- [Sync Protocol](docs/sync-protocol.md) - Technical sync implementation
+- [Authentication Guide](frontend/AUTH_SYSTEM_DOCUMENTATION.md) - Auth system details
+- [Email Service](backend-go/internal/email/) - Email integration
+
+### Developer Guides
+
+- [Contributing Guide](docs/CONTRIBUTING.md) - Development guidelines
+- [Storage Architecture](docs/STORAGE_ARCHITECTURE.md) - Database design
+- [Turso Integration](backend-go/pkg/storage/turso/README.md) - Cloud storage
+- [Backend API](backend-go/API_DOCUMENTATION.md) - Backend endpoints
+- [Frontend Integration](backend-go/FRONTEND_INTEGRATION_GUIDE.md) - Frontend setup
+- [Deployment Guide](backend-go/DEPLOYMENT.md) - Production deployment
+- [Release Process](RELEASE.md) - Creating releases
+- [Change Log](CHANGELOG.md) - Version history (NEW)
+
+### Technical Specifications
+
+- [Phase 2 Tech Specs](docs/phase-2-tech-specs.md) - Detailed specifications
+- [Phase 2 Timeline](docs/phase-2-timeline.md) - Project timeline
+- [Cost Analysis](docs/phase-2-costs.md) - Infrastructure costs
+- [Risk Register](docs/phase-2-risks.md) - Risk management
+- [Testing Checklist](docs/phase-2-testing.md) - QA procedures
 
 ## License
 
@@ -330,10 +473,14 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
 
-- Built with [Wails](https://wails.io)
+- Built with [Wails](https://wails.io) - Go + React desktop framework
 - AI powered by OpenAI, Anthropic, and Ollama
-- Storage powered by SQLite
+- Local storage powered by SQLite
+- Cloud storage powered by [Turso](https://turso.tech) - Edge database platform
+- Email delivery powered by [Resend](https://resend.com)
+- UI components from [shadcn/ui](https://ui.shadcn.com)
 - Vector search powered by sqlite-vec (optional)
+- CI/CD by GitHub Actions
 
 ## Support
 

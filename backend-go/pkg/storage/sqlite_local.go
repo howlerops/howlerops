@@ -883,7 +883,8 @@ func (s *LocalSQLiteStorage) GetCachedSchema(ctx context.Context, connID string)
 
 	return &SchemaCache{
 		ConnectionID: connID,
-		SchemaData:   schemaData,
+		Schema:       schemaData,
+		SchemaData:   schemaDataStr,
 		CachedAt:     time.Unix(cachedAt, 0),
 		ExpiresAt:    time.Unix(expiresAt, 0),
 	}, nil
@@ -990,6 +991,14 @@ func (s *LocalSQLiteStorage) scanConnection(row scanner) (*Connection, error) {
 		}
 	}
 
+	// Parse SSL config from JSON string
+	var sslConfigMap map[string]string
+	if sslConfig != "" {
+		if err := json.Unmarshal([]byte(sslConfig), &sslConfigMap); err != nil {
+			sslConfigMap = make(map[string]string)
+		}
+	}
+
 	return &Connection{
 		ID:                id,
 		Name:              name,
@@ -999,7 +1008,7 @@ func (s *LocalSQLiteStorage) scanConnection(row scanner) (*Connection, error) {
 		DatabaseName:      dbName,
 		Username:          username,
 		PasswordEncrypted: passwordEnc,
-		SSLConfig:         sslConfig,
+		SSLConfig:         sslConfigMap,
 		CreatedBy:         createdBy,
 		CreatedAt:         time.Unix(createdAt, 0),
 		UpdatedAt:         time.Unix(updatedAt, 0),
@@ -1061,8 +1070,10 @@ func (s *LocalSQLiteStorage) scanQueryHistory(row scanner) (*QueryHistory, error
 		ConnectionID: connID,
 		ExecutedBy:   executedBy,
 		ExecutedAt:   time.Unix(executedAt, 0),
-		DurationMS:   durationMS,
-		RowsReturned: rowsReturned,
+		DurationMS:   int(durationMS),
+		Duration:     int(durationMS),
+		RowsReturned: int(rowsReturned),
+		RowsAffected: int(rowsReturned),
 		Success:      success,
 		Error:        errorStr,
 		TeamID:       teamID,

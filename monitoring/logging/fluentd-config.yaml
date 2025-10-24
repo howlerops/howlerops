@@ -1,0 +1,290 @@
+# Fluentd Configuration for SQL Studio
+# Collects logs from Kubernetes pods and forwards to aggregation service
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fluentd-config
+  namespace: kube-system
+data:
+  fluent.conf: |
+    # ========================================================================
+    # Input: Collect logs from Kubernetes pods
+    # ========================================================================
+    <source>
+      @type tail
+      @id in_tail_container_logs
+      path /var/log/containers/sql-studio-*.log
+      pos_file /var/log/fluentd-containers.log.pos
+      tag kubernetes.*
+      read_from_head true
+      <parse>
+        @type json
+        time_format %Y-%m-%dT%H:%M:%S.%NZ
+      </parse>
+    </source>
+
+    # ========================================================================
+    # Filter: Add Kubernetes metadata
+    # ========================================================================
+    <filter kubernetes.**>
+      @type kubernetes_metadata
+      @id filter_kube_metadata
+      kubernetes_url "#{ENV['FLUENT_FILTER_KUBERNETES_URL'] || 'https://' + ENV.fetch('KUBERNETES_SERVICE_HOST') + ':' + ENV.fetch('KUBERNETES_SERVICE_PORT') + '/api'}"
+      verify_ssl "#{ENV['KUBERNETES_VERIFY_SSL'] || true}"
+      ca_file "#{ENV['KUBERNETES_CA_FILE']}"
+      skip_labels "#{ENV['FLUENT_KUBERNETES_METADATA_SKIP_LABELS'] || 'false'}"
+      skip_container_metadata "#{ENV['FLUENT_KUBERNETES_METADATA_SKIP_CONTAINER_METADATA'] || 'false'}"
+      skip_master_url "#{ENV['FLUENT_KUBERNETES_METADATA_SKIP_MASTER_URL'] || 'false'}"
+      skip_namespace_metadata "#{ENV['FLUENT_KUBERNETES_METADATA_SKIP_NAMESPACE_METADATA'] || 'false'}"
+    </filter>
+
+    # ========================================================================
+    # Filter: Parse JSON logs from application
+    # ========================================================================
+    <filter kubernetes.**>
+      @type parser
+      @id filter_parser
+      key_name log
+      reserve_data true
+      remove_key_name_field true
+      <parse>
+        @type json
+        json_parser json
+      </parse>
+    </filter>
+
+    # ========================================================================
+    # Filter: Add custom fields
+    # ========================================================================
+    <filter kubernetes.**>
+      @type record_transformer
+      @id filter_record_transformer
+      <record>
+        cluster_name "#{ENV['CLUSTER_NAME'] || 'sql-studio-production'}"
+        environment "#{ENV['ENVIRONMENT'] || 'production'}"
+      </record>
+    </filter>
+
+    # ========================================================================
+    # Filter: Extract severity level
+    # ========================================================================
+    <filter kubernetes.**>
+      @type record_modifier
+      @id filter_severity
+      <record>
+        severity ${record.dig("level") || "INFO"}
+      </record>
+    </filter>
+
+    # ========================================================================
+    # Filter: Exclude health check logs (reduce noise)
+    # ========================================================================
+    <filter kubernetes.**>
+      @type grep
+      @id filter_exclude_healthcheck
+      <exclude>
+        key $.log
+        pattern /GET \/health|GET \/readyz|GET \/livez/
+      </exclude>
+    </filter>
+
+    # ========================================================================
+    # Filter: Redact sensitive data
+    # ========================================================================
+    <filter kubernetes.**>
+      @type record_modifier
+      @id filter_redact_sensitive
+      <replace>
+        key log
+        expression /password[\"']?\s*[:=]\s*[\"']?[^\s\"']+/
+        replace password=REDACTED
+      </replace>
+      <replace>
+        key log
+        expression /token[\"']?\s*[:=]\s*[\"']?[^\s\"']+/
+        replace token=REDACTED
+      </replace>
+      <replace>
+        key log
+        expression /api[_-]?key[\"']?\s*[:=]\s*[\"']?[^\s\"']+/
+        replace api_key=REDACTED
+      </replace>
+    </filter>
+
+    # ========================================================================
+    # Output: Forward to Elasticsearch
+    # ========================================================================
+    <match kubernetes.**>
+      @type elasticsearch
+      @id out_es
+      @log_level info
+      include_tag_key true
+      host "#{ENV['FLUENT_ELASTICSEARCH_HOST'] || 'elasticsearch.logging.svc.cluster.local'}"
+      port "#{ENV['FLUENT_ELASTICSEARCH_PORT'] || '9200'}"
+      scheme "#{ENV['FLUENT_ELASTICSEARCH_SCHEME'] || 'http'}"
+      ssl_verify "#{ENV['FLUENT_ELASTICSEARCH_SSL_VERIFY'] || 'true'}"
+      user "#{ENV['FLUENT_ELASTICSEARCH_USER'] || ''}"
+      password "#{ENV['FLUENT_ELASTICSEARCH_PASSWORD'] || ''}"
+      reload_connections false
+      reconnect_on_error true
+      reload_on_failure true
+      index_name sql-studio-logs
+      logstash_format true
+      logstash_prefix sql-studio-logs
+      logstash_dateformat %Y.%m.%d
+      type_name _doc
+      <buffer>
+        @type file
+        path /var/log/fluentd-buffers/kubernetes.system.buffer
+        flush_mode interval
+        retry_type exponential_backoff
+        flush_thread_count 2
+        flush_interval 5s
+        retry_forever false
+        retry_max_interval 30
+        chunk_limit_size 2M
+        queue_limit_length 8
+        overflow_action block
+      </buffer>
+    </match>
+
+    # ========================================================================
+    # Alternative Output: Forward to Loki
+    # ========================================================================
+    # Uncomment to use Loki instead of Elasticsearch
+    #
+    # <match kubernetes.**>
+    #   @type loki
+    #   url "#{ENV['LOKI_URL'] || 'http://loki.logging.svc.cluster.local:3100'}"
+    #   username "#{ENV['LOKI_USERNAME'] || ''}"
+    #   password "#{ENV['LOKI_PASSWORD'] || ''}"
+    #   extra_labels {"env":"#{ENV['ENVIRONMENT'] || 'production'}"}
+    #   flush_interval 10s
+    #   flush_at_shutdown true
+    #   buffer_chunk_limit 1m
+    #   <label>
+    #     namespace
+    #     pod_name
+    #     container_name
+    #     severity
+    #   </label>
+    # </match>
+
+    # ========================================================================
+    # Alternative Output: Forward to CloudWatch (for AWS)
+    # ========================================================================
+    # <match kubernetes.**>
+    #   @type cloudwatch_logs
+    #   region "#{ENV['AWS_REGION']}"
+    #   log_group_name "/aws/eks/sql-studio"
+    #   log_stream_name_key stream_name
+    #   auto_create_stream true
+    #   <buffer>
+    #     flush_interval 5s
+    #   </buffer>
+    # </match>
+
+---
+# DaemonSet to run Fluentd on every node
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: fluentd
+  namespace: kube-system
+  labels:
+    app: fluentd
+spec:
+  selector:
+    matchLabels:
+      app: fluentd
+  template:
+    metadata:
+      labels:
+        app: fluentd
+    spec:
+      serviceAccount: fluentd
+      serviceAccountName: fluentd
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
+      containers:
+      - name: fluentd
+        image: fluent/fluentd-kubernetes-daemonset:v1-debian-elasticsearch
+        env:
+        - name: FLUENT_ELASTICSEARCH_HOST
+          value: "elasticsearch.logging.svc.cluster.local"
+        - name: FLUENT_ELASTICSEARCH_PORT
+          value: "9200"
+        - name: FLUENT_ELASTICSEARCH_SCHEME
+          value: "http"
+        - name: CLUSTER_NAME
+          value: "sql-studio-production"
+        - name: ENVIRONMENT
+          value: "production"
+        resources:
+          limits:
+            memory: 512Mi
+            cpu: 500m
+          requests:
+            memory: 256Mi
+            cpu: 100m
+        volumeMounts:
+        - name: varlog
+          mountPath: /var/log
+        - name: varlibdockercontainers
+          mountPath: /var/lib/docker/containers
+          readOnly: true
+        - name: config-volume
+          mountPath: /fluentd/etc
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - name: varlog
+        hostPath:
+          path: /var/log
+      - name: varlibdockercontainers
+        hostPath:
+          path: /var/lib/docker/containers
+      - name: config-volume
+        configMap:
+          name: fluentd-config
+
+---
+# ServiceAccount for Fluentd
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: fluentd
+  namespace: kube-system
+
+---
+# ClusterRole for Fluentd
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: fluentd
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - namespaces
+  verbs:
+  - get
+  - list
+  - watch
+
+---
+# ClusterRoleBinding for Fluentd
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: fluentd
+roleRef:
+  kind: ClusterRole
+  name: fluentd
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+- kind: ServiceAccount
+  name: fluentd
+  namespace: kube-system

@@ -1,0 +1,446 @@
+# =============================================================================
+# SQL Studio - Auto-scaling Policies
+# =============================================================================
+# Comprehensive auto-scaling configuration for cloud platforms
+# Includes policies for GCP, AWS, and Azure
+# =============================================================================
+
+# =============================================================================
+# GCP Cloud Run Auto-scaling
+# =============================================================================
+gcp_cloud_run:
+  service: sql-studio-backend
+
+  # Scaling configuration
+  scaling:
+    min_instances: 1      # Always keep 1 instance warm
+    max_instances: 10     # Maximum instances
+
+    # CPU utilization target
+    cpu_utilization: 70   # Target 70% CPU usage
+
+    # Request concurrency
+    max_concurrent_requests: 80  # Max requests per instance
+
+    # Request timeout
+    request_timeout: 300s  # 5 minutes
+
+    # Startup CPU boost
+    startup_cpu_boost: true
+
+  # Container settings
+  container:
+    cpu: "2"              # 2 vCPU per instance
+    memory: "512Mi"       # 512MB memory
+
+  # Scale-down behavior
+  scale_down:
+    # Time before scaling down idle instances
+    idle_timeout: 300s    # 5 minutes
+
+    # Minimum time between scale-down operations
+    cooldown: 60s
+
+---
+# =============================================================================
+# GCP Compute Engine Auto-scaling
+# =============================================================================
+gcp_compute_engine:
+  name: sql-studio-backend-mig
+  region: us-central1
+
+  # Instance template
+  instance_template: sql-studio-backend-template
+
+  # Scaling configuration
+  autoscaling:
+    min_replicas: 2       # Minimum instances
+    max_replicas: 10      # Maximum instances
+
+    # CPU utilization
+    cpu_utilization:
+      target: 0.7         # 70% target
+      predictive_method: OPTIMIZE_AVAILABILITY
+
+    # Scale-in control
+    scale_in_control:
+      max_scaled_in_replicas:
+        fixed: 1          # Scale down max 1 instance at a time
+      time_window_sec: 300  # Wait 5 minutes between scale-downs
+
+    # Cooldown period
+    cooldown_period_sec: 60
+
+    # Mode
+    mode: ON             # ON, OFF, ONLY_UP, ONLY_DOWN
+
+  # Load balancing
+  load_balancing:
+    utilization_target: 0.8  # 80% of max RPS
+    max_rate_per_instance: 100
+
+---
+# =============================================================================
+# AWS EC2 Auto Scaling
+# =============================================================================
+aws_autoscaling:
+  name: sql-studio-backend-asg
+
+  # Launch template
+  launch_template:
+    name: sql-studio-backend-lt
+    version: $Latest
+
+  # Capacity
+  capacity:
+    min_size: 2
+    max_size: 10
+    desired_capacity: 2
+
+  # Health check
+  health_check_type: ELB
+  health_check_grace_period: 300  # seconds
+
+  # Availability zones
+  availability_zones:
+    - us-east-1a
+    - us-east-1b
+    - us-east-1c
+
+  # Target groups
+  target_group_arns:
+    - arn:aws:elasticloadbalancing:us-east-1:ACCOUNT:targetgroup/sql-studio-backend/abc123
+
+  # Scaling policies
+  scaling_policies:
+    # Scale-up policy
+    - name: scale-up
+      policy_type: TargetTrackingScaling
+      target_tracking_configuration:
+        predefined_metric_specification:
+          predefined_metric_type: ASGAverageCPUUtilization
+        target_value: 70.0
+        scale_in_cooldown: 300    # 5 minutes
+        scale_out_cooldown: 60    # 1 minute
+
+    # Scale-up on ALB request count
+    - name: scale-up-requests
+      policy_type: TargetTrackingScaling
+      target_tracking_configuration:
+        predefined_metric_specification:
+          predefined_metric_type: ALBRequestCountPerTarget
+          resource_label: app/sql-studio-alb/abc123/targetgroup/sql-studio-backend/def456
+        target_value: 1000.0      # Requests per minute per target
+
+    # Step scaling (manual)
+    - name: scale-up-step
+      policy_type: StepScaling
+      adjustment_type: ChangeInCapacity
+      metric_aggregation_type: Average
+      step_adjustments:
+        - metric_interval_lower_bound: 0
+          metric_interval_upper_bound: 10
+          scaling_adjustment: 1
+        - metric_interval_lower_bound: 10
+          metric_interval_upper_bound: 20
+          scaling_adjustment: 2
+        - metric_interval_lower_bound: 20
+          scaling_adjustment: 3
+
+  # Termination policies
+  termination_policies:
+    - OldestLaunchTemplate
+    - Default
+
+---
+# =============================================================================
+# Azure Virtual Machine Scale Sets
+# =============================================================================
+azure_vmss:
+  name: sql-studio-backend-vmss
+  resource_group: sql-studio-rg
+  location: eastus
+
+  # Capacity
+  capacity:
+    minimum: 2
+    maximum: 10
+    default: 2
+
+  # VM SKU
+  sku:
+    name: Standard_B2s
+    tier: Standard
+
+  # Auto-scale profiles
+  autoscale_profiles:
+    # Default profile
+    - name: default
+      capacity:
+        minimum: 2
+        maximum: 10
+        default: 2
+
+      # Rules
+      rules:
+        # Scale-out rule (CPU)
+        - metric_trigger:
+            metric_name: Percentage CPU
+            metric_resource_id: /subscriptions/.../sql-studio-backend-vmss
+            time_grain: PT1M
+            statistic: Average
+            time_window: PT5M
+            time_aggregation: Average
+            operator: GreaterThan
+            threshold: 70
+          scale_action:
+            direction: Increase
+            type: ChangeCount
+            value: 1
+            cooldown: PT5M
+
+        # Scale-in rule (CPU)
+        - metric_trigger:
+            metric_name: Percentage CPU
+            time_grain: PT1M
+            statistic: Average
+            time_window: PT10M
+            time_aggregation: Average
+            operator: LessThan
+            threshold: 30
+          scale_action:
+            direction: Decrease
+            type: ChangeCount
+            value: 1
+            cooldown: PT10M
+
+        # Scale-out rule (Memory)
+        - metric_trigger:
+            metric_name: Available Memory Bytes
+            time_grain: PT1M
+            statistic: Average
+            time_window: PT5M
+            time_aggregation: Average
+            operator: LessThan
+            threshold: 1073741824  # 1GB
+          scale_action:
+            direction: Increase
+            type: ChangeCount
+            value: 1
+            cooldown: PT5M
+
+    # Weekend profile (lower capacity)
+    - name: weekend
+      capacity:
+        minimum: 1
+        maximum: 5
+        default: 1
+      recurrence:
+        frequency: Week
+        schedule:
+          days: [Saturday, Sunday]
+          hours: [0]
+          minutes: [0]
+        time_zone: Eastern Standard Time
+      rules:
+        - metric_trigger:
+            metric_name: Percentage CPU
+            time_grain: PT1M
+            statistic: Average
+            time_window: PT10M
+            time_aggregation: Average
+            operator: GreaterThan
+            threshold: 80
+          scale_action:
+            direction: Increase
+            type: ChangeCount
+            value: 1
+            cooldown: PT5M
+
+---
+# =============================================================================
+# Kubernetes HPA (already covered in hpa.yaml)
+# =============================================================================
+# See infrastructure/kubernetes/hpa.yaml for Kubernetes configuration
+
+---
+# =============================================================================
+# Custom Metrics-based Scaling
+# =============================================================================
+custom_metrics_scaling:
+  # Prometheus-based scaling
+  prometheus:
+    - metric: http_requests_per_second
+      query: rate(http_requests_total[1m])
+      target_value: 100
+      scale_up_threshold: 100
+      scale_down_threshold: 50
+
+    - metric: response_time_p95
+      query: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))
+      target_value: 0.2  # 200ms
+      scale_up_threshold: 0.3
+      scale_down_threshold: 0.1
+
+    - metric: active_connections
+      query: sum(active_connections)
+      target_value: 1000
+      scale_up_threshold: 1200
+      scale_down_threshold: 500
+
+    - metric: queue_depth
+      query: sum(job_queue_depth)
+      target_value: 100
+      scale_up_threshold: 150
+      scale_down_threshold: 50
+
+---
+# =============================================================================
+# Scaling Strategy Best Practices
+# =============================================================================
+best_practices:
+  # General principles
+  principles:
+    - name: Conservative scaling
+      description: "Scale up aggressively, scale down conservatively"
+      scale_up_cooldown: 60s
+      scale_down_cooldown: 300s
+
+    - name: Avoid flapping
+      description: "Prevent rapid scaling up and down"
+      stabilization_window: 300s
+      min_change_interval: 60s
+
+    - name: Headroom
+      description: "Maintain capacity buffer for traffic spikes"
+      min_instances: 2
+      target_utilization: 70  # Not 100%
+
+    - name: Graceful termination
+      description: "Allow instances to finish requests before termination"
+      termination_grace_period: 30s
+      deregistration_delay: 30s
+
+  # Metric selection
+  metrics:
+    primary: CPU and memory utilization
+    secondary: Request rate, response time
+    custom: Application-specific metrics
+
+  # Thresholds
+  thresholds:
+    scale_up:
+      cpu: 70%
+      memory: 80%
+      requests_per_second: 1000
+      response_time_p95: 300ms
+
+    scale_down:
+      cpu: 30%
+      memory: 40%
+      requests_per_second: 200
+      response_time_p95: 100ms
+
+  # Testing
+  testing:
+    - Load test with gradual increase
+    - Verify scale-up triggers correctly
+    - Verify scale-down doesn't happen too quickly
+    - Test during peak hours
+    - Monitor for oscillation
+
+---
+# =============================================================================
+# Cost Optimization
+# =============================================================================
+cost_optimization:
+  # Right-sizing
+  instance_sizing:
+    - Start with smaller instances
+    - Scale horizontally instead of vertically
+    - Use burstable instances for variable loads
+
+  # Scheduling
+  scheduled_scaling:
+    business_hours:
+      min_instances: 2
+      max_instances: 10
+      schedule: "Mon-Fri 8am-6pm"
+
+    off_hours:
+      min_instances: 1
+      max_instances: 5
+      schedule: "Mon-Fri 6pm-8am, Weekends"
+
+  # Spot/Preemptible instances
+  spot_instances:
+    enabled: true
+    percentage: 30  # 30% spot, 70% on-demand
+    fallback: true  # Fall back to on-demand if spot unavailable
+
+  # Reserved capacity
+  reserved_instances:
+    coverage: 50%   # Cover baseline with reserved instances
+    term: 1_year
+    payment: all_upfront
+
+---
+# =============================================================================
+# Monitoring and Alerts
+# =============================================================================
+monitoring:
+  metrics_to_track:
+    - instance_count
+    - cpu_utilization
+    - memory_utilization
+    - request_rate
+    - response_time
+    - error_rate
+    - scaling_events
+
+  alerts:
+    - name: max_capacity_reached
+      condition: instance_count >= max_instances
+      severity: warning
+      action: notify_team
+
+    - name: frequent_scaling
+      condition: scaling_events > 10 in 1h
+      severity: warning
+      action: review_thresholds
+
+    - name: scale_up_failed
+      condition: scale_up_attempt_failed
+      severity: critical
+      action: page_oncall
+
+    - name: high_utilization_sustained
+      condition: cpu_utilization > 90% for 10m
+      severity: critical
+      action: increase_max_capacity
+
+# =============================================================================
+# Implementation Notes
+# =============================================================================
+#
+# 1. Start Conservative:
+#    - Begin with manual scaling to understand patterns
+#    - Set conservative thresholds
+#    - Monitor for 1-2 weeks before adjusting
+#
+# 2. Test Thoroughly:
+#    - Load test in staging environment
+#    - Verify scaling works as expected
+#    - Test failure scenarios
+#
+# 3. Monitor Continuously:
+#    - Track scaling events
+#    - Measure cost vs performance
+#    - Adjust thresholds based on data
+#
+# 4. Document Changes:
+#    - Log all threshold changes
+#    - Note reason for adjustments
+#    - Track cost impact
+#
+# =============================================================================

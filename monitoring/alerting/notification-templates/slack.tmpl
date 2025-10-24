@@ -1,0 +1,20 @@
+{{ define "slack.default.title" }}
+[{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}] {{ .GroupLabels.alertname }}
+{{ end }}
+
+{{ define "slack.default.text" }}
+{{ range .Alerts }}
+*Alert:* {{ .Annotations.summary }}
+*Description:* {{ .Annotations.description }}
+*Severity:* {{ .Labels.severity }}
+*Started:* {{ .StartsAt.Format "2006-01-02 15:04:05 MST" }}
+{{ if .Annotations.runbook }}*Runbook:* {{ .Annotations.runbook }}{{ end }}
+---
+{{ end }}
+{{ end }}
+
+{{ define "slack.default.color" }}
+{{ if eq .Status "firing" }}
+  {{ if eq .CommonLabels.severity "critical" }}danger{{ else if eq .CommonLabels.severity "warning" }}warning{{ else }}#439FE0{{ end }}
+{{ else }}good{{ end }}
+{{ end }}

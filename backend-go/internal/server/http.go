@@ -13,6 +13,7 @@ import (
 
 	"github.com/sql-studio/backend-go/internal/ai"
 	"github.com/sql-studio/backend-go/internal/config"
+	"github.com/sql-studio/backend-go/internal/middleware"
 	"github.com/sql-studio/backend-go/internal/services"
 )
 
@@ -25,7 +26,7 @@ type HTTPServer struct {
 }
 
 // NewHTTPServer creates a new HTTP gateway server
-func NewHTTPServer(cfg *config.Config, logger *logrus.Logger, svc *services.Services) (*HTTPServer, error) {
+func NewHTTPServer(cfg *config.Config, logger *logrus.Logger, svc *services.Services, authMiddleware *middleware.AuthMiddleware) (*HTTPServer, error) {
 	// Create main router
 	mainRouter := mux.NewRouter()
 
@@ -51,6 +52,23 @@ func NewHTTPServer(cfg *config.Config, logger *logrus.Logger, svc *services.Serv
 		logger.Info("AI HTTP routes registered successfully")
 	} else {
 		logger.Warn("AI service is nil, skipping AI route registration")
+	}
+
+	// Register Sync HTTP routes
+	if svc.Sync != nil {
+		logger.Info("Registering Sync HTTP routes")
+		registerSyncRoutes(mainRouter, svc, logger)
+		logger.Info("Sync HTTP routes registered successfully")
+	} else {
+		logger.Warn("Sync service is nil, skipping Sync route registration")
+	}
+
+	// Register Organization HTTP routes
+	if svc.Organization != nil {
+		logger.Info("Registering Organization HTTP routes")
+		registerOrganizationRoutes(mainRouter, svc, authMiddleware, logger)
+	} else {
+		logger.Warn("Organization service is nil, skipping Organization route registration")
 	}
 
 	// Mount gRPC-Gateway mux

@@ -9,19 +9,23 @@ import (
 	"github.com/sql-studio/backend-go/internal/auth"
 	"github.com/sql-studio/backend-go/internal/ai"
 	"github.com/sql-studio/backend-go/internal/config"
-	"github.com/sql-studio/backend-go/pkg/database"
 	"github.com/sql-studio/backend-go/internal/middleware"
+	"github.com/sql-studio/backend-go/internal/organization"
+	"github.com/sql-studio/backend-go/internal/sync"
+	"github.com/sql-studio/backend-go/pkg/database"
 )
 
 // Services holds all the application services
 type Services struct {
-	Auth     *auth.Service
-	Database *database.Manager
-	AI       ai.Service
-	Query    *QueryService
-	Table    *TableService
-	Health   *HealthService
-	Realtime *RealtimeService
+	Auth         *auth.Service
+	Sync         *sync.Service
+	Organization organization.ServiceInterface
+	Database     *database.Manager
+	AI           ai.Service
+	Query        *QueryService
+	Table        *TableService
+	Health       *HealthService
+	Realtime     *RealtimeService
 }
 
 // Config holds service configuration
@@ -32,29 +36,14 @@ type Config struct {
 }
 
 // NewServices creates a new services instance
+// Note: Auth and Sync services are injected from main.go
+// This function creates the supporting services that depend on database manager
 func NewServices(
 	cfg Config,
 	dbManager *database.Manager,
 	authMiddleware *middleware.AuthMiddleware,
 	logger *logrus.Logger,
 ) (*Services, error) {
-	// Create auth service with in-memory stores for simplicity
-	// In production, you'd use persistent storage
-	authService := auth.NewService(
-		&InMemoryUserStore{},
-		&InMemorySessionStore{},
-		&InMemoryLoginAttemptStore{},
-		authMiddleware,
-		auth.Config{
-			BcryptCost:        cfg.Auth.BcryptCost,
-			JWTExpiration:     cfg.Auth.JWTExpiration,
-			RefreshExpiration: cfg.Auth.RefreshExpiration,
-			MaxLoginAttempts:  cfg.Auth.MaxLoginAttempts,
-			LockoutDuration:   cfg.Auth.LockoutDuration,
-		},
-		logger,
-	)
-
 	// Create query service
 	queryService := NewQueryService(dbManager, logger)
 
@@ -78,13 +67,16 @@ func NewServices(
 	}
 
 	return &Services{
-		Auth:     authService,
-		Database: dbManager,
-		AI:       aiService,
-		Query:    queryService,
-		Table:    tableService,
-		Health:   healthService,
-		Realtime: realtimeService,
+		// Auth, Sync, and Organization will be set by main.go after Turso initialization
+		Auth:         nil, // Injected from main.go
+		Sync:         nil, // Injected from main.go
+		Organization: nil, // Injected from main.go
+		Database:     dbManager,
+		AI:           aiService,
+		Query:        queryService,
+		Table:        tableService,
+		Health:       healthService,
+		Realtime:     realtimeService,
 	}, nil
 }
 

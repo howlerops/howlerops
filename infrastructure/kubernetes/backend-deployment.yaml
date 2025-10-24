@@ -1,0 +1,289 @@
+# =============================================================================
+# SQL Studio Backend - Kubernetes Deployment
+# =============================================================================
+# Production-ready backend deployment with:
+# - High availability (multi-replica)
+# - Resource management (requests/limits)
+# - Health checks (liveness/readiness)
+# - Rolling updates with zero downtime
+# - Pod anti-affinity for resilience
+# - Security best practices
+# =============================================================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sql-studio-backend
+  namespace: sql-studio
+  labels:
+    app: sql-studio
+    component: backend
+    tier: api
+    version: v1
+  annotations:
+    description: "SQL Studio backend API service"
+    deployment.kubernetes.io/revision: "1"
+spec:
+  # High availability configuration
+  replicas: 2
+  revisionHistoryLimit: 10
+
+  # Pod selection
+  selector:
+    matchLabels:
+      app: sql-studio
+      component: backend
+      tier: api
+
+  # Zero-downtime deployment strategy
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1        # Can have 1 extra pod during rollout
+      maxUnavailable: 0  # Ensure no downtime during updates
+
+  # Pod template
+  template:
+    metadata:
+      labels:
+        app: sql-studio
+        component: backend
+        tier: api
+        version: v1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9100"
+        prometheus.io/path: "/metrics"
+
+    spec:
+      # Service account for RBAC
+      serviceAccountName: sql-studio-backend
+
+      # Security context for pod
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
+
+      # Pod anti-affinity to spread across nodes
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: component
+                      operator: In
+                      values:
+                        - backend
+                topologyKey: kubernetes.io/hostname
+
+        # Node affinity for specific node pools (optional)
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 50
+              preference:
+                matchExpressions:
+                  - key: workload-type
+                    operator: In
+                    values:
+                      - api
+
+      # Containers
+      containers:
+        - name: backend
+          image: gcr.io/YOUR_PROJECT_ID/sql-studio-backend:latest
+          imagePullPolicy: IfNotPresent
+
+          # Ports
+          ports:
+            - name: http
+              containerPort: 8500
+              protocol: TCP
+            - name: grpc
+              containerPort: 9500
+              protocol: TCP
+            - name: metrics
+              containerPort: 9100
+              protocol: TCP
+
+          # Environment variables from ConfigMap
+          envFrom:
+            - configMapRef:
+                name: sql-studio-backend-config
+
+          # Secrets as environment variables
+          env:
+            - name: TURSO_URL
+              valueFrom:
+                secretKeyRef:
+                  name: sql-studio-secrets
+                  key: turso-url
+            - name: TURSO_AUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: sql-studio-secrets
+                  key: turso-auth-token
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: sql-studio-secrets
+                  key: jwt-secret
+            - name: RESEND_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: sql-studio-secrets
+                  key: resend-api-key
+                  optional: true
+            - name: RESEND_FROM_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: sql-studio-secrets
+                  key: resend-from-email
+                  optional: true
+            # Pod information
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+
+          # Resource management
+          resources:
+            requests:
+              cpu: 100m        # 0.1 CPU cores
+              memory: 256Mi    # 256 MB
+              ephemeral-storage: 100Mi
+            limits:
+              cpu: 500m        # 0.5 CPU cores
+              memory: 1Gi      # 1 GB
+              ephemeral-storage: 1Gi
+
+          # Liveness probe - restart if unhealthy
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 30  # Wait for app startup
+            periodSeconds: 10        # Check every 10s
+            timeoutSeconds: 5        # Timeout after 5s
+            successThreshold: 1      # 1 success = healthy
+            failureThreshold: 3      # 3 failures = restart pod
+
+          # Readiness probe - remove from service if not ready
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 10  # Check sooner than liveness
+            periodSeconds: 5         # Check every 5s
+            timeoutSeconds: 3        # Faster timeout
+            successThreshold: 1      # 1 success = ready
+            failureThreshold: 2      # 2 failures = not ready
+
+          # Startup probe - handle slow startup
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 0
+            periodSeconds: 5
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 12     # 60s max startup time (12 * 5s)
+
+          # Security context for container
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1001
+            capabilities:
+              drop:
+                - ALL
+
+          # Volume mounts
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: cache
+              mountPath: /app/.cache
+            - name: logs
+              mountPath: /app/logs
+
+      # Volumes
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 100Mi
+        - name: cache
+          emptyDir:
+            sizeLimit: 100Mi
+        - name: logs
+          emptyDir:
+            sizeLimit: 500Mi
+
+      # DNS configuration
+      dnsPolicy: ClusterFirst
+      dnsConfig:
+        options:
+          - name: ndots
+            value: "2"
+
+      # Restart policy
+      restartPolicy: Always
+
+      # Termination grace period
+      terminationGracePeriodSeconds: 30
+
+---
+# =============================================================================
+# Service Account for Backend
+# =============================================================================
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sql-studio-backend
+  namespace: sql-studio
+  labels:
+    app: sql-studio
+    component: backend
+  annotations:
+    description: "Service account for SQL Studio backend"
+
+---
+# =============================================================================
+# Pod Disruption Budget
+# =============================================================================
+# Ensures at least 1 pod is always available during voluntary disruptions
+# (node drains, cluster upgrades, etc.)
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: sql-studio-backend-pdb
+  namespace: sql-studio
+  labels:
+    app: sql-studio
+    component: backend
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: sql-studio
+      component: backend
+      tier: api
+  unhealthyPodEvictionPolicy: AlwaysAllow

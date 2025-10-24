@@ -1,13 +1,14 @@
-# HowlerOps Backend (Go + gRPC)
+# SQL Studio Backend (Go)
 
-A high-performance, production-ready backend for HowlerOps built with Go and gRPC, supporting multiple database types with advanced features like streaming queries, real-time updates, and comprehensive monitoring.
+A high-performance backend service for SQL Studio, built with Go. Supports local SQLite development and Turso cloud production deployment with advanced features like streaming queries, real-time updates, and comprehensive monitoring.
 
 ## Features
 
 ### Database Support
+- **Turso Cloud** - Distributed SQLite with edge replication (production)
+- **Local SQLite** - Fast development with file-based database
 - **PostgreSQL** - Full support with connection pooling
 - **MySQL/MariaDB** - Optimized for performance
-- **SQLite** - Perfect for development and embedded use
 - **ClickHouse** - High-performance analytics database
 - **TiDB** - MySQL-compatible distributed SQL database
 - **Elasticsearch/OpenSearch** - Full-text search and analytics via SQL API
@@ -28,29 +29,82 @@ A high-performance, production-ready backend for HowlerOps built with Go and gRP
 - **Streaming Responses** - Sub-100ms response times
 - **Connection Management** - Efficient resource utilization
 
-## Quick Start
+## Quick Start (Local Development)
 
 ### Prerequisites
-- Go 1.21+
-- Protocol Buffers compiler (`protoc`)
-- Docker and Docker Compose (optional)
+- Go 1.24.0 or higher
+- Make (optional, but recommended)
 
-### Development Setup
+### 1. Setup Local Environment
 
-1. **Clone and setup**:
 ```bash
 cd backend-go
-make setup
+make setup-local
 ```
 
-2. **Generate protobuf code**:
+This will:
+- Create the `./data` directory for local SQLite database
+- Copy `.env.example` to `.env.development` (if not exists)
+- Set up the development environment
+
+### 2. Install Dependencies
+
 ```bash
-make proto
+# Install godotenv for environment loading
+go get github.com/joho/godotenv
+go mod tidy
 ```
 
-3. **Run in development mode**:
+### 3. Configure Environment (Optional)
+
+Edit `.env.development` if you need to customize:
+
+```bash
+# Database - defaults to local SQLite
+TURSO_URL=file:./data/development.db
+TURSO_AUTH_TOKEN=
+
+# Email - optional for local dev
+RESEND_API_KEY=
+RESEND_FROM_EMAIL=noreply@localhost
+
+# Auth - secure defaults provided
+JWT_SECRET=local-dev-secret-key-not-for-production-use-only-32-chars-min
+JWT_EXPIRATION=24h
+
+# Ports
+SERVER_HTTP_PORT=8080
+SERVER_GRPC_PORT=9090
+SERVER_METRICS_PORT=9100
+```
+
+### 4. Run Database Migrations
+
+```bash
+make migrate-local
+```
+
+This creates all required tables in the local SQLite database.
+
+### 5. Start the Server
+
 ```bash
 make dev
+```
+
+The server will start with:
+- HTTP API: http://localhost:8080
+- gRPC API: localhost:9090
+- Metrics: http://localhost:9100/metrics
+
+### 6. Verify It's Working
+
+```bash
+# Check server health
+curl http://localhost:8080/health
+
+# Check metrics
+curl http://localhost:9100/metrics
 ```
 
 ### Docker Setup
@@ -70,21 +124,78 @@ docker-compose logs -f sql-studio-backend
 docker-compose down
 ```
 
-## Configuration
-
-Configuration is managed through YAML files and environment variables:
-
-### Configuration File
-See `configs/config.yaml` for the complete configuration structure.
-
-### Environment Variables
-All configuration options can be overridden with environment variables using the prefix `SQL_STUDIO_`:
+## Development Commands
 
 ```bash
-export SQL_STUDIO_SERVER_PORT=8080
-export SQL_STUDIO_AUTH_JWT_SECRET="your-secret-key"
-export SQL_STUDIO_LOG_LEVEL=debug
+# Local Development
+make setup-local      # Setup local environment with SQLite
+make dev              # Run server in development mode
+make migrate-local    # Run database migrations
+make clean-db         # Clean local database
+make reset-local      # Reset everything (clean + setup)
+make test-local       # Run tests with local database
+
+# Building
+make build            # Build the binary
+make run              # Run the built binary
+make release          # Build release versions for all platforms
+
+# Testing & Quality
+make test             # Run all tests
+make test-coverage    # Run tests with coverage report
+make bench            # Run benchmarks
+make lint             # Run linter
+make fmt              # Format code
+make check            # Run all checks (format, lint, test)
+
+# Code Generation
+make proto            # Generate protobuf code
+
+# Utilities
+make clean            # Clean build artifacts
+make tidy             # Run go mod tidy
+make deps             # Download dependencies
+make help             # Show all available commands
 ```
+
+## Configuration
+
+Configuration is managed through environment files with automatic loading based on `ENVIRONMENT`:
+
+### Configuration Priority
+
+Configuration is loaded in this order (later overrides earlier):
+
+1. Default values in code
+2. YAML config file (if present)
+3. `.env` file (if present)
+4. `.env.{ENVIRONMENT}` file (if present)
+5. System environment variables
+
+For local development, `.env.development` is automatically loaded when `ENVIRONMENT=development`.
+
+### Environment Variables
+
+#### Required
+
+- `TURSO_URL`: Database URL
+  - Local: `file:./data/development.db`
+  - Production: `libsql://your-database.turso.io`
+- `JWT_SECRET`: Secret key for JWT tokens (min 32 characters)
+
+#### Optional
+
+- `TURSO_AUTH_TOKEN`: Required for Turso cloud, empty for local
+- `RESEND_API_KEY`: Resend API key for emails
+- `RESEND_FROM_EMAIL`: Email sender address
+- `JWT_EXPIRATION`: JWT token expiration (default: 24h for dev, 15m for prod)
+- `JWT_REFRESH_EXPIRATION`: Refresh token expiration (default: 30d for dev, 7d for prod)
+- `SERVER_HTTP_PORT`: HTTP server port (default: 8080)
+- `SERVER_GRPC_PORT`: gRPC server port (default: 9090)
+- `SERVER_METRICS_PORT`: Metrics server port (default: 9100)
+- `LOG_LEVEL`: Logging level (debug, info, warn, error)
+- `LOG_FORMAT`: Log format (text, json)
+- `ENVIRONMENT`: Environment name (development, production)
 
 ## API Documentation
 
@@ -155,7 +266,54 @@ curl -X POST http://localhost:8080/api/queries/execute \
   -d '{"connection_id": "conn-123", "sql": "SELECT * FROM users LIMIT 10"}'
 ```
 
-## Database Connections
+## SQL Studio Database (Turso/SQLite)
+
+### Local Development (SQLite)
+
+The local SQLite database is stored in `./data/development.db`. This file is gitignored.
+
+**Advantages:**
+- No external dependencies
+- Fast development iteration
+- Works offline
+- Easy to reset (`make clean-db`)
+
+**Schema:** Automatically created by `make migrate-local`
+
+### Production (Turso Cloud)
+
+Turso is a distributed SQLite database with:
+- Global edge replication
+- Automatic backups
+- Same SQL interface as SQLite
+- libSQL protocol for efficient sync
+
+**Setup:**
+
+1. Create a Turso database:
+```bash
+turso db create sql-studio-prod
+```
+
+2. Get the database URL:
+```bash
+turso db show sql-studio-prod --url
+```
+
+3. Create an auth token:
+```bash
+turso db tokens create sql-studio-prod
+```
+
+4. Set environment variables:
+```bash
+TURSO_URL=libsql://your-database.turso.io
+TURSO_AUTH_TOKEN=your_token_here
+```
+
+## Database Connections (for users)
+
+SQL Studio supports connecting to various external databases:
 
 ### Creating Connections
 
@@ -355,15 +513,88 @@ make lint
 make check
 ```
 
-## Deployment
+## Troubleshooting
+
+### Database locked error
+
+If you see "database is locked":
+- Stop all running instances of the server
+- Run `make clean-db` to remove lock files
+
+### Port already in use
+
+Change the ports in `.env.development`:
+```bash
+SERVER_HTTP_PORT=8081
+SERVER_GRPC_PORT=9091
+SERVER_METRICS_PORT=9101
+```
+
+### JWT secret too short
+
+The JWT secret must be at least 32 characters. Generate a secure one:
+```bash
+openssl rand -base64 48
+```
+
+### Missing godotenv dependency
+
+Install the required dependency:
+```bash
+go get github.com/joho/godotenv
+go mod tidy
+```
+
+## Production Deployment
+
+### Environment Setup
+
+1. Copy `.env.production.example` to `.env.production`
+2. Fill in all required values with production credentials
+3. Ensure `JWT_SECRET` is a secure random string (min 32 chars)
+4. Set `TURSO_URL` to your Turso database URL
+5. Set `TURSO_AUTH_TOKEN` to your Turso auth token
+6. Configure `RESEND_API_KEY` for email service
+
+### Security Checklist
+
+- [ ] Change `JWT_SECRET` to a secure random value
+- [ ] Use a production Turso database (not local SQLite)
+- [ ] Enable TLS/HTTPS
+- [ ] Set `LOG_LEVEL=info` (not debug)
+- [ ] Set `LOG_FORMAT=json` for structured logging
+- [ ] Configure proper CORS origins (not "*")
+- [ ] Enable rate limiting
+- [ ] Set up monitoring and alerting
+- [ ] Configure database backups
+
+### Running in Production
+
+```bash
+# Set environment
+export ENVIRONMENT=production
+
+# Run migrations
+go run cmd/migrate/main.go
+
+# Start server
+./build/sql-studio-backend
+```
 
 ### Docker
+
 ```bash
 # Build image
 docker build -t sql-studio/backend-go .
 
-# Run container
-docker run -p 8080:8080 -p 9090:9090 sql-studio/backend-go
+# Run container with environment file
+docker run -d \
+  --name sql-studio-backend \
+  -p 8080:8080 \
+  -p 9090:9090 \
+  -p 9100:9100 \
+  --env-file .env.production \
+  sql-studio/backend-go:latest
 ```
 
 ### Kubernetes

@@ -1,0 +1,400 @@
+# Prometheus Alert Rules for SQL Studio
+# Defines alerting conditions for various operational issues
+
+groups:
+  # ============================================================================
+  # Application Performance Alerts
+  # ============================================================================
+  - name: application_performance
+    interval: 30s
+    rules:
+      # High error rate alert
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(http_request_duration_seconds_count{status=~"5.."}[5m])) by (namespace, pod)
+            /
+            sum(rate(http_request_duration_seconds_count[5m])) by (namespace, pod)
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          component: backend
+        annotations:
+          summary: "High error rate detected (instance {{ $labels.pod }})"
+          description: "Error rate is {{ $value | humanizePercentage }} over the last 5 minutes. This exceeds the 5% threshold."
+          runbook: "https://docs.sqlstudio.io/runbooks/high-error-rate"
+
+      # High API latency alert
+      - alert: HighAPILatency
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le, endpoint)
+          ) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          component: backend
+        annotations:
+          summary: "High API latency on endpoint {{ $labels.endpoint }}"
+          description: "95th percentile latency is {{ $value }}s over the last 5 minutes. This exceeds the 500ms threshold."
+          runbook: "https://docs.sqlstudio.io/runbooks/high-latency"
+
+      # Critical API latency alert
+      - alert: CriticalAPILatency
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le, endpoint)
+          ) > 2.0
+        for: 3m
+        labels:
+          severity: critical
+          component: backend
+        annotations:
+          summary: "Critical API latency on endpoint {{ $labels.endpoint }}"
+          description: "95th percentile latency is {{ $value }}s over the last 3 minutes. This is critically high."
+          runbook: "https://docs.sqlstudio.io/runbooks/critical-latency"
+
+      # Query execution failures
+      - alert: HighQueryFailureRate
+        expr: |
+          (
+            sum(rate(database_query_duration_seconds_count{status="error"}[5m])) by (namespace, pod)
+            /
+            sum(rate(database_query_duration_seconds_count[5m])) by (namespace, pod)
+          ) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "High query failure rate (instance {{ $labels.pod }})"
+          description: "Query failure rate is {{ $value | humanizePercentage }} over the last 5 minutes."
+          runbook: "https://docs.sqlstudio.io/runbooks/query-failures"
+
+      # Slow queries
+      - alert: SlowQueries
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(database_query_duration_seconds_bucket[5m])) by (le)
+          ) > 5.0
+        for: 10m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "Slow database queries detected"
+          description: "95th percentile query duration is {{ $value }}s over the last 10 minutes."
+          runbook: "https://docs.sqlstudio.io/runbooks/slow-queries"
+
+  # ============================================================================
+  # Infrastructure Alerts
+  # ============================================================================
+  - name: infrastructure
+    interval: 30s
+    rules:
+      # Pod restarts
+      - alert: PodCrashLooping
+        expr: |
+          rate(kube_pod_container_status_restarts_total[10m]) > 0.3
+        for: 5m
+        labels:
+          severity: critical
+          component: kubernetes
+        annotations:
+          summary: "Pod {{ $labels.pod }} is crash looping"
+          description: "Pod has restarted {{ $value }} times in the last 10 minutes."
+          runbook: "https://docs.sqlstudio.io/runbooks/pod-crash-loop"
+
+      # High memory usage
+      - alert: HighMemoryUsage
+        expr: |
+          (
+            container_memory_working_set_bytes{namespace="sql-studio"}
+            /
+            container_spec_memory_limit_bytes{namespace="sql-studio"}
+          ) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          component: kubernetes
+        annotations:
+          summary: "High memory usage in {{ $labels.pod }}"
+          description: "Memory usage is {{ $value | humanizePercentage }} of limit."
+          runbook: "https://docs.sqlstudio.io/runbooks/high-memory"
+
+      # Critical memory usage
+      - alert: CriticalMemoryUsage
+        expr: |
+          (
+            container_memory_working_set_bytes{namespace="sql-studio"}
+            /
+            container_spec_memory_limit_bytes{namespace="sql-studio"}
+          ) > 0.95
+        for: 2m
+        labels:
+          severity: critical
+          component: kubernetes
+        annotations:
+          summary: "Critical memory usage in {{ $labels.pod }}"
+          description: "Memory usage is {{ $value | humanizePercentage }} of limit. OOM kill imminent."
+          runbook: "https://docs.sqlstudio.io/runbooks/critical-memory"
+
+      # High CPU usage
+      - alert: HighCPUUsage
+        expr: |
+          (
+            rate(container_cpu_usage_seconds_total{namespace="sql-studio"}[5m])
+            /
+            container_spec_cpu_quota{namespace="sql-studio"}
+            * 100000
+          ) > 80
+        for: 5m
+        labels:
+          severity: warning
+          component: kubernetes
+        annotations:
+          summary: "High CPU usage in {{ $labels.pod }}"
+          description: "CPU usage is {{ $value }}% over the last 5 minutes."
+          runbook: "https://docs.sqlstudio.io/runbooks/high-cpu"
+
+      # Pod not ready
+      - alert: PodNotReady
+        expr: |
+          kube_pod_status_phase{namespace="sql-studio", phase!~"Running|Succeeded"} > 0
+        for: 5m
+        labels:
+          severity: warning
+          component: kubernetes
+        annotations:
+          summary: "Pod {{ $labels.pod }} not ready"
+          description: "Pod has been in {{ $labels.phase }} state for more than 5 minutes."
+          runbook: "https://docs.sqlstudio.io/runbooks/pod-not-ready"
+
+      # Node disk pressure
+      - alert: NodeDiskPressure
+        expr: |
+          kube_node_status_condition{condition="DiskPressure", status="true"} > 0
+        for: 5m
+        labels:
+          severity: critical
+          component: kubernetes
+        annotations:
+          summary: "Node {{ $labels.node }} has disk pressure"
+          description: "Node is experiencing disk pressure."
+          runbook: "https://docs.sqlstudio.io/runbooks/disk-pressure"
+
+  # ============================================================================
+  # Database Connection Pool Alerts
+  # ============================================================================
+  - name: database_connections
+    interval: 30s
+    rules:
+      # Connection pool exhaustion
+      - alert: DatabaseConnectionPoolExhaustion
+        expr: |
+          (
+            database_connections_active
+            /
+            database_connections_max
+          ) > 0.9
+        for: 5m
+        labels:
+          severity: critical
+          component: database
+        annotations:
+          summary: "Database connection pool nearly exhausted"
+          description: "{{ $value | humanizePercentage }} of database connections are in use."
+          runbook: "https://docs.sqlstudio.io/runbooks/connection-pool-exhaustion"
+
+      # High connection churn
+      - alert: HighConnectionChurn
+        expr: |
+          rate(database_connections_opened_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "High database connection churn"
+          description: "{{ $value }} new connections per second over the last 5 minutes."
+          runbook: "https://docs.sqlstudio.io/runbooks/connection-churn"
+
+  # ============================================================================
+  # Authentication & Security Alerts
+  # ============================================================================
+  - name: authentication_security
+    interval: 30s
+    rules:
+      # Failed authentication attempts
+      - alert: HighFailedAuthenticationRate
+        expr: |
+          rate(auth_attempts_total{status="failed"}[1m]) > 1.67
+        for: 1m
+        labels:
+          severity: critical
+          component: security
+        annotations:
+          summary: "High rate of failed authentication attempts"
+          description: "{{ $value }} failed auth attempts per second (>100/min). Possible brute force attack."
+          runbook: "https://docs.sqlstudio.io/runbooks/brute-force-detection"
+
+      # Account lockouts
+      - alert: MultipleAccountLockouts
+        expr: |
+          increase(auth_lockouts_total[5m]) > 10
+        for: 1m
+        labels:
+          severity: warning
+          component: security
+        annotations:
+          summary: "Multiple account lockouts detected"
+          description: "{{ $value }} accounts have been locked out in the last 5 minutes."
+          runbook: "https://docs.sqlstudio.io/runbooks/account-lockouts"
+
+  # ============================================================================
+  # Sync Service Alerts
+  # ============================================================================
+  - name: sync_service
+    interval: 30s
+    rules:
+      # High sync failure rate
+      - alert: HighSyncFailureRate
+        expr: |
+          (
+            sum(rate(sync_operations_total{status="failed"}[5m]))
+            /
+            sum(rate(sync_operations_total[5m]))
+          ) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          component: sync
+        annotations:
+          summary: "High sync operation failure rate"
+          description: "{{ $value | humanizePercentage }} of sync operations are failing."
+          runbook: "https://docs.sqlstudio.io/runbooks/sync-failures"
+
+      # Sync lag
+      - alert: SyncLag
+        expr: |
+          sync_lag_seconds > 300
+        for: 10m
+        labels:
+          severity: warning
+          component: sync
+        annotations:
+          summary: "Sync lag detected"
+          description: "Sync is {{ $value }} seconds behind."
+          runbook: "https://docs.sqlstudio.io/runbooks/sync-lag"
+
+  # ============================================================================
+  # SSL/TLS Certificate Alerts
+  # ============================================================================
+  - name: ssl_certificates
+    interval: 1h
+    rules:
+      # Certificate expiring soon
+      - alert: SSLCertificateExpiringSoon
+        expr: |
+          (probe_ssl_earliest_cert_expiry - time()) / 86400 < 7
+        for: 1h
+        labels:
+          severity: warning
+          component: security
+        annotations:
+          summary: "SSL certificate for {{ $labels.instance }} expiring soon"
+          description: "SSL certificate expires in {{ $value }} days."
+          runbook: "https://docs.sqlstudio.io/runbooks/ssl-cert-expiry"
+
+      # Certificate expired
+      - alert: SSLCertificateExpired
+        expr: |
+          (probe_ssl_earliest_cert_expiry - time()) < 0
+        for: 5m
+        labels:
+          severity: critical
+          component: security
+        annotations:
+          summary: "SSL certificate for {{ $labels.instance }} has expired"
+          description: "SSL certificate expired {{ $value | humanizeDuration }} ago."
+          runbook: "https://docs.sqlstudio.io/runbooks/ssl-cert-expired"
+
+  # ============================================================================
+  # Service Availability Alerts
+  # ============================================================================
+  - name: service_availability
+    interval: 30s
+    rules:
+      # Service down
+      - alert: ServiceDown
+        expr: |
+          up{job=~"sql-studio-.*"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: availability
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: "Service has been down for more than 2 minutes."
+          runbook: "https://docs.sqlstudio.io/runbooks/service-down"
+
+      # API endpoint down
+      - alert: APIEndpointDown
+        expr: |
+          probe_success{job="blackbox-http"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: availability
+        annotations:
+          summary: "API endpoint {{ $labels.instance }} is down"
+          description: "Endpoint has failed health checks for more than 2 minutes."
+          runbook: "https://docs.sqlstudio.io/runbooks/endpoint-down"
+
+  # ============================================================================
+  # Prometheus Self-Monitoring
+  # ============================================================================
+  - name: prometheus_monitoring
+    interval: 30s
+    rules:
+      # Prometheus scrape failures
+      - alert: PrometheusScrapeFailing
+        expr: |
+          up == 0
+        for: 5m
+        labels:
+          severity: warning
+          component: monitoring
+        annotations:
+          summary: "Prometheus scrape failing for {{ $labels.job }}"
+          description: "Prometheus has failed to scrape {{ $labels.instance }} for 5 minutes."
+          runbook: "https://docs.sqlstudio.io/runbooks/prometheus-scrape-failure"
+
+      # Prometheus target missing
+      - alert: PrometheusTargetMissing
+        expr: |
+          sum by (job) (up) == 0
+        for: 5m
+        labels:
+          severity: critical
+          component: monitoring
+        annotations:
+          summary: "All targets for job {{ $labels.job }} are down"
+          description: "No targets are reachable for this job."
+          runbook: "https://docs.sqlstudio.io/runbooks/prometheus-target-missing"
+
+      # Prometheus running out of storage
+      - alert: PrometheusStorageAlmostFull
+        expr: |
+          (
+            1 - (prometheus_tsdb_storage_blocks_bytes / prometheus_tsdb_storage_blocks_bytes_total)
+          ) < 0.1
+        for: 1h
+        labels:
+          severity: warning
+          component: monitoring
+        annotations:
+          summary: "Prometheus storage almost full"
+          description: "Only {{ $value | humanizePercentage }} of storage remaining."
+          runbook: "https://docs.sqlstudio.io/runbooks/prometheus-storage-full"

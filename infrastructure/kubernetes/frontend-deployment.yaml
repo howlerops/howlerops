@@ -1,0 +1,227 @@
+# =============================================================================
+# SQL Studio Frontend - Kubernetes Deployment
+# =============================================================================
+# Production-ready frontend deployment with:
+# - nginx serving static assets
+# - Multi-replica for high availability
+# - Efficient resource allocation
+# - Health checks and rolling updates
+# - Security best practices
+# =============================================================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sql-studio-frontend
+  namespace: sql-studio
+  labels:
+    app: sql-studio
+    component: frontend
+    tier: web
+    version: v1
+  annotations:
+    description: "SQL Studio frontend web application"
+spec:
+  # High availability configuration
+  replicas: 2
+  revisionHistoryLimit: 10
+
+  # Pod selection
+  selector:
+    matchLabels:
+      app: sql-studio
+      component: frontend
+      tier: web
+
+  # Zero-downtime deployment strategy
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
+  # Pod template
+  template:
+    metadata:
+      labels:
+        app: sql-studio
+        component: frontend
+        tier: web
+        version: v1
+      annotations:
+        description: "Frontend nginx pod"
+
+    spec:
+      # Service account
+      serviceAccountName: sql-studio-frontend
+
+      # Security context
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101  # nginx user
+        runAsGroup: 101
+        fsGroup: 101
+        seccompProfile:
+          type: RuntimeDefault
+
+      # Pod anti-affinity
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: component
+                      operator: In
+                      values:
+                        - frontend
+                topologyKey: kubernetes.io/hostname
+
+      # Containers
+      containers:
+        - name: frontend
+          image: gcr.io/YOUR_PROJECT_ID/sql-studio-frontend:latest
+          imagePullPolicy: IfNotPresent
+
+          # Ports
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+
+          # Environment variables
+          env:
+            - name: BACKEND_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: sql-studio-frontend-config
+                  key: backend-api-url
+            - name: ENVIRONMENT
+              value: "production"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+
+          # Resource management
+          resources:
+            requests:
+              cpu: 50m        # 0.05 CPU cores
+              memory: 128Mi   # 128 MB
+              ephemeral-storage: 50Mi
+            limits:
+              cpu: 200m       # 0.2 CPU cores
+              memory: 512Mi   # 512 MB
+              ephemeral-storage: 500Mi
+
+          # Liveness probe
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 3
+
+          # Readiness probe
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 2
+            successThreshold: 1
+            failureThreshold: 2
+
+          # Startup probe
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 0
+            periodSeconds: 2
+            timeoutSeconds: 1
+            successThreshold: 1
+            failureThreshold: 10
+
+          # Security context
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 101
+            capabilities:
+              drop:
+                - ALL
+              add:
+                - NET_BIND_SERVICE  # Allow binding to port 80
+
+          # Volume mounts
+          volumeMounts:
+            - name: nginx-cache
+              mountPath: /var/cache/nginx
+            - name: nginx-run
+              mountPath: /var/run
+            - name: tmp
+              mountPath: /tmp
+
+      # Volumes
+      volumes:
+        - name: nginx-cache
+          emptyDir:
+            sizeLimit: 100Mi
+        - name: nginx-run
+          emptyDir:
+            sizeLimit: 10Mi
+        - name: tmp
+          emptyDir:
+            sizeLimit: 50Mi
+
+      # DNS configuration
+      dnsPolicy: ClusterFirst
+
+      # Restart policy
+      restartPolicy: Always
+
+      # Termination grace period
+      terminationGracePeriodSeconds: 10
+
+---
+# =============================================================================
+# Service Account for Frontend
+# =============================================================================
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sql-studio-frontend
+  namespace: sql-studio
+  labels:
+    app: sql-studio
+    component: frontend
+
+---
+# =============================================================================
+# Pod Disruption Budget
+# =============================================================================
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: sql-studio-frontend-pdb
+  namespace: sql-studio
+  labels:
+    app: sql-studio
+    component: frontend
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: sql-studio
+      component: frontend
+      tier: web

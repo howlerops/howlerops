@@ -10,7 +10,7 @@ export function Dashboard() {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const queryEditorRef = useRef<QueryEditorHandle>(null)
   const [editorFraction, setEditorFraction] = useState(0.55)
-  const { mode } = useQueryMode('auto')
+  const { mode } = useQueryMode('single')
 
   // Remove automatic tab creation - let users create tabs manually
 

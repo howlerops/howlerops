@@ -1,0 +1,162 @@
+# Testing Makefile for SQL Studio Backend
+# Include this in your main Makefile or use directly
+
+.PHONY: test test-unit test-integration test-smoke test-load test-api test-all test-coverage test-race clean-test-data help
+
+# Default target
+help:
+	@echo "SQL Studio Backend - Testing Commands"
+	@echo ""
+	@echo "Unit Tests:"
+	@echo "  make test-unit           - Run all unit tests"
+	@echo "  make test-unit-verbose   - Run unit tests with verbose output"
+	@echo "  make test-coverage       - Run tests with coverage report"
+	@echo "  make test-race           - Run tests with race detection"
+	@echo ""
+	@echo "Integration Tests:"
+	@echo "  make test-integration    - Run integration tests (requires server)"
+	@echo "  make test-auth           - Run auth integration tests only"
+	@echo "  make test-sync           - Run sync integration tests only"
+	@echo "  make test-health         - Run health integration tests only"
+	@echo ""
+	@echo "End-to-End Testing:"
+	@echo "  make test-smoke          - Run smoke tests"
+	@echo "  make test-api            - Run API testing script"
+	@echo "  make test-load           - Run load tests"
+	@echo ""
+	@echo "Combined:"
+	@echo "  make test                - Run unit + integration tests"
+	@echo "  make test-all            - Run all tests (unit + integration + smoke)"
+	@echo "  make test-ci             - Run tests suitable for CI/CD"
+	@echo ""
+	@echo "Remote Testing:"
+	@echo "  make test-staging        - Run tests against staging"
+	@echo "  make test-production     - Run smoke tests against production"
+	@echo ""
+	@echo "Utilities:"
+	@echo "  make clean-test-data     - Clean up test artifacts"
+	@echo "  make test-deps           - Install test dependencies"
+	@echo ""
+
+# Unit tests
+test-unit:
+	@echo "Running unit tests..."
+	@go test ./... -v -short
+
+test-unit-verbose:
+	@echo "Running unit tests (verbose)..."
+	@go test ./... -v
+
+test-coverage:
+	@echo "Running tests with coverage..."
+	@go test ./... -v -coverprofile=coverage.out
+	@echo "Coverage report generated: coverage.out"
+	@echo "View with: go tool cover -html=coverage.out"
+
+test-race:
+	@echo "Running tests with race detection..."
+	@go test ./... -v -race
+
+# Integration tests
+test-integration:
+	@echo "Running integration tests..."
+	@echo "Note: Server must be running on http://localhost:8500"
+	@go test ./test/integration/... -v
+
+test-auth:
+	@echo "Running auth integration tests..."
+	@go test ./test/integration/... -v -run TestAuth
+
+test-sync:
+	@echo "Running sync integration tests..."
+	@go test ./test/integration/... -v -run TestSync
+
+test-health:
+	@echo "Running health integration tests..."
+	@go test ./test/integration/... -v -run TestHealth
+
+# Smoke tests
+test-smoke:
+	@echo "Running smoke tests..."
+	@./scripts/smoke-tests.sh
+
+# API tests
+test-api:
+	@echo "Running API tests..."
+	@./scripts/test-api.sh
+
+# Load tests
+test-load:
+	@echo "Running load tests..."
+	@./scripts/load-test.sh
+
+# Combined tests
+test: test-unit test-integration
+
+test-all: test-unit test-integration test-smoke
+
+test-ci:
+	@echo "Running CI tests..."
+	@go test ./... -v -coverprofile=coverage.out
+	@./scripts/smoke-tests.sh
+
+# Remote testing
+test-staging:
+	@echo "Running tests against staging..."
+	@TEST_BASE_URL=https://api.staging.sqlstudio.io ./scripts/smoke-tests.sh
+	@TEST_BASE_URL=https://api.staging.sqlstudio.io go test ./test/integration/... -v
+
+test-production:
+	@echo "Running smoke tests against production..."
+	@echo "WARNING: Only running read-only smoke tests"
+	@TEST_BASE_URL=https://api.sqlstudio.io ./scripts/smoke-tests.sh
+
+# Clean up
+clean-test-data:
+	@echo "Cleaning test artifacts..."
+	@rm -f coverage.out
+	@rm -rf load-test-results
+	@echo "Test artifacts cleaned"
+
+# Install test dependencies
+test-deps:
+	@echo "Installing test dependencies..."
+	@go install gotest.tools/gotestsum@latest
+	@echo "Checking for optional tools..."
+	@command -v jq >/dev/null 2>&1 || echo "  - jq not found (brew install jq)"
+	@command -v hey >/dev/null 2>&1 || echo "  - hey not found (brew install hey)"
+	@command -v bc >/dev/null 2>&1 || echo "  - bc not found (brew install bc)"
+	@echo "Dependencies checked"
+
+# Quick test (fast feedback)
+test-quick:
+	@echo "Running quick tests (short mode)..."
+	@go test ./... -v -short -timeout 30s
+
+# Watch mode (requires entr or similar)
+test-watch:
+	@echo "Running tests in watch mode..."
+	@echo "Install entr: brew install entr"
+	@find . -name '*.go' | entr -c make test-quick
+
+# Benchmark tests
+test-bench:
+	@echo "Running benchmark tests..."
+	@go test ./... -bench=. -benchmem
+
+# Generate test report
+test-report:
+	@echo "Generating test report..."
+	@go install gotest.tools/gotestsum@latest
+	@gotestsum --format testname --jsonfile test-report.json -- ./... -coverprofile=coverage.out
+	@go tool cover -html=coverage.out -o coverage.html
+	@echo "Reports generated:"
+	@echo "  - test-report.json"
+	@echo "  - coverage.html"
+
+# Test specific package
+test-pkg:
+	@echo "Testing package: $(PKG)"
+	@go test ./$(PKG)/... -v
+
+# Example: make test-pkg PKG=internal/auth

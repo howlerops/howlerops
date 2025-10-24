@@ -79,12 +79,20 @@ type LoginAttemptStore interface {
 	CleanupOldAttempts(ctx context.Context, before time.Time) error
 }
 
+// EmailService defines the interface for email operations
+type EmailService interface {
+	SendVerificationEmail(email, token, verificationURL string) error
+	SendPasswordResetEmail(email, token, resetURL string) error
+	SendWelcomeEmail(email, name string) error
+}
+
 // Service provides authentication functionality
 type Service struct {
 	userStore         UserStore
 	sessionStore      SessionStore
 	attemptStore      LoginAttemptStore
 	authMiddleware    *middleware.AuthMiddleware
+	emailService      EmailService
 	logger            *logrus.Logger
 	bcryptCost        int
 	jwtExpiration     time.Duration
@@ -471,4 +479,101 @@ func (s *Service) ValidateAPIKey(ctx context.Context, apiKey string) (*User, err
 	// Implementation depends on your storage choice
 	// This would typically involve looking up the API key in your database
 	return nil, fmt.Errorf("not implemented")
+}
+
+// SetEmailService sets the email service for the auth service
+func (s *Service) SetEmailService(emailService EmailService) {
+	s.emailService = emailService
+}
+
+// SendVerificationEmail sends a verification email to a user
+func (s *Service) SendVerificationEmail(ctx context.Context, userID string) error {
+	if s.emailService == nil {
+		return fmt.Errorf("email service not configured")
+	}
+
+	user, err := s.userStore.GetUser(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("user not found: %w", err)
+	}
+
+	// Generate verification token
+	token, err := s.authMiddleware.GenerateToken(userID, user.Username, user.Role, 24*time.Hour)
+	if err != nil {
+		return fmt.Errorf("failed to generate verification token: %w", err)
+	}
+
+	// Build verification URL (would typically come from config)
+	verificationURL := fmt.Sprintf("http://localhost:3000/verify?token=%s", token)
+
+	// Send email
+	if err := s.emailService.SendVerificationEmail(user.Email, token, verificationURL); err != nil {
+		return fmt.Errorf("failed to send verification email: %w", err)
+	}
+
+	s.logger.WithFields(logrus.Fields{
+		"user_id": userID,
+		"email":   user.Email,
+	}).Info("Verification email sent")
+
+	return nil
+}
+
+// SendPasswordResetEmail sends a password reset email to a user
+func (s *Service) SendPasswordResetEmail(ctx context.Context, email string) error {
+	if s.emailService == nil {
+		return fmt.Errorf("email service not configured")
+	}
+
+	user, err := s.userStore.GetUserByEmail(ctx, email)
+	if err != nil {
+		// Don't reveal if user exists
+		s.logger.WithField("email", email).Warn("Password reset requested for non-existent email")
+		return nil
+	}
+
+	// Generate reset token
+	token, err := s.authMiddleware.GenerateToken(user.ID, user.Username, user.Role, 1*time.Hour)
+	if err != nil {
+		return fmt.Errorf("failed to generate reset token: %w", err)
+	}
+
+	// Build reset URL (would typically come from config)
+	resetURL := fmt.Sprintf("http://localhost:3000/reset-password?token=%s", token)
+
+	// Send email
+	if err := s.emailService.SendPasswordResetEmail(user.Email, token, resetURL); err != nil {
+		return fmt.Errorf("failed to send password reset email: %w", err)
+	}
+
+	s.logger.WithFields(logrus.Fields{
+		"user_id": user.ID,
+		"email":   user.Email,
+	}).Info("Password reset email sent")
+
+	return nil
+}
+
+// SendWelcomeEmail sends a welcome email to a new user
+func (s *Service) SendWelcomeEmail(ctx context.Context, userID string) error {
+	if s.emailService == nil {
+		return fmt.Errorf("email service not configured")
+	}
+
+	user, err := s.userStore.GetUser(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("user not found: %w", err)
+	}
+
+	// Send email
+	if err := s.emailService.SendWelcomeEmail(user.Email, user.Username); err != nil {
+		return fmt.Errorf("failed to send welcome email: %w", err)
+	}
+
+	s.logger.WithFields(logrus.Fields{
+		"user_id": userID,
+		"email":   user.Email,
+	}).Info("Welcome email sent")
+
+	return nil
 }

@@ -30,7 +30,7 @@ import { PemKeyUpload } from "@/components/pem-key-upload"
 import { useConnectionStore, DatabaseTypeString, SSHTunnelConfig, VPCConfig } from "@/store/connection-store"
 import { DatabaseConnection } from "@/store/connection-store"
 import { SSHAuthMethod } from "@/generated/database"
-import { Database, Plus, Trash2, Play, Square, Loader2, ChevronDown, ChevronRight, Lock, Server, Cloud } from "lucide-react"
+import { Database, Plus, Trash2, Play, Square, Loader2, ChevronDown, ChevronRight, Lock, Server, Cloud, Pencil } from "lucide-react"
 import { wailsEndpoints } from "@/lib/wails-api"
 
 interface ConnectionFormData {
@@ -132,6 +132,7 @@ export function ConnectionManager() {
   const {
     connections,
     addConnection,
+    updateConnection,
     removeConnection,
     connectToDatabase,
     disconnectFromDatabase,
@@ -139,12 +140,80 @@ export function ConnectionManager() {
   } = useConnectionStore()
 
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [editingConnectionId, setEditingConnectionId] = useState<string | null>(null)
   const [formData, setFormData] = useState<ConnectionFormData>(defaultFormData)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [isTestingConnection, setIsTestingConnection] = useState(false)
   const [isSshSectionOpen, setIsSshSectionOpen] = useState(false)
   const [isVpcSectionOpen, setIsVpcSectionOpen] = useState(false)
   const [isAdvancedSshOpen, setIsAdvancedSshOpen] = useState(false)
+
+  const populateFormFromConnection = (connection: DatabaseConnection) => {
+    setFormData({
+      name: connection.name,
+      type: connection.type,
+      host: connection.host || 'localhost',
+      port: connection.port ? String(connection.port) : getDefaultPort(connection.type),
+      database: connection.database || '',
+      username: connection.username || '',
+      password: connection.password || '',
+      sslMode: connection.sslMode || 'prefer',
+
+      // SSH Tunnel
+      useTunnel: connection.useTunnel || false,
+      sshHost: connection.sshTunnel?.host || '',
+      sshPort: connection.sshTunnel?.port ? String(connection.sshTunnel.port) : '22',
+      sshUser: connection.sshTunnel?.user || '',
+      sshAuthMethod: connection.sshTunnel?.authMethod || SSHAuthMethod.SSH_AUTH_METHOD_PASSWORD,
+      sshPassword: connection.sshTunnel?.password || '',
+      sshPrivateKey: connection.sshTunnel?.privateKey || '',
+      sshPrivateKeyPath: connection.sshTunnel?.privateKeyPath || '',
+      sshPrivateKeyPassphrase: '',
+      sshKnownHostsPath: connection.sshTunnel?.knownHostsPath || '',
+      sshStrictHostKeyChecking: connection.sshTunnel?.strictHostKeyChecking ?? true,
+      sshTimeoutSeconds: connection.sshTunnel?.timeoutSeconds ? String(connection.sshTunnel.timeoutSeconds) : '30',
+      sshKeepAliveIntervalSeconds: connection.sshTunnel?.keepAliveIntervalSeconds ? String(connection.sshTunnel.keepAliveIntervalSeconds) : '0',
+
+      // VPC
+      useVpc: connection.useVpc || false,
+      vpcId: connection.vpcConfig?.vpcId || '',
+      subnetId: connection.vpcConfig?.subnetId || '',
+      securityGroupIds: connection.vpcConfig?.securityGroupIds?.join(', ') || '',
+      privateLinkService: connection.vpcConfig?.privateLinkService || '',
+      endpointServiceName: connection.vpcConfig?.endpointServiceName || '',
+
+      // Database-specific parameters
+      mongoConnectionString: connection.parameters?.connectionString || '',
+      mongoAuthDatabase: connection.parameters?.authDatabase || '',
+      elasticScheme: connection.parameters?.scheme || 'https',
+      elasticApiKey: connection.parameters?.apiKey || '',
+      clickhouseNativeProtocol: connection.parameters?.nativeProtocol === 'true',
+    })
+
+    // Open sections if they have data
+    if (connection.useTunnel) {
+      setIsSshSectionOpen(true)
+    }
+    if (connection.useVpc) {
+      setIsVpcSectionOpen(true)
+    }
+  }
+
+  const handleEditConnection = (connection: DatabaseConnection) => {
+    setEditingConnectionId(connection.id)
+    populateFormFromConnection(connection)
+    setIsDialogOpen(true)
+  }
+
+  const handleCloseDialog = () => {
+    setIsDialogOpen(false)
+    setEditingConnectionId(null)
+    setFormData(defaultFormData)
+    setSubmitError(null)
+    setIsSshSectionOpen(false)
+    setIsVpcSectionOpen(false)
+    setIsAdvancedSshOpen(false)
+  }
 
   const buildConnectionPayload = () => {
     const port = formData.port ? parseInt(formData.port, 10) : 0
@@ -237,12 +306,32 @@ export function ConnectionManager() {
         throw new Error(result.message || 'Connection test failed')
       }
 
-      addConnection(connectionData)
-      setFormData(defaultFormData)
-      setIsDialogOpen(false)
-      setIsSshSectionOpen(false)
-      setIsVpcSectionOpen(false)
-      setIsAdvancedSshOpen(false)
+      let connectionId: string
+
+      if (editingConnectionId) {
+        // Update existing connection
+        updateConnection(editingConnectionId, connectionData)
+        connectionId = editingConnectionId
+      } else {
+        // Add new connection
+        addConnection(connectionData)
+        // Get the ID of the newly added connection (it's the last one added)
+        const state = useConnectionStore.getState()
+        const newConnection = state.connections[state.connections.length - 1]
+        connectionId = newConnection.id
+      }
+
+      handleCloseDialog()
+
+      // Auto-connect to the connection after successful test
+      // This will also trigger schema introspection
+      try {
+        await connectToDatabase(connectionId)
+      } catch (connectError) {
+        console.error('Failed to auto-connect:', connectError)
+        // Don't show error to user since connection was already tested successfully
+        // The user can manually connect if needed
+      }
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : 'Failed to validate connection')
     } finally {
@@ -302,7 +391,7 @@ export function ConnectionManager() {
           <p className="text-muted-foreground">Manage your database connections</p>
         </div>
 
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog open={isDialogOpen} onOpenChange={(open) => !open && handleCloseDialog()}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="h-4 w-4 mr-2" />
@@ -312,9 +401,9 @@ export function ConnectionManager() {
           <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
             <form onSubmit={handleSubmit}>
               <DialogHeader>
-                <DialogTitle>Add New Connection</DialogTitle>
+                <DialogTitle>{editingConnectionId ? 'Edit Connection' : 'Add New Connection'}</DialogTitle>
                 <DialogDescription>
-                  Enter the details for your database connection.
+                  {editingConnectionId ? 'Update the details for your database connection.' : 'Enter the details for your database connection.'}
                 </DialogDescription>
               </DialogHeader>
 
@@ -832,7 +921,7 @@ export function ConnectionManager() {
                         Testing...
                       </>
                     ) : (
-                      'Add Connection'
+                      editingConnectionId ? 'Update Connection' : 'Add Connection'
                     )}
                   </Button>
                 </div>
@@ -850,18 +939,29 @@ export function ConnectionManager() {
                 <Database className="h-4 w-4 mr-2" />
                 {connection.name}
               </CardTitle>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={async () => {
-                  if (connection.isConnected) {
-                    await disconnectFromDatabase(connection.id)
-                  }
-                  removeConnection(connection.id)
-                }}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleEditConnection(connection)}
+                  title="Edit connection"
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={async () => {
+                    if (connection.isConnected) {
+                      await disconnectFromDatabase(connection.id)
+                    }
+                    removeConnection(connection.id)
+                  }}
+                  title="Delete connection"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="text-xs text-muted-foreground space-y-1">

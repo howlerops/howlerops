@@ -1,0 +1,330 @@
+# Prometheus Configuration for SQL Studio
+# This configuration scrapes metrics from the SQL Studio backend, Kubernetes infrastructure,
+# and other monitoring targets.
+
+global:
+  scrape_interval: 15s      # Scrape targets every 15 seconds
+  evaluation_interval: 15s   # Evaluate rules every 15 seconds
+  external_labels:
+    cluster: 'sql-studio-production'
+    environment: 'production'
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - 'alertmanager:9093'
+
+# Load rules once and periodically evaluate them
+rule_files:
+  - '/etc/prometheus/alerts.yml'
+  - '/etc/prometheus/recording-rules.yml'
+
+# Scrape configurations
+scrape_configs:
+  # ============================================================================
+  # SQL Studio Backend Application Metrics
+  # ============================================================================
+  - job_name: 'sql-studio-backend'
+    kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+            - sql-studio
+    relabel_configs:
+      # Only scrape pods with the app=sql-studio-backend label
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        action: keep
+        regex: sql-studio-backend
+
+      # Use pod name as instance label
+      - source_labels: [__meta_kubernetes_pod_name]
+        target_label: instance
+
+      # Add pod IP as target
+      - source_labels: [__meta_kubernetes_pod_ip]
+        target_label: __address__
+        replacement: $1:9100
+
+      # Add namespace label
+      - source_labels: [__meta_kubernetes_namespace]
+        target_label: namespace
+
+      # Add pod name label
+      - source_labels: [__meta_kubernetes_pod_name]
+        target_label: pod
+
+      # Add node name label
+      - source_labels: [__meta_kubernetes_pod_node_name]
+        target_label: node
+
+  # ============================================================================
+  # SQL Studio Frontend (NGINX metrics)
+  # ============================================================================
+  - job_name: 'sql-studio-frontend'
+    kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+            - sql-studio
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        action: keep
+        regex: sql-studio-frontend
+
+      - source_labels: [__meta_kubernetes_pod_name]
+        target_label: instance
+
+      - source_labels: [__meta_kubernetes_pod_ip]
+        target_label: __address__
+        replacement: $1:9113  # nginx-prometheus-exporter port
+
+      - source_labels: [__meta_kubernetes_namespace]
+        target_label: namespace
+
+      - source_labels: [__meta_kubernetes_pod_name]
+        target_label: pod
+
+  # ============================================================================
+  # Kubernetes Nodes (kubelet metrics)
+  # ============================================================================
+  - job_name: 'kubernetes-nodes'
+    scheme: https
+    tls_config:
+      ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+    bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+    kubernetes_sd_configs:
+      - role: node
+    relabel_configs:
+      - action: labelmap
+        regex: __meta_kubernetes_node_label_(.+)
+
+      - target_label: __address__
+        replacement: kubernetes.default.svc:443
+
+      - source_labels: [__meta_kubernetes_node_name]
+        regex: (.+)
+        target_label: __metrics_path__
+        replacement: /api/v1/nodes/${1}/proxy/metrics
+
+  # ============================================================================
+  # Kubernetes Pods (cAdvisor metrics)
+  # ============================================================================
+  - job_name: 'kubernetes-pods'
+    kubernetes_sd_configs:
+      - role: pod
+    relabel_configs:
+      # Only scrape pods with prometheus.io/scrape annotation
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+        action: keep
+        regex: true
+
+      # Use custom port if specified
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port]
+        action: replace
+        regex: (\d+)
+        target_label: __address__
+        replacement: $1
+
+      # Use custom path if specified
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+        action: replace
+        target_label: __metrics_path__
+        regex: (.+)
+
+      # Add namespace label
+      - source_labels: [__meta_kubernetes_namespace]
+        action: replace
+        target_label: namespace
+
+      # Add pod name label
+      - source_labels: [__meta_kubernetes_pod_name]
+        action: replace
+        target_label: pod
+
+      # Add container name label
+      - source_labels: [__meta_kubernetes_pod_container_name]
+        action: replace
+        target_label: container
+
+  # ============================================================================
+  # Kubernetes API Server
+  # ============================================================================
+  - job_name: 'kubernetes-apiservers'
+    scheme: https
+    tls_config:
+      ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+    bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+    kubernetes_sd_configs:
+      - role: endpoints
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+        action: keep
+        regex: default;kubernetes;https
+
+  # ============================================================================
+  # Kubernetes Services
+  # ============================================================================
+  - job_name: 'kubernetes-services'
+    kubernetes_sd_configs:
+      - role: service
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_probe]
+        action: keep
+        regex: true
+
+      - source_labels: [__address__]
+        target_label: __param_target
+
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+
+      - source_labels: [__param_target]
+        target_label: instance
+
+      - action: labelmap
+        regex: __meta_kubernetes_service_label_(.+)
+
+      - source_labels: [__meta_kubernetes_namespace]
+        target_label: namespace
+
+      - source_labels: [__meta_kubernetes_service_name]
+        target_label: service
+
+  # ============================================================================
+  # PostgreSQL Exporter (if using PostgreSQL for metadata)
+  # ============================================================================
+  - job_name: 'postgres-exporter'
+    static_configs:
+      - targets:
+          - 'postgres-exporter:9187'
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+
+  # ============================================================================
+  # Redis Exporter (if using Redis for caching)
+  # ============================================================================
+  - job_name: 'redis-exporter'
+    static_configs:
+      - targets:
+          - 'redis-exporter:9121'
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+
+  # ============================================================================
+  # Node Exporter (for host metrics)
+  # ============================================================================
+  - job_name: 'node-exporter'
+    kubernetes_sd_configs:
+      - role: node
+    relabel_configs:
+      - source_labels: [__address__]
+        regex: ^(.*):\d+$
+        target_label: __address__
+        replacement: $1:9100
+
+      - source_labels: [__meta_kubernetes_node_name]
+        target_label: node
+
+  # ============================================================================
+  # Prometheus Self-Monitoring
+  # ============================================================================
+  - job_name: 'prometheus'
+    static_configs:
+      - targets:
+          - 'localhost:9090'
+
+  # ============================================================================
+  # Grafana Metrics
+  # ============================================================================
+  - job_name: 'grafana'
+    static_configs:
+      - targets:
+          - 'grafana:3000'
+
+  # ============================================================================
+  # AlertManager
+  # ============================================================================
+  - job_name: 'alertmanager'
+    static_configs:
+      - targets:
+          - 'alertmanager:9093'
+
+  # ============================================================================
+  # Blackbox Exporter (for external probes)
+  # ============================================================================
+  - job_name: 'blackbox-exporter'
+    static_configs:
+      - targets:
+          - 'blackbox-exporter:9115'
+
+  # ============================================================================
+  # External Endpoints (synthetic monitoring)
+  # ============================================================================
+  - job_name: 'blackbox-http'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+        - https://sqlstudio.example.com
+        - https://sqlstudio.example.com/health
+        - https://api.sqlstudio.example.com/health
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+
+      - source_labels: [__param_target]
+        target_label: instance
+
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+
+  # ============================================================================
+  # SSL Certificate Expiry Monitoring
+  # ============================================================================
+  - job_name: 'blackbox-ssl'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+        - https://sqlstudio.example.com:443
+        - https://api.sqlstudio.example.com:443
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+
+      - source_labels: [__param_target]
+        target_label: instance
+
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+
+# Remote write configuration (optional - for long-term storage)
+# remote_write:
+#   - url: 'https://prometheus-remote-storage.example.com/api/v1/write'
+#     basic_auth:
+#       username: 'prometheus'
+#       password: 'secure-password'
+#     queue_config:
+#       capacity: 10000
+#       max_shards: 10
+#       min_shards: 1
+#       max_samples_per_send: 5000
+#       batch_send_deadline: 5s
+#       min_backoff: 30ms
+#       max_backoff: 100ms
+
+# Storage configuration
+storage:
+  tsdb:
+    path: /prometheus
+    retention.time: 15d
+    retention.size: 50GB

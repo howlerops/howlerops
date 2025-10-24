@@ -1,0 +1,444 @@
+# =============================================================================
+# SQL Studio - Security Policies
+# =============================================================================
+# Comprehensive security configuration for Kubernetes cluster
+# =============================================================================
+
+# =============================================================================
+# Pod Security Policy (Deprecated in K8s 1.25+, use Pod Security Standards)
+# =============================================================================
+# For Kubernetes 1.24 and earlier
+
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: sql-studio-restricted
+  annotations:
+    seccomp.security.alpha.kubernetes.io/allowedProfileNames: 'runtime/default'
+    apparmor.security.beta.kubernetes.io/allowedProfileNames: 'runtime/default'
+    seccomp.security.alpha.kubernetes.io/defaultProfileName: 'runtime/default'
+    apparmor.security.beta.kubernetes.io/defaultProfileName: 'runtime/default'
+spec:
+  # Privileged
+  privileged: false
+  allowPrivilegeEscalation: false
+
+  # User/Group
+  runAsUser:
+    rule: MustRunAsNonRoot
+  runAsGroup:
+    rule: MustRunAs
+    ranges:
+      - min: 1
+        max: 65535
+  fsGroup:
+    rule: MustRunAs
+    ranges:
+      - min: 1
+        max: 65535
+  supplementalGroups:
+    rule: MustRunAs
+    ranges:
+      - min: 1
+        max: 65535
+
+  # Capabilities
+  requiredDropCapabilities:
+    - ALL
+  allowedCapabilities: []
+
+  # Volumes
+  volumes:
+    - 'configMap'
+    - 'emptyDir'
+    - 'projected'
+    - 'secret'
+    - 'downwardAPI'
+    - 'persistentVolumeClaim'
+
+  # Host namespaces
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+
+  # Read-only root filesystem
+  readOnlyRootFilesystem: true
+
+  # SELinux
+  seLinux:
+    rule: RunAsAny
+
+---
+# =============================================================================
+# Pod Security Standards (Kubernetes 1.23+)
+# =============================================================================
+# Apply at namespace level
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: sql-studio
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+
+---
+# =============================================================================
+# RBAC - Backend Service Account
+# =============================================================================
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sql-studio-backend
+  namespace: sql-studio
+automountServiceAccountToken: false
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: sql-studio-backend-role
+  namespace: sql-studio
+rules:
+  # Read-only access to configs and secrets
+  - apiGroups: [""]
+    resources: ["configmaps", "secrets"]
+    verbs: ["get", "list"]
+    resourceNames:
+      - "sql-studio-backend-config"
+      - "sql-studio-secrets"
+
+  # Read pods for health checks
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: sql-studio-backend-binding
+  namespace: sql-studio
+subjects:
+  - kind: ServiceAccount
+    name: sql-studio-backend
+    namespace: sql-studio
+roleRef:
+  kind: Role
+  name: sql-studio-backend-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# =============================================================================
+# RBAC - Frontend Service Account
+# =============================================================================
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sql-studio-frontend
+  namespace: sql-studio
+automountServiceAccountToken: false
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: sql-studio-frontend-role
+  namespace: sql-studio
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get"]
+    resourceNames:
+      - "sql-studio-frontend-config"
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: sql-studio-frontend-binding
+  namespace: sql-studio
+subjects:
+  - kind: ServiceAccount
+    name: sql-studio-frontend
+    namespace: sql-studio
+roleRef:
+  kind: Role
+  name: sql-studio-frontend-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# =============================================================================
+# RBAC - CI/CD Service Account
+# =============================================================================
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: github-actions
+  namespace: sql-studio
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: deployment-manager
+  namespace: sql-studio
+rules:
+  # Deployments
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+  # Services
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+
+  # ConfigMaps and Secrets
+  - apiGroups: [""]
+    resources: ["configmaps", "secrets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+
+  # Pods
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list", "watch"]
+
+  # Jobs (for migrations)
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+
+  # Ingress
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: github-actions-binding
+  namespace: sql-studio
+subjects:
+  - kind: ServiceAccount
+    name: github-actions
+    namespace: sql-studio
+roleRef:
+  kind: Role
+  name: deployment-manager
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# =============================================================================
+# Network Policy - Strict Isolation
+# =============================================================================
+# Default deny all traffic
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: sql-studio
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+
+---
+# =============================================================================
+# Secrets Encryption at Rest
+# =============================================================================
+# Configure in kube-apiserver
+
+apiVersion: apiserver.config.k8s.io/v1
+kind: EncryptionConfiguration
+resources:
+  - resources:
+      - secrets
+    providers:
+      - aescbc:
+          keys:
+            - name: key1
+              secret: YOUR_32_BYTE_BASE64_ENCODED_KEY
+      - identity: {}
+
+---
+# =============================================================================
+# Audit Policy
+# =============================================================================
+apiVersion: audit.k8s.io/v1
+kind: Policy
+rules:
+  # Log secret access
+  - level: Metadata
+    resources:
+      - group: ""
+        resources: ["secrets"]
+
+  # Log configmap changes
+  - level: RequestResponse
+    verbs: ["create", "update", "patch", "delete"]
+    resources:
+      - group: ""
+        resources: ["configmaps"]
+
+  # Log authentication attempts
+  - level: Metadata
+    verbs: ["create"]
+    resources:
+      - group: ""
+        resources: ["serviceaccounts/token"]
+
+  # Don't log read-only operations
+  - level: None
+    verbs: ["get", "list", "watch"]
+
+  # Don't log health checks
+  - level: None
+    resources:
+      - group: ""
+        resources: ["pods/log", "pods/status"]
+
+  # Log everything else at Metadata level
+  - level: Metadata
+    omitStages:
+      - "RequestReceived"
+
+---
+# =============================================================================
+# Security Context Constraints (OpenShift)
+# =============================================================================
+apiVersion: security.openshift.io/v1
+kind: SecurityContextConstraints
+metadata:
+  name: sql-studio-scc
+allowPrivilegedContainer: false
+allowPrivilegeEscalation: false
+requiredDropCapabilities:
+  - ALL
+allowHostDirVolumePlugin: false
+allowHostIPC: false
+allowHostNetwork: false
+allowHostPID: false
+allowHostPorts: false
+readOnlyRootFilesystem: true
+runAsUser:
+  type: MustRunAsNonRoot
+seLinuxContext:
+  type: MustRunAs
+fsGroup:
+  type: MustRunAs
+supplementalGroups:
+  type: MustRunAs
+volumes:
+  - configMap
+  - downwardAPI
+  - emptyDir
+  - persistentVolumeClaim
+  - projected
+  - secret
+
+---
+# =============================================================================
+# Image Policy (OPA/Gatekeeper)
+# =============================================================================
+apiVersion: templates.gatekeeper.sh/v1beta1
+kind: ConstraintTemplate
+metadata:
+  name: k8sallowedrepos
+spec:
+  crd:
+    spec:
+      names:
+        kind: K8sAllowedRepos
+      validation:
+        openAPIV3Schema:
+          properties:
+            repos:
+              type: array
+              items:
+                type: string
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package k8sallowedrepos
+
+        violation[{"msg": msg}] {
+          container := input.review.object.spec.containers[_]
+          satisfied := [good | repo = input.parameters.repos[_]; good = startswith(container.image, repo)]
+          not any(satisfied)
+          msg := sprintf("container <%v> has an invalid image repo <%v>", [container.name, container.image])
+        }
+
+---
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sAllowedRepos
+metadata:
+  name: allowed-repos
+spec:
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod"]
+    namespaces:
+      - sql-studio
+  parameters:
+    repos:
+      - "gcr.io/YOUR_PROJECT_ID/"
+      - "docker.io/library/"  # Official images only
+
+---
+# =============================================================================
+# Security Best Practices Checklist
+# =============================================================================
+#
+# Container Security:
+#   [x] Run as non-root user
+#   [x] Read-only root filesystem
+#   [x] Drop all capabilities
+#   [x] No privilege escalation
+#   [x] Use security context
+#   [x] Scan images for vulnerabilities
+#   [x] Use minimal base images (Alpine, Distroless)
+#   [x] Sign and verify images
+#
+# Network Security:
+#   [x] Network policies (default deny)
+#   [x] TLS for all external traffic
+#   [x] mTLS for service-to-service (optional)
+#   [x] Ingress with WAF
+#   [x] Rate limiting
+#   [x] DDoS protection (Cloudflare)
+#
+# Access Control:
+#   [x] RBAC with least privilege
+#   [x] Service accounts per service
+#   [x] No default service account token mounting
+#   [x] Pod security policies/standards
+#   [x] Namespace isolation
+#
+# Secrets Management:
+#   [x] Secrets encrypted at rest
+#   [x] Secrets encrypted in transit
+#   [x] External secrets operator (recommended)
+#   [x] Rotate secrets regularly
+#   [x] No secrets in environment variables (use volume mounts)
+#   [x] Audit secret access
+#
+# Monitoring & Auditing:
+#   [x] Audit logging enabled
+#   [x] Security events monitoring
+#   [x] Anomaly detection
+#   [x] Intrusion detection (Falco)
+#   [x] Vulnerability scanning
+#   [x] Compliance checking
+#
+# Compliance:
+#   [ ] SOC 2 (if applicable)
+#   [ ] GDPR compliance
+#   [ ] PCI DSS (if handling payments)
+#   [ ] HIPAA (if handling health data)
+#
+# =============================================================================

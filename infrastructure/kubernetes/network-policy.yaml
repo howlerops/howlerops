@@ -1,0 +1,319 @@
+# =============================================================================
+# SQL Studio - Network Policies
+# =============================================================================
+# Network isolation and security policies for pods
+# Implements zero-trust networking within the cluster
+# =============================================================================
+
+# Default Deny All Traffic
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: sql-studio
+  labels:
+    app: sql-studio
+  annotations:
+    description: "Default deny all ingress and egress traffic"
+spec:
+  podSelector: {}  # Applies to all pods in namespace
+  policyTypes:
+    - Ingress
+    - Egress
+
+---
+# Backend Ingress Policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: backend-ingress
+  namespace: sql-studio
+  labels:
+    app: sql-studio
+    component: backend
+  annotations:
+    description: "Allow ingress to backend from ingress controller and frontend"
+spec:
+  podSelector:
+    matchLabels:
+      app: sql-studio
+      component: backend
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow traffic from ingress controller
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8500
+
+    # Allow traffic from frontend pods
+    - from:
+        - podSelector:
+            matchLabels:
+              app: sql-studio
+              component: frontend
+      ports:
+        - protocol: TCP
+          port: 8500
+
+    # Allow traffic from monitoring (Prometheus)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring
+      ports:
+        - protocol: TCP
+          port: 9100
+
+    # Allow health checks from kubelet
+    - from:
+        - namespaceSelector: {}
+          podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 8500
+
+---
+# Backend Egress Policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: backend-egress
+  namespace: sql-studio
+  labels:
+    app: sql-studio
+    component: backend
+  annotations:
+    description: "Allow egress from backend to required services"
+spec:
+  podSelector:
+    matchLabels:
+      app: sql-studio
+      component: backend
+  policyTypes:
+    - Egress
+  egress:
+    # Allow DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+
+    # Allow HTTPS to external services (Turso, Resend, etc.)
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443
+
+    # Allow HTTP for health checks and webhooks
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 80
+
+    # Allow Turso database connection (if using custom port)
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 8080
+
+---
+# Frontend Ingress Policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: frontend-ingress
+  namespace: sql-studio
+  labels:
+    app: sql-studio
+    component: frontend
+  annotations:
+    description: "Allow ingress to frontend from ingress controller"
+spec:
+  podSelector:
+    matchLabels:
+      app: sql-studio
+      component: frontend
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow traffic from ingress controller
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 80
+
+    # Allow health checks
+    - from:
+        - namespaceSelector: {}
+          podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 80
+
+---
+# Frontend Egress Policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: frontend-egress
+  namespace: sql-studio
+  labels:
+    app: sql-studio
+    component: frontend
+  annotations:
+    description: "Allow egress from frontend to backend only"
+spec:
+  podSelector:
+    matchLabels:
+      app: sql-studio
+      component: frontend
+  policyTypes:
+    - Egress
+  egress:
+    # Allow DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+
+    # Allow connection to backend
+    - to:
+        - podSelector:
+            matchLabels:
+              app: sql-studio
+              component: backend
+      ports:
+        - protocol: TCP
+          port: 8500
+
+---
+# Allow Internal Cluster Communication
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-internal-cluster
+  namespace: sql-studio
+  labels:
+    app: sql-studio
+  annotations:
+    description: "Allow communication with cluster services"
+spec:
+  podSelector:
+    matchLabels:
+      app: sql-studio
+  policyTypes:
+    - Egress
+  egress:
+    # Allow access to Kubernetes API
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              component: apiserver
+      ports:
+        - protocol: TCP
+          port: 443
+
+    # Allow metrics collection
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring
+      ports:
+        - protocol: TCP
+          port: 9090  # Prometheus
+
+---
+# =============================================================================
+# Network Policy Notes
+# =============================================================================
+#
+# Prerequisites:
+# - Network plugin must support Network Policies (Calico, Cilium, Weave Net)
+# - Default CNI plugins (flannel) do NOT support Network Policies
+#
+# Verify Network Policy support:
+#   kubectl api-versions | grep networking.k8s.io/v1
+#
+# Test Network Policies:
+# 1. Deploy a test pod:
+#    kubectl run test-pod --image=nicolaka/netshoot -n sql-studio -- sleep 3600
+#
+# 2. Test connectivity:
+#    kubectl exec -it test-pod -n sql-studio -- curl http://sql-studio-backend:8500/health
+#
+# 3. Check if blocked (should timeout):
+#    kubectl exec -it test-pod -n sql-studio -- curl http://google.com
+#
+# View Network Policies:
+#   kubectl get networkpolicies -n sql-studio
+#   kubectl describe networkpolicy backend-ingress -n sql-studio
+#
+# Troubleshooting:
+# 1. If pods can't communicate after applying policies:
+#    - Check namespace labels match selectors
+#    - Verify pod labels match selectors
+#    - Check if network plugin supports policies
+#    - Review policy rules for correct ports/protocols
+#
+# 2. Debug with temporary allow-all policy:
+#    kubectl apply -f - <<EOF
+#    apiVersion: networking.k8s.io/v1
+#    kind: NetworkPolicy
+#    metadata:
+#      name: allow-all-temp
+#      namespace: sql-studio
+#    spec:
+#      podSelector: {}
+#      policyTypes:
+#      - Ingress
+#      - Egress
+#      ingress:
+#      - {}
+#      egress:
+#      - {}
+#    EOF
+#
+# Common Network Plugin Options:
+#
+# Calico:
+#   kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
+#
+# Cilium:
+#   helm install cilium cilium/cilium --namespace kube-system
+#
+# Weave Net:
+#   kubectl apply -f "https://cloud.weave.works/k8s/net?k8s-version=$(kubectl version | base64 | tr -d '\n')"
+#
+# Best Practices:
+# 1. Start with default deny all
+# 2. Add specific allow rules incrementally
+# 3. Use namespace and pod selectors effectively
+# 4. Document all network policies
+# 5. Test policies in staging first
+# 6. Monitor network traffic patterns
+# 7. Review and update policies regularly
+# =============================================================================
