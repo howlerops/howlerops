@@ -167,6 +167,13 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
     }
   }))
 
+  // Restore editor content when active tab changes or on mount
+  useEffect(() => {
+    if (activeTab?.content !== undefined) {
+      setEditorContent(activeTab.content)
+    }
+  }, [activeTab?.id, activeTab?.content])
+
   const filteredConnections = useMemo(
     () => getFilteredConnections(),
     [getFilteredConnections]
