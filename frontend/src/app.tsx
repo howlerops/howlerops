@@ -31,11 +31,20 @@ function LoadingSpinner() {
 }
 
 function App() {
-  // Initialize stores on app startup
+  // Initialize stores and migrate credentials on app startup
   useEffect(() => {
+    // Initialize stores
     initializeAuthStore()
     initializeTierStore()
     initializeOrganizationStore()
+
+    // Migrate credentials from localStorage to OS keychain (one-time)
+    import('./lib/migrate-credentials').then(({ migrateCredentialsToKeychain }) => {
+      migrateCredentialsToKeychain().catch(err => {
+        console.error('Credential migration failed:', err)
+        // App continues normally even if migration fails
+      })
+    })
   }, [])
 
   return (
