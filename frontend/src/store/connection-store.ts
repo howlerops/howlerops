@@ -76,9 +76,9 @@ interface ConnectionState {
   activeEnvironmentFilter: string | null // null = "All", otherwise specific environment
   availableEnvironments: string[]
 
-  addConnection: (connection: Omit<DatabaseConnection, 'id' | 'isConnected' | 'sessionId'>) => void
-  updateConnection: (id: string, updates: Partial<DatabaseConnection>) => void
-  removeConnection: (id: string) => void
+  addConnection: (connection: Omit<DatabaseConnection, 'id' | 'isConnected' | 'sessionId'>) => Promise<void>
+  updateConnection: (id: string, updates: Partial<DatabaseConnection>) => Promise<void>
+  removeConnection: (id: string) => Promise<void>
   setActiveConnection: (connection: DatabaseConnection | null) => void
   setAutoConnect: (enabled: boolean) => void
   connectToDatabase: (connectionId: string) => Promise<void>
@@ -101,7 +101,7 @@ export const useConnectionStore = create<ConnectionState>()(
         activeEnvironmentFilter: null, // null = "All"
         availableEnvironments: [],
 
-        addConnection: (connectionData) => {
+        addConnection: async (connectionData) => {
           // Check tier limit before adding
           const currentConnections = get().connections.length
           const tierStore = useTierStore.getState()
@@ -131,9 +131,9 @@ export const useConnectionStore = create<ConnectionState>()(
             isConnected: false,
           }
 
-          // Store sensitive credentials in secure storage (sessionStorage)
+          // Store sensitive credentials in secure storage
           const secureStorage = getSecureStorage()
-          secureStorage.setCredentials(newConnection.id, {
+          await secureStorage.setCredentials(newConnection.id, {
             password: connectionData.password,
             sshPassword: connectionData.sshTunnel?.password,
             sshPrivateKey: connectionData.sshTunnel?.privateKey
@@ -167,12 +167,12 @@ export const useConnectionStore = create<ConnectionState>()(
           }
         },
 
-        updateConnection: (id, updates) => {
+        updateConnection: async (id, updates) => {
           // If updating password or SSH credentials, store in secure storage
           if (updates.password || updates.sshTunnel?.password || updates.sshTunnel?.privateKey) {
             const secureStorage = getSecureStorage()
-            const existing = secureStorage.getCredentials(id) || { connectionId: id }
-            secureStorage.setCredentials(id, {
+            const existing = (await secureStorage.getCredentials(id)) || { connectionId: id }
+            await secureStorage.setCredentials(id, {
               password: updates.password ?? existing.password,
               sshPassword: updates.sshTunnel?.password ?? existing.sshPassword,
               sshPrivateKey: updates.sshTunnel?.privateKey ?? existing.sshPrivateKey
@@ -211,10 +211,10 @@ export const useConnectionStore = create<ConnectionState>()(
           }
         },
 
-        removeConnection: (id) => {
+        removeConnection: async (id) => {
           // Remove from secure storage
           const secureStorage = getSecureStorage()
-          secureStorage.removeCredentials(id)
+          await secureStorage.removeCredentials(id)
 
           set((state) => ({
             connections: state.connections.filter((conn) => conn.id !== id),
@@ -242,7 +242,7 @@ export const useConnectionStore = create<ConnectionState>()(
           try {
             // Retrieve password from secure storage
             const secureStorage = getSecureStorage()
-            const credentials = secureStorage.getCredentials(connectionId)
+            const credentials = await secureStorage.getCredentials(connectionId)
 
             const alias = connection.name?.trim()
             const aliasParameters: Record<string, string> = {}

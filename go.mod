@@ -10,14 +10,17 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/sql-studio/backend-go v0.0.0
 	github.com/wailsapp/wails/v2 v2.10.2
+	github.com/zalando/go-keyring v0.2.6
 )
 
 require (
+	al.essio.dev/pkg/shellescape v1.5.1 // indirect
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/ClickHouse/ch-go v0.68.0 // indirect
 	github.com/ClickHouse/clickhouse-go/v2 v2.40.3 // indirect
 	github.com/andybalholm/brotli v1.2.0 // indirect
 	github.com/bep/debounce v1.2.1 // indirect
+	github.com/danieljoos/wincred v1.2.2 // indirect
 	github.com/go-faster/city v1.0.1 // indirect
 	github.com/go-faster/errors v0.7.1 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect

@@ -37,22 +37,23 @@ var iconFS embed.FS
 
 // App struct
 type App struct {
-	ctx              context.Context
-	logger           *logrus.Logger
-	storageManager   *storage.Manager // Storage for connections, queries, and RAG
-	databaseService  *services.DatabaseService
-	fileService      *services.FileService
-	keyboardService  *services.KeyboardService
-	aiService        *ai.Service
-	aiConfig         *ai.RuntimeConfig
-	embeddingService rag.EmbeddingService
-	duckdbEngine     *duckdb.Engine
-	syntheticViews   *storage.SyntheticViewStorage
+	ctx               context.Context
+	logger            *logrus.Logger
+	storageManager    *storage.Manager // Storage for connections, queries, and RAG
+	databaseService   *services.DatabaseService
+	fileService       *services.FileService
+	keyboardService   *services.KeyboardService
+	credentialService *services.CredentialService
+	aiService         *ai.Service
+	aiConfig          *ai.RuntimeConfig
+	embeddingService  rag.EmbeddingService
+	duckdbEngine      *duckdb.Engine
+	syntheticViews    *storage.SyntheticViewStorage
 }
 
 // ConnectionRequest represents a database connection request
 type ConnectionRequest struct {
-	ID                string            `json:"id,omitempty"`          // Optional stored connection ID
+	ID                string            `json:"id,omitempty"` // Optional stored connection ID
 	Type              string            `json:"type"`
 	Host              string            `json:"host"`
 	Port              int               `json:"port"`
@@ -365,13 +366,15 @@ func NewApp() *App {
 	databaseService := services.NewDatabaseService(logger)
 	fileService := services.NewFileService(logger)
 	keyboardService := services.NewKeyboardService(logger)
+	credentialService := services.NewCredentialService(logger)
 
 	return &App{
-		logger:          logger,
-		databaseService: databaseService,
-		fileService:     fileService,
-		keyboardService: keyboardService,
-		aiConfig:        ai.DefaultRuntimeConfig(),
+		logger:            logger,
+		databaseService:   databaseService,
+		fileService:       fileService,
+		keyboardService:   keyboardService,
+		credentialService: credentialService,
+		aiConfig:          ai.DefaultRuntimeConfig(),
 	}
 }
 
@@ -383,6 +386,7 @@ func (a *App) OnStartup(ctx context.Context) {
 	a.databaseService.SetContext(ctx)
 	a.fileService.SetContext(ctx)
 	a.keyboardService.SetContext(ctx)
+	a.credentialService.SetContext(ctx)
 
 	// Initialize storage manager
 	if err := a.initializeStorageManager(ctx); err != nil {
@@ -453,21 +457,21 @@ func (a *App) initializeStorageManager(ctx context.Context) error {
 	}
 
 	a.storageManager = manager
-	
+
 	// Initialize synthetic views storage
 	syntheticViewsStorage := storage.NewSyntheticViewStorage(manager.GetDB(), a.logger)
 	if err := syntheticViewsStorage.CreateTable(); err != nil {
 		a.logger.WithError(err).Warn("Failed to create synthetic views table")
 	}
 	a.syntheticViews = syntheticViewsStorage
-	
+
 	// Initialize DuckDB federation engine
 	duckdbEngine := duckdb.NewEngine(a.logger, a.databaseService.GetManager())
 	if err := duckdbEngine.Initialize(ctx); err != nil {
 		a.logger.WithError(err).Warn("Failed to initialize DuckDB federation engine")
 	}
 	a.duckdbEngine = duckdbEngine
-	
+
 	a.logger.WithFields(logrus.Fields{
 		"mode":    string(manager.GetMode()),
 		"user_id": manager.GetUserID(),
@@ -873,6 +877,62 @@ func (a *App) ReadFile(filePath string) (string, error) {
 func (a *App) WriteFile(filePath, content string) error {
 	return a.fileService.WriteFile(filePath, content)
 }
+
+// ================================================================================
+// Credential Management Methods (Keychain Integration)
+// ================================================================================
+
+// StorePassword stores a password securely in the OS keychain
+// connectionID is used as the identifier for the stored credential
+func (a *App) StorePassword(connectionID, password string) error {
+	a.logger.WithField("connection_id", connectionID).Debug("Storing password in keychain")
+
+	if err := a.credentialService.StorePassword(connectionID, password); err != nil {
+		a.logger.WithError(err).Error("Failed to store password in keychain")
+		return fmt.Errorf("failed to store password securely: %w", err)
+	}
+
+	return nil
+}
+
+// GetPassword retrieves a password from the OS keychain
+// connectionID is used as the identifier for the stored credential
+// Returns an error if the password is not found or cannot be retrieved
+func (a *App) GetPassword(connectionID string) (string, error) {
+	a.logger.WithField("connection_id", connectionID).Debug("Retrieving password from keychain")
+
+	password, err := a.credentialService.GetPassword(connectionID)
+	if err != nil {
+		a.logger.WithError(err).Error("Failed to retrieve password from keychain")
+		return "", fmt.Errorf("failed to retrieve password: %w", err)
+	}
+
+	return password, nil
+}
+
+// DeletePassword removes a password from the OS keychain
+// connectionID is used as the identifier for the stored credential
+// Does not return an error if the password doesn't exist
+func (a *App) DeletePassword(connectionID string) error {
+	a.logger.WithField("connection_id", connectionID).Debug("Deleting password from keychain")
+
+	if err := a.credentialService.DeletePassword(connectionID); err != nil {
+		a.logger.WithError(err).Error("Failed to delete password from keychain")
+		return fmt.Errorf("failed to delete password: %w", err)
+	}
+
+	return nil
+}
+
+// HasPassword checks if a password exists in the keychain for a given connection
+// Returns true if the password exists, false otherwise
+func (a *App) HasPassword(connectionID string) bool {
+	return a.credentialService.HasPassword(connectionID)
+}
+
+// ================================================================================
+// Dialog Methods
+// ================================================================================
 
 // ShowInfoDialog shows an information dialog
 func (a *App) ShowInfoDialog(title, message string) {
@@ -3487,17 +3547,17 @@ func (a *App) GetMultiConnectionSchema(connectionIDs []string) (*CombinedSchema,
 								}
 							}
 						}
-						
+
 						syntheticTables = append(syntheticTables, TableInfo{
-							Schema: "synthetic",
-							Name:   name,
-							Type:   "view",
+							Schema:  "synthetic",
+							Name:    name,
+							Type:    "view",
 							Comment: "Synthetic federated view",
 						})
 					}
 				}
 			}
-			
+
 			result.Connections["synthetic"] = ConnectionSchema{
 				ConnectionID: "synthetic",
 				Schemas:      []string{"synthetic"},
@@ -3586,19 +3646,19 @@ func (a *App) SaveSyntheticView(viewDef storage.ViewDefinition) (string, error) 
 	if a.syntheticViews == nil {
 		return "", fmt.Errorf("synthetic views storage not initialized")
 	}
-	
+
 	if viewDef.ID == "" {
 		viewDef.ID = fmt.Sprintf("view_%d", time.Now().UnixNano())
 	}
-	
+
 	if viewDef.Version == "" {
 		viewDef.Version = "1.0.0"
 	}
-	
+
 	if err := a.syntheticViews.SaveSyntheticView(&viewDef); err != nil {
 		return "", fmt.Errorf("failed to save synthetic view: %w", err)
 	}
-	
+
 	a.logger.WithField("view_id", viewDef.ID).Info("Synthetic view saved")
 	return viewDef.ID, nil
 }
@@ -3608,12 +3668,12 @@ func (a *App) ListSyntheticViews() ([]storage.ViewSummary, error) {
 	if a.syntheticViews == nil {
 		return []storage.ViewSummary{}, nil
 	}
-	
+
 	views, err := a.syntheticViews.ListSyntheticViews()
 	if err != nil {
 		return nil, fmt.Errorf("failed to list synthetic views: %w", err)
 	}
-	
+
 	return views, nil
 }
 
@@ -3622,12 +3682,12 @@ func (a *App) GetSyntheticView(id string) (*storage.ViewDefinition, error) {
 	if a.syntheticViews == nil {
 		return nil, fmt.Errorf("synthetic views storage not initialized")
 	}
-	
+
 	view, err := a.syntheticViews.GetSyntheticView(id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get synthetic view: %w", err)
 	}
-	
+
 	return view, nil
 }
 
@@ -3636,11 +3696,11 @@ func (a *App) DeleteSyntheticView(id string) error {
 	if a.syntheticViews == nil {
 		return fmt.Errorf("synthetic views storage not initialized")
 	}
-	
+
 	if err := a.syntheticViews.DeleteSyntheticView(id); err != nil {
 		return fmt.Errorf("failed to delete synthetic view: %w", err)
 	}
-	
+
 	a.logger.WithField("view_id", id).Info("Synthetic view deleted")
 	return nil
 }
@@ -3650,30 +3710,30 @@ func (a *App) ExecuteSyntheticQuery(sql string) (*QueryResponse, error) {
 	if a.duckdbEngine == nil {
 		return nil, fmt.Errorf("DuckDB federation engine not initialized")
 	}
-	
+
 	// Check if query targets synthetic schema
 	if !strings.Contains(strings.ToLower(sql), "synthetic.") {
 		return nil, fmt.Errorf("query does not target synthetic schema")
 	}
-	
+
 	// Check for DML operations (INSERT, UPDATE, DELETE, DDL)
 	sqlLower := strings.ToLower(strings.TrimSpace(sql))
-	if strings.HasPrefix(sqlLower, "insert") || 
-	   strings.HasPrefix(sqlLower, "update") || 
-	   strings.HasPrefix(sqlLower, "delete") ||
-	   strings.HasPrefix(sqlLower, "create") ||
-	   strings.HasPrefix(sqlLower, "alter") ||
-	   strings.HasPrefix(sqlLower, "drop") {
+	if strings.HasPrefix(sqlLower, "insert") ||
+		strings.HasPrefix(sqlLower, "update") ||
+		strings.HasPrefix(sqlLower, "delete") ||
+		strings.HasPrefix(sqlLower, "create") ||
+		strings.HasPrefix(sqlLower, "alter") ||
+		strings.HasPrefix(sqlLower, "drop") {
 		return nil, fmt.Errorf("DML/DDL operations are not allowed on synthetic schema")
 	}
-	
+
 	// Execute query with timeout
 	timeout := 30 * time.Second
 	result, err := a.duckdbEngine.ExecuteQuery(a.ctx, sql, timeout)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute synthetic query: %w", err)
 	}
-	
+
 	// Convert result to QueryResponse format
 	response := &QueryResponse{
 		Columns:  result.Columns,
@@ -3681,7 +3741,7 @@ func (a *App) ExecuteSyntheticQuery(sql string) (*QueryResponse, error) {
 		RowCount: int64(result.RowCount),
 		Duration: result.Duration.String(),
 	}
-	
+
 	return response, nil
 }
 
@@ -3693,11 +3753,11 @@ func (a *App) GetSyntheticSchema() (map[string]interface{}, error) {
 			"views":  []interface{}{},
 		}, nil
 	}
-	
+
 	schema, err := a.syntheticViews.GetSyntheticSchema()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get synthetic schema: %w", err)
 	}
-	
+
 	return schema, nil
 }
