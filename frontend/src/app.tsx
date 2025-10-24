@@ -11,6 +11,7 @@ import { Toaster } from './components/ui/toaster'
 import { initializeAuthStore } from './store/auth-store'
 import { initializeTierStore } from './store/tier-store'
 import { initializeOrganizationStore } from './store/organization-store'
+import { initializeConnectionStore } from './store/connection-store'
 import { Loader2 } from 'lucide-react'
 
 // Lazy load pages for code splitting
@@ -36,7 +37,12 @@ function App() {
     // Initialize stores
     initializeAuthStore()
     initializeTierStore()
-    initializeOrganizationStore()
+
+    // Initialize organization store (only works with Individual/Team tiers with backend API)
+    initializeOrganizationStore().catch(err => {
+      // Silently ignore - organization features require backend API (not available in local tier)
+      console.debug('Organization features not available:', err.message)
+    })
 
     // Migrate credentials from localStorage to OS keychain (one-time)
     import('./lib/migrate-credentials').then(({ migrateCredentialsToKeychain }) => {
@@ -45,6 +51,17 @@ function App() {
         // App continues normally even if migration fails
       })
     })
+
+    // Auto-connect to last active connection
+    // Add small delay to ensure store hydration is complete
+    const autoConnectTimer = setTimeout(() => {
+      initializeConnectionStore().catch(err => {
+        console.error('Auto-connect failed:', err)
+        // App continues normally even if auto-connect fails
+      })
+    }, 100)
+
+    return () => clearTimeout(autoConnectTimer)
   }, [])
 
   return (

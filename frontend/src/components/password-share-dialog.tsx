@@ -154,7 +154,7 @@ export function PasswordShareDialog({
     try {
       // Get passwords for requested connections
       const passwordTransfer = getPasswordTransferManager()
-      const passwords = passwordTransfer.getPasswordsForConnections(request.connectionIds)
+      const passwords = await passwordTransfer.getPasswordsForConnections(request.connectionIds)
 
       setProgress(50)
 

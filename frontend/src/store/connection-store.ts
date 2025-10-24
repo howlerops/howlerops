@@ -71,6 +71,7 @@ export interface DatabaseConnection {
 interface ConnectionState {
   connections: DatabaseConnection[]
   activeConnection: DatabaseConnection | null
+  lastActiveConnectionId: string | null // Track last active connection for auto-reconnect
   autoConnectEnabled: boolean
   isConnecting: boolean
   activeEnvironmentFilter: string | null // null = "All", otherwise specific environment
@@ -96,6 +97,7 @@ export const useConnectionStore = create<ConnectionState>()(
       (set, get) => ({
         connections: [],
         activeConnection: null,
+        lastActiveConnectionId: null,
         autoConnectEnabled: true,
         isConnecting: false,
         activeEnvironmentFilter: null, // null = "All"
@@ -113,7 +115,7 @@ export const useConnectionStore = create<ConnectionState>()(
             window.dispatchEvent(
               new CustomEvent('showUpgradeDialog', {
                 detail: {
-                  limit: 'connections',
+                  limitName: 'connections',
                   currentTier: tierStore.currentTier,
                   usage: currentConnections,
                   limit: limitCheck.limit,
@@ -223,7 +225,10 @@ export const useConnectionStore = create<ConnectionState>()(
         },
 
         setActiveConnection: (connection) => {
-          set({ activeConnection: connection })
+          set({
+            activeConnection: connection,
+            lastActiveConnectionId: connection?.id ?? null
+          })
         },
         
         setAutoConnect: (enabled) => {
@@ -289,6 +294,7 @@ export const useConnectionStore = create<ConnectionState>()(
                 conn.id === connectionId ? updatedConnection : conn
               ),
               activeConnection: updatedConnection,
+              lastActiveConnectionId: connectionId,
             }))
           } catch (error) {
             console.error('Failed to connect to database:', error)
@@ -425,6 +431,7 @@ export const useConnectionStore = create<ConnectionState>()(
               } : undefined
             }
           }),
+          lastActiveConnectionId: state.lastActiveConnectionId,
           autoConnectEnabled: state.autoConnectEnabled,
           activeEnvironmentFilter: state.activeEnvironmentFilter,
         }),
@@ -465,4 +472,48 @@ declare global {
 
 if (typeof window !== 'undefined') {
   window.__connectionStore = useConnectionStore
+}
+
+/**
+ * Initialize connection store and auto-connect to last active connection
+ * Call this on app startup after store hydration
+ */
+export async function initializeConnectionStore() {
+  const state = useConnectionStore.getState()
+
+  // Check if auto-connect is enabled
+  if (!state.autoConnectEnabled) {
+    console.debug('Auto-connect is disabled')
+    return
+  }
+
+  // Get last active connection
+  const lastConnectionId = state.lastActiveConnectionId
+  if (!lastConnectionId) {
+    console.debug('No last active connection found')
+    return
+  }
+
+  // Find the connection
+  const connection = state.connections.find(c => c.id === lastConnectionId)
+  if (!connection) {
+    console.debug('Last active connection no longer exists:', lastConnectionId)
+    return
+  }
+
+  // Check if already connected (shouldn't happen, but safety check)
+  if (connection.isConnected) {
+    console.debug('Connection already active:', connection.name)
+    return
+  }
+
+  // Auto-connect in background
+  console.debug('Auto-connecting to:', connection.name)
+  try {
+    await state.connectToDatabase(lastConnectionId)
+    console.debug('Auto-connect successful:', connection.name)
+  } catch (error) {
+    console.warn('Auto-connect failed:', connection.name, error)
+    // Fail silently - don't block app startup
+  }
 }

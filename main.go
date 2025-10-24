@@ -1,15 +1,15 @@
 package main
 
 import (
-	"runtime"
 	"github.com/wailsapp/wails/v2"
+	"github.com/wailsapp/wails/v2/pkg/menu"
+	"github.com/wailsapp/wails/v2/pkg/menu/keys"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 	"github.com/wailsapp/wails/v2/pkg/options/linux"
 	"github.com/wailsapp/wails/v2/pkg/options/mac"
 	"github.com/wailsapp/wails/v2/pkg/options/windows"
-	"github.com/wailsapp/wails/v2/pkg/menu"
-	"github.com/wailsapp/wails/v2/pkg/menu/keys"
+	"runtime"
 )
 
 // assets is defined in embed.go
@@ -147,25 +147,25 @@ func main() {
 
 	// Create application with options
 	err = wails.Run(&options.App{
-		Title:  "HowlerOps",
-		Width:  1200,
-		Height: 800,
+		Title:     "HowlerOps",
+		Width:     1200,
+		Height:    800,
 		MinWidth:  800,
 		MinHeight: 600,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
-		BackgroundColour: &options.RGBA{R: 27, G: 38, B: 59, A: 1},
-		OnStartup:        app.OnStartup,
-		OnShutdown:       app.OnShutdown,
-		Menu: buildMenu(),
-		Frameless:           false,
-		DisableResize:       false,
-		Fullscreen:          false,
-		HideWindowOnClose:   false,
-		CSSDragProperty:     "--wails-draggable",
-		CSSDragValue:        "drag",
-		WindowStartState:    options.Normal,
+		BackgroundColour:  &options.RGBA{R: 27, G: 38, B: 59, A: 1},
+		OnStartup:         app.OnStartup,
+		OnShutdown:        app.OnShutdown,
+		Menu:              buildMenu(),
+		Frameless:         false,
+		DisableResize:     false,
+		Fullscreen:        false,
+		HideWindowOnClose: false,
+		CSSDragProperty:   "--wails-draggable",
+		CSSDragValue:      "drag",
+		WindowStartState:  options.Normal,
 		Bind: []interface{}{
 			app,
 		},
@@ -181,7 +181,7 @@ func main() {
 			},
 		},
 		Linux: &linux.Options{
-			Icon: appIcon,
+			Icon:        appIcon,
 			ProgramName: "howlerops",
 		},
 		Windows: &windows.Options{

@@ -62,16 +62,18 @@ export class Sanitizer {
   private config: import('./config').SanitizationConfig
 
   constructor(config?: Partial<import('./config').SanitizationConfig>) {
+    const { mergeConfig, getGlobalConfig } = require('./config')
     this.config = config
-      ? import('./config').mergeConfig(config)
-      : import('./config').getGlobalConfig()
+      ? mergeConfig(config)
+      : getGlobalConfig()
   }
 
   /**
    * Sanitize a SQL query
    */
   sanitizeQuery(query: string): import('./query-sanitizer').QuerySanitizationResult {
-    return import('./query-sanitizer').sanitizeQuery(query, this.config)
+    const { sanitizeQuery } = require('./query-sanitizer')
+    return sanitizeQuery(query, this.config)
   }
 
   /**
@@ -80,14 +82,16 @@ export class Sanitizer {
   sanitizeConnection(
     connection: import('@/store/connection-store').DatabaseConnection
   ): import('./connection-sanitizer').ConnectionSanitizationResult {
-    return import('./connection-sanitizer').sanitizeConnection(connection, this.config)
+    const { sanitizeConnection } = require('./connection-sanitizer')
+    return sanitizeConnection(connection, this.config)
   }
 
   /**
    * Check if a string contains credentials
    */
   detectCredentials(input: string): import('./credential-detector').CredentialDetectionResult {
-    return import('./credential-detector').detectCredentials(input, this.config)
+    const { detectCredentials } = require('./credential-detector')
+    return detectCredentials(input, this.config)
   }
 
   /**
@@ -109,20 +113,22 @@ export class Sanitizer {
       : []
 
     // Check for private queries
+    const { QueryPrivacyLevel } = require('./config')
     const privateQueries = sanitizedQueries.filter(
-      r => r.privacyLevel === import('./config').QueryPrivacyLevel.PRIVATE
+      r => r.privacyLevel === QueryPrivacyLevel.PRIVATE
     )
     if (privateQueries.length > 0) {
       issues.push(`${privateQueries.length} queries marked as private and should not be synced`)
     }
 
     // Sanitize connections
+    const { prepareConnectionsForSync } = require('./connection-sanitizer')
     const connectionResults = data.connections
-      ? import('./connection-sanitizer').prepareConnectionsForSync(data.connections, this.config)
+      ? prepareConnectionsForSync(data.connections, this.config)
       : { safeConnections: [], unsafeConnections: [] }
 
     if (connectionResults.unsafeConnections.length > 0) {
-      connectionResults.unsafeConnections.forEach(({ connection, reasons }) => {
+      connectionResults.unsafeConnections.forEach(({ connection, reasons }: { connection: any; reasons: string[] }) => {
         issues.push(`Connection "${connection.name}" is unsafe: ${reasons.join(', ')}`)
       })
     }
@@ -138,13 +144,14 @@ export class Sanitizer {
    * Validate that data is safe for sync
    */
   validateForSync(data: any): { isSafe: boolean; issues: string[] } {
-    const scanResults = import('./credential-detector').deepScanForCredentials(data, this.config)
+    const { deepScanForCredentials } = require('./credential-detector')
+    const scanResults = deepScanForCredentials(data, this.config)
 
     if (scanResults.length === 0) {
       return { isSafe: true, issues: [] }
     }
 
-    const issues = scanResults.map(({ path, result }) =>
+    const issues = scanResults.map(({ path, result }: { path: string; result: any }) =>
       `Credential detected at ${path}: ${result.type} (confidence: ${result.confidence})`
     )
 
@@ -155,7 +162,8 @@ export class Sanitizer {
    * Update configuration
    */
   updateConfig(updates: Partial<import('./config').SanitizationConfig>): void {
-    this.config = import('./config').mergeConfig({ ...this.config, ...updates })
+    const { mergeConfig } = require('./config')
+    this.config = mergeConfig({ ...this.config, ...updates })
   }
 
   /**
@@ -212,7 +220,8 @@ export function sanitizeForStorage(data: {
  * Remove all credentials from an object
  */
 export function stripCredentials(obj: any): any {
-  const scanResults = import('./credential-detector').deepScanForCredentials(obj)
+  const { deepScanForCredentials } = require('./credential-detector')
+  const scanResults = deepScanForCredentials(obj)
 
   if (scanResults.length === 0) {
     return obj

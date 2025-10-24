@@ -185,66 +185,68 @@ export function broadcastSync<T extends object>(
         }
       })
 
-      // Cleanup function
-      api.destroy = () => {
-        if (debounceTimer) {
-          clearTimeout(debounceTimer)
-        }
-        unsubscribe()
-      }
-
-      // Wrap the config with broadcast logic
-      const wrappedConfig = config(
-        (partial, replace, ...args) => {
-          // Apply local update first
-          set(partial, replace, ...args)
-
-          // Don't broadcast if:
-          // 1. Broadcasting is disabled
-          // 2. We're applying a remote update
-          // 3. This is a replace operation (we only sync partial updates)
-          if (!enabled || isApplyingRemoteUpdate || replace) {
-            return
-          }
-
-          // Debounce broadcasts to reduce message frequency
+      // Cleanup function (extend existing destroy if present)
+      if ('destroy' in api && typeof api.destroy === 'function') {
+        const originalDestroy = api.destroy as () => void
+        api.destroy = () => {
           if (debounceTimer) {
             clearTimeout(debounceTimer)
           }
+          unsubscribe()
+          originalDestroy()
+        }
+      }
 
-          debounceTimer = setTimeout(() => {
-            try {
-              const state = get()
+      // Create wrapped setState that broadcasts changes
+      const wrappedSetState = (partial: any, replace?: any, ...args: any[]) => {
+        // Apply local update first
+        set(partial, replace, ...args)
 
-              // Create a patch with only the changed fields
-              let patch: any
+        // Don't broadcast if:
+        // 1. Broadcasting is disabled
+        // 2. We're applying a remote update
+        // 3. This is a replace operation (we only sync partial updates)
+        if (!enabled || isApplyingRemoteUpdate || replace) {
+          return
+        }
 
-              if (typeof partial === 'function') {
-                // For function updates, we need to broadcast the entire state
-                patch = sanitizeState(state, excludeFields)
-              } else {
-                // For partial updates, only broadcast the changed fields
-                patch = sanitizeState(partial, excludeFields)
-              }
+        // Debounce broadcasts to reduce message frequency
+        if (debounceTimer) {
+          clearTimeout(debounceTimer)
+        }
 
-              // Broadcast the update
-              broadcast.send({
-                type: 'store-update',
-                storeName,
-                patch,
-                senderId: broadcast.getTabId(),
-                timestamp: Date.now()
-              })
-            } catch (error) {
-              console.error(`[BroadcastSync] Failed to broadcast update for store "${storeName}":`, error)
+        debounceTimer = setTimeout(() => {
+          try {
+            const state = get()
+
+            // Create a patch with only the changed fields
+            let patch: any
+
+            if (typeof partial === 'function') {
+              // For function updates, we need to broadcast the entire state
+              patch = sanitizeState(state, excludeFields)
+            } else {
+              // For partial updates, only broadcast the changed fields
+              patch = sanitizeState(partial, excludeFields)
             }
-          }, debounceMs)
-        },
-        get,
-        api
-      )
 
-      return wrappedConfig
+            // Broadcast the update
+            broadcast.send({
+              type: 'store-update',
+              storeName,
+              patch,
+              senderId: broadcast.getTabId(),
+              timestamp: Date.now()
+            })
+          } catch (error) {
+            console.error(`[BroadcastSync] Failed to broadcast update for store "${storeName}":`, error)
+          }
+        }, debounceMs)
+      }
+
+      // Call config with wrapped setState
+      // @ts-ignore - Middleware signature is correct but TypeScript inference is too strict
+      return config(wrappedSetState, get, api)
     }
   }
 }

@@ -43,6 +43,8 @@ export {
   PreferenceCategory,
   SyncQueueRepository,
   getSyncQueueRepository,
+  SavedQueryRepository,
+  getSavedQueryRepository,
 } from './repositories'
 
 // Repository types
@@ -53,6 +55,7 @@ export type {
   PreferenceValue,
   SyncQueueSearchOptions,
   SyncStatistics,
+  SavedQuerySearchOptions,
 } from './repositories'
 
 // Storage types

@@ -551,7 +551,7 @@ export const QueryResultsTable = ({
     const actionsColumn: TableColumn = {
       id: '__actions',
       accessorKey: '__actions',
-      header: '',
+      header: ' ',
       type: 'text',
       editable: false,
       sortable: false,
@@ -559,6 +559,7 @@ export const QueryResultsTable = ({
       minWidth: 50,
       maxWidth: 50,
       sticky: 'left',
+      width: 50,
     }
 
     return [actionsColumn, ...dataColumns]

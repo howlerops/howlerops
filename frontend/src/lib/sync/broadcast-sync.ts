@@ -114,7 +114,10 @@ export class BroadcastSync {
     const message = event.data
 
     // Ignore messages from this tab (prevent infinite loops)
-    if (message.senderId === this.tabId || (message as any).tabId === this.tabId) {
+    if ('senderId' in message && message.senderId === this.tabId) {
+      return
+    }
+    if ((message as any).tabId === this.tabId) {
       return
     }
 
@@ -235,7 +238,7 @@ export class BroadcastSync {
       const messageWithTimestamp = {
         ...message,
         timestamp: message.timestamp || Date.now(),
-        senderId: message.senderId || this.tabId
+        senderId: 'senderId' in message ? message.senderId : this.tabId
       }
 
       this.channel.postMessage(messageWithTimestamp)

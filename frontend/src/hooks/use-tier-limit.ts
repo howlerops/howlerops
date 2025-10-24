@@ -125,7 +125,7 @@ export function useTierLimit(
     window.dispatchEvent(
       new CustomEvent('showUpgradeDialog', {
         detail: {
-          limit: limitName,
+          limitName: limitName,
           currentTier,
           usage: currentUsage,
           limit: limitCheck.limit,

@@ -45,7 +45,14 @@
       "Bash(pkill:*)",
       "Bash(go get:*)",
       "Bash(go tool cover:*)",
-      "Bash(go run:*)"
+      "Bash(go run:*)",
+      "Bash(go fmt:*)",
+      "Bash(npm test:*)",
+      "Bash(wails generate module:*)",
+      "Bash(go list:*)",
+      "Bash(go doc:*)",
+      "Bash(npm run type-check:*)",
+      "Read(//tmp/**)"
     ],
     "deny": [],
     "ask": []

@@ -445,12 +445,12 @@ export class PasswordTransferManager {
   /**
    * Get passwords for connections from secure storage
    */
-  getPasswordsForConnections(connectionIds: string[]): PasswordData[] {
+  async getPasswordsForConnections(connectionIds: string[]): Promise<PasswordData[]> {
     const secureStorage = getSecureStorage()
     const passwords: PasswordData[] = []
 
     for (const connectionId of connectionIds) {
-      const credentials = secureStorage.getCredentials(connectionId)
+      const credentials = await secureStorage.getCredentials(connectionId)
       if (credentials) {
         passwords.push({
           connectionId,

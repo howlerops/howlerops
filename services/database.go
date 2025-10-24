@@ -691,13 +691,13 @@ func (s *DatabaseService) GetDatabaseTypeInfo(dbType string) map[string]interfac
 
 // MultiQueryResponse represents the response from a multi-database query
 type MultiQueryResponse struct {
-	Columns         []string        `json:"columns"`
-	Rows            [][]interface{} `json:"rows"`
-	RowCount        int64           `json:"rowCount"`
-	Duration        string          `json:"duration"`
-	ConnectionsUsed []string        `json:"connectionsUsed"`
-	Strategy        string          `json:"strategy"`
-	Error           string          `json:"error,omitempty"`
+	Columns         []string                  `json:"columns"`
+	Rows            [][]interface{}           `json:"rows"`
+	RowCount        int64                     `json:"rowCount"`
+	Duration        string                    `json:"duration"`
+	ConnectionsUsed []string                  `json:"connectionsUsed"`
+	Strategy        string                    `json:"strategy"`
+	Error           string                    `json:"error,omitempty"`
 	Editable        *EditableMetadataResponse `json:"editable,omitempty"`
 }
 
@@ -718,24 +718,24 @@ type CombinedSchemaResponse struct {
 
 // EditableMetadataResponse represents editable metadata for queries
 type EditableMetadataResponse struct {
-	Enabled     bool                    `json:"enabled"`
-	Reason      string                  `json:"reason,omitempty"`
-	Schema      string                  `json:"schema,omitempty"`
-	Table       string                  `json:"table,omitempty"`
-	PrimaryKeys []string                `json:"primaryKeys"`
+	Enabled     bool                     `json:"enabled"`
+	Reason      string                   `json:"reason,omitempty"`
+	Schema      string                   `json:"schema,omitempty"`
+	Table       string                   `json:"table,omitempty"`
+	PrimaryKeys []string                 `json:"primaryKeys"`
 	Columns     []EditableColumnResponse `json:"columns"`
-	Pending     bool                    `json:"pending"`
-	JobID       string                  `json:"jobId,omitempty"`
+	Pending     bool                     `json:"pending"`
+	JobID       string                   `json:"jobId,omitempty"`
 }
 
 // EditableColumnResponse represents an editable column
 type EditableColumnResponse struct {
-	Name        string              `json:"name"`
-	ResultName  string              `json:"resultName"`
-	DataType    string              `json:"dataType"`
-	Editable    bool                `json:"editable"`
-	PrimaryKey  bool                `json:"primaryKey"`
-	ForeignKey  *ForeignKeyResponse `json:"foreignKey,omitempty"`
+	Name       string              `json:"name"`
+	ResultName string              `json:"resultName"`
+	DataType   string              `json:"dataType"`
+	Editable   bool                `json:"editable"`
+	PrimaryKey bool                `json:"primaryKey"`
+	ForeignKey *ForeignKeyResponse `json:"foreignKey,omitempty"`
 }
 
 // ForeignKeyResponse represents foreign key information
@@ -780,7 +780,7 @@ func (s *DatabaseService) ExecuteMultiDatabaseQuery(query string, options *multi
 		ConnectionsUsed: result.ConnectionsUsed,
 		Strategy:        string(result.Strategy),
 	}
-	
+
 	// Convert editable metadata if present
 	if result.Editable != nil {
 		response.Editable = &EditableMetadataResponse{
@@ -792,7 +792,7 @@ func (s *DatabaseService) ExecuteMultiDatabaseQuery(query string, options *multi
 			Pending:     result.Editable.Pending,
 			JobID:       result.Editable.JobID,
 		}
-		
+
 		// Convert columns
 		response.Editable.Columns = make([]EditableColumnResponse, len(result.Editable.Columns))
 		for i, col := range result.Editable.Columns {
@@ -803,7 +803,7 @@ func (s *DatabaseService) ExecuteMultiDatabaseQuery(query string, options *multi
 				Editable:   col.Editable,
 				PrimaryKey: col.PrimaryKey,
 			}
-			
+
 			// Convert foreign key if present
 			if col.ForeignKey != nil {
 				response.Editable.Columns[i].ForeignKey = &ForeignKeyResponse{
@@ -814,7 +814,7 @@ func (s *DatabaseService) ExecuteMultiDatabaseQuery(query string, options *multi
 			}
 		}
 	}
-	
+
 	return response, nil
 }
 

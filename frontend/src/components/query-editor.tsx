@@ -31,7 +31,7 @@ import { useTheme } from "@/hooks/use-theme"
 import { useAIConfig, useAIGeneration, useAIStore } from "@/store/ai-store"
 import { useAIQueryAgentStore } from "@/store/ai-query-agent-store"
 import { AIQueryTabView } from "@/components/ai-query-tab"
-import { Play, Square, Plus, X, Wand2, AlertCircle, Loader2, Network, Database, Bug, Sparkles, Users, Pencil, Trash2, ChevronDown, MessageCircle, Layout } from "lucide-react"
+import { Play, Square, Plus, X, Wand2, AlertCircle, Loader2, Network, Database, Bug, Sparkles, Users, Pencil, Trash2, ChevronDown, MessageCircle, Layout, Save } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AISchemaDisplay } from "@/components/ai-schema-display"
 import { cn } from "@/lib/utils"
@@ -50,6 +50,8 @@ import { QueryIR, generateSQL as generateSQLFromIR } from "@/lib/query-ir"
 import { waitForWails } from "@/lib/wails-runtime"
 import { buildExecutableSql } from "@/utils/sql"
 import { SelectDatabasePrompt } from "@/components/select-database-prompt"
+import { SaveQueryDialog } from "@/components/saved-queries/SaveQueryDialog"
+import { useAuthStore } from "@/store/auth-store"
 
 
 export interface QueryEditorProps {
@@ -152,6 +154,12 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
   const [showDatabasePrompt, setShowDatabasePrompt] = useState(false)
   const [pendingQuery, setPendingQuery] = useState<string | null>(null)
 
+  // Save Query Dialog state
+  const [showSaveQueryDialog, setShowSaveQueryDialog] = useState(false)
+
+  // Get user for saved queries
+  const user = useAuthStore(state => state.user)
+
   // Expose methods to parent components
   useImperativeHandle(ref, () => ({
     openAIFix: (error: string, query: string) => {
@@ -166,13 +174,6 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
       handleFixQueryError(error, query)
     }
   }))
-
-  // Restore editor content when active tab changes or on mount
-  useEffect(() => {
-    if (activeTab?.content !== undefined) {
-      setEditorContent(activeTab.content)
-    }
-  }, [activeTab?.id, activeTab?.content])
 
   const filteredConnections = useMemo(
     () => getFilteredConnections(),
@@ -212,7 +213,7 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
     }
 
     return map
-  }, [activeConnection?.id, activeConnection?.name, schema])
+  }, [activeConnection?.id, activeConnection?.name, activeConnection?.sessionId, activeConnection?.isConnected, schema])
 
   const codeMirrorConnections = useMemo(
     () => editorConnections.map(conn => ({
@@ -235,6 +236,13 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
   }, [filteredConnections, connections])
 
   const activeTab = tabs.find(tab => tab.id === activeTabId)
+
+  // Restore editor content when active tab changes or on mount
+  useEffect(() => {
+    if (activeTab?.content !== undefined) {
+      setEditorContent(activeTab.content)
+    }
+  }, [activeTab?.id, activeTab?.content])
 
   // Remove automatic tab creation - let users create tabs manually
 
@@ -420,12 +428,12 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
     try {
       // Wait for Wails runtime to be ready
       const isReady = await waitForWails(2000)
-      
+
       if (!isReady) {
-        console.warn('Wails runtime not ready, skipping column load')
+        console.warn('[ColumnLoader] Wails runtime not ready')
         return []
       }
-      
+
       const { GetTableStructure } = await import('../../wailsjs/go/main/App')
       const structure = await GetTableStructure(sessionId, schema, tableName)
 
@@ -440,7 +448,13 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
         nullable: col.nullable,
         primaryKey: col.primary_key
       }))
-    } catch {
+    } catch (error) {
+      console.error('[ColumnLoader] Failed to load columns:', {
+        sessionId,
+        schema,
+        tableName,
+        error: error instanceof Error ? error.message : String(error)
+      })
       return []
     }
   }, [])
@@ -610,6 +624,23 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [activeConnection, editorContent, activeTab?.isExecuting, handleExecuteQuery])
+
+  // Keyboard shortcut for saving query (Ctrl/Cmd+Shift+S)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'S') {
+        e.preventDefault()
+
+        // Only open save dialog if user is authenticated and query has content
+        if (user && editorContent.trim()) {
+          setShowSaveQueryDialog(true)
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [user, editorContent])
 
   // Removed handleSaveTab - not currently used
 
@@ -1611,6 +1642,19 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
         </DialogContent>
       </Dialog>
 
+      {/* Save Query Dialog */}
+      {user && (
+        <SaveQueryDialog
+          open={showSaveQueryDialog}
+          onClose={() => setShowSaveQueryDialog(false)}
+          userId={user.id}
+          initialQuery={editorRef.current?.getValue() ?? editorContent}
+          onSaved={(query) => {
+            console.log('Query saved:', query)
+            setShowSaveQueryDialog(false)
+          }}
+        />
+      )}
 
       {/* Toolbar */}
       <div className="flex items-center justify-between p-2 border-b bg-muted/30">
@@ -1661,7 +1705,19 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
             </Button>
           )}
 
-          {/* Save disabled for now */}
+          {/* Save Query Button */}
+          {user && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowSaveQueryDialog(true)}
+              disabled={!editorContent.trim()}
+              title="Save query to library (Ctrl/Cmd+Shift+S)"
+            >
+              <Save className="h-4 w-4 mr-2" />
+              Save Query
+            </Button>
+          )}
         </div>
 
         <div className="text-xs text-muted-foreground">

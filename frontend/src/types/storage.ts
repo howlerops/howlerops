@@ -529,9 +529,20 @@ export type PrimaryKey<T> = T extends { id: infer K } ? K :
   T extends { connection_id: infer K } ? K : IDBValidKey;
 
 /**
- * Make all Date fields optional for input
+ * Make all Date fields and ID optional for input
+ *
+ * This allows repositories to auto-generate IDs when not provided.
+ * Removes required status from: id, connection_id, timestamp, retry_count,
+ * created_at, updated_at, synced, sync_version
  */
-export type CreateInput<T> = Omit<T, 'created_at' | 'updated_at' | 'synced' | 'sync_version'> & {
+export type CreateInput<T> = Omit<
+  T,
+  'id' | 'connection_id' | 'timestamp' | 'retry_count' | 'created_at' | 'updated_at' | 'synced' | 'sync_version'
+> & {
+  id?: string;
+  connection_id?: string;
+  timestamp?: Date;
+  retry_count?: number;
   created_at?: Date;
   updated_at?: Date;
   synced?: boolean;

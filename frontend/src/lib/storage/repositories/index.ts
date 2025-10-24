@@ -34,6 +34,12 @@ export {
   type SyncStatistics,
 } from './sync-queue-repository'
 
+export {
+  SavedQueryRepository,
+  getSavedQueryRepository,
+  type SavedQuerySearchOptions,
+} from './saved-query-repository'
+
 // Re-export common types
 export type {
   ConnectionRecord,

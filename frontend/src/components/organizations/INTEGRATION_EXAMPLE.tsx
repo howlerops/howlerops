@@ -25,7 +25,7 @@ export function OrganizationSettingsExample() {
 
   // Organization store
   const {
-    currentOrg,
+    currentOrg: getCurrentOrg,
     currentOrgMembers,
     updateOrganization,
     deleteOrganization,
@@ -36,6 +36,9 @@ export function OrganizationSettingsExample() {
     currentOrgInvitations,
     revokeInvitation,
   } = useOrganizationStore()
+
+  // Get the actual organization object
+  const currentOrg = getCurrentOrg()
 
   // State
   const [showInviteModal, setShowInviteModal] = React.useState(false)

@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { useQueryStore } from '@/store/query-store'
+import { useConnectionStore } from '@/store/connection-store'
 import { QueryResultsTable } from '@/components/query-results-table'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { useAIConfig } from '@/store/ai-store'
@@ -17,6 +18,7 @@ export function ResultsPanel({ onFixWithAI }: ResultsPanelProps = {}) {
   const tabs = useQueryStore((state) => state.tabs)
   const activeTabId = useQueryStore((state) => state.activeTabId)
   const results = useQueryStore((state) => state.results)
+  const connections = useConnectionStore((state) => state.connections)
 
   const activeTab = tabs.find((tab) => tab.id === activeTabId)
   const tabResults = results.filter((result) => result.tabId === activeTabId)
@@ -180,7 +182,19 @@ export function ResultsPanel({ onFixWithAI }: ResultsPanelProps = {}) {
               originalRows={latestResult.originalRows}
               metadata={latestResult.editable}
               query={latestResult.query}
-              connectionId={latestResult.connectionId}
+              connectionId={(() => {
+                // Use the tab's connection if it exists and is connected
+                if (activeTab?.connectionId) {
+                  const tabConnection = connections.find(
+                    (c) => c.id === activeTab.connectionId && c.isConnected
+                  )
+                  if (tabConnection) {
+                    return tabConnection.id
+                  }
+                }
+                // Fallback to the result's connection ID
+                return latestResult.connectionId
+              })()}
               executionTimeMs={latestResult.executionTime}
               rowCount={latestResult.rowCount}
               executedAt={latestResult.timestamp}

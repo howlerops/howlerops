@@ -1,6 +1,6 @@
 /**
  * CodeMirror 6 SQL Extension with Multi-Database Support
- * 
+ *
  * Provides syntax highlighting, autocomplete, and language support
  * for both single-database and multi-database queries with @connection.table syntax
  */
@@ -8,9 +8,9 @@
 import { EditorView, keymap, ViewUpdate } from '@codemirror/view'
 import { EditorState, Extension, StateEffect, StateField } from '@codemirror/state'
 import { sql, SQLDialect } from '@codemirror/lang-sql'
-import { 
-  autocompletion, 
-  Completion, 
+import {
+  autocompletion,
+  Completion,
   CompletionContext,
   CompletionResult,
   startCompletion,
@@ -19,6 +19,7 @@ import {
 import { defaultKeymap, historyKeymap, history, indentMore } from '@codemirror/commands'
 import { searchKeymap } from '@codemirror/search'
 import { oneDark } from '@codemirror/theme-one-dark'
+import { parseQueryContext, isAlias, resolveAlias, getTablesInScope } from './sql-context-parser'
 
 export interface Connection {
   id: string
@@ -123,6 +124,173 @@ function isTypingSQLKeyword(word: string): boolean {
   return SQL_KEYWORDS.some(kw => kw.startsWith(upperWord))
 }
 
+// ================================================================
+// Smart Autocomplete Helpers - JOIN ON and Enhanced Ranking
+// ================================================================
+
+/**
+ * Context for JOIN ON clause to enable smart FK suggestions
+ */
+interface JoinOnContext {
+  leftAlias: string
+  leftColumn: string
+  rightAlias: string
+}
+
+/**
+ * Detect if cursor is in a JOIN ON clause and extract context
+ * Example: "ON a.user_id = u." → { leftAlias: 'a', leftColumn: 'user_id', rightAlias: 'u' }
+ */
+function detectJoinOnContext(textBeforeCursor: string): JoinOnContext | null {
+  // Pattern: ON alias.column = alias.
+  const joinOnPattern = /ON\s+(\w+)\.(\w+)\s*=\s*(\w+)\.(\w*)$/i
+  const match = textBeforeCursor.match(joinOnPattern)
+
+  if (match) {
+    const [, leftAlias, leftColumn, rightAlias] = match
+    return { leftAlias, leftColumn, rightAlias }
+  }
+
+  return null
+}
+
+/**
+ * Check if a column matches foreign key pattern and return boost value
+ * Higher values = better match
+ */
+function matchesForeignKeyPattern(
+  leftColumn: string,
+  rightColumn: string,
+  isRightPrimaryKey: boolean
+): number {
+  const leftLower = leftColumn.toLowerCase()
+  const rightLower = rightColumn.toLowerCase()
+
+  // Exact match (e.g., user_id = user_id)
+  if (leftLower === rightLower) {
+    return 10
+  }
+
+  // Left ends with _id, right is 'id' and is PK (most common FK pattern)
+  // e.g., user_id = id (where id is PK)
+  if (leftLower.endsWith('_id') && rightLower === 'id' && isRightPrimaryKey) {
+    return 15
+  }
+
+  // Extract base name from left column (user_id → user)
+  const leftBase = leftLower.replace(/_id$/, '').replace(/_uuid$/, '').replace(/_guid$/, '')
+
+  // Right column contains the base name
+  // e.g., user_id → user_id, user_pk, user_uuid
+  if (leftBase && rightLower.includes(leftBase)) {
+    return 12
+  }
+
+  // Left contains base of right
+  // e.g., account_user_id → user_id
+  const rightBase = rightLower.replace(/_id$/, '').replace(/_uuid$/, '').replace(/_guid$/, '')
+  if (rightBase && leftLower.includes(rightBase)) {
+    return 10
+  }
+
+  // Right is PK and left contains 'id' (weak correlation)
+  if (isRightPrimaryKey && leftLower.includes('id')) {
+    return 5
+  }
+
+  return 0
+}
+
+/**
+ * Get boost for common/utility columns
+ */
+function getCommonColumnBoost(columnName: string): number {
+  const lower = columnName.toLowerCase()
+
+  // Primary identifiers
+  if (['id', 'uuid', 'guid'].includes(lower)) {
+    return 10
+  }
+
+  // Audit trail columns
+  if (['created_at', 'created_date', 'created_time', 'updated_at', 'updated_date', 'updated_time', 'modified_at'].includes(lower)) {
+    return 5
+  }
+
+  // Soft delete
+  if (lower === 'deleted_at') {
+    return 5
+  }
+
+  // Audit user tracking
+  if (['created_by', 'updated_by', 'modified_by'].includes(lower)) {
+    return 3
+  }
+
+  // Foreign key patterns
+  if (lower.endsWith('_id') || lower.endsWith('_uuid') || lower.endsWith('_guid')) {
+    return 3
+  }
+
+  // Status columns
+  if (['status', 'state', 'is_active', 'enabled', 'disabled', 'active'].includes(lower)) {
+    return 3
+  }
+
+  // Name/description columns
+  if (['name', 'title', 'description', 'label', 'email'].includes(lower)) {
+    return 3
+  }
+
+  // Timestamp columns
+  if (lower.includes('_at') || lower.includes('_date') || lower.includes('_time')) {
+    return 2
+  }
+
+  return 0
+}
+
+/**
+ * Calculate smart boost value for a column based on context
+ */
+function calculateColumnBoost(
+  column: Column,
+  context: QueryContext,
+  joinOnContext?: JoinOnContext | null,
+  baseBoost: number = 80
+): number {
+  let boost = baseBoost
+
+  // 1. Primary key boost
+  if (column.primaryKey) {
+    boost += 10
+  }
+
+  // 2. Common column patterns
+  boost += getCommonColumnBoost(column.name)
+
+  // 3. JOIN ON context - boost FK matches
+  if (joinOnContext && context.currentClause === 'ON') {
+    const fkMatchBoost = matchesForeignKeyPattern(
+      joinOnContext.leftColumn,
+      column.name,
+      column.primaryKey || false
+    )
+    boost += fkMatchBoost
+  }
+
+  // 4. Clause-specific boosts
+  if (context.currentClause === 'SELECT') {
+    // Slightly boost commonly selected columns
+    const commonSelects = ['id', 'name', 'title', 'email', 'username']
+    if (commonSelects.includes(column.name.toLowerCase())) {
+      boost += 2
+    }
+  }
+
+  return boost
+}
+
 /**
  * Create SQL autocomplete extension
  */
@@ -143,6 +311,203 @@ export function sqlAutocompletion(columnLoader?: ColumnLoader): Extension {
         )
 
         const options: Completion[] = []
+
+        // ===================================================================
+        // INTELLIGENT CONTEXT-AWARE AUTOCOMPLETE
+        // ===================================================================
+
+        // Parse query context for intelligent suggestions
+        const fullQuery = context.state.doc.toString()
+        const queryContext = parseQueryContext(fullQuery, context.pos)
+
+        // Detect JOIN ON context for smart FK suggestions
+        const joinOnContext = detectJoinOnContext(textBeforeCursor)
+
+        console.log('[CodeMirror SQL] Query context:', {
+          tablesCount: queryContext.tables.length,
+          currentClause: queryContext.currentClause,
+          aliases: Array.from(queryContext.aliasMap.keys()),
+          joinOnContext: joinOnContext ? `${joinOnContext.leftAlias}.${joinOnContext.leftColumn} = ${joinOnContext.rightAlias}` : 'none'
+        })
+
+        // Check for alias prefix (e.g., "a." or "u.")
+        const aliasPattern = /(\w+)\.(\w*)$/
+        const aliasMatch = textBeforeCursor.match(aliasPattern)
+
+        if (aliasMatch && columnLoader) {
+          const [, prefix, partialColumn] = aliasMatch
+
+          console.log('[CodeMirror SQL] Checking alias prefix:', { prefix, partialColumn })
+
+          // Check if prefix is an alias
+          if (isAlias(prefix, queryContext)) {
+            const tableRef = resolveAlias(prefix, queryContext)
+
+            console.log('[CodeMirror SQL] Resolved alias:', {
+              prefix,
+              tableName: tableRef?.tableName,
+              schema: tableRef?.schema,
+              connectionId: tableRef?.connectionId
+            })
+
+            if (tableRef) {
+              // For multi-DB, find the connection
+              let connection: Connection | undefined
+              let sessionId: string | undefined
+
+              if (tableRef.isMultiDB && tableRef.connectionId) {
+                connection = findConnection(connections, tableRef.connectionId)
+                sessionId = connection?.sessionId
+              } else {
+                // Single-DB mode or non-multi-DB table
+                connection = connections[0]
+                sessionId = connection?.sessionId
+              }
+
+              if (sessionId) {
+                // Determine schema name
+                const schemaName = tableRef.schema || 'public'
+
+                const cacheKey = `${sessionId}-${schemaName}-${tableRef.tableName}`
+                let columns: Column[]
+
+                if (columnCache.has(cacheKey)) {
+                  columns = columnCache.get(cacheKey)!
+                  console.log('[CodeMirror SQL] Column cache hit:', cacheKey)
+                } else {
+                  try {
+                    console.log('[CodeMirror SQL] Loading columns for alias:', {
+                      sessionId,
+                      schema: schemaName,
+                      table: tableRef.tableName
+                    })
+                    columns = await columnLoader(sessionId, schemaName, tableRef.tableName)
+                    columnCache.set(cacheKey, columns)
+                    console.log('[CodeMirror SQL] Loaded columns:', columns.length)
+                  } catch (error) {
+                    console.error('[CodeMirror SQL] Failed to load columns:', error)
+                    columns = []
+                  }
+                }
+
+                // Add column suggestions with smart boosting
+                columns
+                  .filter(col => !partialColumn || col.name.toLowerCase().startsWith(partialColumn.toLowerCase()))
+                  .forEach(col => {
+                    const boost = calculateColumnBoost(col, queryContext, joinOnContext, 90)
+                    options.push({
+                      label: col.name,
+                      type: 'property',
+                      detail: col.dataType,
+                      info: col.nullable ? 'Nullable' : 'Not null',
+                      boost
+                    })
+                  })
+
+                if (options.length > 0) {
+                  return {
+                    from: context.pos - partialColumn.length,
+                    options
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        // Context-aware suggestions (no prefix) - suggest columns from tables in scope
+        // Only in WHERE, SELECT, HAVING clauses
+        if (['WHERE', 'SELECT', 'HAVING', 'ON', 'ORDER_BY', 'GROUP_BY'].includes(queryContext.currentClause)) {
+          const tablesInScope = getTablesInScope(queryContext)
+
+          console.log('[CodeMirror SQL] Context-aware check:', {
+            clause: queryContext.currentClause,
+            tablesInScope: tablesInScope.length,
+            hasMatch: !!aliasMatch
+          })
+
+          // Only show context-aware if we're not already in an alias. pattern
+          if (tablesInScope.length > 0 && !aliasMatch && columnLoader) {
+            // Check if we're typing a column name (no table prefix)
+            const plainWordPattern = /\b(\w+)$/
+            const plainWordMatch = textBeforeCursor.match(plainWordPattern)
+
+            if (plainWordMatch) {
+              const partialWord = plainWordMatch[1]
+
+              // Only suggest if user has typed at least 2 characters or is in WHERE clause
+              if (partialWord.length >= 2 || queryContext.currentClause === 'WHERE') {
+                console.log('[CodeMirror SQL] Adding context-aware suggestions for:', partialWord)
+
+                // Load columns from all tables in scope
+                for (const tableRef of tablesInScope) {
+                  let connection: Connection | undefined
+                  let sessionId: string | undefined
+
+                  if (tableRef.isMultiDB && tableRef.connectionId) {
+                    connection = findConnection(connections, tableRef.connectionId)
+                    sessionId = connection?.sessionId
+                  } else {
+                    connection = connections[0]
+                    sessionId = connection?.sessionId
+                  }
+
+                  if (sessionId) {
+                    const schemaName = tableRef.schema || 'public'
+                    const cacheKey = `${sessionId}-${schemaName}-${tableRef.tableName}`
+                    let columns: Column[]
+
+                    if (columnCache.has(cacheKey)) {
+                      columns = columnCache.get(cacheKey)!
+                    } else {
+                      try {
+                        columns = await columnLoader(sessionId, schemaName, tableRef.tableName)
+                        columnCache.set(cacheKey, columns)
+                      } catch (error) {
+                        console.error('[CodeMirror SQL] Failed to load columns for context:', error)
+                        columns = []
+                      }
+                    }
+
+                    // Add columns with table prefix if multiple tables and smart boosting
+                    const showTablePrefix = tablesInScope.length > 1
+
+                    columns
+                      .filter(col => !partialWord || col.name.toLowerCase().startsWith(partialWord.toLowerCase()))
+                      .forEach(col => {
+                        const label = showTablePrefix
+                          ? `${tableRef.alias || tableRef.tableName}.${col.name}`
+                          : col.name
+
+                        const boost = calculateColumnBoost(col, queryContext, joinOnContext, 80)
+
+                        options.push({
+                          label,
+                          type: 'property',
+                          detail: col.dataType,
+                          info: showTablePrefix
+                            ? `From ${tableRef.alias || tableRef.tableName}${col.nullable ? ' (Nullable)' : ''}`
+                            : (col.nullable ? 'Nullable' : 'Not null'),
+                          boost
+                        })
+                      })
+                  }
+                }
+
+                if (options.length > 0) {
+                  return {
+                    from: context.pos - partialWord.length,
+                    options
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        // ===================================================================
+        // ORIGINAL MULTI-DB MODE PATTERNS (fallback)
+        // ===================================================================
 
         // Multi-DB Mode Patterns
         if (mode === 'multi') {

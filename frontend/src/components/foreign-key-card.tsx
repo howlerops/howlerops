@@ -302,6 +302,7 @@ export function ForeignKeySection({
 }: ForeignKeySectionProps) {
   if (foreignKeys.length === 0) return null
 
+  console.log(foreignKeys)
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2 text-sm font-medium">

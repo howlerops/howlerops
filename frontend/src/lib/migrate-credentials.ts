@@ -56,12 +56,9 @@ export interface MigrationResult {
  */
 function isKeychainAvailable(): boolean {
   return typeof window !== 'undefined' &&
-         // @ts-expect-error - Wails runtime may not have these methods yet
-         typeof window.go !== 'undefined' &&
-         // @ts-expect-error - Wails runtime may not have these methods yet
-         typeof window.go.main?.App?.StorePassword === 'function' &&
-         // @ts-expect-error - Wails runtime may not have these methods yet
-         typeof window.go.main?.App?.GetPassword === 'function'
+         typeof (window as any).go !== 'undefined' &&
+         typeof (window as any).go?.main?.App?.StorePassword === 'function' &&
+         typeof (window as any).go?.main?.App?.GetPassword === 'function'
 }
 
 /**
@@ -73,12 +70,11 @@ async function storePasswordInKeychain(
   credentialType: 'password' | 'ssh_password' | 'ssh_private_key',
   value: string
 ): Promise<void> {
-  // @ts-expect-error - Wails function not yet exposed
-  if (window.go?.main?.App?.StorePassword) {
+  const wailsGo = (window as any).go
+  if (wailsGo?.main?.App?.StorePassword) {
     const service = 'sql-studio'
     const account = `${connectionId}-${credentialType}`
-    // @ts-expect-error - Wails function not yet exposed
-    await window.go.main.App.StorePassword(service, account, value)
+    await wailsGo.main.App.StorePassword(service, account, value)
   } else {
     throw new Error('Keychain API not available')
   }

@@ -311,6 +311,7 @@ export const useTierStore = create<TierStore>()(
               percentage: 0,
               isNearLimit: false,
               isAtLimit: false,
+              isUnlimited: true,
             }
           }
 
@@ -320,6 +321,11 @@ export const useTierStore = create<TierStore>()(
 
           const limits = TIER_LIMITS[effectiveTier]
           const limit = limits[limitName]
+
+          // Ensure limit exists in the tier configuration
+          if (limit === undefined) {
+            throw new Error(`Unknown limit: ${limitName}`)
+          }
 
           // null means unlimited
           if (limit === null) {

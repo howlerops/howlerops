@@ -123,7 +123,7 @@ export class QueryHistoryRepository {
         window.dispatchEvent(
           new CustomEvent('showUpgradeDialog', {
             detail: {
-              limit: 'queryHistory',
+              limitName: 'queryHistory',
               currentTier: tierStore.currentTier,
               usage: currentCount,
               limit: limitCheck.limit,
@@ -135,7 +135,7 @@ export class QueryHistoryRepository {
 
     const now = new Date()
     const record: QueryHistoryRecord = {
-      id: crypto.randomUUID(),
+      id: data.id || crypto.randomUUID(),
       user_id: data.user_id,
       query_text: this.sanitizeQuery(data.query_text),
       connection_id: data.connection_id,

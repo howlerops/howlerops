@@ -141,7 +141,7 @@ export function sanitizeConnection(
     const sshSanitized: any = { ...connection.sshTunnel }
 
     // Remove SSH password
-    if (connection.sshTunnel.password) {
+    if (connection.sshTunnel?.password) {
       flags.sshPasswordRemoved = true
       result.removedFields.push('sshTunnel.password')
       result.wasModified = true
@@ -149,7 +149,7 @@ export function sanitizeConnection(
     }
 
     // Remove SSH private key content (but keep the path)
-    if (connection.sshTunnel.privateKey) {
+    if (connection.sshTunnel?.privateKey) {
       flags.sshPrivateKeyRemoved = true
       result.removedFields.push('sshTunnel.privateKey')
       result.wasModified = true
@@ -365,9 +365,9 @@ export function hasRequiredCredentials(connection: DatabaseConnection | Sanitize
 
   // Check SSH credentials if tunnel is used
   if (unsanitized.useTunnel && unsanitized.sshTunnel) {
-    const hasSSHAuth = unsanitized.sshTunnel.password ||
-                       unsanitized.sshTunnel.privateKey ||
-                       unsanitized.sshTunnel.privateKeyPath
+    const hasSSHAuth = unsanitized.sshTunnel?.password ||
+                       unsanitized.sshTunnel?.privateKey ||
+                       unsanitized.sshTunnel?.privateKeyPath
 
     if (!hasSSHAuth) {
       return false
@@ -398,7 +398,7 @@ export function restoreCredentials(
   delete restored.sanitizationHash
 
   // Restore main password
-  if (credentials.password) {
+  if (credentials?.password) {
     restored.password = credentials.password
   }
 
@@ -408,10 +408,10 @@ export function restoreCredentials(
     delete sshRestored.passwordRequired
     delete sshRestored.privateKeyRequired
 
-    if (credentials.sshPassword) {
+    if (credentials?.sshPassword) {
       sshRestored.password = credentials.sshPassword
     }
-    if (credentials.sshPrivateKey) {
+    if (credentials?.sshPrivateKey) {
       sshRestored.privateKey = credentials.sshPrivateKey
     }
 
@@ -462,10 +462,10 @@ export function validateSanitization(
 
   // Check SSH tunnel
   if (connection.sshTunnel) {
-    if (connection.sshTunnel.password) {
+    if ('password' in connection.sshTunnel && connection.sshTunnel.password) {
       issues.push('SSH password still present')
     }
-    if (connection.sshTunnel.privateKey) {
+    if ('privateKey' in connection.sshTunnel && connection.sshTunnel.privateKey) {
       issues.push('SSH private key still present')
     }
   }

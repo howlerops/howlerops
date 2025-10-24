@@ -524,7 +524,7 @@ export function JsonRowViewerSidebar({
                     searchMatches={searchResults.matches}
                     currentMatchIndex={searchResults.currentIndex}
                     wordWrap={wordWrap}
-                    expandedKeys={new Set()}
+                    expandedKeys={new Set(['*'])}
                     collapsedKeys={new Set()}
                     onToggleEdit={toggleEdit}
                     onUpdateField={updateField}
