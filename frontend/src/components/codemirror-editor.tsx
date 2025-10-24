@@ -64,6 +64,7 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorRef, CodeMirrorEditor
     const valueRef = useRef(value)
     const onChangeRef = useRef(onChange)
     const onExecuteRef = useRef(onExecute)
+    const onMountRef = useRef(onMount)
 
     // Update value ref
     useEffect(() => {
@@ -74,7 +75,8 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorRef, CodeMirrorEditor
     useEffect(() => {
       onChangeRef.current = onChange
       onExecuteRef.current = onExecute
-    }, [onChange, onExecute])
+      onMountRef.current = onMount
+    }, [onChange, onExecute, onMount])
 
     // Initialize editor
     useEffect(() => {
@@ -166,15 +168,15 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorRef, CodeMirrorEditor
       }
 
       // Call onMount callback
-      if (onMount) {
-        onMount(view)
+      if (onMountRef.current) {
+        onMountRef.current(view)
       }
 
       return () => {
         view.destroy()
         viewRef.current = null
       }
-    }, [columnLoader, theme, onMount, readOnly, placeholder])
+    }, [columnLoader, theme, readOnly, placeholder])
 
     // Update value when prop changes
     useEffect(() => {

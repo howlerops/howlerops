@@ -94,8 +94,8 @@ function getTierColorClasses(tier: TierLevel): {
   switch (tier) {
     case 'local':
       return {
-        badge: 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700',
-        text: 'text-gray-700 dark:text-gray-300',
+        badge: 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-100 border-gray-200 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600',
+        text: 'text-gray-700 dark:text-gray-100',
         background: 'bg-gray-50 dark:bg-gray-900',
       }
     case 'individual':
@@ -273,7 +273,7 @@ export function TierBadge({
               {React.cloneElement(icon as React.ReactElement, {
                 className: cn(
                   'w-5 h-5',
-                  tier === 'local' && 'text-gray-700 dark:text-gray-300',
+                  tier === 'local' && 'text-gray-700 dark:text-gray-100',
                   tier === 'individual' && 'text-blue-700 dark:text-blue-300',
                   tier === 'team' && 'text-purple-700 dark:text-purple-300'
                 ),
