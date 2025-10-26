@@ -185,18 +185,14 @@ func ValidateConfig(config *Config) error {
 		return fmt.Errorf("rate_limit_per_min must be positive")
 	}
 
-	// Check if at least one provider is configured
-	hasProvider := false
-
+	// Validate provider-specific configuration if provided
 	if config.OpenAI.APIKey != "" {
-		hasProvider = true
 		if config.OpenAI.BaseURL == "" {
 			return fmt.Errorf("openai base_url is required when api_key is provided")
 		}
 	}
 
 	if config.Anthropic.APIKey != "" {
-		hasProvider = true
 		if config.Anthropic.BaseURL == "" {
 			return fmt.Errorf("anthropic base_url is required when api_key is provided")
 		}
@@ -206,7 +202,6 @@ func ValidateConfig(config *Config) error {
 	}
 
 	if config.Ollama.Endpoint != "" {
-		hasProvider = true
 		if config.Ollama.PullTimeout <= 0 {
 			return fmt.Errorf("ollama pull_timeout must be positive")
 		}
@@ -216,7 +211,6 @@ func ValidateConfig(config *Config) error {
 	}
 
 	if config.HuggingFace.Endpoint != "" {
-		hasProvider = true
 		if config.HuggingFace.PullTimeout <= 0 {
 			return fmt.Errorf("huggingface pull_timeout must be positive")
 		}
@@ -226,14 +220,12 @@ func ValidateConfig(config *Config) error {
 	}
 
 	if config.ClaudeCode.ClaudePath != "" {
-		hasProvider = true
 		if config.ClaudeCode.Model == "" {
 			return fmt.Errorf("claudecode model is required when claude path is configured")
 		}
 	}
 
 	if config.Codex.APIKey != "" {
-		hasProvider = true
 		if config.Codex.Model == "" {
 			return fmt.Errorf("codex model is required when api_key is provided")
 		}
