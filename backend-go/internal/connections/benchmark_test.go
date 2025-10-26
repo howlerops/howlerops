@@ -223,7 +223,7 @@ func BenchmarkIncrementalSync_1000Changes(b *testing.B) {
 	db, cleanup := setupBenchmarkDB(b, 10, 1000)
 	defer cleanup()
 
-	store := turso.NewConnectionStore(db, benchLogger())
+	store := turso.NewSyncStoreAdapter(db, benchLogger())
 	ctx := context.Background()
 
 	userID := "sync-user"

@@ -2,6 +2,7 @@ package analyzer
 
 import (
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -22,19 +23,19 @@ type ParsedQuery struct {
 
 // Common SQL patterns
 var (
-	selectPattern    = regexp.MustCompile(`(?i)^SELECT\s+(DISTINCT\s+)?(.+?)\s+FROM\s+(.+?)(\s+WHERE.+)?$`)
-	insertPattern    = regexp.MustCompile(`(?i)^INSERT\s+INTO\s+(\S+)\s*\(([^)]+)\)\s*VALUES`)
-	updatePattern    = regexp.MustCompile(`(?i)^UPDATE\s+(\S+)\s+SET\s+(.+?)(\s+WHERE.+)?$`)
-	deletePattern    = regexp.MustCompile(`(?i)^DELETE\s+FROM\s+(\S+)(\s+WHERE.+)?$`)
-	tablePattern     = regexp.MustCompile(`(?i)FROM\s+([a-zA-Z_][a-zA-Z0-9_]*(?:\s+(?:AS\s+)?[a-zA-Z_][a-zA-Z0-9_]*)?)`)
-	joinPattern      = regexp.MustCompile(`(?i)(?:INNER|LEFT|RIGHT|FULL|OUTER|CROSS)?\s*JOIN\s+([a-zA-Z_][a-zA-Z0-9_]*(?:\s+(?:AS\s+)?[a-zA-Z_][a-zA-Z0-9_]*)?)`)
-	wherePattern     = regexp.MustCompile(`(?i)WHERE\s+(.+?)(?:\s+(?:GROUP|ORDER|LIMIT|$))`)
-	columnPattern    = regexp.MustCompile(`(?i)([a-zA-Z_][a-zA-Z0-9_]*\.)?([a-zA-Z_][a-zA-Z0-9_]*)`)
-	orderByPattern   = regexp.MustCompile(`(?i)ORDER\s+BY\s+([^)]+?)(?:\s+(?:LIMIT|$))`)
-	groupByPattern   = regexp.MustCompile(`(?i)GROUP\s+BY\s+([^)]+?)(?:\s+(?:HAVING|ORDER|LIMIT|$))`)
-	limitPattern     = regexp.MustCompile(`(?i)LIMIT\s+(\d+)`)
-	subqueryPattern  = regexp.MustCompile(`\([^)]*SELECT[^)]*\)`)
-	functionPattern  = regexp.MustCompile(`(?i)(COUNT|SUM|AVG|MAX|MIN|UPPER|LOWER|LENGTH|SUBSTR|CONCAT|COALESCE)\s*\(`)
+	selectPattern   = regexp.MustCompile(`(?i)^SELECT\s+(DISTINCT\s+)?(.+?)\s+FROM\s+(.+?)(\s+WHERE.+)?$`)
+	insertPattern   = regexp.MustCompile(`(?i)^INSERT\s+INTO\s+(\S+)\s*\(([^)]+)\)\s*VALUES`)
+	updatePattern   = regexp.MustCompile(`(?i)^UPDATE\s+(\S+)\s+SET\s+(.+?)(\s+WHERE.+)?$`)
+	deletePattern   = regexp.MustCompile(`(?i)^DELETE\s+FROM\s+(\S+)(\s+WHERE.+)?$`)
+	tablePattern    = regexp.MustCompile(`(?i)FROM\s+([a-zA-Z_][a-zA-Z0-9_]*(?:\s+(?:AS\s+)?[a-zA-Z_][a-zA-Z0-9_]*)?)`)
+	joinPattern     = regexp.MustCompile(`(?i)(?:INNER|LEFT|RIGHT|FULL|OUTER|CROSS)?\s*JOIN\s+([a-zA-Z_][a-zA-Z0-9_]*(?:\s+(?:AS\s+)?[a-zA-Z_][a-zA-Z0-9_]*)?)`)
+	wherePattern    = regexp.MustCompile(`(?i)WHERE\s+(.+?)(?:\s+(?:GROUP|ORDER|LIMIT|$))`)
+	columnPattern   = regexp.MustCompile(`(?i)([a-zA-Z_][a-zA-Z0-9_]*\.)?([a-zA-Z_][a-zA-Z0-9_]*)`)
+	orderByPattern  = regexp.MustCompile(`(?i)ORDER\s+BY\s+([^)]+?)(?:\s+(?:LIMIT|$))`)
+	groupByPattern  = regexp.MustCompile(`(?i)GROUP\s+BY\s+([^)]+?)(?:\s+(?:HAVING|ORDER|LIMIT|$))`)
+	limitPattern    = regexp.MustCompile(`(?i)LIMIT\s+(\d+)`)
+	subqueryPattern = regexp.MustCompile(`\([^)]*SELECT[^)]*\)`)
+	functionPattern = regexp.MustCompile(`(?i)(COUNT|SUM|AVG|MAX|MIN|UPPER|LOWER|LENGTH|SUBSTR|CONCAT|COALESCE)\s*\(`)
 )
 
 // Parse analyzes a SQL query and extracts its components
@@ -66,9 +67,9 @@ func Parse(sql string) (*ParsedQuery, error) {
 
 	// Extract LIMIT
 	if limitMatch := limitPattern.FindStringSubmatch(sql); len(limitMatch) > 1 {
-		// Parse limit value (ignoring error for simplicity)
-		limit := 0
-		if _, err := strings.TrimSpace(limitMatch[1]); err == nil {
+		// Parse limit value
+		trimmed := strings.TrimSpace(limitMatch[1])
+		if limit, err := strconv.Atoi(trimmed); err == nil {
 			parsed.Limit = limit
 		}
 	}

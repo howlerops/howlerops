@@ -6,11 +6,11 @@ import (
 	"testing"
 
 	"github.com/sirupsen/logrus"
+	"github.com/sql-studio/backend-go/internal/organization"
+	"github.com/sql-studio/backend-go/pkg/storage/turso"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/sql-studio/backend-go/internal/organization"
-	"github.com/sql-studio/backend-go/pkg/storage/turso"
 )
 
 // ====================================================================

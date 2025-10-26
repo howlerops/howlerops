@@ -42,9 +42,9 @@ type MemoryAlert struct {
 }
 
 type MemorySnapshot struct {
-	Stats      *MemoryStats    `json:"stats"`
-	Alerts     []MemoryAlert   `json:"alerts"`
-	LeakStatus *LeakDetection  `json:"leak_status,omitempty"`
+	Stats      *MemoryStats   `json:"stats"`
+	Alerts     []MemoryAlert  `json:"alerts"`
+	LeakStatus *LeakDetection `json:"leak_status,omitempty"`
 }
 
 type LeakDetection struct {
@@ -215,11 +215,11 @@ func (p *MemoryProfiler) monitorMemory() {
 
 		// Log stats periodically
 		p.logger.WithFields(logrus.Fields{
-			"alloc_mb":      stats.AllocMB,
-			"sys_mb":        stats.SysMB,
-			"goroutines":    stats.GoroutineNum,
-			"heap_objects":  stats.HeapObjects,
-			"gc_pause_ms":   stats.GCPauseMs,
+			"alloc_mb":     stats.AllocMB,
+			"sys_mb":       stats.SysMB,
+			"goroutines":   stats.GoroutineNum,
+			"heap_objects": stats.HeapObjects,
+			"gc_pause_ms":  stats.GCPauseMs,
 		}).Debug("Memory statistics")
 	}
 }

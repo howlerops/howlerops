@@ -27,23 +27,23 @@ import (
 
 // mockHTTPService implements ai.Service for testing HTTP handlers
 type mockHTTPService struct {
-	generateSQLFunc          func(ctx context.Context, req *ai.SQLRequest) (*ai.SQLResponse, error)
-	fixSQLFunc               func(ctx context.Context, req *ai.SQLRequest) (*ai.SQLResponse, error)
-	chatFunc                 func(ctx context.Context, req *ai.ChatRequest) (*ai.ChatResponse, error)
-	getProvidersFunc         func() []ai.Provider
-	getProviderHealthFunc    func(ctx context.Context, provider ai.Provider) (*ai.HealthStatus, error)
+	generateSQLFunc           func(ctx context.Context, req *ai.SQLRequest) (*ai.SQLResponse, error)
+	fixSQLFunc                func(ctx context.Context, req *ai.SQLRequest) (*ai.SQLResponse, error)
+	chatFunc                  func(ctx context.Context, req *ai.ChatRequest) (*ai.ChatResponse, error)
+	getProvidersFunc          func() []ai.Provider
+	getProviderHealthFunc     func(ctx context.Context, provider ai.Provider) (*ai.HealthStatus, error)
 	getAllProvidersHealthFunc func(ctx context.Context) (map[ai.Provider]*ai.HealthStatus, error)
-	getAvailableModelsFunc   func(ctx context.Context, provider ai.Provider) ([]ai.ModelInfo, error)
+	getAvailableModelsFunc    func(ctx context.Context, provider ai.Provider) ([]ai.ModelInfo, error)
 	getAllAvailableModelsFunc func(ctx context.Context) (map[ai.Provider][]ai.ModelInfo, error)
-	updateProviderConfigFunc func(provider ai.Provider, config interface{}) error
-	getConfigFunc            func() *ai.Config
-	getUsageStatsFunc        func(ctx context.Context, provider ai.Provider) (*ai.Usage, error)
-	getAllUsageStatsFunc     func(ctx context.Context) (map[ai.Provider]*ai.Usage, error)
-	testProviderFunc         func(ctx context.Context, provider ai.Provider, config interface{}) error
-	validateRequestFunc      func(req *ai.SQLRequest) error
-	validateChatRequestFunc  func(req *ai.ChatRequest) error
-	startFunc                func(ctx context.Context) error
-	stopFunc                 func(ctx context.Context) error
+	updateProviderConfigFunc  func(provider ai.Provider, config interface{}) error
+	getConfigFunc             func() *ai.Config
+	getUsageStatsFunc         func(ctx context.Context, provider ai.Provider) (*ai.Usage, error)
+	getAllUsageStatsFunc      func(ctx context.Context) (map[ai.Provider]*ai.Usage, error)
+	testProviderFunc          func(ctx context.Context, provider ai.Provider, config interface{}) error
+	validateRequestFunc       func(req *ai.SQLRequest) error
+	validateChatRequestFunc   func(req *ai.ChatRequest) error
+	startFunc                 func(ctx context.Context) error
+	stopFunc                  func(ctx context.Context) error
 }
 
 func (m *mockHTTPService) GenerateSQL(ctx context.Context, req *ai.SQLRequest) (*ai.SQLResponse, error) {

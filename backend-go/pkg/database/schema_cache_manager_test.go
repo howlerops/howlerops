@@ -116,10 +116,10 @@ func TestManager_InvalidateAllSchemas(t *testing.T) {
 // TestManager_GetSchemaCacheStats tests the GetSchemaCacheStats method
 func TestManager_GetSchemaCacheStats(t *testing.T) {
 	tests := []struct {
-		name           string
-		setupManager   func() *database.Manager
-		validateStats  func(t *testing.T, stats map[string]interface{})
-		description    string
+		name          string
+		setupManager  func() *database.Manager
+		validateStats func(t *testing.T, stats map[string]interface{})
+		description   string
 	}{
 		{
 			name: "with initialized schema cache - returns valid stats",
@@ -498,4 +498,3 @@ func TestManager_GetSchemaCacheStats_EmptyCache(t *testing.T) {
 	totalTables := stats["total_tables"]
 	assert.Equal(t, 0, totalTables, "empty cache should have 0 tables")
 }
-

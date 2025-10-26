@@ -23,15 +23,15 @@ type SchemaCache struct {
 
 // CachedSchema represents a cached schema with metadata
 type CachedSchema struct {
-	ConnectionID    string
-	Schemas         []string
-	Tables          map[string][]TableInfo // schema -> tables
-	Columns         map[string][]ColumnInfo // schema.table -> columns
-	Hash            string    // Hash of schema structure
-	MigrationHash   string    // Hash of migration state
-	CachedAt        time.Time
-	ExpiresAt       time.Time
-	LastCheckedAt   time.Time
+	ConnectionID     string
+	Schemas          []string
+	Tables           map[string][]TableInfo  // schema -> tables
+	Columns          map[string][]ColumnInfo // schema.table -> columns
+	Hash             string                  // Hash of schema structure
+	MigrationHash    string                  // Hash of migration state
+	CachedAt         time.Time
+	ExpiresAt        time.Time
+	LastCheckedAt    time.Time
 	ChangeDetectedAt *time.Time
 }
 
@@ -47,8 +47,8 @@ func NewSchemaCache(logger *logrus.Logger) *SchemaCache {
 	return &SchemaCache{
 		cache:       make(map[string]*CachedSchema),
 		logger:      logger,
-		defaultTTL:  1 * time.Hour,      // Cache for 1 hour by default
-		maxCacheAge: 24 * time.Hour,     // Maximum cache age
+		defaultTTL:  1 * time.Hour,  // Cache for 1 hour by default
+		maxCacheAge: 24 * time.Hour, // Maximum cache age
 	}
 }
 
@@ -141,7 +141,7 @@ func (sc *SchemaCache) InvalidateCache(connectionID string) {
 	sc.mu.Lock()
 	delete(sc.cache, connectionID)
 	sc.mu.Unlock()
-	
+
 	sc.logger.WithField("connection", connectionID).Debug("Schema cache invalidated")
 }
 
@@ -150,7 +150,7 @@ func (sc *SchemaCache) InvalidateAll() {
 	sc.mu.Lock()
 	sc.cache = make(map[string]*CachedSchema)
 	sc.mu.Unlock()
-	
+
 	sc.logger.Info("All schema caches invalidated")
 }
 
@@ -175,7 +175,7 @@ func (sc *SchemaCache) detectSchemaChange(ctx context.Context, connectionID stri
 	// Check migration state separately for more granular detection
 	if fingerprint.MigrationState != cached.MigrationHash {
 		sc.logger.WithFields(logrus.Fields{
-			"connection": connectionID,
+			"connection":    connectionID,
 			"old_migration": cached.MigrationHash[:8],
 			"new_migration": fingerprint.MigrationState[:8],
 		}).Debug("Migration state change detected")
@@ -249,7 +249,7 @@ func (sc *SchemaCache) getMigrationStateHash(ctx context.Context, db Database) (
 	// Try common migration table patterns
 	migrationTables := []string{
 		"schema_migrations",
-		"migrations", 
+		"migrations",
 		"flyway_schema_history",
 		"_prisma_migrations",
 		"django_migrations",
@@ -328,11 +328,11 @@ func (sc *SchemaCache) GetCacheStats() map[string]interface{} {
 	defer sc.mu.RUnlock()
 
 	stats := map[string]interface{}{
-		"total_cached":     len(sc.cache),
-		"connections":      []string{},
-		"oldest_cache":     "",
-		"newest_cache":     "",
-		"total_tables":     0,
+		"total_cached": len(sc.cache),
+		"connections":  []string{},
+		"oldest_cache": "",
+		"newest_cache": "",
+		"total_tables": 0,
 	}
 
 	var oldest, newest time.Time
@@ -362,4 +362,3 @@ func (sc *SchemaCache) GetCacheStats() map[string]interface{} {
 
 	return stats
 }
-

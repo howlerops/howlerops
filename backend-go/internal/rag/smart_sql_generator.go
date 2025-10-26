@@ -28,21 +28,21 @@ type LLMProvider interface {
 
 // GeneratedSQL represents generated SQL with metadata
 type GeneratedSQL struct {
-	Query         string            `json:"query"`
-	Explanation   string            `json:"explanation"`
-	Confidence    float32           `json:"confidence"`
-	Tables        []string          `json:"tables"`
-	Columns       []string          `json:"columns"`
-	Warnings      []string          `json:"warnings"`
-	AlternativeQueries []string     `json:"alternative_queries,omitempty"`
+	Query              string   `json:"query"`
+	Explanation        string   `json:"explanation"`
+	Confidence         float32  `json:"confidence"`
+	Tables             []string `json:"tables"`
+	Columns            []string `json:"columns"`
+	Warnings           []string `json:"warnings"`
+	AlternativeQueries []string `json:"alternative_queries,omitempty"`
 }
 
 // SQLExplanation represents SQL explanation
 type SQLExplanation struct {
-	Summary       string         `json:"summary"`
+	Summary       string            `json:"summary"`
 	Steps         []ExplanationStep `json:"steps"`
-	Complexity    string         `json:"complexity"` // simple, moderate, complex
-	EstimatedTime string         `json:"estimated_time"`
+	Complexity    string            `json:"complexity"` // simple, moderate, complex
+	EstimatedTime string            `json:"estimated_time"`
 }
 
 // ExplanationStep represents a step in SQL explanation
@@ -55,10 +55,10 @@ type ExplanationStep struct {
 
 // OptimizedSQL represents optimized SQL
 type OptimizedSQL struct {
-	OriginalQuery   string            `json:"original_query"`
-	OptimizedQuery  string            `json:"optimized_query"`
-	Improvements    []Improvement     `json:"improvements"`
-	EstimatedGain   float32           `json:"estimated_gain_percent"`
+	OriginalQuery  string        `json:"original_query"`
+	OptimizedQuery string        `json:"optimized_query"`
+	Improvements   []Improvement `json:"improvements"`
+	EstimatedGain  float32       `json:"estimated_gain_percent"`
 }
 
 // Improvement represents an optimization improvement
@@ -122,10 +122,10 @@ func (g *SmartSQLGenerator) Generate(ctx context.Context, prompt string, connect
 	}
 
 	g.logger.WithFields(logrus.Fields{
-		"prompt":      prompt,
-		"confidence":  generated.Confidence,
-		"tables":      len(generated.Tables),
-		"duration":    time.Since(startTime),
+		"prompt":     prompt,
+		"confidence": generated.Confidence,
+		"tables":     len(generated.Tables),
+		"duration":   time.Since(startTime),
 	}).Info("SQL generated successfully")
 
 	return generated, nil

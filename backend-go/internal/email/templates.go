@@ -1000,4 +1000,3 @@ const memberRemovedTemplate = `
 </body>
 </html>
 `
-

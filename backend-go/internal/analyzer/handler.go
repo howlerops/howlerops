@@ -6,19 +6,17 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
-	"sql-studio/backend-go/internal/autocomplete"
-	"sql-studio/backend-go/internal/nl2sql"
-	"sql-studio/backend-go/pkg/middleware"
-	"sql-studio/backend-go/pkg/response"
+	"github.com/sql-studio/backend-go/internal/autocomplete"
+	"github.com/sql-studio/backend-go/internal/nl2sql"
 )
 
 // Handler handles query analysis HTTP endpoints
 type Handler struct {
-	analyzer         *QueryAnalyzer
-	nl2sqlConverter  *nl2sql.NL2SQLConverter
-	autocomplete     *autocomplete.AutocompleteService
-	schemaService    SchemaService
-	logger           *logrus.Logger
+	analyzer        *QueryAnalyzer
+	nl2sqlConverter *nl2sql.NL2SQLConverter
+	autocomplete    *autocomplete.AutocompleteService
+	schemaService   SchemaService
+	logger          *logrus.Logger
 }
 
 // SchemaService interface for retrieving schema information
@@ -46,7 +44,8 @@ func NewHandler(
 func (h *Handler) RegisterRoutes(router *mux.Router) {
 	// Apply authentication middleware to all routes
 	api := router.PathPrefix("/api").Subrouter()
-	api.Use(middleware.AuthMiddleware)
+	// TODO: Add HTTP authentication middleware
+	// api.Use(middleware.AuthMiddleware)
 
 	// Query analysis endpoints
 	api.HandleFunc("/query/analyze", h.AnalyzeQuery).Methods("POST", "OPTIONS")
@@ -66,7 +65,7 @@ type AnalyzeQueryRequest struct {
 func (h *Handler) AnalyzeQuery(w http.ResponseWriter, r *http.Request) {
 	var req AnalyzeQueryRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.Error(w, "Invalid request body", http.StatusBadRequest)
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
@@ -85,11 +84,11 @@ func (h *Handler) AnalyzeQuery(w http.ResponseWriter, r *http.Request) {
 	result, err := h.analyzer.Analyze(req.SQL, schema)
 	if err != nil {
 		h.logger.WithError(err).Error("Failed to analyze query")
-		response.Error(w, "Failed to analyze query", http.StatusInternalServerError)
+		http.Error(w, "Failed to analyze query", http.StatusInternalServerError)
 		return
 	}
 
-	response.JSON(w, result)
+	respondJSON(w, http.StatusOK, result)
 }
 
 // NL2SQLRequest represents the natural language to SQL request
@@ -102,7 +101,7 @@ type NL2SQLRequest struct {
 func (h *Handler) NaturalLanguageToSQL(w http.ResponseWriter, r *http.Request) {
 	var req NL2SQLRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.Error(w, "Invalid request body", http.StatusBadRequest)
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
@@ -127,11 +126,11 @@ func (h *Handler) NaturalLanguageToSQL(w http.ResponseWriter, r *http.Request) {
 	result, err := h.nl2sqlConverter.Convert(req.Query)
 	if err != nil {
 		// Return result even on error (contains suggestions)
-		response.JSON(w, result)
+		respondJSON(w, http.StatusOK, result)
 		return
 	}
 
-	response.JSON(w, result)
+	respondJSON(w, http.StatusOK, result)
 }
 
 // AutocompleteRequest represents the autocomplete request
@@ -145,7 +144,7 @@ type AutocompleteRequest struct {
 func (h *Handler) Autocomplete(w http.ResponseWriter, r *http.Request) {
 	var req AutocompleteRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.Error(w, "Invalid request body", http.StatusBadRequest)
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
@@ -170,11 +169,11 @@ func (h *Handler) Autocomplete(w http.ResponseWriter, r *http.Request) {
 	suggestions, err := h.autocomplete.GetSuggestions(req.SQL, req.CursorPos)
 	if err != nil {
 		h.logger.WithError(err).Error("Failed to get autocomplete suggestions")
-		response.Error(w, "Failed to get suggestions", http.StatusInternalServerError)
+		http.Error(w, "Failed to get suggestions", http.StatusInternalServerError)
 		return
 	}
 
-	response.JSON(w, map[string]interface{}{
+	respondJSON(w, http.StatusOK, map[string]interface{}{
 		"suggestions": suggestions,
 	})
 }
@@ -189,7 +188,7 @@ type ExplainQueryRequest struct {
 func (h *Handler) ExplainQuery(w http.ResponseWriter, r *http.Request) {
 	var req ExplainQueryRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.Error(w, "Invalid request body", http.StatusBadRequest)
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
@@ -198,20 +197,20 @@ func (h *Handler) ExplainQuery(w http.ResponseWriter, r *http.Request) {
 		result, err := ExplainComplex(req.SQL)
 		if err != nil {
 			h.logger.WithError(err).Error("Failed to explain query")
-			response.Error(w, "Failed to explain query", http.StatusInternalServerError)
+			http.Error(w, "Failed to explain query", http.StatusInternalServerError)
 			return
 		}
-		response.JSON(w, result)
+		respondJSON(w, http.StatusOK, result)
 	} else {
 		// Return simple explanation
 		explanation, err := Explain(req.SQL)
 		if err != nil {
 			h.logger.WithError(err).Error("Failed to explain query")
-			response.Error(w, "Failed to explain query", http.StatusInternalServerError)
+			http.Error(w, "Failed to explain query", http.StatusInternalServerError)
 			return
 		}
 
-		response.JSON(w, map[string]interface{}{
+		respondJSON(w, http.StatusOK, map[string]interface{}{
 			"explanation": explanation,
 		})
 	}
@@ -225,7 +224,7 @@ func (h *Handler) GetSupportedPatterns(w http.ResponseWriter, r *http.Request) {
 	}
 
 	patterns := h.nl2sqlConverter.GetSupportedPatterns()
-	response.JSON(w, map[string]interface{}{
+	respondJSON(w, http.StatusOK, map[string]interface{}{
 		"patterns": patterns,
 		"total":    len(patterns),
 	})
@@ -321,11 +320,11 @@ func (m *MockSchemaService) GetSchema(connectionID string) (*Schema, error) {
 			"orders": {
 				Name: "orders",
 				Columns: map[string]*Column{
-					"id":          {Name: "id", Type: "INTEGER", Indexed: true},
-					"user_id":     {Name: "user_id", Type: "INTEGER", Indexed: true},
-					"total":       {Name: "total", Type: "DECIMAL(10,2)"},
-					"status":      {Name: "status", Type: "VARCHAR(50)"},
-					"created_at":  {Name: "created_at", Type: "TIMESTAMP"},
+					"id":         {Name: "id", Type: "INTEGER", Indexed: true},
+					"user_id":    {Name: "user_id", Type: "INTEGER", Indexed: true},
+					"total":      {Name: "total", Type: "DECIMAL(10,2)"},
+					"status":     {Name: "status", Type: "VARCHAR(50)"},
+					"created_at": {Name: "created_at", Type: "TIMESTAMP"},
 				},
 				Indexes: map[string]*Index{
 					"PRIMARY": {
@@ -365,4 +364,11 @@ func (m *MockSchemaService) GetSchema(connectionID string) (*Schema, error) {
 			},
 		},
 	}, nil
+}
+
+// Helper function to respond with JSON
+func respondJSON(w http.ResponseWriter, status int, data interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(data)
 }

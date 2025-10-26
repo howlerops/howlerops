@@ -19,13 +19,13 @@ const (
 
 // Token represents a verification or reset token
 type Token struct {
-	ID        string    `json:"id"`
-	UserID    string    `json:"user_id"`
-	Token     string    `json:"token"`
-	Type      TokenType `json:"type"`
-	ExpiresAt time.Time `json:"expires_at"`
+	ID        string     `json:"id"`
+	UserID    string     `json:"user_id"`
+	Token     string     `json:"token"`
+	Type      TokenType  `json:"type"`
+	ExpiresAt time.Time  `json:"expires_at"`
 	UsedAt    *time.Time `json:"used_at,omitempty"`
-	CreatedAt time.Time `json:"created_at"`
+	CreatedAt time.Time  `json:"created_at"`
 }
 
 // TokenStore defines the interface for token storage

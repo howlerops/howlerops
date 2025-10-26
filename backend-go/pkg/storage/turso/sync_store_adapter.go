@@ -49,6 +49,12 @@ func (a *SyncStoreAdapter) ListConnections(ctx context.Context, userID string, s
 	return result, nil
 }
 
+// ListAccessibleConnections returns connections accessible by user across organizations
+func (a *SyncStoreAdapter) ListAccessibleConnections(ctx context.Context, userID string, orgIDs []string, since time.Time) ([]sync.ConnectionTemplate, error) {
+	// For now, just return user's connections - organization filtering can be added later
+	return a.ListConnections(ctx, userID, since)
+}
+
 func (a *SyncStoreAdapter) SaveConnection(ctx context.Context, userID string, conn *sync.ConnectionTemplate) error {
 	tursoConn := a.convertToTursoConnection(userID, conn)
 	return a.appDataStore.SaveConnectionTemplate(ctx, tursoConn)
@@ -88,6 +94,12 @@ func (a *SyncStoreAdapter) ListSavedQueries(ctx context.Context, userID string, 
 		}
 	}
 	return result, nil
+}
+
+// ListAccessibleQueries returns queries accessible by user across organizations
+func (a *SyncStoreAdapter) ListAccessibleQueries(ctx context.Context, userID string, orgIDs []string, since time.Time) ([]sync.SavedQuery, error) {
+	// For now, just return user's queries - organization filtering can be added later
+	return a.ListSavedQueries(ctx, userID, since)
 }
 
 func (a *SyncStoreAdapter) SaveQuery(ctx context.Context, userID string, query *sync.SavedQuery) error {
@@ -180,6 +192,19 @@ func (a *SyncStoreAdapter) UpdateSyncMetadata(ctx context.Context, metadata *syn
 		ClientVersion: metadata.Version,
 	}
 	return a.appDataStore.UpdateSyncMetadata(ctx, tursoMetadata)
+}
+
+// Sync Logs
+
+func (a *SyncStoreAdapter) SaveSyncLog(ctx context.Context, log *sync.SyncLog) error {
+	// TODO: Implement sync log storage when needed
+	a.logger.WithField("sync_log_id", log.ID).Debug("Sync log storage not yet implemented")
+	return nil
+}
+
+func (a *SyncStoreAdapter) ListSyncLogs(ctx context.Context, userID string, limit int) ([]sync.SyncLog, error) {
+	// TODO: Implement sync log retrieval when needed
+	return []sync.SyncLog{}, nil
 }
 
 // Conversion helpers

@@ -10,10 +10,10 @@ import (
 // MockStore implements Store interface for testing
 type MockStore struct {
 	connections  map[string]*ConnectionTemplate // connID -> connection
-	queries      map[string]*SavedQuery          // queryID -> query
-	queryHistory map[string]*QueryHistory        // historyID -> history
-	conflicts    map[string]*Conflict            // conflictID -> conflict
-	syncMetadata map[string]*SyncMetadata        // userID-deviceID -> metadata
+	queries      map[string]*SavedQuery         // queryID -> query
+	queryHistory map[string]*QueryHistory       // historyID -> history
+	conflicts    map[string]*Conflict           // conflictID -> conflict
+	syncMetadata map[string]*SyncMetadata       // userID-deviceID -> metadata
 	syncLogs     []SyncLog
 }
 

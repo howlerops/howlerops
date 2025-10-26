@@ -24,11 +24,11 @@ const defaultOllamaSystemPrompt = "You are an expert SQL developer. Generate cle
 
 // Ollama API structures
 type ollamaGenerateRequest struct {
-	Model    string                 `json:"model"`
-	Prompt   string                 `json:"prompt"`
-	System   string                 `json:"system,omitempty"`
-	Stream   bool                   `json:"stream"`
-	Options  map[string]interface{} `json:"options,omitempty"`
+	Model   string                 `json:"model"`
+	Prompt  string                 `json:"prompt"`
+	System  string                 `json:"system,omitempty"`
+	Stream  bool                   `json:"stream"`
+	Options map[string]interface{} `json:"options,omitempty"`
 }
 
 type ollamaGenerateResponse struct {

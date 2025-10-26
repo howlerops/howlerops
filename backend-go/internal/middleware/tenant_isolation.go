@@ -34,7 +34,7 @@ func NewTenantIsolationMiddleware(db *sql.DB, logger *logrus.Logger) *TenantIsol
 // EnforceTenantIsolation ensures all requests have organization context
 func (m *TenantIsolationMiddleware) EnforceTenantIsolation(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		userID := getUserIDFromContext(r.Context())
+		userID := getTenantUserIDFromContext(r.Context())
 		if userID == "" {
 			m.logger.Warn("Tenant isolation: no user ID in context")
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
@@ -182,8 +182,8 @@ func BuildOrgFilterQuery(ctx context.Context, orgColumnName string) (string, []i
 	return fmt.Sprintf("%s IN (%s)", orgColumnName, placeholders), args
 }
 
-// getUserIDFromContext extracts user ID from context (set by auth middleware)
-func getUserIDFromContext(ctx context.Context) string {
+// getTenantUserIDFromContext extracts user ID from context (set by auth middleware)
+func getTenantUserIDFromContext(ctx context.Context) string {
 	// This should be set by your authentication middleware
 	userID, ok := ctx.Value("user_id").(string)
 	if !ok {

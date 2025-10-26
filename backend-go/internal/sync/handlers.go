@@ -328,17 +328,17 @@ func (h *AuthHandler) respondError(w http.ResponseWriter, status int, message st
 
 // RateLimitConfig defines rate limit configuration for sync endpoints
 type RateLimitConfig struct {
-	UploadRPS    int
-	DownloadRPS  int
-	ConflictRPS  int
+	UploadRPS   int
+	DownloadRPS int
+	ConflictRPS int
 }
 
 // GetDefaultRateLimitConfig returns default rate limits
 func GetDefaultRateLimitConfig() RateLimitConfig {
 	return RateLimitConfig{
-		UploadRPS:   10,  // 10 requests per minute per user
-		DownloadRPS: 20,  // 20 requests per minute per user
-		ConflictRPS: 10,  // 10 requests per minute per user
+		UploadRPS:   10, // 10 requests per minute per user
+		DownloadRPS: 20, // 20 requests per minute per user
+		ConflictRPS: 10, // 10 requests per minute per user
 	}
 }
 
@@ -382,9 +382,9 @@ type ValidationError struct {
 
 // ValidationErrorResponse represents a validation error response
 type ValidationErrorResponse struct {
-	Error  bool              `json:"error"`
-	Message string           `json:"message"`
-	Errors []ValidationError `json:"errors"`
+	Error   bool              `json:"error"`
+	Message string            `json:"message"`
+	Errors  []ValidationError `json:"errors"`
 }
 
 // NewValidationErrorResponse creates a new validation error response

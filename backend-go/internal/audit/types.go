@@ -4,15 +4,15 @@ import "time"
 
 // AuditLogDetailed represents field-level audit tracking
 type AuditLogDetailed struct {
-	ID          string    `json:"id"`
-	AuditLogID  string    `json:"audit_log_id"`
-	TableName   string    `json:"table_name"`
-	RecordID    string    `json:"record_id"`
-	FieldName   string    `json:"field_name"`
-	OldValue    string    `json:"old_value,omitempty"`
-	NewValue    string    `json:"new_value,omitempty"`
-	FieldType   string    `json:"field_type"` // 'pii', 'sensitive', 'normal'
-	CreatedAt   time.Time `json:"created_at"`
+	ID         string    `json:"id"`
+	AuditLogID string    `json:"audit_log_id"`
+	TableName  string    `json:"table_name"`
+	RecordID   string    `json:"record_id"`
+	FieldName  string    `json:"field_name"`
+	OldValue   string    `json:"old_value,omitempty"`
+	NewValue   string    `json:"new_value,omitempty"`
+	FieldType  string    `json:"field_type"` // 'pii', 'sensitive', 'normal'
+	CreatedAt  time.Time `json:"created_at"`
 }
 
 // AuditChange represents a single field change
@@ -45,12 +45,12 @@ type FieldChange struct {
 
 // PIIAccessLog tracks access to PII fields
 type PIIAccessLog struct {
-	UserID       string    `json:"user_id"`
-	TableName    string    `json:"table_name"`
-	FieldName    string    `json:"field_name"`
-	RecordID     string    `json:"record_id"`
-	AccessType   string    `json:"access_type"` // 'read', 'write', 'export'
-	AccessedAt   time.Time `json:"accessed_at"`
-	IPAddress    string    `json:"ip_address,omitempty"`
-	UserAgent    string    `json:"user_agent,omitempty"`
+	UserID     string    `json:"user_id"`
+	TableName  string    `json:"table_name"`
+	FieldName  string    `json:"field_name"`
+	RecordID   string    `json:"record_id"`
+	AccessType string    `json:"access_type"` // 'read', 'write', 'export'
+	AccessedAt time.Time `json:"accessed_at"`
+	IPAddress  string    `json:"ip_address,omitempty"`
+	UserAgent  string    `json:"user_agent,omitempty"`
 }

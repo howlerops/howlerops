@@ -21,20 +21,20 @@ type SSOProvider interface {
 
 // SSOUser represents user information from SSO provider
 type SSOUser struct {
-	Email       string            `json:"email"`
-	FirstName   string            `json:"first_name"`
-	LastName    string            `json:"last_name"`
-	ExternalID  string            `json:"external_id"`
-	Attributes  map[string]string `json:"attributes"`
+	Email      string            `json:"email"`
+	FirstName  string            `json:"first_name"`
+	LastName   string            `json:"last_name"`
+	ExternalID string            `json:"external_id"`
+	Attributes map[string]string `json:"attributes"`
 }
 
 // SSOConfig represents SSO configuration for an organization
 type SSOConfig struct {
 	ID             string    `json:"id"`
 	OrganizationID string    `json:"organization_id"`
-	Provider       string    `json:"provider"`       // 'saml', 'oauth2', 'oidc'
-	ProviderName   string    `json:"provider_name"`  // 'Okta', 'Auth0', 'Azure AD'
-	Metadata       string    `json:"metadata"`       // JSON configuration
+	Provider       string    `json:"provider"`      // 'saml', 'oauth2', 'oidc'
+	ProviderName   string    `json:"provider_name"` // 'Okta', 'Auth0', 'Azure AD'
+	Metadata       string    `json:"metadata"`      // JSON configuration
 	Enabled        bool      `json:"enabled"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
@@ -64,11 +64,11 @@ type SSOConfigStore interface {
 // SSOProviderConfig contains provider-specific configuration
 type SSOProviderConfig struct {
 	// OAuth2/OIDC
-	ClientID     string `json:"client_id,omitempty"`
-	ClientSecret string `json:"client_secret,omitempty"`
-	AuthURL      string `json:"auth_url,omitempty"`
-	TokenURL     string `json:"token_url,omitempty"`
-	RedirectURL  string `json:"redirect_url,omitempty"`
+	ClientID     string   `json:"client_id,omitempty"`
+	ClientSecret string   `json:"client_secret,omitempty"`
+	AuthURL      string   `json:"auth_url,omitempty"`
+	TokenURL     string   `json:"token_url,omitempty"`
+	RedirectURL  string   `json:"redirect_url,omitempty"`
 	Scopes       []string `json:"scopes,omitempty"`
 
 	// SAML

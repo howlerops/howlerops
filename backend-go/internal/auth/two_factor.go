@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/bcrypt"
@@ -16,11 +17,11 @@ import (
 
 // TwoFactor represents 2FA configuration for a user
 type TwoFactor struct {
-	UserID      string    `json:"user_id"`
-	Enabled     bool      `json:"enabled"`
-	Secret      string    `json:"-"` // Never expose secret in JSON
-	BackupCodes []string  `json:"-"` // Never expose backup codes in JSON
-	CreatedAt   time.Time `json:"created_at"`
+	UserID      string     `json:"user_id"`
+	Enabled     bool       `json:"enabled"`
+	Secret      string     `json:"-"` // Never expose secret in JSON
+	BackupCodes []string   `json:"-"` // Never expose backup codes in JSON
+	CreatedAt   time.Time  `json:"created_at"`
 	EnabledAt   *time.Time `json:"enabled_at,omitempty"`
 }
 
@@ -81,8 +82,8 @@ func (s *TwoFactorService) EnableTwoFactor(ctx context.Context, userID, userEmai
 		AccountName: userEmail,
 		Period:      30,
 		SecretSize:  32,
-		Digits:      6,
-		Algorithm:   "SHA1",
+		Digits:      otp.DigitsSix,
+		Algorithm:   otp.AlgorithmSHA1,
 	})
 	if err != nil {
 		s.logger.WithError(err).Error("Failed to generate TOTP key")
@@ -303,16 +304,16 @@ func (s *TwoFactorService) isValidBackupCode(code string, hashedCodes []string) 
 
 // TwoFactorBackupCodesResponse represents the backup codes response
 type TwoFactorBackupCodesResponse struct {
-	BackupCodes []string `json:"backup_codes"`
+	BackupCodes []string  `json:"backup_codes"`
 	CreatedAt   time.Time `json:"created_at"`
 }
 
 // TwoFactorStatusResponse represents the 2FA status
 type TwoFactorStatusResponse struct {
-	Enabled           bool       `json:"enabled"`
-	ConfiguredAt      *time.Time `json:"configured_at,omitempty"`
-	EnabledAt         *time.Time `json:"enabled_at,omitempty"`
-	BackupCodesCount  int        `json:"backup_codes_count"`
+	Enabled          bool       `json:"enabled"`
+	ConfiguredAt     *time.Time `json:"configured_at,omitempty"`
+	EnabledAt        *time.Time `json:"enabled_at,omitempty"`
+	BackupCodesCount int        `json:"backup_codes_count"`
 }
 
 // GetStatus returns the 2FA status for a user

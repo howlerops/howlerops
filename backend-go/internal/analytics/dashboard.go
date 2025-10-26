@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -43,38 +42,38 @@ type OverviewStats struct {
 }
 
 type QueryStatsData struct {
-	TopQueries      []*TopQuery           `json:"top_queries"`
-	SlowQueries     []*QueryExecution     `json:"slow_queries"`
-	QueryFrequency  []TimeSeriesPoint     `json:"query_frequency"`
-	PopularTables   []TableUsage          `json:"popular_tables"`
-	ErrorQueries    []*QueryExecution     `json:"error_queries"`
-	QueryTypes      map[string]int        `json:"query_types"` // SELECT, INSERT, UPDATE, DELETE
+	TopQueries     []*TopQuery       `json:"top_queries"`
+	SlowQueries    []*QueryExecution `json:"slow_queries"`
+	QueryFrequency []TimeSeriesPoint `json:"query_frequency"`
+	PopularTables  []TableUsage      `json:"popular_tables"`
+	ErrorQueries   []*QueryExecution `json:"error_queries"`
+	QueryTypes     map[string]int    `json:"query_types"` // SELECT, INSERT, UPDATE, DELETE
 }
 
 type UserActivityStats struct {
-	ActiveUsersByDay  []TimeSeriesPoint     `json:"active_users_by_day"`
-	QueryCountByUser  []UserQueryCount      `json:"query_count_by_user"`
-	PeakHours        []HourlyActivity      `json:"peak_hours"`
-	UserGrowth       []TimeSeriesPoint     `json:"user_growth"`
+	ActiveUsersByDay []TimeSeriesPoint `json:"active_users_by_day"`
+	QueryCountByUser []UserQueryCount  `json:"query_count_by_user"`
+	PeakHours        []HourlyActivity  `json:"peak_hours"`
+	UserGrowth       []TimeSeriesPoint `json:"user_growth"`
 }
 
 type PerformanceStats struct {
-	AvgQueryTime   float64           `json:"avg_query_time_ms"`
-	P50QueryTime   float64           `json:"p50_query_time_ms"`
-	P95QueryTime   float64           `json:"p95_query_time_ms"`
-	P99QueryTime   float64           `json:"p99_query_time_ms"`
-	ErrorRate      float64           `json:"error_rate"`
-	TimeoutRate    float64           `json:"timeout_rate"`
-	Throughput     float64           `json:"queries_per_second"`
-	ResponseTrend  []TimeSeriesPoint `json:"response_trend"`
+	AvgQueryTime  float64           `json:"avg_query_time_ms"`
+	P50QueryTime  float64           `json:"p50_query_time_ms"`
+	P95QueryTime  float64           `json:"p95_query_time_ms"`
+	P99QueryTime  float64           `json:"p99_query_time_ms"`
+	ErrorRate     float64           `json:"error_rate"`
+	TimeoutRate   float64           `json:"timeout_rate"`
+	Throughput    float64           `json:"queries_per_second"`
+	ResponseTrend []TimeSeriesPoint `json:"response_trend"`
 }
 
 type ConnectionStats struct {
-	TotalConnections   int                  `json:"total_connections"`
-	ActiveConnections  int                  `json:"active_connections"`
-	ConnectionsByType  map[string]int       `json:"connections_by_type"`
-	ConnectionHealth   []ConnectionHealth   `json:"connection_health"`
-	RecentConnections  []RecentConnection   `json:"recent_connections"`
+	TotalConnections  int                `json:"total_connections"`
+	ActiveConnections int                `json:"active_connections"`
+	ConnectionsByType map[string]int     `json:"connections_by_type"`
+	ConnectionHealth  []ConnectionHealth `json:"connection_health"`
+	RecentConnections []RecentConnection `json:"recent_connections"`
 }
 
 type TimeSeriesPoint struct {
@@ -84,8 +83,8 @@ type TimeSeriesPoint struct {
 }
 
 type TableUsage struct {
-	TableName  string `json:"table_name"`
-	QueryCount int    `json:"query_count"`
+	TableName  string  `json:"table_name"`
+	QueryCount int     `json:"query_count"`
 	Percentage float64 `json:"percentage"`
 }
 
@@ -102,20 +101,20 @@ type HourlyActivity struct {
 }
 
 type ConnectionHealth struct {
-	ConnectionID   string    `json:"connection_id"`
-	Name          string    `json:"name"`
-	Status        string    `json:"status"` // healthy, degraded, unhealthy
-	LastChecked   time.Time `json:"last_checked"`
-	ResponseTime  float64   `json:"response_time_ms"`
-	ErrorRate     float64   `json:"error_rate"`
+	ConnectionID string    `json:"connection_id"`
+	Name         string    `json:"name"`
+	Status       string    `json:"status"` // healthy, degraded, unhealthy
+	LastChecked  time.Time `json:"last_checked"`
+	ResponseTime float64   `json:"response_time_ms"`
+	ErrorRate    float64   `json:"error_rate"`
 }
 
 type RecentConnection struct {
 	ConnectionID string    `json:"connection_id"`
-	Name        string    `json:"name"`
-	Type        string    `json:"type"`
-	CreatedAt   time.Time `json:"created_at"`
-	LastUsed    time.Time `json:"last_used"`
+	Name         string    `json:"name"`
+	Type         string    `json:"type"`
+	CreatedAt    time.Time `json:"created_at"`
+	LastUsed     time.Time `json:"last_used"`
 }
 
 func NewDashboardService(db *sql.DB, queryMetrics *QueryMetrics, logger *logrus.Logger) *DashboardService {

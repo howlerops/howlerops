@@ -16,13 +16,13 @@ func ElasticsearchExample() {
 
 	// Create Elasticsearch connection configuration
 	config := database.ConnectionConfig{
-		Type:     database.Elasticsearch,
-		Host:     "localhost",
-		Port:     9200,
-		Database: "my-elasticsearch", // Logical name for the connection
-		Username: "elastic",           // Optional
-		Password: "password",          // Optional
-		SSLMode:  "disable",           // Use "require" for HTTPS
+		Type:       database.Elasticsearch,
+		Host:       "localhost",
+		Port:       9200,
+		Database:   "my-elasticsearch", // Logical name for the connection
+		Username:   "elastic",          // Optional
+		Password:   "password",         // Optional
+		SSLMode:    "disable",          // Use "require" for HTTPS
 		Parameters: map[string]string{
 			// Optionally use API key instead of username/password
 			// "api_key": "your-base64-encoded-api-key",

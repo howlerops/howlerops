@@ -50,8 +50,8 @@ func createTestConfig(port int) *config.Config {
 			ShutdownTimeout: 5 * time.Second,
 		},
 		Auth: config.AuthConfig{
-			JWTSecret:        "test-secret-key-at-least-32-characters-long",
-			JWTExpiration:    24 * time.Hour,
+			JWTSecret:         "test-secret-key-at-least-32-characters-long",
+			JWTExpiration:     24 * time.Hour,
 			RefreshExpiration: 168 * time.Hour,
 		},
 		Security: config.SecurityConfig{

@@ -181,11 +181,11 @@ func TestAccessibleConnectionsFiltering(t *testing.T) {
 
 	// Setup test data
 	conn1 := &ConnectionTemplate{
-		ID:             uuid.New().String(),
-		Name:           "User A Personal",
-		UserID:         userA,
-		Visibility:     "personal",
-		UpdatedAt:      now,
+		ID:         uuid.New().String(),
+		Name:       "User A Personal",
+		UserID:     userA,
+		Visibility: "personal",
+		UpdatedAt:  now,
 	}
 	store.SaveConnection(ctx, userA, conn1)
 

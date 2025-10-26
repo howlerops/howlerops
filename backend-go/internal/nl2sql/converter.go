@@ -459,7 +459,6 @@ func (c *NL2SQLConverter) initializeTemplates() {
 				table := normalizeTableName(matches[1])
 				period := matches[2]
 
-				dateColumn := "created_at" // Default date column
 				dateCondition := ""
 
 				switch period {

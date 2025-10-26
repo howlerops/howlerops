@@ -36,14 +36,14 @@ type QuerySchedule struct {
 
 // ScheduleExecution represents a single execution of a schedule
 type ScheduleExecution struct {
-	ID            string     `json:"id"`
-	ScheduleID    string     `json:"schedule_id"`
-	ExecutedAt    time.Time  `json:"executed_at"`
-	Status        string     `json:"status"` // 'success', 'failed', 'timeout', 'cancelled'
-	DurationMs    int        `json:"duration_ms"`
-	RowsReturned  int        `json:"rows_returned"`
-	ErrorMessage  string     `json:"error_message,omitempty"`
-	ResultPreview string     `json:"result_preview,omitempty"` // JSON: first 10 rows
+	ID            string    `json:"id"`
+	ScheduleID    string    `json:"schedule_id"`
+	ExecutedAt    time.Time `json:"executed_at"`
+	Status        string    `json:"status"` // 'success', 'failed', 'timeout', 'cancelled'
+	DurationMs    int       `json:"duration_ms"`
+	RowsReturned  int       `json:"rows_returned"`
+	ErrorMessage  string    `json:"error_message,omitempty"`
+	ResultPreview string    `json:"result_preview,omitempty"` // JSON: first 10 rows
 }
 
 // ScheduleFilters for querying schedules

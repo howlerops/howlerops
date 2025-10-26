@@ -9,7 +9,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/time/rate"
 
-	"backend-go/internal/quotas"
+	"github.com/sql-studio/backend-go/internal/quotas"
 )
 
 // OrgRateLimiter implements per-organization rate limiting

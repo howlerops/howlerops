@@ -147,4 +147,3 @@ func (jd *JoinDetector) FindJoinPath(tables []string, schemas []SchemaContext) J
 func (jd *JoinDetector) GenerateJoinConditions(path JoinPath) []JoinCondition {
 	return path.Joins
 }
-

@@ -42,18 +42,18 @@ type SecurityHeadersConfig struct {
 
 // CSPConfig contains Content Security Policy configuration
 type CSPConfig struct {
-	DefaultSrc  []string `yaml:"default_src"`
-	ScriptSrc   []string `yaml:"script_src"`
-	StyleSrc    []string `yaml:"style_src"`
-	ImgSrc      []string `yaml:"img_src"`
-	FontSrc     []string `yaml:"font_src"`
-	ConnectSrc  []string `yaml:"connect_src"`
-	FrameSrc    []string `yaml:"frame_src"`
-	ObjectSrc   []string `yaml:"object_src"`
-	MediaSrc    []string `yaml:"media_src"`
-	WorkerSrc   []string `yaml:"worker_src"`
-	ReportURI   string   `yaml:"report_uri"`
-	ReportOnly  bool     `yaml:"report_only"`
+	DefaultSrc []string `yaml:"default_src"`
+	ScriptSrc  []string `yaml:"script_src"`
+	StyleSrc   []string `yaml:"style_src"`
+	ImgSrc     []string `yaml:"img_src"`
+	FontSrc    []string `yaml:"font_src"`
+	ConnectSrc []string `yaml:"connect_src"`
+	FrameSrc   []string `yaml:"frame_src"`
+	ObjectSrc  []string `yaml:"object_src"`
+	MediaSrc   []string `yaml:"media_src"`
+	WorkerSrc  []string `yaml:"worker_src"`
+	ReportURI  string   `yaml:"report_uri"`
+	ReportOnly bool     `yaml:"report_only"`
 }
 
 // SecurityHeadersMiddleware adds security headers to HTTP responses

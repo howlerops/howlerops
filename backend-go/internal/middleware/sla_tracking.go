@@ -7,7 +7,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"backend-go/internal/sla"
+	"github.com/sql-studio/backend-go/internal/sla"
 )
 
 // SLATracking middleware tracks requests for SLA monitoring
@@ -39,7 +39,7 @@ func (s *SLATracking) Track(next http.Handler) http.Handler {
 		startTime := time.Now()
 
 		// Create response writer wrapper to capture status code
-		wrapper := &responseWriter{
+		wrapper := &slaResponseWriter{
 			ResponseWriter: w,
 			statusCode:     http.StatusOK, // Default to 200
 		}
@@ -73,18 +73,18 @@ func (s *SLATracking) Track(next http.Handler) http.Handler {
 	})
 }
 
-// responseWriter wraps http.ResponseWriter to capture status code
-type responseWriter struct {
+// slaResponseWriter wraps http.ResponseWriter to capture status code
+type slaResponseWriter struct {
 	http.ResponseWriter
 	statusCode int
 }
 
-func (rw *responseWriter) WriteHeader(code int) {
+func (rw *slaResponseWriter) WriteHeader(code int) {
 	rw.statusCode = code
 	rw.ResponseWriter.WriteHeader(code)
 }
 
 // Write implements http.ResponseWriter
-func (rw *responseWriter) Write(b []byte) (int, error) {
+func (rw *slaResponseWriter) Write(b []byte) (int, error) {
 	return rw.ResponseWriter.Write(b)
 }

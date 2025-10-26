@@ -60,7 +60,7 @@ func (h *Handler) RegisterRoutes(r chi.Router, authMiddleware func(http.Handler)
 
 // CreateTemplate creates a new template
 func (h *Handler) CreateTemplate(w http.ResponseWriter, r *http.Request) {
-	userID := middleware.GetUserID(r.Context())
+	userID := middleware.GetUserIDFromContext(r.Context())
 	if userID == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
@@ -86,7 +86,7 @@ func (h *Handler) CreateTemplate(w http.ResponseWriter, r *http.Request) {
 
 // ListTemplates lists templates with filters
 func (h *Handler) ListTemplates(w http.ResponseWriter, r *http.Request) {
-	userID := middleware.GetUserID(r.Context())
+	userID := middleware.GetUserIDFromContext(r.Context())
 	if userID == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
@@ -140,7 +140,7 @@ func (h *Handler) ListTemplates(w http.ResponseWriter, r *http.Request) {
 
 // GetTemplate retrieves a template by ID
 func (h *Handler) GetTemplate(w http.ResponseWriter, r *http.Request) {
-	userID := middleware.GetUserID(r.Context())
+	userID := middleware.GetUserIDFromContext(r.Context())
 	if userID == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
@@ -165,7 +165,7 @@ func (h *Handler) GetTemplate(w http.ResponseWriter, r *http.Request) {
 
 // UpdateTemplate updates a template
 func (h *Handler) UpdateTemplate(w http.ResponseWriter, r *http.Request) {
-	userID := middleware.GetUserID(r.Context())
+	userID := middleware.GetUserIDFromContext(r.Context())
 	if userID == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
@@ -197,7 +197,7 @@ func (h *Handler) UpdateTemplate(w http.ResponseWriter, r *http.Request) {
 
 // DeleteTemplate deletes a template
 func (h *Handler) DeleteTemplate(w http.ResponseWriter, r *http.Request) {
-	userID := middleware.GetUserID(r.Context())
+	userID := middleware.GetUserIDFromContext(r.Context())
 	if userID == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
@@ -220,7 +220,7 @@ func (h *Handler) DeleteTemplate(w http.ResponseWriter, r *http.Request) {
 
 // ExecuteTemplate executes a template with parameters
 func (h *Handler) ExecuteTemplate(w http.ResponseWriter, r *http.Request) {
-	userID := middleware.GetUserID(r.Context())
+	userID := middleware.GetUserIDFromContext(r.Context())
 	if userID == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
@@ -255,24 +255,23 @@ func (h *Handler) ExecuteTemplate(w http.ResponseWriter, r *http.Request) {
 
 // GetPopularTemplates returns popular templates
 func (h *Handler) GetPopularTemplates(w http.ResponseWriter, r *http.Request) {
-	userID := middleware.GetUserID(r.Context())
+	userID := middleware.GetUserIDFromContext(r.Context())
 	if userID == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
-	// Parse limit
-	limit := 10
+	// Parse limit (TODO: use when implementing service)
+	_ = 10
 	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
-		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
-			limit = l
+		if _, err := strconv.Atoi(limitStr); err == nil {
+			// limit would be used here
 		}
 	}
 
-	// Get organization ID if provided
-	var orgID *string
+	// Get organization ID if provided (TODO: use when implementing service)
 	if orgIDStr := r.URL.Query().Get("organization_id"); orgIDStr != "" {
-		orgID = &orgIDStr
+		_ = orgIDStr
 	}
 
 	// This would need to be implemented in the service
@@ -284,7 +283,7 @@ func (h *Handler) GetPopularTemplates(w http.ResponseWriter, r *http.Request) {
 
 // CreateSchedule creates a new schedule
 func (h *Handler) CreateSchedule(w http.ResponseWriter, r *http.Request) {
-	userID := middleware.GetUserID(r.Context())
+	userID := middleware.GetUserIDFromContext(r.Context())
 	if userID == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
@@ -310,7 +309,7 @@ func (h *Handler) CreateSchedule(w http.ResponseWriter, r *http.Request) {
 
 // ListSchedules lists schedules with filters
 func (h *Handler) ListSchedules(w http.ResponseWriter, r *http.Request) {
-	userID := middleware.GetUserID(r.Context())
+	userID := middleware.GetUserIDFromContext(r.Context())
 	if userID == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
@@ -349,7 +348,7 @@ func (h *Handler) ListSchedules(w http.ResponseWriter, r *http.Request) {
 
 // GetSchedule retrieves a schedule by ID
 func (h *Handler) GetSchedule(w http.ResponseWriter, r *http.Request) {
-	userID := middleware.GetUserID(r.Context())
+	userID := middleware.GetUserIDFromContext(r.Context())
 	if userID == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
@@ -367,7 +366,7 @@ func (h *Handler) GetSchedule(w http.ResponseWriter, r *http.Request) {
 
 // UpdateSchedule updates a schedule
 func (h *Handler) UpdateSchedule(w http.ResponseWriter, r *http.Request) {
-	userID := middleware.GetUserID(r.Context())
+	userID := middleware.GetUserIDFromContext(r.Context())
 	if userID == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
@@ -385,7 +384,7 @@ func (h *Handler) UpdateSchedule(w http.ResponseWriter, r *http.Request) {
 
 // DeleteSchedule deletes a schedule
 func (h *Handler) DeleteSchedule(w http.ResponseWriter, r *http.Request) {
-	userID := middleware.GetUserID(r.Context())
+	userID := middleware.GetUserIDFromContext(r.Context())
 	if userID == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
@@ -403,7 +402,7 @@ func (h *Handler) DeleteSchedule(w http.ResponseWriter, r *http.Request) {
 
 // PauseSchedule pauses a schedule
 func (h *Handler) PauseSchedule(w http.ResponseWriter, r *http.Request) {
-	userID := middleware.GetUserID(r.Context())
+	userID := middleware.GetUserIDFromContext(r.Context())
 	if userID == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
@@ -426,7 +425,7 @@ func (h *Handler) PauseSchedule(w http.ResponseWriter, r *http.Request) {
 
 // ResumeSchedule resumes a schedule
 func (h *Handler) ResumeSchedule(w http.ResponseWriter, r *http.Request) {
-	userID := middleware.GetUserID(r.Context())
+	userID := middleware.GetUserIDFromContext(r.Context())
 	if userID == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
@@ -449,7 +448,7 @@ func (h *Handler) ResumeSchedule(w http.ResponseWriter, r *http.Request) {
 
 // GetExecutionHistory returns execution history for a schedule
 func (h *Handler) GetExecutionHistory(w http.ResponseWriter, r *http.Request) {
-	userID := middleware.GetUserID(r.Context())
+	userID := middleware.GetUserIDFromContext(r.Context())
 	if userID == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
@@ -467,7 +466,7 @@ func (h *Handler) GetExecutionHistory(w http.ResponseWriter, r *http.Request) {
 
 // GetExecutionStats returns execution statistics for a schedule
 func (h *Handler) GetExecutionStats(w http.ResponseWriter, r *http.Request) {
-	userID := middleware.GetUserID(r.Context())
+	userID := middleware.GetUserIDFromContext(r.Context())
 	if userID == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return

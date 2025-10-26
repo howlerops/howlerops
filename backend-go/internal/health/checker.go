@@ -20,11 +20,11 @@ const (
 
 // HealthCheck represents the overall health check response
 type HealthCheck struct {
-	Status    Status                  `json:"status"`
-	Timestamp time.Time               `json:"timestamp"`
-	Uptime    time.Duration           `json:"uptime_seconds"`
-	Version   string                  `json:"version"`
-	Checks    map[string]CheckResult  `json:"checks"`
+	Status    Status                 `json:"status"`
+	Timestamp time.Time              `json:"timestamp"`
+	Uptime    time.Duration          `json:"uptime_seconds"`
+	Version   string                 `json:"version"`
+	Checks    map[string]CheckResult `json:"checks"`
 }
 
 // CheckResult represents the result of an individual health check
@@ -192,9 +192,9 @@ func (c *DatabaseChecker) Check(ctx context.Context) CheckResult {
 	stats := c.db.Stats()
 	details := map[string]interface{}{
 		"open_connections": stats.OpenConnections,
-		"in_use":          stats.InUse,
-		"idle":            stats.Idle,
-		"max_open":        stats.MaxOpenConnections,
+		"in_use":           stats.InUse,
+		"idle":             stats.Idle,
+		"max_open":         stats.MaxOpenConnections,
 	}
 
 	// Check if connection pool is nearly exhausted

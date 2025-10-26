@@ -28,8 +28,8 @@ func (t Time) MarshalText() ([]byte, error) {
 type SyncItemType string
 
 const (
-	SyncItemTypeConnection  SyncItemType = "connection"
-	SyncItemTypeSavedQuery  SyncItemType = "saved_query"
+	SyncItemTypeConnection   SyncItemType = "connection"
+	SyncItemTypeSavedQuery   SyncItemType = "saved_query"
 	SyncItemTypeQueryHistory SyncItemType = "query_history"
 )
 
@@ -58,49 +58,49 @@ const (
 
 // ConnectionTemplate represents a database connection configuration
 type ConnectionTemplate struct {
-	ID             string            `json:"id"`
-	Name           string            `json:"name"`
-	Type           string            `json:"type"` // mysql, postgres, sqlite, etc.
-	Host           string            `json:"host,omitempty"`
-	Port           int               `json:"port,omitempty"`
-	Database       string            `json:"database"`
-	Username       string            `json:"username,omitempty"`
-	Password       string            `json:"-"` // Never sync passwords
-	UseSSH         bool              `json:"use_ssh,omitempty"`
-	SSHHost        string            `json:"ssh_host,omitempty"`
-	SSHPort        int               `json:"ssh_port,omitempty"`
-	SSHUser        string            `json:"ssh_user,omitempty"`
-	Color          string            `json:"color,omitempty"`
-	Icon           string            `json:"icon,omitempty"`
-	Metadata       map[string]string `json:"metadata,omitempty"`
-	CreatedAt      time.Time         `json:"created_at"`
-	UpdatedAt      time.Time         `json:"updated_at"`
-	SyncVersion    int               `json:"sync_version"`
+	ID          string            `json:"id"`
+	Name        string            `json:"name"`
+	Type        string            `json:"type"` // mysql, postgres, sqlite, etc.
+	Host        string            `json:"host,omitempty"`
+	Port        int               `json:"port,omitempty"`
+	Database    string            `json:"database"`
+	Username    string            `json:"username,omitempty"`
+	Password    string            `json:"-"` // Never sync passwords
+	UseSSH      bool              `json:"use_ssh,omitempty"`
+	SSHHost     string            `json:"ssh_host,omitempty"`
+	SSHPort     int               `json:"ssh_port,omitempty"`
+	SSHUser     string            `json:"ssh_user,omitempty"`
+	Color       string            `json:"color,omitempty"`
+	Icon        string            `json:"icon,omitempty"`
+	Metadata    map[string]string `json:"metadata,omitempty"`
+	CreatedAt   time.Time         `json:"created_at"`
+	UpdatedAt   time.Time         `json:"updated_at"`
+	SyncVersion int               `json:"sync_version"`
 
 	// Organization fields
-	UserID         string  `json:"user_id"`                    // Owner of the connection
+	UserID         string  `json:"user_id"`                   // Owner of the connection
 	OrganizationID *string `json:"organization_id,omitempty"` // NULL for personal, set for shared
-	Visibility     string  `json:"visibility"`                 // "personal" or "shared"
+	Visibility     string  `json:"visibility"`                // "personal" or "shared"
 }
 
 // SavedQuery represents a user's saved query
 type SavedQuery struct {
-	ID             string            `json:"id"`
-	Name           string            `json:"name"`
-	Description    string            `json:"description,omitempty"`
-	Query          string            `json:"query"`
-	ConnectionID   string            `json:"connection_id,omitempty"`
-	Tags           []string          `json:"tags,omitempty"`
-	Favorite       bool              `json:"favorite"`
-	Metadata       map[string]string `json:"metadata,omitempty"`
-	CreatedAt      time.Time         `json:"created_at"`
-	UpdatedAt      time.Time         `json:"updated_at"`
-	SyncVersion    int               `json:"sync_version"`
+	ID           string            `json:"id"`
+	Name         string            `json:"name"`
+	Description  string            `json:"description,omitempty"`
+	Query        string            `json:"query"`
+	ConnectionID string            `json:"connection_id,omitempty"`
+	Tags         []string          `json:"tags,omitempty"`
+	Favorite     bool              `json:"favorite"`
+	Metadata     map[string]string `json:"metadata,omitempty"`
+	CreatedAt    time.Time         `json:"created_at"`
+	UpdatedAt    time.Time         `json:"updated_at"`
+	SyncVersion  int               `json:"sync_version"`
 
 	// Organization fields
-	UserID         string  `json:"user_id"`                    // Owner of the query
+	UserID         string  `json:"user_id"`                   // Owner of the query
 	OrganizationID *string `json:"organization_id,omitempty"` // NULL for personal, set for shared
-	Visibility     string  `json:"visibility"`                 // "personal" or "shared"
+	Visibility     string  `json:"visibility"`                // "personal" or "shared"
 }
 
 // QueryHistory represents query execution history
@@ -140,11 +140,11 @@ type SyncUploadRequest struct {
 
 // SyncUploadResponse represents the response after uploading changes
 type SyncUploadResponse struct {
-	Success    bool               `json:"success"`
-	SyncedAt   time.Time          `json:"synced_at"`
-	Conflicts  []Conflict         `json:"conflicts,omitempty"`
-	Rejected   []RejectedChange   `json:"rejected,omitempty"`
-	Message    string             `json:"message,omitempty"`
+	Success   bool             `json:"success"`
+	SyncedAt  time.Time        `json:"synced_at"`
+	Conflicts []Conflict       `json:"conflicts,omitempty"`
+	Rejected  []RejectedChange `json:"rejected,omitempty"`
+	Message   string           `json:"message,omitempty"`
 }
 
 // SyncDownloadRequest represents a request to download remote changes
@@ -182,13 +182,13 @@ type ConflictMetadata struct {
 
 // Conflict represents a sync conflict
 type Conflict struct {
-	ID            string          `json:"id"`
-	ItemType      SyncItemType    `json:"item_type"`
-	ItemID        string          `json:"item_id"`
-	LocalVersion  *ConflictVersion `json:"local_version"`
-	RemoteVersion *ConflictVersion `json:"remote_version"`
-	DetectedAt    time.Time       `json:"detected_at"`
-	ResolvedAt    *time.Time      `json:"resolved_at,omitempty"`
+	ID            string                     `json:"id"`
+	ItemType      SyncItemType               `json:"item_type"`
+	ItemID        string                     `json:"item_id"`
+	LocalVersion  *ConflictVersion           `json:"local_version"`
+	RemoteVersion *ConflictVersion           `json:"remote_version"`
+	DetectedAt    time.Time                  `json:"detected_at"`
+	ResolvedAt    *time.Time                 `json:"resolved_at,omitempty"`
 	Resolution    ConflictResolutionStrategy `json:"resolution,omitempty"`
 }
 
@@ -208,9 +208,9 @@ type RejectedChange struct {
 
 // ConflictResolutionRequest represents a request to resolve a conflict
 type ConflictResolutionRequest struct {
-	ConflictID string                     `json:"conflict_id"`
-	Strategy   ConflictResolutionStrategy `json:"strategy"`
-	ChosenVersion string                  `json:"chosen_version,omitempty"` // "local" or "remote"
+	ConflictID    string                     `json:"conflict_id"`
+	Strategy      ConflictResolutionStrategy `json:"strategy"`
+	ChosenVersion string                     `json:"chosen_version,omitempty"` // "local" or "remote"
 }
 
 // ConflictResolutionResponse represents the response after resolving a conflict

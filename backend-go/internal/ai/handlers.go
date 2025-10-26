@@ -241,11 +241,11 @@ func min(a, b int) int {
 // GenerateSQL handles SQL generation requests
 func (h *HTTPHandler) GenerateSQL(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Prompt      string `json:"prompt"`
-		Schema      string `json:"schema"`
-		Provider    string `json:"provider"`
-		Model       string `json:"model"`
-		MaxTokens   int    `json:"maxTokens"`
+		Prompt      string  `json:"prompt"`
+		Schema      string  `json:"schema"`
+		Provider    string  `json:"provider"`
+		Model       string  `json:"model"`
+		MaxTokens   int     `json:"maxTokens"`
 		Temperature float64 `json:"temperature"`
 	}
 
@@ -286,12 +286,12 @@ func (h *HTTPHandler) GenerateSQL(w http.ResponseWriter, r *http.Request) {
 // FixSQL handles SQL fix requests
 func (h *HTTPHandler) FixSQL(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Query       string `json:"query"`
-		Error       string `json:"error"`
-		Schema      string `json:"schema"`
-		Provider    string `json:"provider"`
-		Model       string `json:"model"`
-		MaxTokens   int    `json:"maxTokens"`
+		Query       string  `json:"query"`
+		Error       string  `json:"error"`
+		Schema      string  `json:"schema"`
+		Provider    string  `json:"provider"`
+		Model       string  `json:"model"`
+		MaxTokens   int     `json:"maxTokens"`
 		Temperature float64 `json:"temperature"`
 	}
 
@@ -344,9 +344,9 @@ func (h *HTTPHandler) TestOpenAI(w http.ResponseWriter, r *http.Request) {
 	}
 
 	config := &OpenAIConfig{
-		APIKey:  req.APIKey,
-		Models:  []string{req.Model},
-		OrgID:   req.Organization,
+		APIKey: req.APIKey,
+		Models: []string{req.Model},
+		OrgID:  req.Organization,
 	}
 
 	provider, err := NewOpenAIProvider(config, h.logger)

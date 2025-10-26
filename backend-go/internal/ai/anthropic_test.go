@@ -1219,10 +1219,10 @@ func TestAnthropicGetModels_ModelDescriptions(t *testing.T) {
 	logger.SetOutput(io.Discard)
 
 	tests := []struct {
-		name               string
-		modelID            string
-		expectedDesc       string
-		expectedMaxTokens  int
+		name              string
+		modelID           string
+		expectedDesc      string
+		expectedMaxTokens int
 	}{
 		{
 			name:              "sonnet model",

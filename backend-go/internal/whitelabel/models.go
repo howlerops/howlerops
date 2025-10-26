@@ -35,7 +35,7 @@ type UpdateWhiteLabelRequest struct {
 
 // BrandedCSSResponse contains the generated CSS for white-labeling
 type BrandedCSSResponse struct {
-	CSS            string           `json:"css"`
-	Config         WhiteLabelConfig `json:"config"`
-	DefaultBranding bool            `json:"default_branding"`
+	CSS             string           `json:"css"`
+	Config          WhiteLabelConfig `json:"config"`
+	DefaultBranding bool             `json:"default_branding"`
 }

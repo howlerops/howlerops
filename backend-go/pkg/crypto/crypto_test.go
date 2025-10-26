@@ -147,7 +147,7 @@ func TestDecryptWithInvalidNonce(t *testing.T) {
 	}
 
 	plaintext := []byte("test")
-	ciphertext, nonce, err := EncryptSecret(plaintext, key)
+	ciphertext, _, err := EncryptSecret(plaintext, key)
 	if err != nil {
 		t.Fatalf("Failed to encrypt: %v", err)
 	}

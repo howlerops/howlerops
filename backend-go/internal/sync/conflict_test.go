@@ -198,10 +198,10 @@ func TestConflictResolver_DetectConnectionConflict(t *testing.T) {
 	resolver := NewConflictResolver(logger)
 
 	tests := []struct {
-		name             string
-		serverVersion    *ConnectionTemplate
-		clientVersion    *ConnectionTemplate
-		expectConflict   bool
+		name           string
+		serverVersion  *ConnectionTemplate
+		clientVersion  *ConnectionTemplate
+		expectConflict bool
 	}{
 		{
 			name: "Server version ahead - conflict",
@@ -254,10 +254,10 @@ func TestConflictResolver_DetectQueryConflict(t *testing.T) {
 	resolver := NewConflictResolver(logger)
 
 	tests := []struct {
-		name             string
-		serverVersion    *SavedQuery
-		clientVersion    *SavedQuery
-		expectConflict   bool
+		name           string
+		serverVersion  *SavedQuery
+		clientVersion  *SavedQuery
+		expectConflict bool
 	}{
 		{
 			name: "Server version ahead - conflict",

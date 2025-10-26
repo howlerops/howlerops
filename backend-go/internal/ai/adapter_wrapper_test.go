@@ -13,14 +13,14 @@ import (
 
 // mockProviderAdapter is a mock implementation of ProviderAdapter for testing
 type mockProviderAdapter struct {
-	generateSQLFunc   func(ctx context.Context, prompt, schema string, opts ...GenerateOption) (*SQLResponse, error)
-	fixSQLFunc        func(ctx context.Context, query, errorMsg, schema string, opts ...GenerateOption) (*SQLResponse, error)
-	chatFunc          func(ctx context.Context, prompt string, opts ...GenerateOption) (*ChatResponse, error)
-	getHealthFunc     func(ctx context.Context) (*HealthStatus, error)
-	listModelsFunc    func(ctx context.Context) ([]ModelInfo, error)
-	getProviderFunc   func() Provider
-	closeFunc         func() error
-	capturedOptions   []GenerateOptions // Stores all options received
+	generateSQLFunc func(ctx context.Context, prompt, schema string, opts ...GenerateOption) (*SQLResponse, error)
+	fixSQLFunc      func(ctx context.Context, query, errorMsg, schema string, opts ...GenerateOption) (*SQLResponse, error)
+	chatFunc        func(ctx context.Context, prompt string, opts ...GenerateOption) (*ChatResponse, error)
+	getHealthFunc   func(ctx context.Context) (*HealthStatus, error)
+	listModelsFunc  func(ctx context.Context) ([]ModelInfo, error)
+	getProviderFunc func() Provider
+	closeFunc       func() error
+	capturedOptions []GenerateOptions // Stores all options received
 }
 
 func (m *mockProviderAdapter) GenerateSQL(ctx context.Context, prompt, schema string, opts ...GenerateOption) (*SQLResponse, error) {

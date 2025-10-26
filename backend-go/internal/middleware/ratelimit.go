@@ -225,11 +225,11 @@ func (a *AdaptiveRateLimiter) CheckLimit(clientIP string) bool {
 
 // CircuitBreakerRateLimiter combines rate limiting with circuit breaker pattern
 type CircuitBreakerRateLimiter struct {
-	rateLimiter     *RateLimitMiddleware
-	failureCount    int
-	lastFailureTime time.Time
-	state           CircuitState
-	mu              sync.RWMutex
+	rateLimiter      *RateLimitMiddleware
+	failureCount     int
+	lastFailureTime  time.Time
+	state            CircuitState
+	mu               sync.RWMutex
 	failureThreshold int
 	recoveryTimeout  time.Duration
 }

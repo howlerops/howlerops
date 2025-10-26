@@ -90,7 +90,7 @@ func NewManager(ctx context.Context, config *Config, logger *logrus.Logger) (*Ma
 		}
 
 	default:
-		return nil, fmt.Errorf("unknown storage mode: %d", config.Mode)
+		return nil, fmt.Errorf("unknown storage mode: %s", config.Mode)
 	}
 
 	return manager, nil

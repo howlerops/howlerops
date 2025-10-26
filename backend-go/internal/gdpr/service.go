@@ -321,11 +321,11 @@ func (s *Service) performDeletion(request *DataExportRequest) {
 	}
 
 	logger.WithFields(logrus.Fields{
-		"connections":   report.ConnectionsDeleted,
-		"queries":       report.QueriesDeleted,
-		"history":       report.HistoryDeleted,
-		"templates":     report.TemplatesDeleted,
-		"schedules":     report.SchedulesDeleted,
+		"connections":     report.ConnectionsDeleted,
+		"queries":         report.QueriesDeleted,
+		"history":         report.HistoryDeleted,
+		"templates":       report.TemplatesDeleted,
+		"schedules":       report.SchedulesDeleted,
 		"logs_anonymized": report.AuditLogsAnonymized,
 	}).Warn("Data deletion completed")
 

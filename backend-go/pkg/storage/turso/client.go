@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	_ "github.com/tursodatabase/libsql-client-go/libsql"
 	"github.com/sirupsen/logrus"
+	_ "github.com/tursodatabase/libsql-client-go/libsql"
 )
 
 // Config holds Turso database configuration
@@ -57,7 +57,7 @@ func NewClient(config *Config, logger *logrus.Logger) (*sql.DB, error) {
 	}
 
 	logger.WithFields(logrus.Fields{
-		"url":     config.URL,
+		"url":      config.URL,
 		"is_local": isLocal,
 	}).Debug("Connecting to database")
 

@@ -83,7 +83,7 @@ THIS IS NOT A VALID PRIVATE KEY
 // TestNewSSHTunnelManager tests the SSH tunnel manager constructor
 func TestNewSSHTunnelManager(t *testing.T) {
 	logger := newTestLogger()
-	manager := database.NewSSHTunnelManager(logger)
+	manager := database.NewSSHTunnelManager(nil, logger)
 
 	require.NotNil(t, manager)
 }
@@ -91,7 +91,7 @@ func TestNewSSHTunnelManager(t *testing.T) {
 // TestNewSSHTunnelManager_NilLogger tests constructor with nil logger
 func TestNewSSHTunnelManager_NilLogger(t *testing.T) {
 	// Should handle nil logger gracefully
-	manager := database.NewSSHTunnelManager(nil)
+	manager := database.NewSSHTunnelManager(nil, nil)
 	require.NotNil(t, manager)
 }
 
@@ -101,7 +101,7 @@ func TestNewSSHTunnelManager_NilLogger(t *testing.T) {
 // TestSSHTunnelManager_CloseAll_Empty tests closing all tunnels on empty manager
 func TestSSHTunnelManager_CloseAll_Empty(t *testing.T) {
 	logger := newTestLogger()
-	manager := database.NewSSHTunnelManager(logger)
+	manager := database.NewSSHTunnelManager(nil, logger)
 
 	// Should not panic or error on empty manager
 	err := manager.CloseAll()
@@ -111,7 +111,7 @@ func TestSSHTunnelManager_CloseAll_Empty(t *testing.T) {
 // TestSSHTunnelManager_EstablishTunnel_NilConfig tests establishing tunnel with nil config
 func TestSSHTunnelManager_EstablishTunnel_NilConfig(t *testing.T) {
 	logger := newTestLogger()
-	manager := database.NewSSHTunnelManager(logger)
+	manager := database.NewSSHTunnelManager(nil, logger)
 	ctx := context.Background()
 
 	tunnel, err := manager.EstablishTunnel(ctx, nil, "localhost", 3306)
@@ -124,7 +124,7 @@ func TestSSHTunnelManager_EstablishTunnel_NilConfig(t *testing.T) {
 // TestSSHTunnelManager_EstablishTunnel_InvalidConfig tests various invalid configurations
 func TestSSHTunnelManager_EstablishTunnel_InvalidConfig(t *testing.T) {
 	logger := newTestLogger()
-	manager := database.NewSSHTunnelManager(logger)
+	manager := database.NewSSHTunnelManager(nil, logger)
 	ctx := context.Background()
 
 	tests := []struct {
@@ -195,7 +195,7 @@ func TestSSHTunnelManager_EstablishTunnel_ValidPassword(t *testing.T) {
 	t.Skip("Skipping: requires real SSH server connection")
 
 	logger := newTestLogger()
-	manager := database.NewSSHTunnelManager(logger)
+	manager := database.NewSSHTunnelManager(nil, logger)
 	ctx := context.Background()
 
 	config := &database.SSHTunnelConfig{
@@ -222,7 +222,7 @@ func TestSSHTunnelManager_EstablishTunnel_ValidPrivateKey(t *testing.T) {
 	t.Skip("Skipping: requires real SSH server connection")
 
 	logger := newTestLogger()
-	manager := database.NewSSHTunnelManager(logger)
+	manager := database.NewSSHTunnelManager(nil, logger)
 	ctx := context.Background()
 
 	config := &database.SSHTunnelConfig{
@@ -249,7 +249,7 @@ func TestSSHTunnelManager_EstablishTunnel_ED25519Key(t *testing.T) {
 	t.Skip("Skipping: requires real SSH server connection")
 
 	logger := newTestLogger()
-	manager := database.NewSSHTunnelManager(logger)
+	manager := database.NewSSHTunnelManager(nil, logger)
 	ctx := context.Background()
 
 	config := &database.SSHTunnelConfig{
@@ -276,7 +276,7 @@ func TestSSHTunnelManager_EstablishTunnel_PrivateKeyFile(t *testing.T) {
 	t.Skip("Skipping: requires real SSH server connection")
 
 	logger := newTestLogger()
-	manager := database.NewSSHTunnelManager(logger)
+	manager := database.NewSSHTunnelManager(nil, logger)
 	ctx := context.Background()
 
 	// Create temporary key file
@@ -307,7 +307,7 @@ func TestSSHTunnelManager_EstablishTunnel_PrivateKeyFile(t *testing.T) {
 // TestSSHTunnelManager_EstablishTunnel_NonExistentKeyFile tests error with missing key file
 func TestSSHTunnelManager_EstablishTunnel_NonExistentKeyFile(t *testing.T) {
 	logger := newTestLogger()
-	manager := database.NewSSHTunnelManager(logger)
+	manager := database.NewSSHTunnelManager(nil, logger)
 	ctx := context.Background()
 
 	config := &database.SSHTunnelConfig{
@@ -331,7 +331,7 @@ func TestSSHTunnelManager_EstablishTunnel_StrictHostKeyChecking(t *testing.T) {
 	t.Skip("Skipping: requires real SSH server connection")
 
 	logger := newTestLogger()
-	manager := database.NewSSHTunnelManager(logger)
+	manager := database.NewSSHTunnelManager(nil, logger)
 	ctx := context.Background()
 
 	// Create temporary known_hosts file
@@ -360,7 +360,7 @@ func TestSSHTunnelManager_EstablishTunnel_StrictHostKeyChecking(t *testing.T) {
 // TestSSHTunnelManager_EstablishTunnel_NonExistentKnownHosts tests error with missing known_hosts
 func TestSSHTunnelManager_EstablishTunnel_NonExistentKnownHosts(t *testing.T) {
 	logger := newTestLogger()
-	manager := database.NewSSHTunnelManager(logger)
+	manager := database.NewSSHTunnelManager(nil, logger)
 	ctx := context.Background()
 
 	config := &database.SSHTunnelConfig{
@@ -386,7 +386,7 @@ func TestSSHTunnelManager_EstablishTunnel_DefaultTimeout(t *testing.T) {
 	t.Skip("Skipping: requires real SSH server connection")
 
 	logger := newTestLogger()
-	manager := database.NewSSHTunnelManager(logger)
+	manager := database.NewSSHTunnelManager(nil, logger)
 	ctx := context.Background()
 
 	config := &database.SSHTunnelConfig{
@@ -410,7 +410,7 @@ func TestSSHTunnelManager_EstablishTunnel_CustomTimeout(t *testing.T) {
 	t.Skip("Skipping: requires real SSH server connection")
 
 	logger := newTestLogger()
-	manager := database.NewSSHTunnelManager(logger)
+	manager := database.NewSSHTunnelManager(nil, logger)
 	ctx := context.Background()
 
 	config := &database.SSHTunnelConfig{
@@ -432,7 +432,7 @@ func TestSSHTunnelManager_EstablishTunnel_CustomTimeout(t *testing.T) {
 // TestSSHTunnelManager_CloseTunnel_NilTunnel tests closing nil tunnel
 func TestSSHTunnelManager_CloseTunnel_NilTunnel(t *testing.T) {
 	logger := newTestLogger()
-	manager := database.NewSSHTunnelManager(logger)
+	manager := database.NewSSHTunnelManager(nil, logger)
 
 	// Should handle nil gracefully
 	err := manager.CloseTunnel(nil)
@@ -442,7 +442,7 @@ func TestSSHTunnelManager_CloseTunnel_NilTunnel(t *testing.T) {
 // TestSSHTunnelManager_ConcurrentAccess tests thread-safety of manager operations
 func TestSSHTunnelManager_ConcurrentAccess(t *testing.T) {
 	logger := newTestLogger()
-	manager := database.NewSSHTunnelManager(logger)
+	manager := database.NewSSHTunnelManager(nil, logger)
 
 	// Test concurrent CloseAll calls (should be safe on empty manager)
 	done := make(chan bool)
@@ -465,7 +465,7 @@ func TestSSHTunnelManager_ContextCancellation(t *testing.T) {
 	t.Skip("Skipping: requires real SSH server connection to test context cancellation timing")
 
 	logger := newTestLogger()
-	manager := database.NewSSHTunnelManager(logger)
+	manager := database.NewSSHTunnelManager(nil, logger)
 
 	// Create context that's already cancelled
 	ctx, cancel := context.WithCancel(context.Background())
@@ -492,7 +492,7 @@ func TestSSHTunnelConfig_PasswordPrecedence(t *testing.T) {
 	t.Skip("Skipping: requires real SSH server connection")
 
 	logger := newTestLogger()
-	manager := database.NewSSHTunnelManager(logger)
+	manager := database.NewSSHTunnelManager(nil, logger)
 	ctx := context.Background()
 
 	config := &database.SSHTunnelConfig{
@@ -517,7 +517,7 @@ func TestSSHTunnelConfig_PrivateKeyPrecedence(t *testing.T) {
 	t.Skip("Skipping: requires real SSH server connection")
 
 	logger := newTestLogger()
-	manager := database.NewSSHTunnelManager(logger)
+	manager := database.NewSSHTunnelManager(nil, logger)
 	ctx := context.Background()
 
 	// Create temporary key file with different content

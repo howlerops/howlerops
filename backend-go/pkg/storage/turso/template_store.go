@@ -13,20 +13,20 @@ import (
 
 // QueryTemplate represents a reusable query template with parameters
 type QueryTemplate struct {
-	ID             string                 `json:"id"`
-	Name           string                 `json:"name"`
-	Description    string                 `json:"description,omitempty"`
-	SQLTemplate    string                 `json:"sql_template"`
-	Parameters     []TemplateParameter    `json:"parameters,omitempty"`
-	Tags           []string               `json:"tags,omitempty"`
-	Category       string                 `json:"category"`
-	OrganizationID *string                `json:"organization_id,omitempty"`
-	CreatedBy      string                 `json:"created_by"`
-	CreatedAt      time.Time              `json:"created_at"`
-	UpdatedAt      time.Time              `json:"updated_at"`
-	IsPublic       bool                   `json:"is_public"`
-	UsageCount     int                    `json:"usage_count"`
-	DeletedAt      *time.Time             `json:"deleted_at,omitempty"`
+	ID             string              `json:"id"`
+	Name           string              `json:"name"`
+	Description    string              `json:"description,omitempty"`
+	SQLTemplate    string              `json:"sql_template"`
+	Parameters     []TemplateParameter `json:"parameters,omitempty"`
+	Tags           []string            `json:"tags,omitempty"`
+	Category       string              `json:"category"`
+	OrganizationID *string             `json:"organization_id,omitempty"`
+	CreatedBy      string              `json:"created_by"`
+	CreatedAt      time.Time           `json:"created_at"`
+	UpdatedAt      time.Time           `json:"updated_at"`
+	IsPublic       bool                `json:"is_public"`
+	UsageCount     int                 `json:"usage_count"`
+	DeletedAt      *time.Time          `json:"deleted_at,omitempty"`
 }
 
 // TemplateParameter defines a parameter in a query template

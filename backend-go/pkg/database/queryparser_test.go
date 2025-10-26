@@ -576,39 +576,39 @@ func TestParseJoinQuery(t *testing.T) {
 // TestExtractFromClause tests the FROM clause extraction function
 func TestExtractFromClause(t *testing.T) {
 	tests := []struct {
-		name string
+		name  string
 		query string
-		want string
+		want  string
 	}{
 		{
-			name: "simple FROM",
+			name:  "simple FROM",
 			query: "SELECT * FROM users",
-			want: "users",
+			want:  "users",
 		},
 		{
-			name: "FROM with WHERE",
+			name:  "FROM with WHERE",
 			query: "SELECT * FROM users WHERE id = 1",
-			want: "users",
+			want:  "users",
 		},
 		{
-			name: "FROM with ORDER BY",
+			name:  "FROM with ORDER BY",
 			query: "SELECT * FROM products ORDER BY name",
-			want: "products",
+			want:  "products",
 		},
 		{
-			name: "FROM with LIMIT",
+			name:  "FROM with LIMIT",
 			query: "SELECT * FROM orders LIMIT 10",
-			want: "orders",
+			want:  "orders",
 		},
 		{
-			name: "FROM with OFFSET",
+			name:  "FROM with OFFSET",
 			query: "SELECT * FROM accounts OFFSET 5",
-			want: "accounts",
+			want:  "accounts",
 		},
 		{
-			name: "FROM with GROUP BY",
+			name:  "FROM with GROUP BY",
 			query: "SELECT COUNT(*) FROM users GROUP BY role",
-			want: "users",
+			want:  "users",
 		},
 		{
 			name:  "FROM with RETURNING",
@@ -616,34 +616,34 @@ func TestExtractFromClause(t *testing.T) {
 			want:  "",
 		},
 		{
-			name: "FROM with FOR UPDATE",
+			name:  "FROM with FOR UPDATE",
 			query: "SELECT * FROM users FOR UPDATE",
-			want: "users",
+			want:  "users",
 		},
 		{
-			name: "FROM with UNION",
+			name:  "FROM with UNION",
 			query: "SELECT * FROM users UNION SELECT * FROM admins",
-			want: "users",
+			want:  "users",
 		},
 		{
-			name: "FROM with INTERSECT",
+			name:  "FROM with INTERSECT",
 			query: "SELECT * FROM users INTERSECT SELECT * FROM admins",
-			want: "users",
+			want:  "users",
 		},
 		{
-			name: "FROM with EXCEPT",
+			name:  "FROM with EXCEPT",
 			query: "SELECT * FROM users EXCEPT SELECT * FROM banned",
-			want: "users",
+			want:  "users",
 		},
 		{
-			name: "no FROM clause",
+			name:  "no FROM clause",
 			query: "SELECT 1",
-			want: "",
+			want:  "",
 		},
 		{
-			name: "schema-qualified table",
+			name:  "schema-qualified table",
 			query: "SELECT * FROM public.users WHERE active = true",
-			want: "public.users",
+			want:  "public.users",
 		},
 		{
 			name:  "quoted identifier",
@@ -651,24 +651,24 @@ func TestExtractFromClause(t *testing.T) {
 			want:  `"my_table"`,
 		},
 		{
-			name: "table with alias",
+			name:  "table with alias",
 			query: "SELECT * FROM users u WHERE u.id = 1",
-			want: "users u",
+			want:  "users u",
 		},
 		{
-			name: "multiple keywords",
+			name:  "multiple keywords",
 			query: "SELECT * FROM products WHERE price > 100 ORDER BY price DESC LIMIT 10",
-			want: "products",
+			want:  "products",
 		},
 		{
-			name: "lowercase from",
+			name:  "lowercase from",
 			query: "select * from users where id = 1",
-			want: "users",
+			want:  "users",
 		},
 		{
-			name: "FROM with trailing whitespace",
+			name:  "FROM with trailing whitespace",
 			query: "SELECT * FROM users   WHERE id = 1",
-			want: "users",
+			want:  "users",
 		},
 	}
 

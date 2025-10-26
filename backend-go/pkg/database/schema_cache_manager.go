@@ -87,4 +87,3 @@ func (m *Manager) RefreshSchema(ctx context.Context, connectionID string) error 
 
 	return nil
 }
-

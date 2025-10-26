@@ -196,14 +196,14 @@ func SanitizeForLogging(data map[string]interface{}) map[string]interface{} {
 	sanitized := make(map[string]interface{})
 
 	sensitiveFields := map[string]bool{
-		"password":     true,
-		"token":        true,
-		"api_key":      true,
-		"secret":       true,
-		"private_key":  true,
-		"access_token": true,
+		"password":      true,
+		"token":         true,
+		"api_key":       true,
+		"secret":        true,
+		"private_key":   true,
+		"access_token":  true,
 		"refresh_token": true,
-		"jwt":          true,
+		"jwt":           true,
 	}
 
 	for k, v := range data {

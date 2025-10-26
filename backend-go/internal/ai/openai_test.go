@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sql-studio/backend-go/internal/ai"
 	"github.com/sirupsen/logrus"
+	"github.com/sql-studio/backend-go/internal/ai"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -870,7 +870,7 @@ func TestOpenAI_HealthCheck_WithOrgID(t *testing.T) {
 
 		resp := mockOpenAIModelsResponse{
 			Object: "list",
-			Data:   []struct {
+			Data: []struct {
 				ID      string `json:"id"`
 				Object  string `json:"object"`
 				Created int64  `json:"created"`

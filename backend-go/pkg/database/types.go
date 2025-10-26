@@ -10,15 +10,15 @@ import (
 type DatabaseType string
 
 const (
-	PostgreSQL   DatabaseType = "postgresql"
-	MySQL        DatabaseType = "mysql"
-	SQLite       DatabaseType = "sqlite"
-	MariaDB      DatabaseType = "mariadb"
+	PostgreSQL    DatabaseType = "postgresql"
+	MySQL         DatabaseType = "mysql"
+	SQLite        DatabaseType = "sqlite"
+	MariaDB       DatabaseType = "mariadb"
 	Elasticsearch DatabaseType = "elasticsearch"
-	OpenSearch   DatabaseType = "opensearch"
-	ClickHouse   DatabaseType = "clickhouse"
-	MongoDB      DatabaseType = "mongodb"
-	TiDB         DatabaseType = "tidb"
+	OpenSearch    DatabaseType = "opensearch"
+	ClickHouse    DatabaseType = "clickhouse"
+	MongoDB       DatabaseType = "mongodb"
+	TiDB          DatabaseType = "tidb"
 )
 
 // SSHAuthMethod represents the SSH authentication method
@@ -31,27 +31,27 @@ const (
 
 // SSHTunnelConfig holds SSH tunnel/bastion host configuration
 type SSHTunnelConfig struct {
-	Host                 string        `json:"host"`
-	Port                 int           `json:"port"`
-	User                 string        `json:"user"`
-	AuthMethod           SSHAuthMethod `json:"auth_method"`
-	Password             string        `json:"password,omitempty"`             // Deprecated: use SecretStore
-	PrivateKey           string        `json:"private_key,omitempty"`          // Deprecated: use SecretStore
-	PrivateKeyPath       string        `json:"private_key_path,omitempty"`    // Deprecated: use SecretStore
-	PrivateKeyName       string        `json:"private_key_name,omitempty"`    // Reference to secret in SecretStore
-	KnownHostsPath       string        `json:"known_hosts_path,omitempty"`    // Path to known_hosts file
+	Host                  string        `json:"host"`
+	Port                  int           `json:"port"`
+	User                  string        `json:"user"`
+	AuthMethod            SSHAuthMethod `json:"auth_method"`
+	Password              string        `json:"password,omitempty"`            // Deprecated: use SecretStore
+	PrivateKey            string        `json:"private_key,omitempty"`         // Deprecated: use SecretStore
+	PrivateKeyPath        string        `json:"private_key_path,omitempty"`    // Deprecated: use SecretStore
+	PrivateKeyName        string        `json:"private_key_name,omitempty"`    // Reference to secret in SecretStore
+	KnownHostsPath        string        `json:"known_hosts_path,omitempty"`    // Path to known_hosts file
 	StrictHostKeyChecking bool          `json:"strict_host_key_checking"`      // Whether to verify host key
-	Timeout              time.Duration `json:"timeout,omitempty"`             // Connection timeout
-	KeepAliveInterval    time.Duration `json:"keep_alive_interval,omitempty"` // Keep-alive interval
-	ConnectionID         string        `json:"connection_id,omitempty"`       // ID for loading secrets
+	Timeout               time.Duration `json:"timeout,omitempty"`             // Connection timeout
+	KeepAliveInterval     time.Duration `json:"keep_alive_interval,omitempty"` // Keep-alive interval
+	ConnectionID          string        `json:"connection_id,omitempty"`       // ID for loading secrets
 }
 
 // VPCConfig holds VPC/Private Link configuration for cloud providers
 type VPCConfig struct {
-	Provider      string            `json:"provider"`       // aws, gcp, azure
-	EndpointID    string            `json:"endpoint_id"`    // VPC endpoint ID
-	PrivateDNS    string            `json:"private_dns"`    // Private DNS name
-	Parameters    map[string]string `json:"parameters"`     // Provider-specific params
+	Provider   string            `json:"provider"`    // aws, gcp, azure
+	EndpointID string            `json:"endpoint_id"` // VPC endpoint ID
+	PrivateDNS string            `json:"private_dns"` // Private DNS name
+	Parameters map[string]string `json:"parameters"`  // Provider-specific params
 }
 
 // ConnectionConfig holds database connection configuration
@@ -71,8 +71,8 @@ type ConnectionConfig struct {
 	Parameters        map[string]string `json:"parameters"`
 
 	// SSH Tunnel / Bastion Host configuration
-	UseTunnel  bool             `json:"use_tunnel"`
-	SSHTunnel  *SSHTunnelConfig `json:"ssh_tunnel,omitempty"`
+	UseTunnel bool             `json:"use_tunnel"`
+	SSHTunnel *SSHTunnelConfig `json:"ssh_tunnel,omitempty"`
 
 	// VPC / Private Link configuration
 	UseVPC    bool       `json:"use_vpc"`

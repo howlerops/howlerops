@@ -21,13 +21,13 @@ type OllamaDetector struct {
 
 // OllamaStatus represents the status of Ollama installation and service
 type OllamaStatus struct {
-	Installed     bool      `json:"installed"`
-	Running       bool      `json:"running"`
-	Version       string    `json:"version,omitempty"`
-	Endpoint      string    `json:"endpoint"`
-	AvailableModels []string `json:"available_models"`
-	LastChecked   time.Time `json:"last_checked"`
-	Error         string    `json:"error,omitempty"`
+	Installed       bool      `json:"installed"`
+	Running         bool      `json:"running"`
+	Version         string    `json:"version,omitempty"`
+	Endpoint        string    `json:"endpoint"`
+	AvailableModels []string  `json:"available_models"`
+	LastChecked     time.Time `json:"last_checked"`
+	Error           string    `json:"error,omitempty"`
 }
 
 // OllamaModelInfo represents information about an Ollama model
@@ -63,8 +63,8 @@ func NewOllamaDetector(logger *logrus.Logger) *OllamaDetector {
 // DetectOllama checks if Ollama is installed and running
 func (d *OllamaDetector) DetectOllama(ctx context.Context) (*OllamaStatus, error) {
 	status := &OllamaStatus{
-		Endpoint:      "http://localhost:11434",
-		LastChecked:   time.Now(),
+		Endpoint:        "http://localhost:11434",
+		LastChecked:     time.Now(),
 		AvailableModels: []string{},
 	}
 
@@ -219,7 +219,7 @@ func (d *OllamaDetector) InstallOllama() (string, error) {
 
 For more information, visit: https://ollama.ai
 
-Note: After installation, you may need to restart your terminal or add Ollama to your PATH.`, 
+Note: After installation, you may need to restart your terminal or add Ollama to your PATH.`,
 		installURL, installCmd, startCmd)
 
 	return instructions, nil
@@ -244,7 +244,7 @@ func (d *OllamaDetector) StartOllamaService(ctx context.Context) error {
 	// Try to start Ollama service
 	// Note: This might not work on all systems due to permission requirements
 	d.logger.Info("Attempting to start Ollama service")
-	
+
 	cmd := exec.CommandContext(ctx, "ollama", "serve")
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("failed to start Ollama service: %v. Please start it manually with 'ollama serve'", err)
@@ -293,11 +293,11 @@ func (d *OllamaDetector) PullModel(ctx context.Context, modelName string) error 
 // GetRecommendedModels returns a list of recommended models for SQL generation
 func (d *OllamaDetector) GetRecommendedModels() []string {
 	return []string{
-		"prem-1b-sql",      // Primary recommendation
-		"sqlcoder:7b",      // Alternative SQL-focused model
-		"codellama:7b",     // General code generation
-		"llama3.1:8b",     // General purpose
-		"mistral:7b",       // Alternative general purpose
+		"prem-1b-sql",  // Primary recommendation
+		"sqlcoder:7b",  // Alternative SQL-focused model
+		"codellama:7b", // General code generation
+		"llama3.1:8b",  // General purpose
+		"mistral:7b",   // Alternative general purpose
 	}
 }
 

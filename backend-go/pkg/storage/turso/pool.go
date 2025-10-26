@@ -8,8 +8,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	_ "github.com/tursodatabase/libsql-client-go/libsql"
 	"github.com/sirupsen/logrus"
+	_ "github.com/tursodatabase/libsql-client-go/libsql"
 )
 
 type ConnectionPool struct {
@@ -33,18 +33,18 @@ type PoolConfig struct {
 }
 
 type PoolStats struct {
-	OpenConnections   int32         `json:"open_connections"`
-	InUse             int32         `json:"in_use"`
-	Idle              int32         `json:"idle"`
-	WaitCount         int64         `json:"wait_count"`
-	WaitDuration      int64         `json:"wait_duration_ms"`
-	MaxIdleClosed     int64         `json:"max_idle_closed"`
-	MaxLifetimeClosed int64         `json:"max_lifetime_closed"`
-	TotalRequests     uint64        `json:"total_requests"`
-	TotalErrors       uint64        `json:"total_errors"`
-	SlowQueries       uint64        `json:"slow_queries"`
-	HealthStatus      bool          `json:"health_status"`
-	Efficiency        float64       `json:"efficiency_percent"`
+	OpenConnections   int32   `json:"open_connections"`
+	InUse             int32   `json:"in_use"`
+	Idle              int32   `json:"idle"`
+	WaitCount         int64   `json:"wait_count"`
+	WaitDuration      int64   `json:"wait_duration_ms"`
+	MaxIdleClosed     int64   `json:"max_idle_closed"`
+	MaxLifetimeClosed int64   `json:"max_lifetime_closed"`
+	TotalRequests     uint64  `json:"total_requests"`
+	TotalErrors       uint64  `json:"total_errors"`
+	SlowQueries       uint64  `json:"slow_queries"`
+	HealthStatus      bool    `json:"health_status"`
+	Efficiency        float64 `json:"efficiency_percent"`
 }
 
 // DefaultPoolConfig returns optimized default configuration

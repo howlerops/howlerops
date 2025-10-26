@@ -32,8 +32,8 @@ set -o pipefail  # Exit on pipe failure
 # Configuration
 # -----------------------------------------------------------------------------
 REGION="${GCP_REGION:-us-central1}"
-SERVICE_NAME="sql-studio-backend"
-SERVICE_ACCOUNT_NAME="sql-studio-backend"
+SERVICE_NAME="howlerops-backend"
+SERVICE_ACCOUNT_NAME="howlerops-backend"
 
 # Colors for output
 RED='\033[0;31m'
@@ -225,7 +225,20 @@ cd "$SCRIPT_DIR/.."
 
 # Submit build to Cloud Build
 log_info "Submitting build to Cloud Build..."
-gcloud builds submit --config cloudbuild.yaml --timeout=30m
+
+# Get commit SHA (use git if available, otherwise use timestamp)
+if command -v git &> /dev/null && git rev-parse HEAD &> /dev/null; then
+    COMMIT_SHA=$(git rev-parse --short=8 HEAD)
+    log_info "Using git commit SHA: $COMMIT_SHA"
+else
+    COMMIT_SHA=$(date +%Y%m%d-%H%M%S)
+    log_warning "Git not available, using timestamp as version: $COMMIT_SHA"
+fi
+
+gcloud builds submit \
+    --config cloudbuild.yaml \
+    --substitutions=COMMIT_SHA="$COMMIT_SHA" \
+    --timeout=30m
 
 log_success "Build and deployment completed"
 

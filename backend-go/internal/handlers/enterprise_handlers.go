@@ -10,11 +10,11 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 
-	"backend-go/internal/domains"
-	"backend-go/internal/middleware"
-	"backend-go/internal/quotas"
-	"backend-go/internal/sla"
-	"backend-go/internal/whitelabel"
+	"github.com/sql-studio/backend-go/internal/domains"
+	"github.com/sql-studio/backend-go/internal/middleware"
+	"github.com/sql-studio/backend-go/internal/quotas"
+	"github.com/sql-studio/backend-go/internal/sla"
+	"github.com/sql-studio/backend-go/internal/whitelabel"
 )
 
 // EnterpriseHandlers handles all enterprise feature endpoints
@@ -183,8 +183,8 @@ func (h *EnterpriseHandlers) AddDomain(w http.ResponseWriter, r *http.Request) {
 
 	// Include instructions in response
 	response := map[string]interface{}{
-		"verification":   verification,
-		"instructions":   h.domainService.GetVerificationInstructions(verification),
+		"verification": verification,
+		"instructions": h.domainService.GetVerificationInstructions(verification),
 	}
 
 	respondJSON(w, http.StatusCreated, response)

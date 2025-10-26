@@ -1,0 +1,243 @@
+package crypto
+
+import (
+	"testing"
+)
+
+func TestEncryptDecryptSecret(t *testing.T) {
+	// Generate a test key
+	key, err := GenerateRandomBytes(KeySize)
+	if err != nil {
+		t.Fatalf("Failed to generate key: %v", err)
+	}
+
+	// Test data
+	plaintext := []byte("This is a test secret that needs to be encrypted")
+
+	// Encrypt
+	ciphertext, nonce, err := EncryptSecret(plaintext, key)
+	if err != nil {
+		t.Fatalf("Failed to encrypt: %v", err)
+	}
+
+	// Verify nonce size
+	if len(nonce) != NonceSize {
+		t.Errorf("Expected nonce size %d, got %d", NonceSize, len(nonce))
+	}
+
+	// Verify ciphertext is different from plaintext
+	if string(ciphertext) == string(plaintext) {
+		t.Error("Ciphertext should be different from plaintext")
+	}
+
+	// Decrypt
+	decrypted, err := DecryptSecret(ciphertext, nonce, key)
+	if err != nil {
+		t.Fatalf("Failed to decrypt: %v", err)
+	}
+
+	// Verify decrypted text matches original
+	if string(decrypted) != string(plaintext) {
+		t.Errorf("Expected %s, got %s", string(plaintext), string(decrypted))
+	}
+}
+
+func TestEncryptDecryptEmptySecret(t *testing.T) {
+	key, err := GenerateRandomBytes(KeySize)
+	if err != nil {
+		t.Fatalf("Failed to generate key: %v", err)
+	}
+
+	plaintext := []byte("")
+
+	ciphertext, nonce, err := EncryptSecret(plaintext, key)
+	if err != nil {
+		t.Fatalf("Failed to encrypt empty secret: %v", err)
+	}
+
+	decrypted, err := DecryptSecret(ciphertext, nonce, key)
+	if err != nil {
+		t.Fatalf("Failed to decrypt empty secret: %v", err)
+	}
+
+	if len(decrypted) != 0 {
+		t.Errorf("Expected empty decrypted text, got %d bytes", len(decrypted))
+	}
+}
+
+func TestEncryptDecryptLargeSecret(t *testing.T) {
+	key, err := GenerateRandomBytes(KeySize)
+	if err != nil {
+		t.Fatalf("Failed to generate key: %v", err)
+	}
+
+	// Create a large secret (1MB)
+	plaintext := make([]byte, 1024*1024)
+	for i := range plaintext {
+		plaintext[i] = byte(i % 256)
+	}
+
+	ciphertext, _, err := EncryptSecret(plaintext, key)
+	if err != nil {
+		t.Fatalf("Failed to encrypt large secret: %v", err)
+	}
+
+	decrypted, err := DecryptSecret(ciphertext, _, key)
+	if err != nil {
+		t.Fatalf("Failed to decrypt large secret: %v", err)
+	}
+
+	if len(decrypted) != len(plaintext) {
+		t.Errorf("Expected %d bytes, got %d", len(plaintext), len(decrypted))
+	}
+
+	for i := range plaintext {
+		if decrypted[i] != plaintext[i] {
+			t.Errorf("Byte mismatch at position %d", i)
+			break
+		}
+	}
+}
+
+func TestEncryptWithInvalidKey(t *testing.T) {
+	plaintext := []byte("test")
+
+	// Test with wrong key size
+	invalidKey := []byte("short")
+	_, _, err := EncryptSecret(plaintext, invalidKey)
+	if err == nil {
+		t.Error("Expected error for invalid key size")
+	}
+
+	// Test with nil key
+	_, _, err = EncryptSecret(plaintext, nil)
+	if err == nil {
+		t.Error("Expected error for nil key")
+	}
+}
+
+func TestDecryptWithInvalidKey(t *testing.T) {
+	key, err := GenerateRandomBytes(KeySize)
+	if err != nil {
+		t.Fatalf("Failed to generate key: %v", err)
+	}
+
+	plaintext := []byte("test")
+	ciphertext, _, err := EncryptSecret(plaintext, key)
+	if err != nil {
+		t.Fatalf("Failed to encrypt: %v", err)
+	}
+
+	// Test with wrong key
+	wrongKey := make([]byte, KeySize)
+	for i := range wrongKey {
+		wrongKey[i] = byte(i)
+	}
+
+	_, err = DecryptSecret(ciphertext, _, wrongKey)
+	if err == nil {
+		t.Error("Expected error for wrong key")
+	}
+}
+
+func TestDecryptWithInvalidNonce(t *testing.T) {
+	key, err := GenerateRandomBytes(KeySize)
+	if err != nil {
+		t.Fatalf("Failed to generate key: %v", err)
+	}
+
+	plaintext := []byte("test")
+	ciphertext, _, err := EncryptSecret(plaintext, key)
+	if err != nil {
+		t.Fatalf("Failed to encrypt: %v", err)
+	}
+
+	// Test with wrong nonce size
+	wrongNonce := []byte("short")
+	_, err = DecryptSecret(ciphertext, wrongNonce, key)
+	if err == nil {
+		t.Error("Expected error for invalid nonce size")
+	}
+
+	// Test with nil nonce
+	_, err = DecryptSecret(ciphertext, nil, key)
+	if err == nil {
+		t.Error("Expected error for nil nonce")
+	}
+}
+
+func TestDecryptWithCorruptedCiphertext(t *testing.T) {
+	key, err := GenerateRandomBytes(KeySize)
+	if err != nil {
+		t.Fatalf("Failed to generate key: %v", err)
+	}
+
+	plaintext := []byte("test")
+	ciphertext, _, err := EncryptSecret(plaintext, key)
+	if err != nil {
+		t.Fatalf("Failed to encrypt: %v", err)
+	}
+
+	// Corrupt the ciphertext
+	ciphertext[0] ^= 0xFF
+
+	_, err = DecryptSecret(ciphertext, _, key)
+	if err == nil {
+		t.Error("Expected error for corrupted ciphertext")
+	}
+}
+
+func TestGenerateRandomBytes(t *testing.T) {
+	// Test different sizes
+	sizes := []int{1, 16, 32, 64, 256, 1024}
+
+	for _, size := range sizes {
+		bytes, err := GenerateRandomBytes(size)
+		if err != nil {
+			t.Errorf("Failed to generate %d bytes: %v", size, err)
+			continue
+		}
+
+		if len(bytes) != size {
+			t.Errorf("Expected %d bytes, got %d", size, len(bytes))
+		}
+
+		// Check that bytes are not all zeros (very unlikely with crypto/rand)
+		allZeros := true
+		for _, b := range bytes {
+			if b != 0 {
+				allZeros = false
+				break
+			}
+		}
+		if allZeros {
+			t.Errorf("Generated bytes are all zeros (size %d)", size)
+		}
+	}
+}
+
+func TestValidateKey(t *testing.T) {
+	// Test valid key
+	validKey, err := GenerateRandomBytes(KeySize)
+	if err != nil {
+		t.Fatalf("Failed to generate valid key: %v", err)
+	}
+
+	if err := ValidateKey(validKey); err != nil {
+		t.Errorf("Valid key failed validation: %v", err)
+	}
+
+	// Test invalid key sizes
+	invalidSizes := []int{0, 1, 16, 31, 33, 64}
+	for _, size := range invalidSizes {
+		invalidKey := make([]byte, size)
+		if err := ValidateKey(invalidKey); err == nil {
+			t.Errorf("Expected validation error for key size %d", size)
+		}
+	}
+
+	// Test nil key
+	if err := ValidateKey(nil); err == nil {
+		t.Error("Expected validation error for nil key")
+	}
+}

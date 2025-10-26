@@ -22,15 +22,15 @@ type SyntheticView struct {
 
 // ViewDefinition represents the structure of a synthetic view definition
 type ViewDefinition struct {
-	ID               string                 `json:"id"`
-	Name             string                 `json:"name"`
-	Description      string                 `json:"description"`
-	Version          string                 `json:"version"`
-	Columns          []ColumnDefinition     `json:"columns"`
-	IR               map[string]interface{} `json:"ir"` // JSON representation of QueryIR
-	Sources          []SourceDefinition     `json:"sources"`
-	CompiledDuckDBSQL string                `json:"compiledDuckDBSQL"`
-	Options          ViewOptions            `json:"options"`
+	ID                string                 `json:"id"`
+	Name              string                 `json:"name"`
+	Description       string                 `json:"description"`
+	Version           string                 `json:"version"`
+	Columns           []ColumnDefinition     `json:"columns"`
+	IR                map[string]interface{} `json:"ir"` // JSON representation of QueryIR
+	Sources           []SourceDefinition     `json:"sources"`
+	CompiledDuckDBSQL string                 `json:"compiledDuckDBSQL"`
+	Options           ViewOptions            `json:"options"`
 }
 
 // ColumnDefinition represents a column in a synthetic view
@@ -92,12 +92,12 @@ func (s *SyntheticViewStorage) CreateTable() error {
 	CREATE INDEX IF NOT EXISTS idx_synthetic_views_name ON synthetic_views(name);
 	CREATE INDEX IF NOT EXISTS idx_synthetic_views_created_at ON synthetic_views(created_at);
 	`
-	
+
 	_, err := s.db.Exec(query)
 	if err != nil {
 		return fmt.Errorf("failed to create synthetic_views table: %w", err)
 	}
-	
+
 	s.logger.Info("Synthetic views table created successfully")
 	return nil
 }
@@ -109,13 +109,13 @@ func (s *SyntheticViewStorage) SaveSyntheticView(viewDef *ViewDefinition) error 
 	if err != nil {
 		return fmt.Errorf("failed to marshal view definition: %w", err)
 	}
-	
+
 	// Check if view exists
 	exists, err := s.viewExists(viewDef.ID)
 	if err != nil {
 		return fmt.Errorf("failed to check if view exists: %w", err)
 	}
-	
+
 	if exists {
 		// Update existing view
 		query := `
@@ -123,7 +123,7 @@ func (s *SyntheticViewStorage) SaveSyntheticView(viewDef *ViewDefinition) error 
 		SET name = ?, description = ?, version = ?, definition = ?, updated_at = CURRENT_TIMESTAMP
 		WHERE id = ?
 		`
-		
+
 		_, err = s.db.Exec(query, viewDef.Name, viewDef.Description, viewDef.Version, string(definitionJSON), viewDef.ID)
 		if err != nil {
 			return fmt.Errorf("failed to update synthetic view: %w", err)
@@ -134,18 +134,18 @@ func (s *SyntheticViewStorage) SaveSyntheticView(viewDef *ViewDefinition) error 
 		INSERT INTO synthetic_views (id, name, description, version, definition, created_at, updated_at)
 		VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 		`
-		
+
 		_, err = s.db.Exec(query, viewDef.ID, viewDef.Name, viewDef.Description, viewDef.Version, string(definitionJSON))
 		if err != nil {
 			return fmt.Errorf("failed to insert synthetic view: %w", err)
 		}
 	}
-	
+
 	s.logger.WithFields(logrus.Fields{
 		"view_id":   viewDef.ID,
 		"view_name": viewDef.Name,
 	}).Info("Synthetic view saved successfully")
-	
+
 	return nil
 }
 
@@ -156,9 +156,9 @@ func (s *SyntheticViewStorage) GetSyntheticView(id string) (*ViewDefinition, err
 	FROM synthetic_views
 	WHERE id = ?
 	`
-	
+
 	row := s.db.QueryRow(query, id)
-	
+
 	var view SyntheticView
 	err := row.Scan(&view.ID, &view.Name, &view.Description, &view.Version, &view.Definition, &view.CreatedAt, &view.UpdatedAt)
 	if err != nil {
@@ -167,14 +167,14 @@ func (s *SyntheticViewStorage) GetSyntheticView(id string) (*ViewDefinition, err
 		}
 		return nil, fmt.Errorf("failed to get synthetic view: %w", err)
 	}
-	
+
 	// Unmarshal definition JSON
 	var viewDef ViewDefinition
 	err = json.Unmarshal([]byte(view.Definition), &viewDef)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal view definition: %w", err)
 	}
-	
+
 	return &viewDef, nil
 }
 
@@ -185,13 +185,13 @@ func (s *SyntheticViewStorage) ListSyntheticViews() ([]ViewSummary, error) {
 	FROM synthetic_views
 	ORDER BY updated_at DESC
 	`
-	
+
 	rows, err := s.db.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list synthetic views: %w", err)
 	}
 	defer rows.Close()
-	
+
 	var views []ViewSummary
 	for rows.Next() {
 		var view ViewSummary
@@ -201,32 +201,32 @@ func (s *SyntheticViewStorage) ListSyntheticViews() ([]ViewSummary, error) {
 		}
 		views = append(views, view)
 	}
-	
+
 	if err = rows.Err(); err != nil {
 		return nil, fmt.Errorf("row iteration error: %w", err)
 	}
-	
+
 	return views, nil
 }
 
 // DeleteSyntheticView deletes a synthetic view by ID
 func (s *SyntheticViewStorage) DeleteSyntheticView(id string) error {
 	query := `DELETE FROM synthetic_views WHERE id = ?`
-	
+
 	result, err := s.db.Exec(query, id)
 	if err != nil {
 		return fmt.Errorf("failed to delete synthetic view: %w", err)
 	}
-	
+
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return fmt.Errorf("failed to get rows affected: %w", err)
 	}
-	
+
 	if rowsAffected == 0 {
 		return fmt.Errorf("synthetic view not found: %s", id)
 	}
-	
+
 	s.logger.WithField("view_id", id).Info("Synthetic view deleted successfully")
 	return nil
 }
@@ -238,9 +238,9 @@ func (s *SyntheticViewStorage) GetSyntheticViewByName(name string) (*ViewDefinit
 	FROM synthetic_views
 	WHERE name = ?
 	`
-	
+
 	row := s.db.QueryRow(query, name)
-	
+
 	var view SyntheticView
 	err := row.Scan(&view.ID, &view.Name, &view.Description, &view.Version, &view.Definition, &view.CreatedAt, &view.UpdatedAt)
 	if err != nil {
@@ -249,27 +249,27 @@ func (s *SyntheticViewStorage) GetSyntheticViewByName(name string) (*ViewDefinit
 		}
 		return nil, fmt.Errorf("failed to get synthetic view by name: %w", err)
 	}
-	
+
 	// Unmarshal definition JSON
 	var viewDef ViewDefinition
 	err = json.Unmarshal([]byte(view.Definition), &viewDef)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal view definition: %w", err)
 	}
-	
+
 	return &viewDef, nil
 }
 
 // viewExists checks if a synthetic view exists by ID
 func (s *SyntheticViewStorage) viewExists(id string) (bool, error) {
 	query := `SELECT COUNT(*) FROM synthetic_views WHERE id = ?`
-	
+
 	var count int
 	err := s.db.QueryRow(query, id).Scan(&count)
 	if err != nil {
 		return false, fmt.Errorf("failed to check if view exists: %w", err)
 	}
-	
+
 	return count > 0, nil
 }
 
@@ -279,7 +279,7 @@ func (s *SyntheticViewStorage) GetSyntheticSchema() (map[string]interface{}, err
 	if err != nil {
 		return nil, fmt.Errorf("failed to list synthetic views: %w", err)
 	}
-	
+
 	// Convert to schema format
 	var schemaViews []map[string]interface{}
 	for _, view := range views {
@@ -289,7 +289,7 @@ func (s *SyntheticViewStorage) GetSyntheticSchema() (map[string]interface{}, err
 			s.logger.WithError(err).WithField("view_id", view.ID).Warn("Failed to get view definition for schema")
 			continue
 		}
-		
+
 		// Convert columns to schema format
 		var columns []map[string]interface{}
 		for _, col := range viewDef.Columns {
@@ -299,14 +299,14 @@ func (s *SyntheticViewStorage) GetSyntheticSchema() (map[string]interface{}, err
 				"readOnly": true,
 			})
 		}
-		
+
 		schemaViews = append(schemaViews, map[string]interface{}{
 			"name":     view.Name,
 			"columns":  columns,
 			"readOnly": true,
 		})
 	}
-	
+
 	return map[string]interface{}{
 		"schema": "synthetic",
 		"views":  schemaViews,

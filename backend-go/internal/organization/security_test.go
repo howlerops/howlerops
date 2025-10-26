@@ -568,10 +568,10 @@ func TestRateLimiting(t *testing.T) {
 // TestDataLeakage tests for information disclosure vulnerabilities
 func TestDataLeakage(t *testing.T) {
 	testCases := []struct {
-		name           string
-		attackFunc     func(t *testing.T, s *Service) error
-		checkError     func(t *testing.T, err error)
-		leakageType    string
+		name        string
+		attackFunc  func(t *testing.T, s *Service) error
+		checkError  func(t *testing.T, err error)
+		leakageType string
 	}{
 		{
 			name: "Error message doesn't reveal sensitive data",

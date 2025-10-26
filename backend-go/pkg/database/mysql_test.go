@@ -278,9 +278,9 @@ func TestMySQLDatabase_UpdateRow(t *testing.T) {
 // Note: These tests would require a mock database connection
 func TestMySQLDatabase_Execute_QueryType(t *testing.T) {
 	tests := []struct {
-		name      string
-		query     string
-		isSelect  bool
+		name     string
+		query    string
+		isSelect bool
 	}{
 		{
 			name:     "SELECT query",
@@ -441,10 +441,10 @@ func TestMySQLDatabase_StreamExecution(t *testing.T) {
 // TestMySQLDatabase_EditableMetadata tests editable query metadata
 func TestMySQLDatabase_EditableMetadata(t *testing.T) {
 	tests := []struct {
-		name         string
-		query        string
-		wantEnabled  bool
-		wantReason   string
+		name        string
+		query       string
+		wantEnabled bool
+		wantReason  string
 	}{
 		{
 			name:        "simple select",
@@ -906,7 +906,7 @@ func ExampleMySQLDatabase_GetTableStructure() {
 		panic(err)
 	}
 
-	_ = structure.Columns      // Column information
-	_ = structure.Indexes      // Index information
-	_ = structure.ForeignKeys  // Foreign key constraints
+	_ = structure.Columns     // Column information
+	_ = structure.Indexes     // Index information
+	_ = structure.ForeignKeys // Foreign key constraints
 }

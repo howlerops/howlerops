@@ -214,10 +214,10 @@ func (p *openaiProvider) GetModels(ctx context.Context) ([]ModelInfo, error) {
 		// Filter for chat/completion models
 		if strings.Contains(model.ID, "gpt") {
 			models = append(models, ModelInfo{
-				ID:       model.ID,
-				Name:     model.ID,
-				Provider: ProviderOpenAI,
-				Description: fmt.Sprintf("OpenAI %s model", model.ID),
+				ID:           model.ID,
+				Name:         model.ID,
+				Provider:     ProviderOpenAI,
+				Description:  fmt.Sprintf("OpenAI %s model", model.ID),
 				Capabilities: []string{"text-to-sql", "sql-fixing", "explanation"},
 			})
 		}

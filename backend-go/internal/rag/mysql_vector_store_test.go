@@ -230,7 +230,7 @@ func TestMySQLVectorStore_IndexDocument_UpdateExisting(t *testing.T) {
 	mock.ExpectBegin()
 	mock.ExpectExec("INSERT INTO documents").
 		WithArgs(doc.ID, doc.ConnectionID, string(doc.Type), doc.Content, sqlmock.AnyArg(),
-			sqlmock.AnyArg(), sqlmock.AnyArg(), doc.AccessCount, sqlmock.AnyArg()).
+								sqlmock.AnyArg(), sqlmock.AnyArg(), doc.AccessCount, sqlmock.AnyArg()).
 		WillReturnResult(sqlmock.NewResult(1, 2)) // affected rows = 2 for update
 	mock.ExpectExec("INSERT INTO embeddings").
 		WithArgs(doc.ID, sqlmock.AnyArg(), len(doc.Embedding)).
@@ -401,7 +401,7 @@ func TestMySQLVectorStore_SearchSimilar_Success(t *testing.T) {
 	defer db.Close()
 
 	_ = []float32{0.1, 0.2, 0.3, 0.4} // embedding
-	_ = 5                              // k
+	_ = 5                             // k
 
 	// Mock query results
 	rows := sqlmock.NewRows([]string{
@@ -438,8 +438,8 @@ func TestMySQLVectorStore_SearchSimilar_WithConnectionFilter(t *testing.T) {
 	defer db.Close()
 
 	_ = []float32{0.1, 0.2, 0.3, 0.4} // embedding
-	_ = 5                              // k
-	_ = map[string]interface{}{        // filter
+	_ = 5                             // k
+	_ = map[string]interface{}{       // filter
 		"connection_id": "conn1",
 	}
 
@@ -461,8 +461,8 @@ func TestMySQLVectorStore_SearchSimilar_WithTypeFilter(t *testing.T) {
 	defer db.Close()
 
 	_ = []float32{0.1, 0.2, 0.3, 0.4} // embedding
-	_ = 5                              // k
-	_ = map[string]interface{}{        // filter
+	_ = 5                             // k
+	_ = map[string]interface{}{       // filter
 		"type": "schema",
 	}
 
@@ -484,8 +484,8 @@ func TestMySQLVectorStore_SearchSimilar_WithMultipleFilters(t *testing.T) {
 	defer db.Close()
 
 	_ = []float32{0.1, 0.2, 0.3, 0.4} // embedding
-	_ = 5                              // k
-	_ = map[string]interface{}{        // filter
+	_ = 5                             // k
+	_ = map[string]interface{}{       // filter
 		"connection_id": "conn1",
 		"type":          "schema",
 	}
@@ -549,8 +549,8 @@ func TestMySQLVectorStore_SearchByText_EmptyQuery(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
-	_ = ""  // query
-	_ = 10  // k
+	_ = "" // query
+	_ = 10 // k
 
 	// No query should be executed for empty search
 	assert.NoError(t, mock.ExpectationsWereMet())
@@ -799,7 +799,7 @@ func TestMySQLVectorStore_UpdateDocument_Success(t *testing.T) {
 	mock.ExpectBegin()
 	mock.ExpectExec("INSERT INTO documents").
 		WithArgs(doc.ID, doc.ConnectionID, string(doc.Type), doc.Content, sqlmock.AnyArg(),
-			sqlmock.AnyArg(), sqlmock.AnyArg(), doc.AccessCount, sqlmock.AnyArg()).
+								sqlmock.AnyArg(), sqlmock.AnyArg(), doc.AccessCount, sqlmock.AnyArg()).
 		WillReturnResult(sqlmock.NewResult(1, 2)) // Update affects 2 rows
 	mock.ExpectExec("INSERT INTO embeddings").
 		WithArgs(doc.ID, sqlmock.AnyArg(), len(doc.Embedding)).

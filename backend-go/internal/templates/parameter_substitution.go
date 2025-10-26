@@ -252,7 +252,7 @@ func containsSQLInjection(str string) bool {
 	// Check for common SQL injection patterns
 	dangerous := []string{
 		"';",
-		"\";" ,
+		"\";",
 		"--",
 		"/*",
 		"*/",

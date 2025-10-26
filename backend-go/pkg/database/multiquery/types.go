@@ -140,24 +140,24 @@ type TableInfo struct {
 
 // EditableQueryMetadata represents metadata for editable queries
 type EditableQueryMetadata struct {
-	Enabled    bool
-	Reason     string
-	Schema     string
-	Table      string
+	Enabled     bool
+	Reason      string
+	Schema      string
+	Table       string
 	PrimaryKeys []string
-	Columns    []EditableColumn
-	Pending    bool
-	JobID      string
+	Columns     []EditableColumn
+	Pending     bool
+	JobID       string
 }
 
 // EditableColumn represents an editable column
 type EditableColumn struct {
-	Name        string
-	ResultName  string
-	DataType    string
-	Editable    bool
-	PrimaryKey  bool
-	ForeignKey  *ForeignKeyRef
+	Name       string
+	ResultName string
+	DataType   string
+	Editable   bool
+	PrimaryKey bool
+	ForeignKey *ForeignKeyRef
 }
 
 // ForeignKeyRef represents foreign key information
@@ -166,4 +166,3 @@ type ForeignKeyRef struct {
 	Column string
 	Schema string
 }
-

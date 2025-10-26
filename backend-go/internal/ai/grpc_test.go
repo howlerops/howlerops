@@ -15,15 +15,15 @@ import (
 
 // mockGRPCService is a mock implementation of the ai.Service interface for testing gRPC server
 type mockGRPCService struct {
-	generateSQLFunc       func(ctx context.Context, req *ai.SQLRequest) (*ai.SQLResponse, error)
-	fixSQLFunc            func(ctx context.Context, req *ai.SQLRequest) (*ai.SQLResponse, error)
-	chatFunc              func(ctx context.Context, req *ai.ChatRequest) (*ai.ChatResponse, error)
-	getProvidersFunc      func() []ai.Provider
-	getProviderHealthFunc func(ctx context.Context, provider ai.Provider) (*ai.HealthStatus, error)
+	generateSQLFunc        func(ctx context.Context, req *ai.SQLRequest) (*ai.SQLResponse, error)
+	fixSQLFunc             func(ctx context.Context, req *ai.SQLRequest) (*ai.SQLResponse, error)
+	chatFunc               func(ctx context.Context, req *ai.ChatRequest) (*ai.ChatResponse, error)
+	getProvidersFunc       func() []ai.Provider
+	getProviderHealthFunc  func(ctx context.Context, provider ai.Provider) (*ai.HealthStatus, error)
 	getAvailableModelsFunc func(ctx context.Context, provider ai.Provider) ([]ai.ModelInfo, error)
-	getAllUsageStatsFunc  func(ctx context.Context) (map[ai.Provider]*ai.Usage, error)
-	testProviderFunc      func(ctx context.Context, provider ai.Provider, config interface{}) error
-	getConfigFunc         func() *ai.Config
+	getAllUsageStatsFunc   func(ctx context.Context) (map[ai.Provider]*ai.Usage, error)
+	testProviderFunc       func(ctx context.Context, provider ai.Provider, config interface{}) error
+	getConfigFunc          func() *ai.Config
 }
 
 func (m *mockGRPCService) GenerateSQL(ctx context.Context, req *ai.SQLRequest) (*ai.SQLResponse, error) {
@@ -237,28 +237,28 @@ func TestGenerateSQL_ProviderConversion(t *testing.T) {
 	logger := createGRPCTestLogger()
 
 	testCases := []struct {
-		name           string
-		protoProvider  aipb.Provider
+		name             string
+		protoProvider    aipb.Provider
 		expectedProvider ai.Provider
 	}{
 		{
-			name:           "OpenAI provider",
-			protoProvider:  aipb.Provider_PROVIDER_OPENAI,
+			name:             "OpenAI provider",
+			protoProvider:    aipb.Provider_PROVIDER_OPENAI,
 			expectedProvider: ai.ProviderOpenAI,
 		},
 		{
-			name:           "Anthropic provider",
-			protoProvider:  aipb.Provider_PROVIDER_ANTHROPIC,
+			name:             "Anthropic provider",
+			protoProvider:    aipb.Provider_PROVIDER_ANTHROPIC,
 			expectedProvider: ai.ProviderAnthropic,
 		},
 		{
-			name:           "Ollama provider",
-			protoProvider:  aipb.Provider_PROVIDER_OLLAMA,
+			name:             "Ollama provider",
+			protoProvider:    aipb.Provider_PROVIDER_OLLAMA,
 			expectedProvider: ai.ProviderOllama,
 		},
 		{
-			name:           "HuggingFace provider",
-			protoProvider:  aipb.Provider_PROVIDER_HUGGINGFACE,
+			name:             "HuggingFace provider",
+			protoProvider:    aipb.Provider_PROVIDER_HUGGINGFACE,
 			expectedProvider: ai.ProviderHuggingFace,
 		},
 	}
@@ -498,18 +498,18 @@ func TestFixSQL_ProviderConversion(t *testing.T) {
 	logger := createGRPCTestLogger()
 
 	testCases := []struct {
-		name           string
-		protoProvider  aipb.Provider
+		name             string
+		protoProvider    aipb.Provider
 		expectedProvider ai.Provider
 	}{
 		{
-			name:           "OpenAI provider",
-			protoProvider:  aipb.Provider_PROVIDER_OPENAI,
+			name:             "OpenAI provider",
+			protoProvider:    aipb.Provider_PROVIDER_OPENAI,
 			expectedProvider: ai.ProviderOpenAI,
 		},
 		{
-			name:           "Ollama provider",
-			protoProvider:  aipb.Provider_PROVIDER_OLLAMA,
+			name:             "Ollama provider",
+			protoProvider:    aipb.Provider_PROVIDER_OLLAMA,
 			expectedProvider: ai.ProviderOllama,
 		},
 	}
@@ -925,18 +925,18 @@ func TestGetProviderModels_MultipleProviders(t *testing.T) {
 	logger := createGRPCTestLogger()
 
 	testCases := []struct {
-		name         string
-		provider     aipb.Provider
+		name           string
+		provider       aipb.Provider
 		expectedModels int
 	}{
 		{
-			name:         "OpenAI models",
-			provider:     aipb.Provider_PROVIDER_OPENAI,
+			name:           "OpenAI models",
+			provider:       aipb.Provider_PROVIDER_OPENAI,
 			expectedModels: 2,
 		},
 		{
-			name:         "Anthropic models",
-			provider:     aipb.Provider_PROVIDER_ANTHROPIC,
+			name:           "Anthropic models",
+			provider:       aipb.Provider_PROVIDER_ANTHROPIC,
 			expectedModels: 1,
 		},
 	}
@@ -1454,33 +1454,33 @@ func TestProtoToProvider_AllProviders(t *testing.T) {
 	logger := createGRPCTestLogger()
 
 	testCases := []struct {
-		name           string
-		protoProvider  aipb.Provider
+		name             string
+		protoProvider    aipb.Provider
 		expectedProvider ai.Provider
 	}{
 		{
-			name:           "OpenAI",
-			protoProvider:  aipb.Provider_PROVIDER_OPENAI,
+			name:             "OpenAI",
+			protoProvider:    aipb.Provider_PROVIDER_OPENAI,
 			expectedProvider: ai.ProviderOpenAI,
 		},
 		{
-			name:           "Anthropic",
-			protoProvider:  aipb.Provider_PROVIDER_ANTHROPIC,
+			name:             "Anthropic",
+			protoProvider:    aipb.Provider_PROVIDER_ANTHROPIC,
 			expectedProvider: ai.ProviderAnthropic,
 		},
 		{
-			name:           "Ollama",
-			protoProvider:  aipb.Provider_PROVIDER_OLLAMA,
+			name:             "Ollama",
+			protoProvider:    aipb.Provider_PROVIDER_OLLAMA,
 			expectedProvider: ai.ProviderOllama,
 		},
 		{
-			name:           "HuggingFace",
-			protoProvider:  aipb.Provider_PROVIDER_HUGGINGFACE,
+			name:             "HuggingFace",
+			protoProvider:    aipb.Provider_PROVIDER_HUGGINGFACE,
 			expectedProvider: ai.ProviderHuggingFace,
 		},
 		{
-			name:           "Unspecified defaults to OpenAI",
-			protoProvider:  aipb.Provider_PROVIDER_UNSPECIFIED,
+			name:             "Unspecified defaults to OpenAI",
+			protoProvider:    aipb.Provider_PROVIDER_UNSPECIFIED,
 			expectedProvider: ai.ProviderOpenAI,
 		},
 	}
@@ -1517,33 +1517,33 @@ func TestProviderToProto_AllProviders(t *testing.T) {
 	logger := createGRPCTestLogger()
 
 	testCases := []struct {
-		name         string
-		provider     ai.Provider
+		name          string
+		provider      ai.Provider
 		expectedProto aipb.Provider
 	}{
 		{
-			name:         "OpenAI",
-			provider:     ai.ProviderOpenAI,
+			name:          "OpenAI",
+			provider:      ai.ProviderOpenAI,
 			expectedProto: aipb.Provider_PROVIDER_OPENAI,
 		},
 		{
-			name:         "Anthropic",
-			provider:     ai.ProviderAnthropic,
+			name:          "Anthropic",
+			provider:      ai.ProviderAnthropic,
 			expectedProto: aipb.Provider_PROVIDER_ANTHROPIC,
 		},
 		{
-			name:         "Ollama",
-			provider:     ai.ProviderOllama,
+			name:          "Ollama",
+			provider:      ai.ProviderOllama,
 			expectedProto: aipb.Provider_PROVIDER_OLLAMA,
 		},
 		{
-			name:         "HuggingFace",
-			provider:     ai.ProviderHuggingFace,
+			name:          "HuggingFace",
+			provider:      ai.ProviderHuggingFace,
 			expectedProto: aipb.Provider_PROVIDER_HUGGINGFACE,
 		},
 		{
-			name:         "Unknown provider defaults to unspecified",
-			provider:     ai.Provider("unknown"),
+			name:          "Unknown provider defaults to unspecified",
+			provider:      ai.Provider("unknown"),
 			expectedProto: aipb.Provider_PROVIDER_UNSPECIFIED,
 		},
 	}
@@ -1584,9 +1584,9 @@ func TestHealthStatusToProto_AllStatuses(t *testing.T) {
 	logger := createGRPCTestLogger()
 
 	testCases := []struct {
-		name           string
-		status         string
-		expectedProto  aipb.HealthStatus
+		name          string
+		status        string
+		expectedProto aipb.HealthStatus
 	}{
 		{
 			name:          "Healthy",

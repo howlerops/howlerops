@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/google/uuid"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/sirupsen/logrus"
 )
 
@@ -90,13 +90,13 @@ INSERT OR IGNORE INTO collections (name, vector_size, distance, document_count, 
 
 // SQLiteVectorConfig holds SQLite vector store configuration
 type SQLiteVectorConfig struct {
-	Path          string        `json:"path"`
-	Extension     string        `json:"extension"`      // sqlite-vec or sqlite-vss
-	VectorSize    int           `json:"vector_size"`
-	CacheSizeMB   int           `json:"cache_size_mb"`
-	MMapSizeMB    int           `json:"mmap_size_mb"`
-	WALEnabled    bool          `json:"wal_enabled"`
-	Timeout       time.Duration `json:"timeout"`
+	Path        string        `json:"path"`
+	Extension   string        `json:"extension"` // sqlite-vec or sqlite-vss
+	VectorSize  int           `json:"vector_size"`
+	CacheSizeMB int           `json:"cache_size_mb"`
+	MMapSizeMB  int           `json:"mmap_size_mb"`
+	WALEnabled  bool          `json:"wal_enabled"`
+	Timeout     time.Duration `json:"timeout"`
 }
 
 // SQLiteVectorStore implements VectorStore using SQLite
@@ -148,34 +148,34 @@ func NewSQLiteVectorStore(config *SQLiteVectorConfig, logger *logrus.Logger) (*S
 // runMigrations executes the initialization schema
 func (s *SQLiteVectorStore) runMigrations(ctx context.Context) error {
 	s.logger.Debug("Running vector store migrations")
-	
+
 	// Parse SQL statements properly, handling triggers with nested semicolons
 	statements := s.parseSQLStatements(initSchema)
-	
+
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback()
-	
+
 	fts5Available := true
-	
+
 	for _, stmt := range statements {
 		stmt = strings.TrimSpace(stmt)
 		if stmt == "" {
 			continue
 		}
-		
+
 		// Skip FTS5-related statements if FTS5 is not available
 		stmtUpper := strings.ToUpper(stmt)
-		isFTS5Related := strings.Contains(stmtUpper, "FTS5") || 
-		                 strings.Contains(stmtUpper, "DOCUMENTS_FTS")
-		
+		isFTS5Related := strings.Contains(stmtUpper, "FTS5") ||
+			strings.Contains(stmtUpper, "DOCUMENTS_FTS")
+
 		if isFTS5Related && !fts5Available {
 			s.logger.Debug("Skipping FTS5 statement (not available)")
 			continue
 		}
-		
+
 		if _, err := tx.ExecContext(ctx, stmt); err != nil {
 			// Check if FTS5 module is not available
 			if strings.Contains(err.Error(), "no such module: fts5") {
@@ -186,11 +186,11 @@ func (s *SQLiteVectorStore) runMigrations(ctx context.Context) error {
 			return fmt.Errorf("failed to execute migration statement: %w", err)
 		}
 	}
-	
+
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("failed to commit migrations: %w", err)
 	}
-	
+
 	if !fts5Available {
 		s.logger.Info("Vector store migrations completed (FTS5 disabled)")
 	} else {
@@ -204,27 +204,27 @@ func (s *SQLiteVectorStore) parseSQLStatements(sql string) []string {
 	var statements []string
 	var currentStmt strings.Builder
 	inTrigger := false
-	
+
 	lines := strings.Split(sql, "\n")
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		
+
 		// Skip empty lines and comments when not in a statement
 		if currentStmt.Len() == 0 && (trimmed == "" || strings.HasPrefix(trimmed, "--")) {
 			continue
 		}
-		
+
 		// Check if we're starting a trigger
 		if strings.HasPrefix(strings.ToUpper(trimmed), "CREATE TRIGGER") {
 			inTrigger = true
 		}
-		
+
 		// Add line to current statement
 		if currentStmt.Len() > 0 {
 			currentStmt.WriteString("\n")
 		}
 		currentStmt.WriteString(line)
-		
+
 		// Check if statement is complete
 		if inTrigger {
 			// Triggers end with "END;"
@@ -241,12 +241,12 @@ func (s *SQLiteVectorStore) parseSQLStatements(sql string) []string {
 			}
 		}
 	}
-	
+
 	// Add any remaining statement
 	if currentStmt.Len() > 0 {
 		statements = append(statements, currentStmt.String())
 	}
-	
+
 	return statements
 }
 
@@ -259,11 +259,11 @@ func (s *SQLiteVectorStore) Initialize(ctx context.Context) error {
 		FROM sqlite_master 
 		WHERE type='table' AND name='collections'
 	`).Scan(&tableExists)
-	
+
 	if err != nil {
 		return fmt.Errorf("failed to check if tables exist: %w", err)
 	}
-	
+
 	// If tables don't exist, run migrations
 	if !tableExists {
 		s.logger.Info("Vector store tables not found, running migrations")
@@ -271,7 +271,7 @@ func (s *SQLiteVectorStore) Initialize(ctx context.Context) error {
 			return fmt.Errorf("failed to run migrations: %w", err)
 		}
 	}
-	
+
 	// Load existing collections
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT name, vector_size, distance, document_count, created_at, updated_at

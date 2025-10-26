@@ -24,53 +24,53 @@ type QueryContext struct {
 
 // SchemaContext represents relevant schema information
 type SchemaContext struct {
-	TableName    string            `json:"table_name"`
-	Columns      []ColumnInfo      `json:"columns"`
-	Indexes      []IndexInfo       `json:"indexes"`
+	TableName     string             `json:"table_name"`
+	Columns       []ColumnInfo       `json:"columns"`
+	Indexes       []IndexInfo        `json:"indexes"`
 	Relationships []RelationshipInfo `json:"relationships"`
-	RowCount     int64             `json:"row_count"`
-	Description  string            `json:"description"`
-	Relevance    float32           `json:"relevance"`
+	RowCount      int64              `json:"row_count"`
+	Description   string             `json:"description"`
+	Relevance     float32            `json:"relevance"`
 }
 
 // ColumnInfo represents column metadata
 type ColumnInfo struct {
-	Name        string                 `json:"name"`
-	DataType    string                 `json:"data_type"`
-	IsNullable  bool                   `json:"is_nullable"`
-	IsPrimaryKey bool                  `json:"is_primary_key"`
-	IsForeignKey bool                  `json:"is_foreign_key"`
-	Description string                 `json:"description"`
-	Statistics  map[string]interface{} `json:"statistics"`
+	Name         string                 `json:"name"`
+	DataType     string                 `json:"data_type"`
+	IsNullable   bool                   `json:"is_nullable"`
+	IsPrimaryKey bool                   `json:"is_primary_key"`
+	IsForeignKey bool                   `json:"is_foreign_key"`
+	Description  string                 `json:"description"`
+	Statistics   map[string]interface{} `json:"statistics"`
 }
 
 // IndexInfo represents index metadata
 type IndexInfo struct {
-	Name        string   `json:"name"`
-	Columns     []string `json:"columns"`
-	Type        string   `json:"type"`
-	IsUnique    bool     `json:"is_unique"`
-	IsPrimary   bool     `json:"is_primary"`
-	Usage       int64    `json:"usage_count"`
+	Name      string   `json:"name"`
+	Columns   []string `json:"columns"`
+	Type      string   `json:"type"`
+	IsUnique  bool     `json:"is_unique"`
+	IsPrimary bool     `json:"is_primary"`
+	Usage     int64    `json:"usage_count"`
 }
 
 // RelationshipInfo represents table relationships
 type RelationshipInfo struct {
-	Type           string `json:"type"` // one-to-one, one-to-many, many-to-many
-	TargetTable    string `json:"target_table"`
-	LocalColumn    string `json:"local_column"`
-	ForeignColumn  string `json:"foreign_column"`
-	JoinFrequency  int64  `json:"join_frequency"`
+	Type          string `json:"type"` // one-to-one, one-to-many, many-to-many
+	TargetTable   string `json:"target_table"`
+	LocalColumn   string `json:"local_column"`
+	ForeignColumn string `json:"foreign_column"`
+	JoinFrequency int64  `json:"join_frequency"`
 }
 
 // QueryPattern represents a similar query pattern
 type QueryPattern struct {
-	Pattern       string    `json:"pattern"`
-	Query         string    `json:"query"`
-	Frequency     int       `json:"frequency"`
+	Pattern          string        `json:"pattern"`
+	Query            string        `json:"query"`
+	Frequency        int           `json:"frequency"`
 	AvgExecutionTime time.Duration `json:"avg_execution_time"`
-	LastUsed      time.Time `json:"last_used"`
-	Similarity    float32   `json:"similarity"`
+	LastUsed         time.Time     `json:"last_used"`
+	Similarity       float32       `json:"similarity"`
 }
 
 // BusinessRule represents a business logic rule
@@ -105,10 +105,10 @@ type DataStats struct {
 
 // AccessPattern represents data access patterns
 type AccessPattern struct {
-	Pattern     string    `json:"pattern"`
-	Frequency   int       `json:"frequency"`
-	TimeOfDay   []int     `json:"time_of_day"` // hours when most accessed
-	Users       []string  `json:"users"`
+	Pattern      string    `json:"pattern"`
+	Frequency    int       `json:"frequency"`
+	TimeOfDay    []int     `json:"time_of_day"` // hours when most accessed
+	Users        []string  `json:"users"`
 	LastAccessed time.Time `json:"last_accessed"`
 }
 
@@ -122,12 +122,12 @@ type Suggestion struct {
 
 // ContextBuilder builds enriched context for queries
 type ContextBuilder struct {
-	vectorStore    VectorStore
+	vectorStore      VectorStore
 	embeddingService EmbeddingService
-	schemaAnalyzer  *SchemaAnalyzer
-	patternMatcher  *PatternMatcher
-	statsCollector  *StatsCollector
-	logger          *logrus.Logger
+	schemaAnalyzer   *SchemaAnalyzer
+	patternMatcher   *PatternMatcher
+	statsCollector   *StatsCollector
+	logger           *logrus.Logger
 }
 
 // NewContextBuilder creates a new context builder
@@ -158,8 +158,8 @@ func (cb *ContextBuilder) BuildContext(ctx context.Context, query string, connec
 
 	// Create base context
 	queryContext := &QueryContext{
-		Query:           query,
-		Confidence:      0.0,
+		Query:      query,
+		Confidence: 0.0,
 	}
 
 	// Parallel context enrichment
@@ -243,14 +243,14 @@ func (cb *ContextBuilder) BuildContext(ctx context.Context, query string, connec
 	queryContext.Confidence = cb.calculateConfidence(queryContext)
 
 	cb.logger.WithFields(logrus.Fields{
-		"query":        query,
-		"schemas":      len(queryContext.RelevantSchemas),
-		"patterns":     len(queryContext.SimilarQueries),
-		"rules":        len(queryContext.BusinessRules),
-		"hints":        len(queryContext.PerformanceHints),
-		"suggestions":  len(queryContext.Suggestions),
-		"confidence":   queryContext.Confidence,
-		"duration":     time.Since(startTime),
+		"query":       query,
+		"schemas":     len(queryContext.RelevantSchemas),
+		"patterns":    len(queryContext.SimilarQueries),
+		"rules":       len(queryContext.BusinessRules),
+		"hints":       len(queryContext.PerformanceHints),
+		"suggestions": len(queryContext.Suggestions),
+		"confidence":  queryContext.Confidence,
+		"duration":    time.Since(startTime),
 	}).Debug("Query context built")
 
 	return queryContext, nil
@@ -404,9 +404,9 @@ func (cb *ContextBuilder) collectDataStatistics(ctx context.Context, query strin
 			},
 		},
 		Distribution: map[string]float64{
-			"uniform":  0.3,
-			"skewed":   0.5,
-			"sparse":   0.2,
+			"uniform": 0.3,
+			"skewed":  0.5,
+			"sparse":  0.2,
 		},
 	}, nil
 }

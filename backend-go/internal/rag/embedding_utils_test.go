@@ -202,23 +202,23 @@ func TestSerializeDeserialize_SpecialValues_RoundTrip(t *testing.T) {
 // TestCosineSimilarity_IdenticalVectors tests cosine similarity with identical vectors
 func TestCosineSimilarity_IdenticalVectors(t *testing.T) {
 	tests := []struct {
-		name   string
-		vec    []float32
+		name    string
+		vec     []float32
 		wantSim float32
 	}{
 		{
-			name:   "unit vector",
-			vec:    []float32{1.0, 0.0, 0.0},
+			name:    "unit vector",
+			vec:     []float32{1.0, 0.0, 0.0},
 			wantSim: 1.0,
 		},
 		{
-			name:   "random vector",
-			vec:    []float32{1.5, 2.5, 3.5},
+			name:    "random vector",
+			vec:     []float32{1.5, 2.5, 3.5},
 			wantSim: 1.0,
 		},
 		{
-			name:   "negative values",
-			vec:    []float32{-1.0, -2.0, -3.0},
+			name:    "negative values",
+			vec:     []float32{-1.0, -2.0, -3.0},
 			wantSim: 1.0,
 		},
 	}

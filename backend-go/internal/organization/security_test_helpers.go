@@ -201,9 +201,9 @@ func (m *mockRepository) CreateInvitation(ctx context.Context, inv *Organization
 	// Check for duplicate
 	for _, existing := range m.invitations {
 		if existing.OrganizationID == inv.OrganizationID &&
-		   existing.Email == inv.Email &&
-		   existing.AcceptedAt == nil &&
-		   !existing.IsExpired() {
+			existing.Email == inv.Email &&
+			existing.AcceptedAt == nil &&
+			!existing.IsExpired() {
 			return fmt.Errorf("UNIQUE constraint failed: invitation already exists")
 		}
 	}

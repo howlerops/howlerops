@@ -182,9 +182,9 @@ func timeoutInterceptor(timeout time.Duration) grpc.UnaryServerInterceptor {
 func validateAuth(ctx context.Context, method string) error {
 	// List of methods that don't require authentication
 	unprotectedMethods := map[string]bool{
-		"/sqlstudio.auth.AuthService/Login":        true,
-		"/sqlstudio.health.HealthService/Check":    true,
-		"/sqlstudio.health.HealthService/Watch":    true,
+		"/sqlstudio.auth.AuthService/Login":                              true,
+		"/sqlstudio.health.HealthService/Check":                          true,
+		"/sqlstudio.health.HealthService/Watch":                          true,
 		"/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo": true,
 	}
 
@@ -216,34 +216,34 @@ func extractUserFromContext(ctx context.Context) (string, error) {
 
 // GRPCServerConfig holds gRPC server configuration
 type GRPCServerConfig struct {
-	Address             string
-	TLSEnabled          bool
-	TLSCertFile         string
-	TLSKeyFile          string
-	MaxRecvMsgSize      int
-	MaxSendMsgSize      int
-	ConnectionTimeout   time.Duration
-	MaxConnectionAge    time.Duration
-	MaxConnectionIdle   time.Duration
-	KeepAliveTime       time.Duration
-	KeepAliveTimeout    time.Duration
-	EnableReflection    bool
-	EnableMetrics       bool
+	Address           string
+	TLSEnabled        bool
+	TLSCertFile       string
+	TLSKeyFile        string
+	MaxRecvMsgSize    int
+	MaxSendMsgSize    int
+	ConnectionTimeout time.Duration
+	MaxConnectionAge  time.Duration
+	MaxConnectionIdle time.Duration
+	KeepAliveTime     time.Duration
+	KeepAliveTimeout  time.Duration
+	EnableReflection  bool
+	EnableMetrics     bool
 }
 
 // GetDefaultGRPCConfig returns default gRPC server configuration
 func GetDefaultGRPCConfig() GRPCServerConfig {
 	return GRPCServerConfig{
-		Address:             ":9090",
-		TLSEnabled:          false,
-		MaxRecvMsgSize:      32 * 1024 * 1024, // 32MB
-		MaxSendMsgSize:      32 * 1024 * 1024, // 32MB
-		ConnectionTimeout:   30 * time.Second,
-		MaxConnectionAge:    time.Hour,
-		MaxConnectionIdle:   5 * time.Minute,
-		KeepAliveTime:       5 * time.Minute,
-		KeepAliveTimeout:    time.Minute,
-		EnableReflection:    false,
-		EnableMetrics:       true,
+		Address:           ":9090",
+		TLSEnabled:        false,
+		MaxRecvMsgSize:    32 * 1024 * 1024, // 32MB
+		MaxSendMsgSize:    32 * 1024 * 1024, // 32MB
+		ConnectionTimeout: 30 * time.Second,
+		MaxConnectionAge:  time.Hour,
+		MaxConnectionIdle: 5 * time.Minute,
+		KeepAliveTime:     5 * time.Minute,
+		KeepAliveTimeout:  time.Minute,
+		EnableReflection:  false,
+		EnableMetrics:     true,
 	}
 }

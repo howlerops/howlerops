@@ -46,6 +46,9 @@ type MetricsResponse struct {
 
 // TestHealthCheck tests the basic health check endpoint
 func TestHealthCheck(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
 	suite := NewHealthTestSuite()
 
 	req, err := http.NewRequest("GET", suite.baseURL+"/health", nil)
@@ -69,6 +72,9 @@ func TestHealthCheck(t *testing.T) {
 
 // TestHealthCheckResponseTime tests that health check responds quickly
 func TestHealthCheckResponseTime(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
 	suite := NewHealthTestSuite()
 
 	start := time.Now()
@@ -89,6 +95,9 @@ func TestHealthCheckResponseTime(t *testing.T) {
 
 // TestHealthCheckReliability tests health check reliability under load
 func TestHealthCheckReliability(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
 	suite := NewHealthTestSuite()
 
 	// Make 20 concurrent health check requests
@@ -127,6 +136,9 @@ func TestHealthCheckReliability(t *testing.T) {
 
 // TestMetricsEndpoint tests the Prometheus metrics endpoint
 func TestMetricsEndpoint(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
 	suite := NewHealthTestSuite()
 
 	// Try the metrics endpoint (might be on a different port)
@@ -155,6 +167,9 @@ func TestMetricsEndpoint(t *testing.T) {
 
 // TestReadinessProbe tests if the service is ready to accept traffic
 func TestReadinessProbe(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
 	suite := NewHealthTestSuite()
 
 	// Many services have a separate readiness endpoint
@@ -187,6 +202,9 @@ func TestReadinessProbe(t *testing.T) {
 
 // TestLivenessProbe tests if the service is alive
 func TestLivenessProbe(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
 	suite := NewHealthTestSuite()
 
 	// Many services have a separate liveness endpoint
@@ -219,6 +237,9 @@ func TestLivenessProbe(t *testing.T) {
 
 // TestCORS tests CORS headers on health endpoint
 func TestCORS(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
 	suite := NewHealthTestSuite()
 
 	req, err := http.NewRequest("OPTIONS", suite.baseURL+"/health", nil)
@@ -240,12 +261,15 @@ func TestCORS(t *testing.T) {
 
 // TestServiceDiscovery tests that all expected endpoints are available
 func TestServiceDiscovery(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
 	suite := NewHealthTestSuite()
 
 	// Test endpoints that should be available
 	endpoints := map[string]int{
 		"/health":            http.StatusOK,
-		"/api/auth/login":    http.StatusBadRequest, // Should return 400 for empty body
+		"/api/auth/login":    http.StatusBadRequest,   // Should return 400 for empty body
 		"/api/sync/download": http.StatusUnauthorized, // Should return 401 without auth
 	}
 
@@ -271,6 +295,9 @@ func TestServiceDiscovery(t *testing.T) {
 
 // TestServerHeaders tests security headers
 func TestServerHeaders(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
 	suite := NewHealthTestSuite()
 
 	req, err := http.NewRequest("GET", suite.baseURL+"/health", nil)

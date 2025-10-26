@@ -17,12 +17,12 @@ import (
 
 // mockOllamaProvider is a mock implementation of the AIProvider interface for Ollama
 type mockOllamaProvider struct {
-	generateSQLFunc  func(ctx context.Context, req *ai.SQLRequest) (*ai.SQLResponse, error)
-	fixSQLFunc       func(ctx context.Context, req *ai.SQLRequest) (*ai.SQLResponse, error)
-	chatFunc         func(ctx context.Context, req *ai.ChatRequest) (*ai.ChatResponse, error)
-	healthCheckFunc  func(ctx context.Context) (*ai.HealthStatus, error)
-	getModelsFunc    func(ctx context.Context) ([]ai.ModelInfo, error)
-	updateConfigFunc func(config interface{}) error
+	generateSQLFunc    func(ctx context.Context, req *ai.SQLRequest) (*ai.SQLResponse, error)
+	fixSQLFunc         func(ctx context.Context, req *ai.SQLRequest) (*ai.SQLResponse, error)
+	chatFunc           func(ctx context.Context, req *ai.ChatRequest) (*ai.ChatResponse, error)
+	healthCheckFunc    func(ctx context.Context) (*ai.HealthStatus, error)
+	getModelsFunc      func(ctx context.Context) ([]ai.ModelInfo, error)
+	updateConfigFunc   func(config interface{}) error
 	validateConfigFunc func(config interface{}) error
 }
 

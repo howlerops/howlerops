@@ -40,14 +40,14 @@ func NewService(
 
 // CreateTemplateInput represents input for creating a template
 type CreateTemplateInput struct {
-	Name           string                      `json:"name" validate:"required,min=3,max=100"`
-	Description    string                      `json:"description" validate:"max=500"`
-	SQLTemplate    string                      `json:"sql_template" validate:"required"`
-	Parameters     []turso.TemplateParameter   `json:"parameters"`
-	Tags           []string                    `json:"tags"`
-	Category       string                      `json:"category" validate:"required,oneof=reporting analytics maintenance custom"`
-	OrganizationID *string                     `json:"organization_id"`
-	IsPublic       bool                        `json:"is_public"`
+	Name           string                    `json:"name" validate:"required,min=3,max=100"`
+	Description    string                    `json:"description" validate:"max=500"`
+	SQLTemplate    string                    `json:"sql_template" validate:"required"`
+	Parameters     []turso.TemplateParameter `json:"parameters"`
+	Tags           []string                  `json:"tags"`
+	Category       string                    `json:"category" validate:"required,oneof=reporting analytics maintenance custom"`
+	OrganizationID *string                   `json:"organization_id"`
+	IsPublic       bool                      `json:"is_public"`
 }
 
 // CreateTemplate creates a new query template

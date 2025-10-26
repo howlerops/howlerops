@@ -27,11 +27,11 @@ func (r *ConflictResolver) ResolveConnectionConflict(
 	clientVersion *ConnectionTemplate,
 ) (*ConnectionTemplate, *ConflictMetadata, error) {
 	r.logger.WithFields(logrus.Fields{
-		"connection_id":    clientVersion.ID,
-		"server_version":   serverVersion.SyncVersion,
-		"client_version":   clientVersion.SyncVersion,
-		"server_updated":   serverVersion.UpdatedAt,
-		"client_updated":   clientVersion.UpdatedAt,
+		"connection_id":  clientVersion.ID,
+		"server_version": serverVersion.SyncVersion,
+		"client_version": clientVersion.SyncVersion,
+		"server_updated": serverVersion.UpdatedAt,
+		"client_updated": clientVersion.UpdatedAt,
 	}).Info("Resolving connection conflict")
 
 	// Validate that we're comparing the same resource

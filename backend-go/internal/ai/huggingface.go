@@ -11,10 +11,10 @@ import (
 
 // huggingFaceProvider implements the AIProvider interface for Hugging Face models via Ollama
 type huggingFaceProvider struct {
-	config     *HuggingFaceConfig
-	ollama     *OllamaProvider
-	detector   *OllamaDetector
-	logger     *logrus.Logger
+	config   *HuggingFaceConfig
+	ollama   *OllamaProvider
+	detector *OllamaDetector
+	logger   *logrus.Logger
 }
 
 // NewHuggingFaceProvider creates a new Hugging Face provider that uses Ollama
@@ -52,11 +52,11 @@ func NewHuggingFaceProvider(config *HuggingFaceConfig, logger *logrus.Logger) (A
 
 	// Create Ollama provider for actual model execution
 	ollamaConfig := &OllamaConfig{
-		Endpoint:         config.Endpoint,
-		Models:           config.Models,
-		PullTimeout:      config.PullTimeout,
-		GenerateTimeout:  config.GenerateTimeout,
-		AutoPullModels:   config.AutoPullModels,
+		Endpoint:        config.Endpoint,
+		Models:          config.Models,
+		PullTimeout:     config.PullTimeout,
+		GenerateTimeout: config.GenerateTimeout,
+		AutoPullModels:  config.AutoPullModels,
 	}
 
 	ollamaProvider, err := NewOllamaProvider(ollamaConfig, logger)
@@ -183,7 +183,7 @@ func (p *huggingFaceProvider) GetModels(ctx context.Context) ([]ModelInfo, error
 	for _, model := range ollamaModels {
 		// Mark as Hugging Face provider
 		model.Provider = ProviderHuggingFace
-		
+
 		// Add Hugging Face specific descriptions
 		switch {
 		case strings.Contains(model.Name, "prem-1b-sql"):
@@ -235,11 +235,11 @@ func (p *huggingFaceProvider) UpdateConfig(config interface{}) error {
 
 	// Update underlying Ollama config
 	ollamaConfig := &OllamaConfig{
-		Endpoint:         hfConfig.Endpoint,
-		Models:           hfConfig.Models,
-		PullTimeout:      hfConfig.PullTimeout,
-		GenerateTimeout:  hfConfig.GenerateTimeout,
-		AutoPullModels:   hfConfig.AutoPullModels,
+		Endpoint:        hfConfig.Endpoint,
+		Models:          hfConfig.Models,
+		PullTimeout:     hfConfig.PullTimeout,
+		GenerateTimeout: hfConfig.GenerateTimeout,
+		AutoPullModels:  hfConfig.AutoPullModels,
 	}
 
 	return p.ollama.UpdateConfig(ollamaConfig)

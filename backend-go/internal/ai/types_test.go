@@ -604,8 +604,8 @@ func TestAIError_JSON(t *testing.T) {
 		Provider: ai.ProviderOpenAI,
 		Code:     "rate_limit_exceeded",
 		Details: map[string]interface{}{
-			"limit":     100,
-			"window":    "1m",
+			"limit":       100,
+			"window":      "1m",
 			"retry_after": 60,
 		},
 		Retryable: true,

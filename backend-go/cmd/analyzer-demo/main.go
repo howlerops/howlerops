@@ -6,9 +6,9 @@ import (
 	"log"
 
 	"github.com/sirupsen/logrus"
-	"sql-studio/backend-go/internal/analyzer"
-	"sql-studio/backend-go/internal/autocomplete"
-	"sql-studio/backend-go/internal/nl2sql"
+	"github.com/sql-studio/backend-go/internal/analyzer"
+	"github.com/sql-studio/backend-go/internal/autocomplete"
+	"github.com/sql-studio/backend-go/internal/nl2sql"
 )
 
 func main() {
@@ -19,19 +19,19 @@ func main() {
 	schema := createSampleSchema()
 
 	// Demo 1: Query Analysis
-	fmt.Println("=== QUERY ANALYZER DEMO ===\n")
+	fmt.Println("=== QUERY ANALYZER DEMO ===")
 	demoQueryAnalyzer(schema, logger)
 
 	// Demo 2: Natural Language to SQL
-	fmt.Println("\n=== NATURAL LANGUAGE TO SQL DEMO ===\n")
+	fmt.Println("\n=== NATURAL LANGUAGE TO SQL DEMO ===")
 	demoNL2SQL(logger)
 
 	// Demo 3: Query Explainer
-	fmt.Println("\n=== QUERY EXPLAINER DEMO ===\n")
+	fmt.Println("\n=== QUERY EXPLAINER DEMO ===")
 	demoExplainer()
 
 	// Demo 4: Autocomplete
-	fmt.Println("\n=== AUTOCOMPLETE DEMO ===\n")
+	fmt.Println("\n=== AUTOCOMPLETE DEMO ===")
 	demoAutocomplete(schema, logger)
 }
 

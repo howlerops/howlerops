@@ -18,25 +18,25 @@ import (
 
 // mockEmbeddingProvider implements the EmbeddingProvider interface for testing
 type mockEmbeddingProvider struct {
-	mu                sync.Mutex
-	embedTextCalls    int
-	embedBatchCalls   int
-	embedTextInputs   []string
-	embedBatchInputs  [][]string
-	embeddings        map[string][]float32
-	dimension         int
-	model             string
-	shouldError       bool
-	errorMessage      string
-	embedTextDelay    time.Duration
-	embedBatchDelay   time.Duration
+	mu               sync.Mutex
+	embedTextCalls   int
+	embedBatchCalls  int
+	embedTextInputs  []string
+	embedBatchInputs [][]string
+	embeddings       map[string][]float32
+	dimension        int
+	model            string
+	shouldError      bool
+	errorMessage     string
+	embedTextDelay   time.Duration
+	embedBatchDelay  time.Duration
 }
 
 func newMockEmbeddingProvider(dimension int, model string) *mockEmbeddingProvider {
 	return &mockEmbeddingProvider{
-		embeddings:  make(map[string][]float32),
-		dimension:   dimension,
-		model:       model,
+		embeddings: make(map[string][]float32),
+		dimension:  dimension,
+		model:      model,
 	}
 }
 

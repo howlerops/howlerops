@@ -121,11 +121,11 @@ type Team struct {
 
 // TeamMember represents a member of a team
 type TeamMember struct {
-	ID        string    `json:"id"`
-	TeamID    string    `json:"team_id"`
-	UserID    string    `json:"user_id"`
-	Role      string    `json:"role"`
-	JoinedAt  time.Time `json:"joined_at"`
+	ID       string    `json:"id"`
+	TeamID   string    `json:"team_id"`
+	UserID   string    `json:"user_id"`
+	Role     string    `json:"role"`
+	JoinedAt time.Time `json:"joined_at"`
 }
 
 // Mode represents the storage mode (local or team)

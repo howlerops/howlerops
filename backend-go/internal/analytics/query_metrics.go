@@ -35,18 +35,18 @@ type QueryExecution struct {
 }
 
 type QueryStats struct {
-	QueryID         string  `json:"query_id"`
-	TotalExecutions int     `json:"total_executions"`
-	SuccessCount    int     `json:"success_count"`
-	ErrorCount      int     `json:"error_count"`
-	TimeoutCount    int     `json:"timeout_count"`
-	AvgExecutionMs  float64 `json:"avg_execution_ms"`
-	MinExecutionMs  int64   `json:"min_execution_ms"`
-	MaxExecutionMs  int64   `json:"max_execution_ms"`
-	P50ExecutionMs  float64 `json:"p50_execution_ms"`
-	P95ExecutionMs  float64 `json:"p95_execution_ms"`
-	P99ExecutionMs  float64 `json:"p99_execution_ms"`
-	SuccessRate     float64 `json:"success_rate"`
+	QueryID         string    `json:"query_id"`
+	TotalExecutions int       `json:"total_executions"`
+	SuccessCount    int       `json:"success_count"`
+	ErrorCount      int       `json:"error_count"`
+	TimeoutCount    int       `json:"timeout_count"`
+	AvgExecutionMs  float64   `json:"avg_execution_ms"`
+	MinExecutionMs  int64     `json:"min_execution_ms"`
+	MaxExecutionMs  int64     `json:"max_execution_ms"`
+	P50ExecutionMs  float64   `json:"p50_execution_ms"`
+	P95ExecutionMs  float64   `json:"p95_execution_ms"`
+	P99ExecutionMs  float64   `json:"p99_execution_ms"`
+	SuccessRate     float64   `json:"success_rate"`
 	LastExecutedAt  time.Time `json:"last_executed_at"`
 }
 
@@ -136,10 +136,10 @@ func (m *QueryMetrics) RecordExecution(ctx context.Context, exec *QueryExecution
 	// Log slow queries
 	if exec.ExecutionTime > 1000 { // > 1 second
 		m.logger.WithFields(logrus.Fields{
-			"query_id":      exec.QueryID,
-			"execution_ms":  exec.ExecutionTime,
-			"user_id":       exec.UserID,
-			"status":        exec.Status,
+			"query_id":     exec.QueryID,
+			"execution_ms": exec.ExecutionTime,
+			"user_id":      exec.UserID,
+			"status":       exec.Status,
 		}).Warn("Slow query detected")
 	}
 

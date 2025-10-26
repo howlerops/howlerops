@@ -6,8 +6,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 
-	"github.com/sql-studio/backend-go/internal/auth"
 	"github.com/sql-studio/backend-go/internal/ai"
+	"github.com/sql-studio/backend-go/internal/auth"
 	"github.com/sql-studio/backend-go/internal/config"
 	"github.com/sql-studio/backend-go/internal/middleware"
 	"github.com/sql-studio/backend-go/internal/organization"

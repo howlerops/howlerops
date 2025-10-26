@@ -747,7 +747,7 @@ func TestSQLiteVectorStore_SearchByText(t *testing.T) {
 		// FTS5 may not be available or FTS table may not exist
 		if err != nil {
 			if err.Error() == "no such module: fts5" ||
-			   err.Error() == "failed to search text: no such table: documents_fts" {
+				err.Error() == "failed to search text: no such table: documents_fts" {
 				t.Skip("FTS5 not available or not initialized in this SQLite build")
 			}
 			require.NoError(t, err)
@@ -768,7 +768,7 @@ func TestSQLiteVectorStore_SearchByText(t *testing.T) {
 		results, err := store.SearchByText(ctx, "test", 5, nil)
 		if err != nil {
 			if err.Error() == "no such module: fts5" ||
-			   err.Error() == "failed to search text: no such table: documents_fts" {
+				err.Error() == "failed to search text: no such table: documents_fts" {
 				t.Skip("FTS5 not available")
 			}
 			require.NoError(t, err)
@@ -796,7 +796,7 @@ func TestSQLiteVectorStore_SearchByText(t *testing.T) {
 		results, err := store.SearchByText(ctx, "test", 10, filter)
 		if err != nil {
 			if err.Error() == "no such module: fts5" ||
-			   err.Error() == "failed to search text: no such table: documents_fts" {
+				err.Error() == "failed to search text: no such table: documents_fts" {
 				t.Skip("FTS5 not available")
 			}
 			require.NoError(t, err)
@@ -829,7 +829,7 @@ func TestSQLiteVectorStore_SearchByText(t *testing.T) {
 		results, err := store.SearchByText(ctx, "nonexistent", 10, nil)
 		if err != nil {
 			if err.Error() == "no such module: fts5" ||
-			   err.Error() == "failed to search text: no such table: documents_fts" {
+				err.Error() == "failed to search text: no such table: documents_fts" {
 				t.Skip("FTS5 not available")
 			}
 			require.NoError(t, err)

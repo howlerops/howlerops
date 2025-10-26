@@ -19,18 +19,18 @@ import (
 
 // mockLLMProvider implements the LLMProvider interface for testing
 type mockLLMProvider struct {
-	mu                  sync.Mutex
-	generateSQLCalls    int
-	explainSQLCalls     int
-	optimizeSQLCalls    int
-	generateSQLFunc     func(ctx context.Context, prompt string, context *rag.QueryContext) (*rag.GeneratedSQL, error)
-	explainSQLFunc      func(ctx context.Context, sql string) (*rag.SQLExplanation, error)
-	optimizeSQLFunc     func(ctx context.Context, sql string, hints []rag.OptimizationHint) (*rag.OptimizedSQL, error)
-	shouldError         bool
-	errorMessage        string
-	generateSQLInputs   []string
-	explainSQLInputs    []string
-	optimizeSQLInputs   []string
+	mu                sync.Mutex
+	generateSQLCalls  int
+	explainSQLCalls   int
+	optimizeSQLCalls  int
+	generateSQLFunc   func(ctx context.Context, prompt string, context *rag.QueryContext) (*rag.GeneratedSQL, error)
+	explainSQLFunc    func(ctx context.Context, sql string) (*rag.SQLExplanation, error)
+	optimizeSQLFunc   func(ctx context.Context, sql string, hints []rag.OptimizationHint) (*rag.OptimizedSQL, error)
+	shouldError       bool
+	errorMessage      string
+	generateSQLInputs []string
+	explainSQLInputs  []string
+	optimizeSQLInputs []string
 }
 
 func newMockLLMProvider() *mockLLMProvider {
@@ -818,10 +818,10 @@ func TestIsComplexQuery(t *testing.T) {
 
 func TestNeedsJoinDetection(t *testing.T) {
 	tests := []struct {
-		name            string
-		prompt          string
-		generatedQuery  string
-		expectedDetect  bool
+		name           string
+		prompt         string
+		generatedQuery string
+		expectedDetect bool
 	}{
 		{
 			name:           "multiple entities without joins",
@@ -1086,9 +1086,9 @@ func TestAnalyzeComplexity(t *testing.T) {
 
 func TestEstimateExecutionTime(t *testing.T) {
 	tests := []struct {
-		name               string
-		sql                string
-		expectedTimeRange  string
+		name              string
+		sql               string
+		expectedTimeRange string
 	}{
 		{
 			name:              "simple query",

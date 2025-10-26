@@ -20,10 +20,10 @@ type Schema struct {
 
 // Table represents a database table
 type Table struct {
-	Name    string             `json:"name"`
-	Columns map[string]*Column `json:"columns"`
-	Indexes map[string]*Index  `json:"indexes"`
-	RowCount int64             `json:"row_count"`
+	Name     string             `json:"name"`
+	Columns  map[string]*Column `json:"columns"`
+	Indexes  map[string]*Index  `json:"indexes"`
+	RowCount int64              `json:"row_count"`
 }
 
 // Column represents a database column
@@ -44,17 +44,17 @@ type Index struct {
 
 // AnalysisResult contains the results of query analysis
 type AnalysisResult struct {
-	Suggestions []Suggestion `json:"suggestions"`
-	Score       int          `json:"score"`       // 0-100
-	Warnings    []Warning    `json:"warnings"`
-	Complexity  string       `json:"complexity"`  // simple, moderate, complex
-	EstimatedCost int        `json:"estimated_cost"` // relative cost estimate
+	Suggestions   []Suggestion `json:"suggestions"`
+	Score         int          `json:"score"` // 0-100
+	Warnings      []Warning    `json:"warnings"`
+	Complexity    string       `json:"complexity"`     // simple, moderate, complex
+	EstimatedCost int          `json:"estimated_cost"` // relative cost estimate
 }
 
 // Suggestion represents an optimization suggestion
 type Suggestion struct {
-	Type        string `json:"type"`        // 'index', 'join', 'where', 'select', 'subquery'
-	Severity    string `json:"severity"`    // 'info', 'warning', 'critical'
+	Type        string `json:"type"`     // 'index', 'join', 'where', 'select', 'subquery'
+	Severity    string `json:"severity"` // 'info', 'warning', 'critical'
 	Message     string `json:"message"`
 	OriginalSQL string `json:"original_sql"`
 	ImprovedSQL string `json:"improved_sql,omitempty"`
@@ -563,8 +563,8 @@ func (a *QueryAnalyzer) calculateComplexity(parsed *ParsedQuery) string {
 	score := 0
 
 	// Add complexity points
-	score += len(parsed.Tables) * 2        // Each table adds complexity
-	score += len(parsed.JoinColumns) * 3   // JOINs are complex
+	score += len(parsed.Tables) * 2      // Each table adds complexity
+	score += len(parsed.JoinColumns) * 3 // JOINs are complex
 	if parsed.HasSubquery {
 		score += 5
 	}

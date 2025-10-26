@@ -72,6 +72,9 @@ type ErrorResponse struct {
 
 // TestAuthFlow tests the complete authentication flow
 func TestAuthFlow(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
 	suite := NewAuthTestSuite()
 
 	// Generate unique test user
@@ -330,6 +333,9 @@ func (s *AuthTestSuite) testLogout(t *testing.T, user SignupRequest) {
 
 // TestAuthRateLimiting tests rate limiting on auth endpoints
 func TestAuthRateLimiting(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
 	suite := NewAuthTestSuite()
 
 	loginReq := LoginRequest{
@@ -361,6 +367,9 @@ func TestAuthRateLimiting(t *testing.T) {
 
 // TestAuthValidation tests input validation
 func TestAuthValidation(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
 	suite := NewAuthTestSuite()
 
 	tests := []struct {

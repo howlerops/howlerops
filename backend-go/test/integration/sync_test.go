@@ -98,6 +98,9 @@ type ConflictResolutionResponse struct {
 
 // TestSyncFlow tests the complete sync flow
 func TestSyncFlow(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
 	suite := NewSyncTestSuite()
 
 	// First, authenticate to get a token
@@ -159,17 +162,17 @@ func (s *SyncTestSuite) testUpload(t *testing.T, token string) {
 		LastSyncAt: time.Now().Add(-24 * time.Hour),
 		Changes: []SyncChange{
 			{
-				ID:          "change-1",
-				ItemType:    "saved_query",
-				ItemID:      "query-123",
-				Action:      "create",
+				ID:       "change-1",
+				ItemType: "saved_query",
+				ItemID:   "query-123",
+				Action:   "create",
 				Data: map[string]interface{}{
-					"id":          "query-123",
-					"name":        "Test Query",
-					"query":       "SELECT * FROM users",
-					"favorite":    false,
-					"created_at":  time.Now().Format(time.RFC3339),
-					"updated_at":  time.Now().Format(time.RFC3339),
+					"id":           "query-123",
+					"name":         "Test Query",
+					"query":        "SELECT * FROM users",
+					"favorite":     false,
+					"created_at":   time.Now().Format(time.RFC3339),
+					"updated_at":   time.Now().Format(time.RFC3339),
 					"sync_version": 1,
 				},
 				UpdatedAt:   time.Now(),
@@ -279,6 +282,9 @@ func (s *SyncTestSuite) testDownloadWithoutAuth(t *testing.T) {
 
 // TestSyncValidation tests input validation for sync endpoints
 func TestSyncValidation(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
 	suite := NewSyncTestSuite()
 	token := suite.authenticate(t)
 
@@ -353,6 +359,9 @@ func TestSyncValidation(t *testing.T) {
 
 // TestSyncConflictResolution tests conflict resolution
 func TestSyncConflictResolution(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
 	suite := NewSyncTestSuite()
 	token := suite.authenticate(t)
 
@@ -404,6 +413,9 @@ func TestSyncConflictResolution(t *testing.T) {
 
 // TestSyncLargePayload tests uploading a large number of changes
 func TestSyncLargePayload(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
 	suite := NewSyncTestSuite()
 	token := suite.authenticate(t)
 

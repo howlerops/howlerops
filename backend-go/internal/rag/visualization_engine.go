@@ -35,9 +35,9 @@ type VisualizationEngine struct {
 
 // ResultSet represents query result data
 type ResultSet struct {
-	Columns []Column      `json:"columns"`
-	Rows    [][]interface{} `json:"rows"`
-	RowCount int          `json:"row_count"`
+	Columns  []Column               `json:"columns"`
+	Rows     [][]interface{}        `json:"rows"`
+	RowCount int                    `json:"row_count"`
 	Metadata map[string]interface{} `json:"metadata"`
 }
 
@@ -62,36 +62,36 @@ type VizConfig struct {
 
 // AxisConfig represents axis configuration
 type AxisConfig struct {
-	Column    string `json:"column"`
-	Label     string `json:"label"`
-	Type      string `json:"type"` // linear, category, time, log
-	Format    string `json:"format,omitempty"`
-	Min       *float64 `json:"min,omitempty"`
-	Max       *float64 `json:"max,omitempty"`
+	Column string   `json:"column"`
+	Label  string   `json:"label"`
+	Type   string   `json:"type"` // linear, category, time, log
+	Format string   `json:"format,omitempty"`
+	Min    *float64 `json:"min,omitempty"`
+	Max    *float64 `json:"max,omitempty"`
 }
 
 // SeriesConfig represents a data series configuration
 type SeriesConfig struct {
-	Name       string                 `json:"name"`
-	Column     string                 `json:"column"`
-	Type       string                 `json:"type,omitempty"`
-	Color      string                 `json:"color,omitempty"`
-	Aggregation string                `json:"aggregation,omitempty"`
-	Options    map[string]interface{} `json:"options,omitempty"`
+	Name        string                 `json:"name"`
+	Column      string                 `json:"column"`
+	Type        string                 `json:"type,omitempty"`
+	Color       string                 `json:"color,omitempty"`
+	Aggregation string                 `json:"aggregation,omitempty"`
+	Options     map[string]interface{} `json:"options,omitempty"`
 }
 
 // AggregationConfig represents data aggregation configuration
 type AggregationConfig struct {
-	GroupBy    []string `json:"group_by"`
+	GroupBy    []string       `json:"group_by"`
 	Metrics    []MetricConfig `json:"metrics"`
-	TimeWindow string   `json:"time_window,omitempty"`
+	TimeWindow string         `json:"time_window,omitempty"`
 }
 
 // MetricConfig represents a metric configuration
 type MetricConfig struct {
-	Column      string `json:"column"`
-	Function    string `json:"function"` // sum, avg, count, max, min
-	Alias       string `json:"alias,omitempty"`
+	Column   string `json:"column"`
+	Function string `json:"function"` // sum, avg, count, max, min
+	Alias    string `json:"alias,omitempty"`
 }
 
 // FilterConfig represents a filter configuration
@@ -103,18 +103,18 @@ type FilterConfig struct {
 
 // VizRequest represents a visualization request
 type VizRequest struct {
-	Prompt      string     `json:"prompt"`
-	Data        *ResultSet `json:"data,omitempty"`
+	Prompt      string                 `json:"prompt"`
+	Data        *ResultSet             `json:"data,omitempty"`
 	Preferences map[string]interface{} `json:"preferences,omitempty"`
 }
 
 // VizRecommendation represents a visualization recommendation
 type VizRecommendation struct {
-	ChartType   ChartType  `json:"chart_type"`
-	Confidence  float32    `json:"confidence"`
-	Reason      string     `json:"reason"`
-	Config      *VizConfig `json:"config"`
-	Preview     string     `json:"preview,omitempty"`
+	ChartType  ChartType  `json:"chart_type"`
+	Confidence float32    `json:"confidence"`
+	Reason     string     `json:"reason"`
+	Config     *VizConfig `json:"config"`
+	Preview    string     `json:"preview,omitempty"`
 }
 
 // NewVisualizationEngine creates a new visualization engine
@@ -390,7 +390,7 @@ func (cd *ChartDetector) detectTimeSeries(data *ResultSet) bool {
 			hasTimeColumn = true
 		}
 		if strings.Contains(colType, "int") || strings.Contains(colType, "float") ||
-		   strings.Contains(colType, "decimal") || strings.Contains(colType, "numeric") {
+			strings.Contains(colType, "decimal") || strings.Contains(colType, "numeric") {
 			hasNumericColumn = true
 		}
 	}
@@ -417,7 +417,7 @@ func (cd *ChartDetector) detectCategorical(data *ResultSet) bool {
 			hasCategorical = true
 		}
 		if strings.Contains(strings.ToLower(col.Type), "int") ||
-		   strings.Contains(strings.ToLower(col.Type), "float") {
+			strings.Contains(strings.ToLower(col.Type), "float") {
 			hasNumeric = true
 		}
 	}
@@ -439,7 +439,7 @@ func (cd *ChartDetector) detectCorrelation(data *ResultSet) bool {
 	numericColumns := 0
 	for _, col := range data.Columns {
 		if strings.Contains(strings.ToLower(col.Type), "int") ||
-		   strings.Contains(strings.ToLower(col.Type), "float") {
+			strings.Contains(strings.ToLower(col.Type), "float") {
 			numericColumns++
 		}
 	}

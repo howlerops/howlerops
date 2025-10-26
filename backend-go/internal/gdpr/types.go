@@ -18,28 +18,28 @@ type DataExportRequest struct {
 
 // UserDataExport contains all user data for GDPR export
 type UserDataExport struct {
-	User          interface{}              `json:"user"`
-	Connections   []interface{}            `json:"connections"`
-	Queries       []interface{}            `json:"queries"`
-	QueryHistory  []interface{}            `json:"query_history"`
-	Templates     []interface{}            `json:"templates"`
-	Schedules     []interface{}            `json:"schedules"`
-	Organizations []interface{}            `json:"organizations"`
-	AuditLogs     []interface{}            `json:"audit_logs"`
-	ExportedAt    time.Time                `json:"exported_at"`
-	ExportVersion string                   `json:"export_version"`
-	Metadata      map[string]interface{}   `json:"metadata"`
+	User          interface{}            `json:"user"`
+	Connections   []interface{}          `json:"connections"`
+	Queries       []interface{}          `json:"queries"`
+	QueryHistory  []interface{}          `json:"query_history"`
+	Templates     []interface{}          `json:"templates"`
+	Schedules     []interface{}          `json:"schedules"`
+	Organizations []interface{}          `json:"organizations"`
+	AuditLogs     []interface{}          `json:"audit_logs"`
+	ExportedAt    time.Time              `json:"exported_at"`
+	ExportVersion string                 `json:"export_version"`
+	Metadata      map[string]interface{} `json:"metadata"`
 }
 
 // DeletionReport provides details about what was deleted
 type DeletionReport struct {
-	UserID          string            `json:"user_id"`
-	ConnectionsDeleted int            `json:"connections_deleted"`
-	QueriesDeleted     int            `json:"queries_deleted"`
-	HistoryDeleted     int            `json:"history_deleted"`
-	TemplatesDeleted   int            `json:"templates_deleted"`
-	SchedulesDeleted   int            `json:"schedules_deleted"`
-	AuditLogsAnonymized int           `json:"audit_logs_anonymized"`
-	DeletedAt       time.Time         `json:"deleted_at"`
-	Details         map[string]int    `json:"details"`
+	UserID              string         `json:"user_id"`
+	ConnectionsDeleted  int            `json:"connections_deleted"`
+	QueriesDeleted      int            `json:"queries_deleted"`
+	HistoryDeleted      int            `json:"history_deleted"`
+	TemplatesDeleted    int            `json:"templates_deleted"`
+	SchedulesDeleted    int            `json:"schedules_deleted"`
+	AuditLogsAnonymized int            `json:"audit_logs_anonymized"`
+	DeletedAt           time.Time      `json:"deleted_at"`
+	Details             map[string]int `json:"details"`
 }

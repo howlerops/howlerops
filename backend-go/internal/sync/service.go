@@ -63,18 +63,18 @@ type SyncLog struct {
 
 // Service provides sync functionality
 type Service struct {
-	store    Store
-	logger   *logrus.Logger
-	config   Config
+	store  Store
+	logger *logrus.Logger
+	config Config
 }
 
 // Config holds sync service configuration
 type Config struct {
-	MaxUploadSize       int64  // Maximum upload size in bytes
-	ConflictStrategy    ConflictResolutionStrategy
-	RetentionDays       int    // How long to keep deleted items
-	MaxHistoryItems     int    // Maximum history items per sync
-	EnableSanitization  bool   // Verify no credentials in uploads
+	MaxUploadSize      int64 // Maximum upload size in bytes
+	ConflictStrategy   ConflictResolutionStrategy
+	RetentionDays      int  // How long to keep deleted items
+	MaxHistoryItems    int  // Maximum history items per sync
+	EnableSanitization bool // Verify no credentials in uploads
 }
 
 // NewService creates a new sync service
@@ -199,9 +199,9 @@ func (s *Service) Download(ctx context.Context, req *SyncDownloadRequest) (*Sync
 	}
 
 	s.logger.WithFields(logrus.Fields{
-		"connections":    len(connections),
-		"saved_queries":  len(savedQueries),
-		"query_history":  len(queryHistory),
+		"connections":   len(connections),
+		"saved_queries": len(savedQueries),
+		"query_history": len(queryHistory),
 	}).Info("Sync download completed")
 
 	return &SyncDownloadResponse{

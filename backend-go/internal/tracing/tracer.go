@@ -76,7 +76,7 @@ func InitTracer(cfg Config) (*TracerProvider, error) {
 
 	return &TracerProvider{
 		provider: tp,
-		closer:   exp,
+		closer:   nil, // Jaeger exporter no longer implements io.Closer; provider.Shutdown handles cleanup
 	}, nil
 }
 

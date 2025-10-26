@@ -92,10 +92,10 @@ func TestSecurity_MemberCannotUpdateOthersPersonalConnection(t *testing.T) {
 
 	// User 1 has personal connection
 	existingConn := &turso.Connection{
-		ID:        "conn-personal",
-		Name:      "User1 Personal DB",
-		CreatedBy: "user-1",
-		UserID:    "user-1",
+		ID:         "conn-personal",
+		Name:       "User1 Personal DB",
+		CreatedBy:  "user-1",
+		UserID:     "user-1",
 		Visibility: "personal",
 	}
 

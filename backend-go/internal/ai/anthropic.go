@@ -27,11 +27,11 @@ type anthropicMessage struct {
 }
 
 type anthropicRequest struct {
-	Model     string             `json:"model"`
-	MaxTokens int                `json:"max_tokens"`
-	Messages  []anthropicMessage `json:"messages"`
-	Temperature float64          `json:"temperature,omitempty"`
-	System    string             `json:"system,omitempty"`
+	Model       string             `json:"model"`
+	MaxTokens   int                `json:"max_tokens"`
+	Messages    []anthropicMessage `json:"messages"`
+	Temperature float64            `json:"temperature,omitempty"`
+	System      string             `json:"system,omitempty"`
 }
 
 type anthropicResponse struct {
@@ -42,10 +42,10 @@ type anthropicResponse struct {
 		Type string `json:"type"`
 		Text string `json:"text"`
 	} `json:"content"`
-	Model      string `json:"model"`
-	StopReason string `json:"stop_reason"`
+	Model        string `json:"model"`
+	StopReason   string `json:"stop_reason"`
 	StopSequence string `json:"stop_sequence"`
-	Usage      struct {
+	Usage        struct {
 		InputTokens  int `json:"input_tokens"`
 		OutputTokens int `json:"output_tokens"`
 	} `json:"usage"`
@@ -221,11 +221,11 @@ func (p *anthropicProvider) GetModels(ctx context.Context) ([]ModelInfo, error) 
 		}
 
 		models = append(models, ModelInfo{
-			ID:          modelID,
-			Name:        modelID,
-			Provider:    ProviderAnthropic,
-			Description: description,
-			MaxTokens:   maxTokens,
+			ID:           modelID,
+			Name:         modelID,
+			Provider:     ProviderAnthropic,
+			Description:  description,
+			MaxTokens:    maxTokens,
 			Capabilities: []string{"text-to-sql", "sql-fixing", "explanation", "analysis"},
 		})
 	}

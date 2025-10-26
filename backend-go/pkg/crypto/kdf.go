@@ -9,10 +9,10 @@ import (
 
 const (
 	// Argon2id parameters for key derivation
-	Argon2Time    = 1      // 1 iteration (fast unlock)
+	Argon2Time    = 1         // 1 iteration (fast unlock)
 	Argon2Memory  = 64 * 1024 // 64 MB memory
-	Argon2Threads = 4      // 4 threads
-	Argon2KeyLen  = KeySize // 32 bytes for AES-256
+	Argon2Threads = 4         // 4 threads
+	Argon2KeyLen  = KeySize   // 32 bytes for AES-256
 )
 
 // DeriveKey derives an encryption key from a passphrase using Argon2id

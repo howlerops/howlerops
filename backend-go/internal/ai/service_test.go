@@ -16,14 +16,14 @@ import (
 
 // mockAIProvider implements the AIProvider interface for testing
 type mockAIProvider struct {
-	providerType    ai.Provider
-	generateSQLFunc func(ctx context.Context, req *ai.SQLRequest) (*ai.SQLResponse, error)
-	fixSQLFunc      func(ctx context.Context, req *ai.SQLRequest) (*ai.SQLResponse, error)
-	chatFunc        func(ctx context.Context, req *ai.ChatRequest) (*ai.ChatResponse, error)
-	healthCheckFunc func(ctx context.Context) (*ai.HealthStatus, error)
-	getModelsFunc   func(ctx context.Context) ([]ai.ModelInfo, error)
-	isAvailableFunc func(ctx context.Context) bool
-	updateConfigFunc func(config interface{}) error
+	providerType       ai.Provider
+	generateSQLFunc    func(ctx context.Context, req *ai.SQLRequest) (*ai.SQLResponse, error)
+	fixSQLFunc         func(ctx context.Context, req *ai.SQLRequest) (*ai.SQLResponse, error)
+	chatFunc           func(ctx context.Context, req *ai.ChatRequest) (*ai.ChatResponse, error)
+	healthCheckFunc    func(ctx context.Context) (*ai.HealthStatus, error)
+	getModelsFunc      func(ctx context.Context) ([]ai.ModelInfo, error)
+	isAvailableFunc    func(ctx context.Context) bool
+	updateConfigFunc   func(config interface{}) error
 	validateConfigFunc func(config interface{}) error
 }
 

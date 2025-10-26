@@ -31,7 +31,7 @@ func (a *databaseAdapter) Execute(ctx context.Context, query string, args ...int
 		RowCount: result.RowCount,
 		Duration: result.Duration,
 	}
-	
+
 	// Convert editable metadata if present
 	if result.Editable != nil {
 		multiqueryResult.Editable = &multiquery.EditableQueryMetadata{
@@ -43,7 +43,7 @@ func (a *databaseAdapter) Execute(ctx context.Context, query string, args ...int
 			Pending:     result.Editable.Pending,
 			JobID:       result.Editable.JobID,
 		}
-		
+
 		// Convert columns
 		multiqueryResult.Editable.Columns = make([]multiquery.EditableColumn, len(result.Editable.Columns))
 		for i, col := range result.Editable.Columns {
@@ -54,7 +54,7 @@ func (a *databaseAdapter) Execute(ctx context.Context, query string, args ...int
 				Editable:   col.Editable,
 				PrimaryKey: col.PrimaryKey,
 			}
-			
+
 			// Convert foreign key if present
 			if col.ForeignKey != nil {
 				multiqueryResult.Editable.Columns[i].ForeignKey = &multiquery.ForeignKeyRef{
@@ -65,7 +65,7 @@ func (a *databaseAdapter) Execute(ctx context.Context, query string, args ...int
 			}
 		}
 	}
-	
+
 	return multiqueryResult, nil
 }
 
@@ -687,12 +687,12 @@ func (m *Manager) GetMultiConnectionSchema(ctx context.Context, connectionIDs []
 	}
 
 	resultChan := make(chan schemaResult, len(connectionIDs))
-	
+
 	// Process each connection in parallel
 	for _, connID := range connectionIDs {
 		go func(connID string) {
 			result := schemaResult{connID: connID}
-			
+
 			// Resolve connection name to sessionId
 			resolvedID := connID
 			// Try direct lookup first (sessionId)
@@ -765,7 +765,7 @@ func (m *Manager) GetMultiConnectionSchema(ctx context.Context, connectionIDs []
 				tables []TableInfo
 				err    error
 			}
-			
+
 			tableChan := make(chan tableResult, len(schemas))
 			for _, schema := range schemas {
 				go func(schema string) {

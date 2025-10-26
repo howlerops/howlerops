@@ -64,8 +64,8 @@ func (a *LocalArchiver) Archive(ctx context.Context, resourceType string, data [
 		ResourceType: resourceType,
 		Records:      data,
 		Metadata: map[string]interface{}{
-			"archived_at":   time.Now().Unix(),
-			"record_count":  len(data),
+			"archived_at":     time.Now().Unix(),
+			"record_count":    len(data),
 			"archive_version": "1.0",
 		},
 	}

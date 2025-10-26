@@ -64,22 +64,22 @@ func TestElasticsearchDatabase_GetDataTypeMappings(t *testing.T) {
 	mappings := es.GetDataTypeMappings()
 
 	expectedMappings := map[string]string{
-		"string":   "text",
-		"keyword":  "keyword",
-		"int":      "integer",
-		"int64":    "long",
-		"float":    "float",
-		"float64":  "double",
-		"bool":     "boolean",
-		"time":     "date",
-		"date":     "date",
-		"json":     "object",
-		"geo":      "geo_point",
-		"binary":   "binary",
-		"ip":       "ip",
-		"text":     "text",
-		"nested":   "nested",
-		"object":   "object",
+		"string":  "text",
+		"keyword": "keyword",
+		"int":     "integer",
+		"int64":   "long",
+		"float":   "float",
+		"float64": "double",
+		"bool":    "boolean",
+		"time":    "date",
+		"date":    "date",
+		"json":    "object",
+		"geo":     "geo_point",
+		"binary":  "binary",
+		"ip":      "ip",
+		"text":    "text",
+		"nested":  "nested",
+		"object":  "object",
 	}
 
 	for key, expected := range expectedMappings {

@@ -17,12 +17,12 @@ import (
 
 // Handler handles security-related HTTP endpoints
 type Handler struct {
-	ssoService        *sso.Service
-	twoFactorService  *auth.TwoFactorService
-	apiKeyService     *apikeys.Service
+	ssoService         *sso.Service
+	twoFactorService   *auth.TwoFactorService
+	apiKeyService      *apikeys.Service
 	ipWhitelistService *middleware.IPWhitelistService
-	eventLogger       SecurityEventLogger
-	logger           *logrus.Logger
+	eventLogger        SecurityEventLogger
+	logger             *logrus.Logger
 }
 
 // SecurityEventLogger interface for logging security events
@@ -45,7 +45,7 @@ func NewHandler(
 		apiKeyService:      apiKeyService,
 		ipWhitelistService: ipWhitelistService,
 		eventLogger:        eventLogger,
-		logger:            logger,
+		logger:             logger,
 	}
 }
 
@@ -424,18 +424,18 @@ func (h *Handler) ListSecurityEvents(w http.ResponseWriter, r *http.Request) {
 	// Parse query parameters
 	userID := r.URL.Query().Get("user_id")
 	orgID := r.URL.Query().Get("org_id")
-	eventType := r.URL.Query().Get("event_type")
+	_ = r.URL.Query().Get("event_type") // TODO: Use eventType for filtering
 
 	// This would typically query the security_events table
 	// For now, return a mock response
 	events := []map[string]interface{}{
 		{
-			"id":          "evt-1",
-			"event_type":  "login_success",
-			"user_id":     userID,
-			"org_id":      orgID,
-			"ip_address":  "192.168.1.1",
-			"created_at":  time.Now().Add(-1 * time.Hour),
+			"id":         "evt-1",
+			"event_type": "login_success",
+			"user_id":    userID,
+			"org_id":     orgID,
+			"ip_address": "192.168.1.1",
+			"created_at": time.Now().Add(-1 * time.Hour),
 		},
 	}
 

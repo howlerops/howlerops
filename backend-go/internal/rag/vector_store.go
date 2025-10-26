@@ -1,12 +1,12 @@
 package rag
 
 import (
-    "context"
-    "fmt"
-    "strings"
-    "time"
+	"context"
+	"fmt"
+	"strings"
+	"time"
 
-    "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 // DocumentType represents the type of document being embedded
@@ -24,17 +24,17 @@ const (
 
 // Document represents an embedded document in the vector store
 type Document struct {
-	ID            string                 `json:"id"`
-	ConnectionID  string                 `json:"connection_id"`
-	Type          DocumentType           `json:"type"`
-	Content       string                 `json:"content"`
-	Embedding     []float32              `json:"embedding"`
-	Metadata      map[string]interface{} `json:"metadata"`
-	CreatedAt     time.Time              `json:"created_at"`
-	UpdatedAt     time.Time              `json:"updated_at"`
-	AccessCount   int                    `json:"access_count"`
-	LastAccessed  time.Time              `json:"last_accessed"`
-	Score         float32                `json:"score,omitempty"`
+	ID           string                 `json:"id"`
+	ConnectionID string                 `json:"connection_id"`
+	Type         DocumentType           `json:"type"`
+	Content      string                 `json:"content"`
+	Embedding    []float32              `json:"embedding"`
+	Metadata     map[string]interface{} `json:"metadata"`
+	CreatedAt    time.Time              `json:"created_at"`
+	UpdatedAt    time.Time              `json:"updated_at"`
+	AccessCount  int                    `json:"access_count"`
+	LastAccessed time.Time              `json:"last_accessed"`
+	Score        float32                `json:"score,omitempty"`
 }
 
 // VectorStore defines the interface for vector storage operations
@@ -87,47 +87,46 @@ type CollectionStats struct {
 	LastUpdated   time.Time `json:"last_updated"`
 }
 
-
 // CollectionConfig defines collection configuration
 type CollectionConfig struct {
-	Name            string                 `json:"name"`
-	VectorSize      int                    `json:"vector_size"`
-	Distance        string                 `json:"distance"` // cosine, euclidean, dot
-	OnDiskPayload   bool                   `json:"on_disk_payload"`
+	Name             string                 `json:"name"`
+	VectorSize       int                    `json:"vector_size"`
+	Distance         string                 `json:"distance"` // cosine, euclidean, dot
+	OnDiskPayload    bool                   `json:"on_disk_payload"`
 	OptimizersConfig map[string]interface{} `json:"optimizers_config"`
-	WalConfig       map[string]interface{} `json:"wal_config"`
+	WalConfig        map[string]interface{} `json:"wal_config"`
 }
 
 // VectorStoreConfig holds configuration for any vector store
 type VectorStoreConfig struct {
-    Type         string              `json:"type"`
-    SQLiteConfig *SQLiteVectorConfig `json:"sqlite_config,omitempty"`
-    MySQLConfig  *MySQLVectorConfig  `json:"mysql_config,omitempty"`
+	Type         string              `json:"type"`
+	SQLiteConfig *SQLiteVectorConfig `json:"sqlite_config,omitempty"`
+	MySQLConfig  *MySQLVectorConfig  `json:"mysql_config,omitempty"`
 }
 
 // NewVectorStore creates a new vector store based on configuration
 func NewVectorStore(config *VectorStoreConfig, logger *logrus.Logger) (VectorStore, error) {
-    storeType := strings.ToLower(config.Type)
-    switch storeType {
-    case "", "sqlite":
-        if config.SQLiteConfig == nil {
-            logger.Info("Creating default SQLite vector store config")
-            config.SQLiteConfig = &SQLiteVectorConfig{
-                Path:        "~/.howlerops/vectors.db",
-                VectorSize:  1536,
-                CacheSizeMB: 128,
-                MMapSizeMB:  256,
-                WALEnabled:  true,
-                Timeout:     10 * time.Second,
-            }
-        }
-        return NewSQLiteVectorStore(config.SQLiteConfig, logger)
-    case "mysql":
-        if config.MySQLConfig == nil {
-            return nil, fmt.Errorf("mysql vector store requires configuration")
-        }
-        return NewMySQLVectorStore(config.MySQLConfig, logger)
-    default:
-        return nil, fmt.Errorf("unsupported vector store type: %s", storeType)
-    }
+	storeType := strings.ToLower(config.Type)
+	switch storeType {
+	case "", "sqlite":
+		if config.SQLiteConfig == nil {
+			logger.Info("Creating default SQLite vector store config")
+			config.SQLiteConfig = &SQLiteVectorConfig{
+				Path:        "~/.howlerops/vectors.db",
+				VectorSize:  1536,
+				CacheSizeMB: 128,
+				MMapSizeMB:  256,
+				WALEnabled:  true,
+				Timeout:     10 * time.Second,
+			}
+		}
+		return NewSQLiteVectorStore(config.SQLiteConfig, logger)
+	case "mysql":
+		if config.MySQLConfig == nil {
+			return nil, fmt.Errorf("mysql vector store requires configuration")
+		}
+		return NewMySQLVectorStore(config.MySQLConfig, logger)
+	default:
+		return nil, fmt.Errorf("unsupported vector store type: %s", storeType)
+	}
 }

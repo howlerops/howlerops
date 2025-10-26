@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"github.com/sql-studio/backend-go/pkg/crypto"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
-	"github.com/sql-studio/backend-go/pkg/crypto"
 )
 
 // SSHTunnel represents an active SSH tunnel
@@ -250,13 +250,13 @@ func (m *SSHTunnelManager) buildSSHConfig(ctx context.Context, config *SSHTunnel
 
 	// Configure host key verification
 	var hostKeyCallback ssh.HostKeyCallback
+	var err error
 	if config.StrictHostKeyChecking && config.KnownHostsPath != "" {
 		// Load known hosts
-		hostKeyCallback, err := m.loadKnownHosts(config.KnownHostsPath)
+		hostKeyCallback, err = m.loadKnownHosts(config.KnownHostsPath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to load known hosts: %w", err)
 		}
-		hostKeyCallback = hostKeyCallback
 	} else {
 		// Allow any host key (insecure, but useful for development)
 		hostKeyCallback = ssh.InsecureIgnoreHostKey()

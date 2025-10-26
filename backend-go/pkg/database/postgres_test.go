@@ -16,17 +16,17 @@ import (
 // Helper function to create a test config
 func newTestPostgresConfig() database.ConnectionConfig {
 	return database.ConnectionConfig{
-		Type:               database.PostgreSQL,
-		Host:               "localhost",
-		Port:               5432,
-		Database:           "testdb",
-		Username:           "testuser",
-		Password:           "testpass",
-		ConnectionTimeout:  30 * time.Second,
-		IdleTimeout:        5 * time.Minute,
-		MaxConnections:     10,
-		MaxIdleConns:       5,
-		Parameters:         map[string]string{},
+		Type:              database.PostgreSQL,
+		Host:              "localhost",
+		Port:              5432,
+		Database:          "testdb",
+		Username:          "testuser",
+		Password:          "testpass",
+		ConnectionTimeout: 30 * time.Second,
+		IdleTimeout:       5 * time.Minute,
+		MaxConnections:    10,
+		MaxIdleConns:      5,
+		Parameters:        map[string]string{},
 	}
 }
 

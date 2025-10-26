@@ -46,4 +46,3 @@ func cosineSimilarity(vec1, vec2 []float32) float32 {
 
 	return dotProduct / (float32(math.Sqrt(float64(magnitudeVec1))) * float32(math.Sqrt(float64(magnitudeVec2))))
 }
-

@@ -964,8 +964,8 @@ func TestCodex_RequestBody_CompletionFormat(t *testing.T) {
 		json.Unmarshal(body, &reqBody)
 
 		// Verify completion API format (not chat API)
-		assert.NotNil(t, reqBody["prompt"])      // completion uses "prompt"
-		_, hasMessages := reqBody["messages"]    // NOT chat format
+		assert.NotNil(t, reqBody["prompt"])   // completion uses "prompt"
+		_, hasMessages := reqBody["messages"] // NOT chat format
 		assert.False(t, hasMessages, "Should not have messages field (chat API)")
 		assert.Equal(t, "code-davinci-002", reqBody["model"])
 		// OpenAI SDK may omit zero-valued fields

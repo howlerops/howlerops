@@ -114,22 +114,22 @@ type MetricsConfig struct {
 
 // EmailConfig holds email service configuration
 type EmailConfig struct {
-	Provider  string `mapstructure:"provider"`   // resend, smtp
+	Provider  string `mapstructure:"provider"` // resend, smtp
 	APIKey    string `mapstructure:"api_key"`
 	FromEmail string `mapstructure:"from_email"`
 	FromName  string `mapstructure:"from_name"`
-	BaseURL   string `mapstructure:"base_url"`   // Base URL for email links
+	BaseURL   string `mapstructure:"base_url"` // Base URL for email links
 }
 
 // SyncConfig holds sync service configuration
 type SyncConfig struct {
 	Enabled            bool   `mapstructure:"enabled"`
-	MaxUploadSize      int64  `mapstructure:"max_upload_size"`       // bytes
-	ConflictStrategy   string `mapstructure:"conflict_strategy"`     // last_write_wins, keep_both, user_choice
+	MaxUploadSize      int64  `mapstructure:"max_upload_size"`   // bytes
+	ConflictStrategy   string `mapstructure:"conflict_strategy"` // last_write_wins, keep_both, user_choice
 	RetentionDays      int    `mapstructure:"retention_days"`
 	MaxHistoryItems    int    `mapstructure:"max_history_items"`
 	EnableSanitization bool   `mapstructure:"enable_sanitization"`
-	RateLimitRPM       int    `mapstructure:"rate_limit_rpm"`        // requests per minute
+	RateLimitRPM       int    `mapstructure:"rate_limit_rpm"` // requests per minute
 }
 
 // TursoConfig holds Turso database configuration

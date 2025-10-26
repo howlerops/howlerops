@@ -32,22 +32,22 @@ type RequestLog struct {
 
 // SLAReport represents an SLA report for a period
 type SLAReport struct {
-	OrganizationID    string        `json:"organization_id"`
-	StartDate         time.Time     `json:"start_date"`
-	EndDate           time.Time     `json:"end_date"`
-	OverallUptime     float64       `json:"overall_uptime"`
-	AvgResponseTime   float64       `json:"avg_response_time"`
-	OverallErrorRate  float64       `json:"overall_error_rate"`
-	TotalRequests     int           `json:"total_requests"`
-	FailedRequests    int           `json:"failed_requests"`
-	DailyMetrics      []SLAMetrics  `json:"daily_metrics"`
-	WorstDays         []SLAMetrics  `json:"worst_days"` // Days with lowest uptime
-	SLACompliance     SLACompliance `json:"sla_compliance"`
+	OrganizationID   string        `json:"organization_id"`
+	StartDate        time.Time     `json:"start_date"`
+	EndDate          time.Time     `json:"end_date"`
+	OverallUptime    float64       `json:"overall_uptime"`
+	AvgResponseTime  float64       `json:"avg_response_time"`
+	OverallErrorRate float64       `json:"overall_error_rate"`
+	TotalRequests    int           `json:"total_requests"`
+	FailedRequests   int           `json:"failed_requests"`
+	DailyMetrics     []SLAMetrics  `json:"daily_metrics"`
+	WorstDays        []SLAMetrics  `json:"worst_days"` // Days with lowest uptime
+	SLACompliance    SLACompliance `json:"sla_compliance"`
 }
 
 // SLACompliance represents SLA compliance status
 type SLACompliance struct {
-	TargetUptime       float64 `json:"target_uptime"`        // e.g., 99.9
+	TargetUptime       float64 `json:"target_uptime"` // e.g., 99.9
 	ActualUptime       float64 `json:"actual_uptime"`
 	CompliantDays      int     `json:"compliant_days"`
 	NonCompliantDays   int     `json:"non_compliant_days"`

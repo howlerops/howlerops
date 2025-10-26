@@ -41,7 +41,7 @@ type Suggestion struct {
 	Type        string `json:"type"` // 'table', 'column', 'keyword', 'function', 'snippet'
 	Description string `json:"description,omitempty"`
 	InsertText  string `json:"insert_text,omitempty"` // What to actually insert (for snippets)
-	Detail      string `json:"detail,omitempty"`       // Additional info like data type
+	Detail      string `json:"detail,omitempty"`      // Additional info like data type
 }
 
 // Context represents the current cursor context
@@ -381,27 +381,27 @@ func (s *AutocompleteService) getSnippets(context *Context) []Suggestion {
 	case "start_of_statement":
 		snippets = append(snippets, []Suggestion{
 			{
-				Text:       "SELECT with WHERE",
-				Type:       "snippet",
-				InsertText: "SELECT ${1:columns}\nFROM ${2:table}\nWHERE ${3:condition}",
+				Text:        "SELECT with WHERE",
+				Type:        "snippet",
+				InsertText:  "SELECT ${1:columns}\nFROM ${2:table}\nWHERE ${3:condition}",
 				Description: "Basic SELECT query with WHERE clause",
 			},
 			{
-				Text:       "INSERT statement",
-				Type:       "snippet",
-				InsertText: "INSERT INTO ${1:table} (${2:columns})\nVALUES (${3:values})",
+				Text:        "INSERT statement",
+				Type:        "snippet",
+				InsertText:  "INSERT INTO ${1:table} (${2:columns})\nVALUES (${3:values})",
 				Description: "Insert new row",
 			},
 			{
-				Text:       "UPDATE with WHERE",
-				Type:       "snippet",
-				InsertText: "UPDATE ${1:table}\nSET ${2:column} = ${3:value}\nWHERE ${4:condition}",
+				Text:        "UPDATE with WHERE",
+				Type:        "snippet",
+				InsertText:  "UPDATE ${1:table}\nSET ${2:column} = ${3:value}\nWHERE ${4:condition}",
 				Description: "Update existing rows",
 			},
 			{
-				Text:       "CREATE TABLE",
-				Type:       "snippet",
-				InsertText: "CREATE TABLE ${1:table_name} (\n    ${2:id} INTEGER PRIMARY KEY,\n    ${3:column} ${4:datatype}\n)",
+				Text:        "CREATE TABLE",
+				Type:        "snippet",
+				InsertText:  "CREATE TABLE ${1:table_name} (\n    ${2:id} INTEGER PRIMARY KEY,\n    ${3:column} ${4:datatype}\n)",
 				Description: "Create new table",
 			},
 		}...)
@@ -409,9 +409,9 @@ func (s *AutocompleteService) getSnippets(context *Context) []Suggestion {
 	case "after_select":
 		snippets = append(snippets, []Suggestion{
 			{
-				Text:       "CASE WHEN",
-				Type:       "snippet",
-				InsertText: "CASE\n    WHEN ${1:condition} THEN ${2:result}\n    ELSE ${3:default}\nEND",
+				Text:        "CASE WHEN",
+				Type:        "snippet",
+				InsertText:  "CASE\n    WHEN ${1:condition} THEN ${2:result}\n    ELSE ${3:default}\nEND",
 				Description: "Conditional expression",
 			},
 		}...)
@@ -419,15 +419,15 @@ func (s *AutocompleteService) getSnippets(context *Context) []Suggestion {
 	case "after_where":
 		snippets = append(snippets, []Suggestion{
 			{
-				Text:       "IN list",
-				Type:       "snippet",
-				InsertText: "${1:column} IN (${2:value1}, ${3:value2})",
+				Text:        "IN list",
+				Type:        "snippet",
+				InsertText:  "${1:column} IN (${2:value1}, ${3:value2})",
 				Description: "Check if value is in list",
 			},
 			{
-				Text:       "BETWEEN range",
-				Type:       "snippet",
-				InsertText: "${1:column} BETWEEN ${2:min} AND ${3:max}",
+				Text:        "BETWEEN range",
+				Type:        "snippet",
+				InsertText:  "${1:column} BETWEEN ${2:min} AND ${3:max}",
 				Description: "Check if value is in range",
 			},
 		}...)
@@ -466,11 +466,11 @@ func (s *AutocompleteService) sortSuggestions(suggestions []Suggestion, context 
 	sort.Slice(suggestions, func(i, j int) bool {
 		// Prioritize by type based on context
 		typePriority := map[string]int{
-			"column":  1,
-			"table":   2,
-			"keyword": 3,
+			"column":   1,
+			"table":    2,
+			"keyword":  3,
 			"function": 4,
-			"snippet": 5,
+			"snippet":  5,
 		}
 
 		// Adjust priorities based on context

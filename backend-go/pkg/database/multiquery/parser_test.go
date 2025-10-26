@@ -252,4 +252,3 @@ func TestParser_Validate(t *testing.T) {
 		})
 	}
 }
-

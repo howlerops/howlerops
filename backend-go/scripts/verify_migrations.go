@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	_ "github.com/tursodatabase/libsql-client-go/libsql"
 	"github.com/sirupsen/logrus"
+	_ "github.com/tursodatabase/libsql-client-go/libsql"
 
 	"github.com/sql-studio/backend-go/pkg/storage/turso"
 )

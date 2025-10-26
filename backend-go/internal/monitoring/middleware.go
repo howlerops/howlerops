@@ -408,9 +408,9 @@ func (m *MonitoringMiddleware) StatsHandler(w http.ResponseWriter, r *http.Reque
 // HealthHandler returns health status
 func (m *MonitoringMiddleware) HealthHandler(w http.ResponseWriter, r *http.Request) {
 	health := map[string]interface{}{
-		"status": "healthy",
+		"status":    "healthy",
 		"timestamp": time.Now().Unix(),
-		"metrics": m.collector.GetStats(1 * time.Minute),
+		"metrics":   m.collector.GetStats(1 * time.Minute),
 	}
 
 	w.Header().Set("Content-Type", "application/json")

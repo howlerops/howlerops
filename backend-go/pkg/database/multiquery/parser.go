@@ -58,14 +58,14 @@ func (p *QueryParser) Parse(query string) (*ParsedQuery, error) {
 	connMap := make(map[string]bool)
 	for _, ref := range refs {
 		connMap[ref.Alias] = true
-		
+
 		// Build table reference
 		tableRef := TableRef{
 			ConnectionID: ref.Alias,
 			Schema:       ref.Schema,
 			Table:        ref.Table,
 		}
-		
+
 		// Add to segments
 		found := false
 		for i := range parsed.Segments {
@@ -81,7 +81,7 @@ func (p *QueryParser) Parse(query string) (*ParsedQuery, error) {
 				Tables:       []TableRef{tableRef},
 			})
 		}
-		
+
 		// Track unique tables
 		tableName := ref.Table
 		if ref.Schema != "" {
@@ -110,15 +110,15 @@ func (p *QueryParser) extractConnectionRefs(query string) ([]ConnectionRef, erro
 	// Pattern: @connection_alias.schema.table or @connection_alias.table
 	// Note: [\w-]+ allows hyphens in connection names (e.g., @Prod-Leviosa)
 	pattern := regexp.MustCompile(`@([\w-]+)\.(?:([\w-]+)\.)?([\w-]+)`)
-	
+
 	matches := pattern.FindAllStringSubmatch(query, -1)
 	refs := make([]ConnectionRef, 0, len(matches))
-	
+
 	for _, match := range matches {
 		ref := ConnectionRef{
 			Alias: match[1],
 		}
-		
+
 		// If we have 4 groups, it's @conn.schema.table
 		if match[2] != "" {
 			ref.Schema = match[2]
@@ -127,10 +127,10 @@ func (p *QueryParser) extractConnectionRefs(query string) ([]ConnectionRef, erro
 			// Otherwise it's @conn.table
 			ref.Table = match[3]
 		}
-		
+
 		refs = append(refs, ref)
 	}
-	
+
 	return refs, nil
 }
 
@@ -139,7 +139,7 @@ func (p *QueryParser) detectJoins(query string) bool {
 	// Normalize whitespace: replace tabs and newlines with spaces, collapse multiple spaces
 	normalized := strings.Join(strings.Fields(query), " ")
 	upper := strings.ToUpper(normalized)
-	
+
 	joinKeywords := []string{" JOIN ", " LEFT JOIN ", " RIGHT JOIN ", " INNER JOIN ", " OUTER JOIN ", " CROSS JOIN "}
 	for _, keyword := range joinKeywords {
 		if strings.Contains(upper, keyword) {
@@ -212,15 +212,15 @@ func (p *QueryParser) Validate(parsed *ParsedQuery) error {
 // validateOperation checks if the query operation is allowed
 func (p *QueryParser) validateOperation(query string) error {
 	upper := strings.TrimSpace(strings.ToUpper(query))
-	
+
 	// Extract the first keyword
 	parts := strings.Fields(upper)
 	if len(parts) == 0 {
 		return fmt.Errorf("empty query")
 	}
-	
+
 	operation := parts[0]
-	
+
 	// Check if operation is in allowed list
 	allowed := false
 	for _, allowedOp := range p.config.AllowedOperations {
@@ -229,11 +229,10 @@ func (p *QueryParser) validateOperation(query string) error {
 			break
 		}
 	}
-	
+
 	if !allowed {
 		return fmt.Errorf("operation %s is not allowed in multi-database queries", operation)
 	}
-	
+
 	return nil
 }
-

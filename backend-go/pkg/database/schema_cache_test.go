@@ -57,7 +57,7 @@ func (m *mockDatabase) Execute(ctx context.Context, query string, args ...interf
 func (m *mockDatabase) Connect(ctx context.Context, config ConnectionConfig) error {
 	return nil
 }
-func (m *mockDatabase) Disconnect() error { return nil }
+func (m *mockDatabase) Disconnect() error              { return nil }
 func (m *mockDatabase) Ping(ctx context.Context) error { return nil }
 func (m *mockDatabase) GetConnectionInfo(ctx context.Context) (map[string]interface{}, error) {
 	return nil, nil
@@ -181,11 +181,11 @@ func TestSchemaCache_CacheSchema(t *testing.T) {
 
 func TestSchemaCache_GetCachedSchema(t *testing.T) {
 	tests := []struct {
-		name           string
-		setupCache     func(*SchemaCache)
-		connectionID   string
-		expectCached   bool
-		expectNil      bool
+		name         string
+		setupCache   func(*SchemaCache)
+		connectionID string
+		expectCached bool
+		expectNil    bool
 	}{
 		{
 			name: "cache miss - no entry",

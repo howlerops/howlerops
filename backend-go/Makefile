@@ -467,11 +467,32 @@ setup-gcp-secrets:
 	@echo "Setting up GCP secrets..."
 	@./scripts/setup-secrets.sh
 
-# Deploy to Cloud Run (full automated deployment)
+# Deploy to Cloud Run - Production
 .PHONY: deploy-prod
-deploy-prod:
-	@echo "Deploying to Google Cloud Run..."
-	@./scripts/deploy-full.sh
+deploy-prod: prod-check
+	@echo "Deploying to Google Cloud Run (Production)..."
+	@./scripts/deploy-cloudrun.sh production
+
+# Deploy to Cloud Run - Staging
+.PHONY: deploy-staging
+deploy-staging:
+	@echo "Deploying to Google Cloud Run (Staging)..."
+	@./scripts/deploy-cloudrun.sh staging
+
+# Deploy to Cloud Run - Preview (for testing branches)
+.PHONY: deploy-preview
+deploy-preview:
+	@if [ -z "$(BRANCH)" ]; then \
+		echo "Error: BRANCH is required"; \
+		echo "Usage: make deploy-preview BRANCH=feature-name"; \
+		exit 1; \
+	fi
+	@echo "Deploying to Google Cloud Run (Preview: $(BRANCH))..."
+	@./scripts/deploy-cloudrun.sh preview $(BRANCH)
+
+# Full deployment pipeline (readiness check + secrets + deploy)
+.PHONY: deploy-full
+deploy-full: prod-check setup-gcp-secrets deploy-prod
 
 # Verify production deployment
 .PHONY: verify-prod

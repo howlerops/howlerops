@@ -31,29 +31,29 @@ type EmbeddingService interface {
 
 // EmbeddingCache caches embeddings to avoid redundant API calls
 type EmbeddingCache struct {
-	cache      map[string]CachedEmbedding
-	maxSize    int
-	ttl        time.Duration
-	mu         sync.RWMutex
-	hits       int64
-	misses     int64
+	cache   map[string]CachedEmbedding
+	maxSize int
+	ttl     time.Duration
+	mu      sync.RWMutex
+	hits    int64
+	misses  int64
 }
 
 // CachedEmbedding represents a cached embedding
 type CachedEmbedding struct {
-	Embedding  []float32 `json:"embedding"`
-	CreatedAt  time.Time `json:"created_at"`
-	AccessedAt time.Time `json:"accessed_at"`
-	AccessCount int      `json:"access_count"`
+	Embedding   []float32 `json:"embedding"`
+	CreatedAt   time.Time `json:"created_at"`
+	AccessedAt  time.Time `json:"accessed_at"`
+	AccessCount int       `json:"access_count"`
 }
 
 // CacheStats represents cache statistics
 type CacheStats struct {
-	Size      int     `json:"size"`
-	Hits      int64   `json:"hits"`
-	Misses    int64   `json:"misses"`
-	HitRate   float64 `json:"hit_rate"`
-	EvictedCount int64 `json:"evicted_count"`
+	Size         int     `json:"size"`
+	Hits         int64   `json:"hits"`
+	Misses       int64   `json:"misses"`
+	HitRate      float64 `json:"hit_rate"`
+	EvictedCount int64   `json:"evicted_count"`
 }
 
 // DefaultEmbeddingService implements EmbeddingService
@@ -63,9 +63,9 @@ type DefaultEmbeddingService struct {
 	logger   *logrus.Logger
 
 	// Different encoders for different content types
-	schemaEncoder   ModelEncoder
-	queryEncoder    ModelEncoder
-	textEncoder     ModelEncoder
+	schemaEncoder ModelEncoder
+	queryEncoder  ModelEncoder
+	textEncoder   ModelEncoder
 }
 
 // ModelEncoder represents a specific encoding model

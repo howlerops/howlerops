@@ -39,7 +39,7 @@ type CreateAPIKeyInput struct {
 // APIKeyResponse represents the response when creating an API key
 type APIKeyResponse struct {
 	Key    string  `json:"key"`     // Full key (shown only once)
-	Prefix string  `json:"prefix"`   // Key prefix for identification
+	Prefix string  `json:"prefix"`  // Key prefix for identification
 	APIKey *APIKey `json:"api_key"` // Key metadata
 }
 

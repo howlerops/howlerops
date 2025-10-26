@@ -33,20 +33,20 @@ func NewTursoAppDataStore(db *sql.DB, logger *logrus.Logger) *TursoAppDataStore 
 
 // ConnectionTemplate represents a connection template for sync (no passwords)
 type ConnectionTemplate struct {
-	ID          string            `json:"id"`
-	UserID      string            `json:"user_id"`
-	Name        string            `json:"name"`
-	Type        string            `json:"type"`
-	Host        string            `json:"host,omitempty"`
-	Port        int               `json:"port,omitempty"`
-	DatabaseName string           `json:"database_name,omitempty"`
-	Username    string            `json:"username,omitempty"`
-	SSLConfig   string            `json:"ssl_config,omitempty"`
-	CreatedAt   time.Time         `json:"created_at"`
-	UpdatedAt   time.Time         `json:"updated_at"`
-	SyncVersion int               `json:"sync_version"`
-	DeletedAt   *time.Time        `json:"deleted_at,omitempty"`
-	Metadata    map[string]string `json:"metadata,omitempty"`
+	ID           string            `json:"id"`
+	UserID       string            `json:"user_id"`
+	Name         string            `json:"name"`
+	Type         string            `json:"type"`
+	Host         string            `json:"host,omitempty"`
+	Port         int               `json:"port,omitempty"`
+	DatabaseName string            `json:"database_name,omitempty"`
+	Username     string            `json:"username,omitempty"`
+	SSLConfig    string            `json:"ssl_config,omitempty"`
+	CreatedAt    time.Time         `json:"created_at"`
+	UpdatedAt    time.Time         `json:"updated_at"`
+	SyncVersion  int               `json:"sync_version"`
+	DeletedAt    *time.Time        `json:"deleted_at,omitempty"`
+	Metadata     map[string]string `json:"metadata,omitempty"`
 }
 
 // SaveConnectionTemplate saves or updates a connection template

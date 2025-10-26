@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"context"
-	"database/sql"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -207,7 +206,7 @@ func TestDataIsolation(t *testing.T) {
 	ctx := context.WithValue(context.Background(), UserOrganizationsKey, []string{"org-1"})
 
 	// Example query that should be filtered by organization
-	query := `SELECT * FROM connections WHERE organization_id = ?`
+	_ = `SELECT * FROM connections WHERE organization_id = ?` // Example for documentation
 
 	rows := sqlmock.NewRows([]string{"id", "name", "organization_id"}).
 		AddRow("conn-1", "My Connection", "org-1")

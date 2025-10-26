@@ -222,10 +222,10 @@ func TestCanDeleteResource(t *testing.T) {
 
 func TestGetPermissionsForRole(t *testing.T) {
 	tests := []struct {
-		name         string
-		role         organization.OrganizationRole
-		expectedLen  int
-		description  string
+		name        string
+		role        organization.OrganizationRole
+		expectedLen int
+		description string
 	}{
 		{
 			"owner permissions",

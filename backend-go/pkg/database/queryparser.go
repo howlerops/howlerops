@@ -168,4 +168,3 @@ func unquoteIdentifierPart(value string) string {
 	}
 	return strings.ToLower(value)
 }
-

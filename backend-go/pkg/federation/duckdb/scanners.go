@@ -29,7 +29,7 @@ func NewScannerBuilder() *ScannerBuilder {
 func (sb *ScannerBuilder) BuildPostgresScanner(config *ScannerConfig, schema, table string) string {
 	// Build connection string
 	connStr := sb.buildPostgresConnectionString(config)
-	
+
 	// Build scanner call
 	return fmt.Sprintf("postgres_scan('%s', '%s', '%s')", connStr, schema, table)
 }
@@ -38,7 +38,7 @@ func (sb *ScannerBuilder) BuildPostgresScanner(config *ScannerConfig, schema, ta
 func (sb *ScannerBuilder) BuildMySQLScanner(config *ScannerConfig, schema, table string) string {
 	// Build connection string
 	connStr := sb.buildMySQLConnectionString(config)
-	
+
 	// Build scanner call
 	return fmt.Sprintf("mysql_scan('%s', '%s', '%s')", connStr, schema, table)
 }
@@ -47,7 +47,7 @@ func (sb *ScannerBuilder) BuildMySQLScanner(config *ScannerConfig, schema, table
 func (sb *ScannerBuilder) BuildSQLiteScanner(config *ScannerConfig, schema, table string) string {
 	// For SQLite, the database path is the file path
 	databasePath := config.Database
-	
+
 	// Build scanner call
 	return fmt.Sprintf("sqlite_scan('%s', '%s', '%s')", databasePath, schema, table)
 }
@@ -69,7 +69,7 @@ func (sb *ScannerBuilder) BuildScannerCall(config *ScannerConfig, schema, table 
 // buildPostgresConnectionString builds a PostgreSQL connection string
 func (sb *ScannerBuilder) buildPostgresConnectionString(config *ScannerConfig) string {
 	var parts []string
-	
+
 	if config.Host != "" {
 		parts = append(parts, fmt.Sprintf("host=%s", config.Host))
 	}
@@ -88,19 +88,19 @@ func (sb *ScannerBuilder) buildPostgresConnectionString(config *ScannerConfig) s
 	if config.SSLMode != "" {
 		parts = append(parts, fmt.Sprintf("sslmode=%s", config.SSLMode))
 	}
-	
+
 	// Add custom options
 	for key, value := range config.Options {
 		parts = append(parts, fmt.Sprintf("%s=%s", key, value))
 	}
-	
+
 	return strings.Join(parts, " ")
 }
 
 // buildMySQLConnectionString builds a MySQL connection string
 func (sb *ScannerBuilder) buildMySQLConnectionString(config *ScannerConfig) string {
 	var parts []string
-	
+
 	if config.Host != "" {
 		parts = append(parts, fmt.Sprintf("host=%s", config.Host))
 	}
@@ -116,12 +116,12 @@ func (sb *ScannerBuilder) buildMySQLConnectionString(config *ScannerConfig) stri
 	if config.Password != "" {
 		parts = append(parts, fmt.Sprintf("password=%s", config.Password))
 	}
-	
+
 	// Add custom options
 	for key, value := range config.Options {
 		parts = append(parts, fmt.Sprintf("%s=%s", key, value))
 	}
-	
+
 	return strings.Join(parts, " ")
 }
 
@@ -130,7 +130,7 @@ func (sb *ScannerBuilder) ValidateScannerConfig(config *ScannerConfig) error {
 	if config.Type == "" {
 		return fmt.Errorf("database type is required")
 	}
-	
+
 	switch strings.ToLower(config.Type) {
 	case "postgres", "postgresql":
 		return sb.validatePostgresConfig(config)

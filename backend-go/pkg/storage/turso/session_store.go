@@ -214,7 +214,7 @@ func (s *TursoSessionStore) DeleteUserSessions(ctx context.Context, userID strin
 	}
 
 	s.logger.WithFields(logrus.Fields{
-		"user_id":       userID,
+		"user_id":          userID,
 		"sessions_deleted": rowsAffected,
 	}).Debug("User sessions deleted successfully")
 

@@ -27,7 +27,7 @@ func (tsm *TeamSecretManager) StoreTeamSecret(ctx context.Context, teamID string
 
 	// Derive a unique key for this specific secret using the teamMasterKey and secretType as context
 	derivationSalt := []byte(fmt.Sprintf("%s-%s", teamID, secretType))
-	
+
 	// Use DeriveKey to get the encryption key
 	secretEncryptionKey, err := DeriveKey(string(teamMasterKey), derivationSalt)
 	if err != nil {

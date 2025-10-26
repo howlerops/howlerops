@@ -113,9 +113,8 @@ WORKDIR /app
 # Copy binary from builder stage with explicit ownership
 COPY --from=builder --chown=appuser:appgroup /app/sql-studio-backend .
 
-# Copy configuration files if they exist (optional)
-# These can be overridden by environment variables or mounted volumes
-COPY --from=builder --chown=appuser:appgroup /app/configs ./configs 2>/dev/null || true
+# Note: Configuration comes from environment variables (GCP Secret Manager) in production
+# No need to copy config files - they will be provided via environment
 
 # Create necessary directories with proper permissions
 # - /app/logs: Application logs (if file logging is enabled)

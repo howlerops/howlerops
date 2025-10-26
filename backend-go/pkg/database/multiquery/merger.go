@@ -122,4 +122,3 @@ const (
 	// MergeStrategyIntersect returns only common rows
 	MergeStrategyIntersect MergeStrategy = "intersect"
 )
-

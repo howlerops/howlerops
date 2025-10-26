@@ -115,8 +115,8 @@ func (s *Service) VerifyDomain(ctx context.Context, orgID, domain string) (*Doma
 	tokenFound := false
 	for _, record := range txtRecords {
 		s.logger.WithFields(logrus.Fields{
-			"domain": domain,
-			"record": record,
+			"domain":   domain,
+			"record":   record,
 			"expected": verification.VerificationToken,
 		}).Debug("Checking TXT record")
 

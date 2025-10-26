@@ -488,12 +488,12 @@ func TestCloneTableStructure(t *testing.T) {
 
 	t.Run("empty slices cloned correctly", func(t *testing.T) {
 		original := &TableStructure{
-			Table:      TableInfo{Schema: "public", Name: "empty"},
-			Columns:    []ColumnInfo{},
-			Indexes:    []IndexInfo{},
+			Table:       TableInfo{Schema: "public", Name: "empty"},
+			Columns:     []ColumnInfo{},
+			Indexes:     []IndexInfo{},
 			ForeignKeys: []ForeignKeyInfo{},
-			Triggers:   []string{},
-			Statistics: map[string]string{},
+			Triggers:    []string{},
+			Statistics:  map[string]string{},
 		}
 
 		clone := cloneTableStructure(original)
@@ -509,12 +509,12 @@ func TestCloneTableStructure(t *testing.T) {
 
 	t.Run("nil slices cloned correctly", func(t *testing.T) {
 		original := &TableStructure{
-			Table:      TableInfo{Schema: "public", Name: "nil_slices"},
-			Columns:    nil,
-			Indexes:    nil,
+			Table:       TableInfo{Schema: "public", Name: "nil_slices"},
+			Columns:     nil,
+			Indexes:     nil,
 			ForeignKeys: nil,
-			Triggers:   nil,
-			Statistics: map[string]string{"key": "value"},
+			Triggers:    nil,
+			Statistics:  map[string]string{"key": "value"},
 		}
 
 		clone := cloneTableStructure(original)
