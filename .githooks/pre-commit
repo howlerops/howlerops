@@ -1,0 +1,51 @@
+#!/bin/bash
+# Pre-commit hook to regenerate protobuf files when .proto files change
+
+# Check if any .proto files are being committed
+PROTO_FILES_CHANGED=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.proto$' || true)
+
+if [ -n "$PROTO_FILES_CHANGED" ]; then
+    echo "📝 Detected changes to .proto files, regenerating frontend protobuf files..."
+
+    # Navigate to frontend directory
+    cd frontend
+
+    # Check if protoc is available
+    if ! command -v protoc &> /dev/null; then
+        echo "❌ Error: protoc not found. Please install Protocol Buffers compiler."
+        echo "   macOS: brew install protobuf"
+        echo "   Linux: apt-get install protobuf-compiler"
+        exit 1
+    fi
+
+    # Generate protobuf files
+    npm run proto:build
+
+    if [ $? -ne 0 ]; then
+        echo "❌ Failed to generate protobuf files"
+        exit 1
+    fi
+
+    # Add generated files to commit
+    git add src/generated/
+
+    echo "✅ Protobuf files regenerated and added to commit"
+
+    # Return to root directory
+    cd ..
+fi
+
+# Always check if generated files exist before allowing commit
+if [ ! -d "frontend/src/generated" ]; then
+    echo "⚠️  Warning: frontend/src/generated/ directory doesn't exist"
+    echo "   Running proto:build to generate files..."
+
+    cd frontend
+    npm run proto:build
+    git add src/generated/
+    cd ..
+
+    echo "✅ Generated files created and added to commit"
+fi
+
+exit 0

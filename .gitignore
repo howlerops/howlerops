@@ -54,9 +54,9 @@ build/
 build/bin/
 playwright/.cache/
 
-# Generated sources
-frontend/src/generated/
-frontend/wailsjs/
+# Generated sources (frontend files now tracked for Vercel deployment)
+# frontend/src/generated/  -- Now tracked in git for Vercel
+# frontend/wailsjs/        -- Now tracked in git for Vercel
 backend-go/api/*.pb.go
 backend-go/api/*_grpc.pb.go
 

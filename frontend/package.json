@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm run proto:build && (tsc -b || true) && vite build",
+    "build": "(test -d ./src/generated || npm run proto:build) && (tsc -b || true) && vite build",
     "analyze": "vite build --mode analyze && npx vite-bundle-visualizer",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit --project tsconfig.app.json",
