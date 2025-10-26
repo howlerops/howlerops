@@ -242,9 +242,8 @@ func ValidateConfig(config *Config) error {
 		}
 	}
 
-	if !hasProvider {
-		return fmt.Errorf("at least one AI provider must be configured")
-	}
+	// AI providers are optional - users can configure them later through the app
+	// No error if no providers are configured at startup
 
 	return nil
 }
