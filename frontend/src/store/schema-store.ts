@@ -156,7 +156,7 @@ export const useSchemaStore = create<SchemaStoreState>()(
 
               if (tablesResponse.success && tablesResponse.data) {
                 schemaNode.children = await Promise.all(
-                  tablesResponse.data.map(async (tableInfo, tableIndex) => {
+                  tablesResponse.data.map(async (tableInfo: any, tableIndex: number) => {
                     const tableId = `${schemaInfo.name}.${tableInfo.name}.${tableIndex}`
                     const tableNode: SchemaNode = {
                       id: tableId,
@@ -179,7 +179,7 @@ export const useSchemaStore = create<SchemaStoreState>()(
                       )
 
                       if (columnsResponse.success && columnsResponse.data) {
-                        tableNode.children = columnsResponse.data.map((columnInfo, columnIndex) => ({
+                        tableNode.children = columnsResponse.data.map((columnInfo: any, columnIndex: number) => ({
                           id: `${tableId}.${columnInfo.name}.${columnIndex}`,
                           name: formatColumnName(columnInfo),
                           type: 'column' as const,
