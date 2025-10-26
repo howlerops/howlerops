@@ -54,7 +54,22 @@
       "Bash(npm run type-check:*)",
       "Read(//tmp/**)",
       "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(find /Users/jacob/projects/amplifier/ai_working/howlerops/backend-go -name \"*DEPLOY*.md\" -type f -exec wc -l {} +)",
+      "WebFetch(domain:blog.gopenai.com)",
+      "WebFetch(domain:entgo.io)",
+      "WebFetch(domain:github.com)",
+      "Bash(gcloud config get-value account)",
+      "Bash(gcloud services list --enabled --project=howlerops-prod)",
+      "WebSearch",
+      "Bash(GCP_PROJECT_ID=howlerops-prod )",
+      "Bash(TURSO_URL=\"libsql://placeholder.turso.io\" )",
+      "Bash(TURSO_AUTH_TOKEN=\"placeholder_token_will_be_overridden_by_secret_manager\" )",
+      "Bash(JWT_SECRET=\"placeholder_jwt_secret_min_32_chars_will_be_overridden\" )",
+      "Bash(RESEND_API_KEY=\"re_placeholder_will_be_overridden_by_secret_manager\" )",
+      "Bash(set -a)",
+      "Bash(source .env.production)",
+      "Bash(set +a)"
     ],
     "deny": [],
     "ask": []

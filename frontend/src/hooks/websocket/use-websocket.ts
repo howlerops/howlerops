@@ -20,7 +20,7 @@ import {
 } from '../../types/websocket';
 
 const DEFAULT_OPTIONS: UseWebSocketOptions = {
-  url: process.env.VITE_WEBSOCKET_URL || 'http://localhost:8000',
+  url: import.meta.env.VITE_WEBSOCKET_URL || 'http://localhost:8000',
   autoConnect: true,
   reconnectInterval: 1000,
   maxReconnectAttempts: 10,
