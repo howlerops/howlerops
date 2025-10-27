@@ -17,18 +17,14 @@ export default defineConfig({
         manualChunks: (id) => {
           // Vendor chunks
           if (id.includes('node_modules')) {
-            // Group React and all React-dependent UI libraries together
+            // Group React and ALL React-dependent libraries together
+            // This includes UI libraries, state management, routing, etc.
             if (id.includes('react') || id.includes('react-dom') ||
                 id.includes('react-router') || id.includes('reactflow') ||
                 id.includes('framer-motion') || id.includes('next-themes') ||
-                id.includes('@tanstack/react')) {
+                id.includes('@tanstack/react') || id.includes('@radix-ui') ||
+                id.includes('zustand') || id.includes('recharts')) {
               return 'vendor-react';
-            }
-            if (id.includes('@radix-ui')) {
-              return 'vendor-ui';
-            }
-            if (id.includes('recharts')) {
-              return 'vendor-charts';
             }
             if (id.includes('codemirror') || id.includes('@uiw/react-codemirror')) {
               return 'vendor-editor';
@@ -54,7 +50,7 @@ export default defineConfig({
         },
       },
     },
-    chunkSizeWarningLimit: 1000,
+    chunkSizeWarningLimit: 1500,
     reportCompressedSize: true,
   },
   server: {
