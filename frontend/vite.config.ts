@@ -17,7 +17,11 @@ export default defineConfig({
         manualChunks: (id) => {
           // Vendor chunks
           if (id.includes('node_modules')) {
-            if (id.includes('react') || id.includes('react-dom')) {
+            // Group React and all React-dependent UI libraries together
+            if (id.includes('react') || id.includes('react-dom') ||
+                id.includes('react-router') || id.includes('reactflow') ||
+                id.includes('framer-motion') || id.includes('next-themes') ||
+                id.includes('@tanstack/react')) {
               return 'vendor-react';
             }
             if (id.includes('@radix-ui')) {
@@ -50,7 +54,7 @@ export default defineConfig({
         },
       },
     },
-    chunkSizeWarningLimit: 500,
+    chunkSizeWarningLimit: 1000,
     reportCompressedSize: true,
   },
   server: {
