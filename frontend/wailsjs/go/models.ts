@@ -1291,6 +1291,7 @@ export namespace main {
 	    connectionId: string;
 	    query: string;
 	    limit?: number;
+	    timeout?: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new QueryRequest(source);
@@ -1301,6 +1302,7 @@ export namespace main {
 	        this.connectionId = source["connectionId"];
 	        this.query = source["query"];
 	        this.limit = source["limit"];
+	        this.timeout = source["timeout"];
 	    }
 	}
 	export class QueryResponse {

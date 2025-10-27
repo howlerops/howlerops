@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+    _ "github.com/marcboeker/go-duckdb"
 	"github.com/sirupsen/logrus"
 )
 

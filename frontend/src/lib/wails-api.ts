@@ -299,11 +299,23 @@ export class WailsApiClient {
         return await this.executeMultiDatabaseQuery(sql, options)
       }
 
-      const result = await App.ExecuteQuery({
+      // Load defaults from preferences
+      const { PreferenceRepository, PreferenceCategory } = await import('@/lib/storage/repositories/preference-repository')
+      const pref = new PreferenceRepository()
+      const timeoutPref = await pref.getUserPreference('local-user', 'queryTimeoutSeconds')
+      const limitPref = await pref.getUserPreference('local-user', 'defaultResultLimit')
+      const timeoutSeconds = typeof options?.timeout === 'number' ? options.timeout : (typeof timeoutPref?.value === 'number' ? timeoutPref.value : 30)
+      const limitRows = typeof options?.limit === 'number' ? options.limit : (typeof limitPref?.value === 'number' ? limitPref.value : 1000)
+
+      // Note: Timeout is supported by backend; TS bindings may lag until regenerated
+      const req: any = {
         connectionId,
         query: sql,
-        limit: options?.limit || 1000
-      })
+        limit: limitRows,
+        timeout: timeoutSeconds
+      }
+
+      const result = await (App.ExecuteQuery as any)(req)
 
       const hasError = typeof result.error === 'string' ? result.error.length > 0 : Boolean(result.error)
       const success = !hasError
@@ -361,9 +373,15 @@ export class WailsApiClient {
 
   async executeMultiDatabaseQuery(sql: string, options?: { limit?: number; timeout?: number }) {
     try {
+      // Load timeout default if not provided
+      const { PreferenceRepository } = await import('@/lib/storage/repositories/preference-repository')
+      const pref = new PreferenceRepository()
+      const timeoutPref = await pref.getUserPreference('local-user', 'queryTimeoutSeconds')
+      const timeoutSeconds = typeof options?.timeout === 'number' ? options.timeout : (typeof timeoutPref?.value === 'number' ? timeoutPref.value : 30)
+
       const result = await App.ExecuteMultiDatabaseQuery({
         query: sql,
-        timeout: options?.timeout || 30, // timeout in seconds
+        timeout: timeoutSeconds, // seconds
         strategy: 'federated',
         limit: options?.limit || 1000
       })

@@ -8,10 +8,64 @@ import { PageErrorBoundary } from "@/components/page-error-boundary"
 import { useTheme } from "@/hooks/use-theme"
 import { ArrowLeft, Brain, Key, Server, AlertTriangle, Download, Play, CheckCircle } from "lucide-react"
 import { useNavigate } from "react-router-dom"
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState, useRef, useCallback } from "react"
 import { useAIConfig } from "@/store/ai-store"
 import { useOllamaDetection } from "@/hooks/use-ollama-detection"
 import { useToast } from "@/hooks/use-toast"
+import { PreferenceRepository, PreferenceCategory } from '@/lib/storage/repositories/preference-repository'
+
+const prefRepo = new PreferenceRepository()
+const DEVICE_USER = 'local-user'
+
+function useNumericPreference(userId: string, key: string, defaultValue: number, category: PreferenceCategory) {
+  const [value, setValue] = useState<number>(defaultValue)
+  const [saving, setSaving] = useState<boolean>(false)
+  const [savedAt, setSavedAt] = useState<number | null>(null)
+
+  useEffect(() => {
+    prefRepo.getUserPreference(userId, key).then((pref) => {
+      if (pref && typeof pref.value === 'number') setValue(pref.value)
+    }).catch(() => {})
+  }, [userId, key])
+
+  const save = useCallback(async (next: number) => {
+    setValue(next)
+    setSaving(true)
+    try {
+      await prefRepo.setUserPreference(userId, key, next, category)
+      setSavedAt(Date.now())
+    } finally {
+      setSaving(false)
+    }
+  }, [userId, key, category])
+
+  return { value, save, saving, savedAt }
+}
+
+function useBooleanPreference(userId: string, key: string, defaultValue: boolean, category: PreferenceCategory) {
+  const [value, setValue] = useState<boolean>(defaultValue)
+  const [saving, setSaving] = useState<boolean>(false)
+  const [savedAt, setSavedAt] = useState<number | null>(null)
+
+  useEffect(() => {
+    prefRepo.getUserPreference(userId, key).then((pref) => {
+      if (pref && typeof pref.value === 'boolean') setValue(pref.value)
+    }).catch(() => {})
+  }, [userId, key])
+
+  const save = useCallback(async (next: boolean) => {
+    setValue(next)
+    setSaving(true)
+    try {
+      await prefRepo.setUserPreference(userId, key, next, category)
+      setSavedAt(Date.now())
+    } finally {
+      setSaving(false)
+    }
+  }, [userId, key, category])
+
+  return { value, save, saving, savedAt }
+}
 
 export function Settings() {
   const { theme, setTheme } = useTheme()
@@ -101,6 +155,12 @@ export function Settings() {
       alert(error instanceof Error ? error.message : 'Failed to open terminal')
     }
   }
+
+  // Preferences (top-level hooks; do not call inside callbacks)
+  const editorLineNumbers = useBooleanPreference(DEVICE_USER, 'editorLineNumbers', true, PreferenceCategory.EDITOR)
+  const queryTimeoutPref = useNumericPreference(DEVICE_USER, 'queryTimeoutSeconds', 30, PreferenceCategory.BEHAVIOR)
+  const resultLimitPref = useNumericPreference(DEVICE_USER, 'defaultResultLimit', 1000, PreferenceCategory.BEHAVIOR)
+  const autoCommitPref = useBooleanPreference(DEVICE_USER, 'autoCommit', true, PreferenceCategory.BEHAVIOR)
 
   // Automatically attempt to initialise the embedded runtime once when selected.
   useEffect(() => {
@@ -241,7 +301,14 @@ export function Settings() {
                   Show line numbers in the editor
                 </p>
               </div>
-              <Switch id="line-numbers" defaultChecked />
+              <div className="flex items-center gap-2">
+                <Switch id="line-numbers" checked={editorLineNumbers.value} onCheckedChange={editorLineNumbers.save} />
+                {editorLineNumbers.saving ? (
+                  <span className="text-xs text-muted-foreground">Saving…</span>
+                ) : editorLineNumbers.savedAt ? (
+                  <span className="text-xs text-green-600">Saved</span>
+                ) : null}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -262,14 +329,21 @@ export function Settings() {
                   Maximum time for query execution
                 </p>
               </div>
-              <Input
-                id="query-timeout"
-                type="number"
-                className="w-[100px]"
-                defaultValue={30}
-                min={5}
-                max={300}
-              />
+              <div className="flex items-center gap-2">
+                <Input
+                  id="query-timeout"
+                  type="number"
+                  className="w-[100px]"
+                  value={queryTimeoutPref.value}
+                  onChange={(e) => queryTimeoutPref.save(Math.max(5, Number(e.target.value) || 0))}
+                  min={5}
+                />
+                {queryTimeoutPref.saving ? (
+                  <span className="text-xs text-muted-foreground">Saving…</span>
+                ) : queryTimeoutPref.savedAt ? (
+                  <span className="text-xs text-green-600">Saved</span>
+                ) : null}
+              </div>
             </div>
 
             <div className="flex items-center justify-between">
@@ -279,15 +353,23 @@ export function Settings() {
                   Default number of rows to fetch
                 </p>
               </div>
-              <Input
-                id="result-limit"
-                type="number"
-                className="w-[100px]"
-                defaultValue={1000}
-                min={100}
-                max={10000}
-                step={100}
-              />
+              <div className="flex items-center gap-2">
+                <Input
+                  id="result-limit"
+                  type="number"
+                  className="w-[100px]"
+                  value={resultLimitPref.value}
+                  onChange={(e) => resultLimitPref.save(Math.max(100, Math.min(10000, Number(e.target.value) || 0)))}
+                  min={100}
+                  max={10000}
+                  step={100}
+                />
+                {resultLimitPref.saving ? (
+                  <span className="text-xs text-muted-foreground">Saving…</span>
+                ) : resultLimitPref.savedAt ? (
+                  <span className="text-xs text-green-600">Saved</span>
+                ) : null}
+              </div>
             </div>
 
             <div className="flex items-center justify-between">
@@ -297,7 +379,14 @@ export function Settings() {
                   Automatically commit transactions
                 </p>
               </div>
-              <Switch id="auto-commit" defaultChecked />
+              <div className="flex items-center gap-2">
+                <Switch id="auto-commit" checked={autoCommitPref.value} onCheckedChange={autoCommitPref.save} />
+                {autoCommitPref.saving ? (
+                  <span className="text-xs text-muted-foreground">Saving…</span>
+                ) : autoCommitPref.savedAt ? (
+                  <span className="text-xs text-green-600">Saved</span>
+                ) : null}
+              </div>
             </div>
           </CardContent>
         </Card>

@@ -1657,12 +1657,12 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
         </DialogContent>
       </Dialog>
 
-      {/* Save Query Dialog */}
-      {user && (
+      {/* Save Query Dialog (available in local mode with fallback user) */}
+      {(
         <SaveQueryDialog
           open={showSaveQueryDialog}
           onClose={() => setShowSaveQueryDialog(false)}
-          userId={user.id}
+          userId={user?.id ?? 'local-user'}
           initialQuery={editorRef.current?.getValue() ?? editorContent}
           onSaved={(query) => {
             console.log('Query saved:', query)
@@ -1792,12 +1792,12 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
       </div>
 
       {/* Multi-DB Connection Selector Dialog */}
-      {/* Saved Queries Panel */}
-      {user && (
+      {/* Saved Queries Panel (available in local mode with fallback user) */}
+      {(
         <SavedQueriesPanel
           open={showSavedQueries}
           onClose={() => setShowSavedQueries(false)}
-          userId={user.id}
+          userId={user?.id ?? 'local-user'}
           onLoadQuery={(q) => {
             setEditorContent(q.query_text)
             setShowSavedQueries(false)

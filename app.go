@@ -70,6 +70,7 @@ type QueryRequest struct {
 	ConnectionID string `json:"connectionId"`
 	Query        string `json:"query"`
 	Limit        int    `json:"limit,omitempty"`
+    Timeout      int    `json:"timeout,omitempty"` // seconds
 }
 
 // QueryResponse represents a query execution response
@@ -768,8 +769,8 @@ func (a *App) ExecuteQuery(req QueryRequest) (*QueryResponse, error) {
 		Limit:    req.Limit,
 	}
 
-	if options.Limit == 0 {
-		options.Limit = 1000
+	if req.Timeout > 0 {
+		options.Timeout = time.Duration(req.Timeout) * time.Second
 	}
 
 	result, err := a.databaseService.ExecuteQuery(req.ConnectionID, req.Query, options)
