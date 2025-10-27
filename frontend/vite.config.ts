@@ -12,44 +12,9 @@ export default defineConfig({
     },
   },
   build: {
-    rollupOptions: {
-      output: {
-        manualChunks: (id) => {
-          // Vendor chunks
-          if (id.includes('node_modules')) {
-            // Group React and ALL React-dependent libraries together
-            // This includes UI libraries, state management, routing, etc.
-            if (id.includes('react') || id.includes('react-dom') ||
-                id.includes('react-router') || id.includes('reactflow') ||
-                id.includes('framer-motion') || id.includes('next-themes') ||
-                id.includes('@tanstack/react') || id.includes('@radix-ui') ||
-                id.includes('zustand') || id.includes('recharts')) {
-              return 'vendor-react';
-            }
-            if (id.includes('codemirror') || id.includes('@uiw/react-codemirror')) {
-              return 'vendor-editor';
-            }
-            if (id.includes('date-fns') || id.includes('lodash')) {
-              return 'vendor-utils';
-            }
-            if (id.includes('sql-formatter')) {
-              return 'vendor-sql';
-            }
-            return 'vendor-misc';
-          }
-          // Feature chunks
-          if (id.includes('src/components/query')) {
-            return 'feature-query';
-          }
-          if (id.includes('src/components/sync')) {
-            return 'feature-sync';
-          }
-          if (id.includes('src/lib/ai')) {
-            return 'feature-ai';
-          }
-        },
-      },
-    },
+    // Let Vite handle chunking automatically to avoid React bundling issues
+    // Manual chunking was causing "Cannot read properties of undefined" errors
+    // when React-dependent packages were split across different chunks
     chunkSizeWarningLimit: 1500,
     reportCompressedSize: true,
   },
