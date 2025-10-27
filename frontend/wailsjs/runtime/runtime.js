@@ -1,79 +1,280 @@
 /**
- * Mock Wails runtime for web deployment
- * These stubs allow the code to build in Vercel while maintaining desktop app compatibility
+ * Wails runtime wrapper - works in both desktop and web modes
+ * In desktop mode: uses window.runtime provided by Wails
+ * In web mode: provides safe mock implementations
  */
 
+const isDesktop = () => typeof window !== 'undefined' && window.runtime;
 const warn = (name) => console.warn(`Desktop-only feature: ${name}() is not available in web version`);
 
-export function LogPrint(message) { console.log(message); }
-export function LogTrace(message) { console.trace(message); }
-export function LogDebug(message) { console.debug(message); }
-export function LogInfo(message) { console.info(message); }
-export function LogWarning(message) { console.warn(message); }
-export function LogError(message) { console.error(message); }
-export function LogFatal(message) { console.error(message); }
+// Logging functions
+export function LogPrint(message) {
+    if (isDesktop()) return window.runtime.LogPrint(message);
+    console.log(message);
+}
 
+export function LogTrace(message) {
+    if (isDesktop()) return window.runtime.LogTrace(message);
+    console.trace(message);
+}
+
+export function LogDebug(message) {
+    if (isDesktop()) return window.runtime.LogDebug(message);
+    console.debug(message);
+}
+
+export function LogInfo(message) {
+    if (isDesktop()) return window.runtime.LogInfo(message);
+    console.info(message);
+}
+
+export function LogWarning(message) {
+    if (isDesktop()) return window.runtime.LogWarning(message);
+    console.warn(message);
+}
+
+export function LogError(message) {
+    if (isDesktop()) return window.runtime.LogError(message);
+    console.error(message);
+}
+
+export function LogFatal(message) {
+    if (isDesktop()) return window.runtime.LogFatal(message);
+    console.error(message);
+}
+
+// Events
 export function EventsOnMultiple(eventName, callback, maxCallbacks) {
+    if (isDesktop()) return window.runtime.EventsOnMultiple(eventName, callback, maxCallbacks);
     warn('EventsOnMultiple');
     return () => {};
 }
+
 export function EventsOn(eventName, callback) {
+    if (isDesktop()) return window.runtime.EventsOnMultiple(eventName, callback, -1);
     warn('EventsOn');
     return () => {};
 }
-export function EventsOff(eventName, ...additionalEventNames) { warn('EventsOff'); }
+
+export function EventsOff(eventName, ...additionalEventNames) {
+    if (isDesktop()) return window.runtime.EventsOff(eventName, ...additionalEventNames);
+    warn('EventsOff');
+}
+
 export function EventsOnce(eventName, callback) {
+    if (isDesktop()) return window.runtime.EventsOnMultiple(eventName, callback, 1);
     warn('EventsOnce');
     return () => {};
 }
-export function EventsEmit(eventName) { warn('EventsEmit'); }
 
-export function WindowReload() { window.location.reload(); }
-export function WindowReloadApp() { window.location.reload(); }
-export function WindowSetAlwaysOnTop(b) { warn('WindowSetAlwaysOnTop'); }
-export function WindowSetSystemDefaultTheme() { warn('WindowSetSystemDefaultTheme'); }
-export function WindowSetLightTheme() { warn('WindowSetLightTheme'); }
-export function WindowSetDarkTheme() { warn('WindowSetDarkTheme'); }
-export function WindowCenter() { warn('WindowCenter'); }
-export function WindowSetTitle(title) { document.title = title; }
-export function WindowFullscreen() { warn('WindowFullscreen'); }
-export function WindowUnfullscreen() { warn('WindowUnfullscreen'); }
-export function WindowIsFullscreen() { return false; }
-export function WindowGetSize() { return { width: window.innerWidth, height: window.innerHeight }; }
-export function WindowSetSize(width, height) { warn('WindowSetSize'); }
-export function WindowSetMaxSize(width, height) { warn('WindowSetMaxSize'); }
-export function WindowSetMinSize(width, height) { warn('WindowSetMinSize'); }
-export function WindowSetPosition(x, y) { warn('WindowSetPosition'); }
-export function WindowGetPosition() { return { x: 0, y: 0 }; }
-export function WindowHide() { warn('WindowHide'); }
-export function WindowShow() { warn('WindowShow'); }
-export function WindowMaximise() { warn('WindowMaximise'); }
-export function WindowToggleMaximise() { warn('WindowToggleMaximise'); }
-export function WindowUnmaximise() { warn('WindowUnmaximise'); }
-export function WindowIsMaximised() { return false; }
-export function WindowMinimise() { warn('WindowMinimise'); }
-export function WindowUnminimise() { warn('WindowUnminimise'); }
-export function WindowSetBackgroundColour(R, G, B, A) { warn('WindowSetBackgroundColour'); }
-export function ScreenGetAll() { return []; }
-export function WindowIsMinimised() { return false; }
-export function WindowIsNormal() { return true; }
-export function BrowserOpenURL(url) { window.open(url, '_blank'); }
-export function Environment() { return { platform: 'web', buildType: 'production' }; }
-export function Quit() { warn('Quit'); }
-export function Hide() { warn('Hide'); }
-export function Show() { warn('Show'); }
+export function EventsEmit(eventName) {
+    if (isDesktop()) {
+        let args = [eventName].slice.call(arguments);
+        return window.runtime.EventsEmit.apply(null, args);
+    }
+    warn('EventsEmit');
+}
+
+// Window functions
+export function WindowReload() {
+    if (isDesktop()) return window.runtime.WindowReload();
+    window.location.reload();
+}
+
+export function WindowReloadApp() {
+    if (isDesktop()) return window.runtime.WindowReloadApp();
+    window.location.reload();
+}
+
+export function WindowSetAlwaysOnTop(b) {
+    if (isDesktop()) return window.runtime.WindowSetAlwaysOnTop(b);
+    warn('WindowSetAlwaysOnTop');
+}
+
+export function WindowSetSystemDefaultTheme() {
+    if (isDesktop()) return window.runtime.WindowSetSystemDefaultTheme();
+    warn('WindowSetSystemDefaultTheme');
+}
+
+export function WindowSetLightTheme() {
+    if (isDesktop()) return window.runtime.WindowSetLightTheme();
+    warn('WindowSetLightTheme');
+}
+
+export function WindowSetDarkTheme() {
+    if (isDesktop()) return window.runtime.WindowSetDarkTheme();
+    warn('WindowSetDarkTheme');
+}
+
+export function WindowCenter() {
+    if (isDesktop()) return window.runtime.WindowCenter();
+    warn('WindowCenter');
+}
+
+export function WindowSetTitle(title) {
+    if (isDesktop()) return window.runtime.WindowSetTitle(title);
+    document.title = title;
+}
+
+export function WindowFullscreen() {
+    if (isDesktop()) return window.runtime.WindowFullscreen();
+    warn('WindowFullscreen');
+}
+
+export function WindowUnfullscreen() {
+    if (isDesktop()) return window.runtime.WindowUnfullscreen();
+    warn('WindowUnfullscreen');
+}
+
+export function WindowIsFullscreen() {
+    if (isDesktop()) return window.runtime.WindowIsFullscreen();
+    return false;
+}
+
+export function WindowGetSize() {
+    if (isDesktop()) return window.runtime.WindowGetSize();
+    return { width: window.innerWidth, height: window.innerHeight };
+}
+
+export function WindowSetSize(width, height) {
+    if (isDesktop()) return window.runtime.WindowSetSize(width, height);
+    warn('WindowSetSize');
+}
+
+export function WindowSetMaxSize(width, height) {
+    if (isDesktop()) return window.runtime.WindowSetMaxSize(width, height);
+    warn('WindowSetMaxSize');
+}
+
+export function WindowSetMinSize(width, height) {
+    if (isDesktop()) return window.runtime.WindowSetMinSize(width, height);
+    warn('WindowSetMinSize');
+}
+
+export function WindowSetPosition(x, y) {
+    if (isDesktop()) return window.runtime.WindowSetPosition(x, y);
+    warn('WindowSetPosition');
+}
+
+export function WindowGetPosition() {
+    if (isDesktop()) return window.runtime.WindowGetPosition();
+    return { x: 0, y: 0 };
+}
+
+export function WindowHide() {
+    if (isDesktop()) return window.runtime.WindowHide();
+    warn('WindowHide');
+}
+
+export function WindowShow() {
+    if (isDesktop()) return window.runtime.WindowShow();
+    warn('WindowShow');
+}
+
+export function WindowMaximise() {
+    if (isDesktop()) return window.runtime.WindowMaximise();
+    warn('WindowMaximise');
+}
+
+export function WindowToggleMaximise() {
+    if (isDesktop()) return window.runtime.WindowToggleMaximise();
+    warn('WindowToggleMaximise');
+}
+
+export function WindowUnmaximise() {
+    if (isDesktop()) return window.runtime.WindowUnmaximise();
+    warn('WindowUnmaximise');
+}
+
+export function WindowIsMaximised() {
+    if (isDesktop()) return window.runtime.WindowIsMaximised();
+    return false;
+}
+
+export function WindowMinimise() {
+    if (isDesktop()) return window.runtime.WindowMinimise();
+    warn('WindowMinimise');
+}
+
+export function WindowUnminimise() {
+    if (isDesktop()) return window.runtime.WindowUnminimise();
+    warn('WindowUnminimise');
+}
+
+export function WindowSetBackgroundColour(R, G, B, A) {
+    if (isDesktop()) return window.runtime.WindowSetBackgroundColour(R, G, B, A);
+    warn('WindowSetBackgroundColour');
+}
+
+export function ScreenGetAll() {
+    if (isDesktop()) return window.runtime.ScreenGetAll();
+    return [];
+}
+
+export function WindowIsMinimised() {
+    if (isDesktop()) return window.runtime.WindowIsMinimised();
+    return false;
+}
+
+export function WindowIsNormal() {
+    if (isDesktop()) return window.runtime.WindowIsNormal();
+    return true;
+}
+
+export function BrowserOpenURL(url) {
+    if (isDesktop()) return window.runtime.BrowserOpenURL(url);
+    window.open(url, '_blank');
+}
+
+export function Environment() {
+    if (isDesktop()) return window.runtime.Environment();
+    return { platform: 'web', buildType: 'production' };
+}
+
+export function Quit() {
+    if (isDesktop()) return window.runtime.Quit();
+    warn('Quit');
+}
+
+export function Hide() {
+    if (isDesktop()) return window.runtime.Hide();
+    warn('Hide');
+}
+
+export function Show() {
+    if (isDesktop()) return window.runtime.Show();
+    warn('Show');
+}
+
 export function ClipboardGetText() {
+    if (isDesktop()) return window.runtime.ClipboardGetText();
     warn('ClipboardGetText - use navigator.clipboard instead');
     return Promise.resolve('');
 }
+
 export function ClipboardSetText(text) {
+    if (isDesktop()) return window.runtime.ClipboardSetText(text);
     warn('ClipboardSetText - use navigator.clipboard instead');
     return Promise.resolve();
 }
+
 export function OnFileDrop(callback, useDropTarget) {
+    if (isDesktop()) return window.runtime.OnFileDrop(callback, useDropTarget);
     warn('OnFileDrop');
     return () => {};
 }
-export function OnFileDropOff() { warn('OnFileDropOff'); }
-export function CanResolveFilePaths() { return false; }
-export function ResolveFilePaths(files) { return Promise.resolve([]); }
+
+export function OnFileDropOff() {
+    if (isDesktop()) return window.runtime.OnFileDropOff();
+    warn('OnFileDropOff');
+}
+
+export function CanResolveFilePaths() {
+    if (isDesktop()) return window.runtime.CanResolveFilePaths();
+    return false;
+}
+
+export function ResolveFilePaths(files) {
+    if (isDesktop()) return window.runtime.ResolveFilePaths(files);
+    return Promise.resolve([]);
+}
