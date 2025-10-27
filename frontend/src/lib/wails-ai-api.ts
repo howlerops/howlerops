@@ -138,3 +138,47 @@ export async function showHybridNotification(
     await showWailsNotification(title, message, isError)
   }
 }
+
+// Inline editor suggestion endpoint wrapper.
+// Returns code-only suggestion text or empty string on failure.
+export async function aiSuggest(prefix: string, suffix: string, language: string = 'sql'): Promise<string> {
+  try {
+    const { GenericChat } = await import('../../wailsjs/go/main/App')
+    const system = `You are an inline code completion engine. Continue the user's code strictly.
+Rules:
+- Output ONLY code with no commentary.
+- Respect the specified language: ${language}.
+- Use context before and after the cursor to complete naturally.
+- Keep suggestions short (<= 200 characters) unless essential.`
+    const prompt = `Complete the code at the cursor.
+Language: ${language}
+---
+PREFIX:
+${prefix}
+---
+SUFFIX:
+${suffix}
+---
+Return only the code to insert at the cursor.`
+
+    const resp = await GenericChat({
+      prompt,
+      context: '',
+      system,
+      provider: '',
+      model: '',
+      maxTokens: 128,
+      temperature: 0.1,
+      metadata: { intent: 'inline-completion', language }
+    })
+
+    const suggestion = (resp?.content || '').trim()
+    if (!suggestion) return ''
+    // Strip accidental triple backticks
+    const cleaned = suggestion.replace(/^```[\s\S]*?\n|```$/g, '').trim()
+    return cleaned
+  } catch (error) {
+    console.error('Inline AI suggestion failed:', error)
+    return ''
+  }
+}

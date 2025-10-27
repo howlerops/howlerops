@@ -76,6 +76,63 @@ type ModelEncoder struct {
 	Preprocess func(string) string
 }
 
+// FallbackEmbeddingProvider wraps two providers. If the primary fails, it falls back to the secondary.
+type FallbackEmbeddingProvider struct {
+	primary  EmbeddingProvider
+	fallback EmbeddingProvider
+}
+
+// NewFallbackEmbeddingProvider constructs a fallback provider.
+func NewFallbackEmbeddingProvider(primary, fallback EmbeddingProvider) *FallbackEmbeddingProvider {
+	return &FallbackEmbeddingProvider{primary: primary, fallback: fallback}
+}
+
+func (p *FallbackEmbeddingProvider) EmbedText(ctx context.Context, text string) ([]float32, error) {
+	if p.primary != nil {
+		if v, err := p.primary.EmbedText(ctx, text); err == nil {
+			return v, nil
+		}
+	}
+	if p.fallback == nil {
+		return nil, fmt.Errorf("no fallback embedding provider configured")
+	}
+	return p.fallback.EmbedText(ctx, text)
+}
+
+func (p *FallbackEmbeddingProvider) EmbedBatch(ctx context.Context, texts []string) ([][]float32, error) {
+	if p.primary != nil {
+		if v, err := p.primary.EmbedBatch(ctx, texts); err == nil {
+			return v, nil
+		}
+	}
+	if p.fallback == nil {
+		return nil, fmt.Errorf("no fallback embedding provider configured")
+	}
+	return p.fallback.EmbedBatch(ctx, texts)
+}
+
+func (p *FallbackEmbeddingProvider) GetDimension() int {
+	if p.primary != nil {
+		return p.primary.GetDimension()
+	}
+	if p.fallback != nil {
+		return p.fallback.GetDimension()
+	}
+	return 0
+}
+
+func (p *FallbackEmbeddingProvider) GetModel() string {
+	primary := ""
+	fallback := ""
+	if p.primary != nil {
+		primary = p.primary.GetModel()
+	}
+	if p.fallback != nil {
+		fallback = p.fallback.GetModel()
+	}
+	return primary + "|" + fallback
+}
+
 // NewEmbeddingService creates a new embedding service
 func NewEmbeddingService(provider EmbeddingProvider, logger *logrus.Logger) *DefaultEmbeddingService {
 	cache := &EmbeddingCache{

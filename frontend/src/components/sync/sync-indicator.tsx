@@ -31,6 +31,7 @@ import {
   Loader2,
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
+import { cn } from '@/lib/utils'
 
 /**
  * Main sync indicator component
@@ -269,7 +270,10 @@ function SyncSettingsDialog() {
             <div className="space-y-1 text-xs">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Status</span>
-                <Badge variant={syncEnabled ? 'success' : 'secondary'} className="text-xs">
+                <Badge
+                  variant={syncEnabled ? 'secondary' : 'secondary'}
+                  className={cn('text-xs', syncEnabled ? 'bg-green-100 text-green-700' : undefined)}
+                >
                   {syncEnabled ? 'Active' : 'Inactive'}
                 </Badge>
               </div>

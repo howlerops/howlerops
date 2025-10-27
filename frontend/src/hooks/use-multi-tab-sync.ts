@@ -56,7 +56,7 @@ const useBroadcastStore = create<BroadcastSyncState>((set) => ({
 
   setConnected: (connected) => set({ isConnected: connected }),
   setTabs: (tabs) => set({ activeTabs: tabs, tabCount: tabs.size }),
-  setPrimary: (isPrimary, primaryTabId) => set({ isPrimaryTab, primaryTabId })
+  setPrimary: (isPrimary, primaryTabId) => set({ isPrimaryTab: isPrimary, primaryTabId })
 }))
 
 /**
@@ -287,7 +287,7 @@ export function useMultiTabSync(): UseMultiTabSyncReturn {
 /**
  * Hook for listening to broadcast events
  */
-export function useBroadcastEvent<T extends any>(
+export function useBroadcastEvent<T = unknown>(
   eventType: string,
   handler: (payload: T) => void
 ): void {

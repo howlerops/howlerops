@@ -378,6 +378,21 @@ func NewApp() *App {
 	}
 }
 
+// schemaProviderAdapter adapts DatabaseService calls to the indexer's SchemaProvider.
+type schemaProviderAdapter struct{ dbsvc *services.DatabaseService }
+
+func (a *schemaProviderAdapter) GetSchemas(connID string) ([]string, error) {
+	return a.dbsvc.GetSchemas(connID)
+}
+
+func (a *schemaProviderAdapter) GetTables(connID, schema string) ([]database.TableInfo, error) {
+	return a.dbsvc.GetTables(connID, schema)
+}
+
+func (a *schemaProviderAdapter) GetTableStructure(connID, schema, table string) (*database.TableStructure, error) {
+	return a.dbsvc.GetTableStructure(connID, schema, table)
+}
+
 // OnStartup is called when the app starts, before the frontend is loaded
 func (a *App) OnStartup(ctx context.Context) {
 	a.ctx = ctx
@@ -563,14 +578,26 @@ func (a *App) applyAIConfiguration() error {
 func (a *App) rebuildEmbeddingService() {
 	a.embeddingService = nil
 
-	if a.aiConfig == nil || a.aiConfig.OpenAI.APIKey == "" {
-		return
+	// Prefer ONNX local provider if configured
+	// Fallback to OpenAI if ONNX isn't available or not configured
+	var provider rag.EmbeddingProvider
+
+	// Read backend config if available; otherwise use AI config to fall back
+	// For desktop app, we infer ONNX model path relative to repo if present
+	onnxModelPath := "backend-go/internal/rag/models/all-MiniLM-L6-v2.onnx"
+
+	// Try ONNX first
+	provider = rag.NewONNXEmbeddingProvider(onnxModelPath, a.logger)
+
+	// If OpenAI is configured, wrap with fallback so remote works when desired
+	if a.aiConfig != nil && a.aiConfig.OpenAI.APIKey != "" {
+		openAIModel := "text-embedding-3-small"
+		openAIProv := rag.NewOpenAIEmbeddingProvider(a.aiConfig.OpenAI.APIKey, openAIModel, a.logger)
+		provider = rag.NewFallbackEmbeddingProvider(provider, openAIProv)
 	}
 
-	model := "text-embedding-3-small"
-	provider := rag.NewOpenAIEmbeddingProvider(a.aiConfig.OpenAI.APIKey, model, a.logger)
 	a.embeddingService = rag.NewEmbeddingService(provider, a.logger)
-	a.logger.WithField("model", model).Info("Embedding service initialised")
+	a.logger.WithField("model", provider.GetModel()).Info("Embedding service initialised")
 }
 
 // getEnvOrDefault gets environment variable or returns default value
@@ -649,6 +676,25 @@ func (a *App) CreateConnection(req ConnectionRequest) (*ConnectionInfo, error) {
 	connection, err := a.databaseService.CreateConnection(config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create connection: %w", err)
+	}
+
+	// Kick off background schema indexing (table/column/relationship docs) if embeddings and storage are available
+	if a.embeddingService != nil && a.storageManager != nil && connection != nil && connection.ID != "" {
+		go func(connID string) {
+			ctx := context.Background()
+			// Build a shared SchemaIndexer from the active vector store
+			vs := a.storageManager.GetVectorStore()
+			vectorStore, _ := vs.(rag.VectorStore)
+			if vectorStore == nil {
+				return
+			}
+			indexer := rag.NewSchemaIndexer(vectorStore, a.embeddingService, a.logger)
+			// Use the indexer's connection walker to index schema safely
+			provider := &schemaProviderAdapter{dbsvc: a.databaseService}
+			if err := indexer.IndexConnection(ctx, provider, connID); err != nil {
+				a.logger.WithError(err).WithField("connection_id", connID).Warn("Schema indexing failed")
+			}
+		}(connection.ID)
 	}
 
 	return &ConnectionInfo{

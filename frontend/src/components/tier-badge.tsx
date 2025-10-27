@@ -270,14 +270,16 @@ export function TierBadge({
                 tier === 'team' && 'bg-purple-200 dark:bg-purple-800'
               )}
             >
-              {React.cloneElement(icon as React.ReactElement, {
-                className: cn(
-                  'w-5 h-5',
+              <span
+                className={cn(
+                  'inline-flex w-5 h-5',
                   tier === 'local' && 'text-gray-700 dark:text-gray-100',
                   tier === 'individual' && 'text-blue-700 dark:text-blue-300',
                   tier === 'team' && 'text-purple-700 dark:text-purple-300'
-                ),
-              })}
+                )}
+              >
+                {React.isValidElement(icon) ? icon : null}
+              </span>
             </div>
             <div>
               <div className="flex items-center gap-2">

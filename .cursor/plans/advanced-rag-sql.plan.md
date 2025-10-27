@@ -12,6 +12,7 @@ This plan implements advanced RAG improvements for SQL generation based on three
 ## Key Design Decisions
 
 ### ✅ ONNX Runtime (Not Ollama)
+
 - **No external service** - Embedding model runs directly in your Go process
 - **Truly offline** - Zero network calls for embeddings
 - **Simpler deployment** - Just include model file, no daemon management
@@ -19,6 +20,7 @@ This plan implements advanced RAG improvements for SQL generation based on three
 - **Proven approach** - Used by ChromaDB Go client
 
 ### 🔒 Security-First: Schema-Only Indexing
+
 - **Never index data values** - Only metadata (table/column names, types, relationships)
 - **Privacy guards** - Detect and block PII columns automatically
 - **Pattern learning** - Extract SQL templates without actual query values
@@ -32,6 +34,7 @@ This plan implements advanced RAG improvements for SQL generation based on three
 **Solution**: Implement **ONNX Runtime-based local embedding model** (all-MiniLM-L6-v2) as primary, with OpenAI fallback. No external service required.
 
 **Why ONNX over Ollama**:
+
 - ✅ No daemon/service to run - embedded directly in Go binary
 - ✅ Truly offline - no network calls at all
 - ✅ Faster - direct C bindings, no HTTP overhead
@@ -104,6 +107,7 @@ func (o *ONNXEmbeddingProvider) EmbedText(ctx context.Context, text string) ([]f
 ```
 
 **Model Setup**:
+
 ```bash
 # Download pre-converted ONNX model
 # all-MiniLM-L6-v2: 384 dimensions, ~90MB
@@ -118,13 +122,16 @@ optimum-cli export onnx --model sentence-transformers/all-MiniLM-L6-v2 all-MiniL
 ```
 
 **Dependencies**:
+
 ```bash
 # Add to go.mod
 go get github.com/yalue/onnxruntime_go
 ```
 
 **Tokenizer Implementation**:
+
 For simplicity, you can either:
+
 1. Use a simple wordpiece tokenizer in Go
 2. Pre-tokenize text via Python bridge (one-time setup)
 3. Use the tokenizers from https://github.com/sugarme/tokenizer (Go port of Hugging Face tokenizers)

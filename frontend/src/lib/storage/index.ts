@@ -23,14 +23,10 @@
  * @module lib/storage
  */
 
+import { getIndexedDBClient, IndexedDBClient } from './indexeddb-client'
+
 // Schema and client
 export { DB_NAME, CURRENT_VERSION, getCurrentSchema } from './schema'
-export {
-  IndexedDBClient,
-  getIndexedDBClient,
-  resetIndexedDBClient,
-  type TransactionMode,
-} from './indexeddb-client'
 
 // Repositories
 export {

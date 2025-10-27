@@ -14,6 +14,8 @@ import { autocompletion, completionKeymap, closeBrackets, closeBracketsKeymap } 
 import { lintKeymap } from '@codemirror/lint'
 import { createSQLExtensions, updateEditorSchema, Connection, SchemaNode, ColumnLoader } from '@/lib/codemirror-sql'
 import { cn } from '@/lib/utils'
+import { createInlineAISuggestionsExtension } from '@/lib/codemirror-ai'
+import { aiSuggest } from '@/lib/wails-ai-api'
 
 export interface CodeMirrorEditorProps {
   value?: string
@@ -29,6 +31,8 @@ export interface CodeMirrorEditorProps {
   mode?: 'single' | 'multi'
   columnLoader?: ColumnLoader
   className?: string
+  aiEnabled?: boolean
+  aiLanguage?: string
 }
 
 export interface CodeMirrorEditorRef {
@@ -55,7 +59,9 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorRef, CodeMirrorEditor
       schemas = new Map(),
       mode = 'single',
       columnLoader,
-      className
+      className,
+      aiEnabled,
+      aiLanguage
     },
     ref
   ) => {
@@ -119,7 +125,7 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorRef, CodeMirrorEditor
         ])
       ]
 
-      const extensions = [
+      const extensions: Extension[] = [
         EditorView.theme({
           '&': {
             height: '100%',
@@ -136,6 +142,16 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorRef, CodeMirrorEditor
         ...createSQLExtensions(theme, columnLoader, (value: string) => {
           onChangeRef.current?.(value)
         }),
+        // Inject AI inline suggestions conditionally
+        ...((aiEnabled && !readOnly)
+          ? createInlineAISuggestionsExtension({
+              enabled: true,
+              language: aiLanguage ?? 'sql',
+              delay: 800,
+              maxChars: 4000,
+              getSuggestion: (prefix, suffix, language) => aiSuggest(prefix, suffix, language)
+            })
+          : []),
         EditorView.editable.of(!readOnly),
         EditorState.readOnly.of(readOnly)
       ]

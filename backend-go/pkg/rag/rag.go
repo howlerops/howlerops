@@ -1,16 +1,20 @@
 package rag
 
 import (
-	"github.com/sirupsen/logrus"
-	internalrag "github.com/sql-studio/backend-go/internal/rag"
+    "context"
+    "time"
+    "github.com/sirupsen/logrus"
+    internalrag "github.com/sql-studio/backend-go/internal/rag"
 )
 
 type (
 	EmbeddingService  = internalrag.EmbeddingService
 	EmbeddingProvider = internalrag.EmbeddingProvider
+	VectorStore       = internalrag.VectorStore
 	DocumentType      = internalrag.DocumentType
 	Document          = internalrag.Document
 	CacheStats        = internalrag.CacheStats
+	SchemaIndexer     = internalrag.SchemaIndexer
 )
 
 const (
@@ -27,6 +31,28 @@ func NewOpenAIEmbeddingProvider(apiKey, model string, logger *logrus.Logger) Emb
 	return internalrag.NewOpenAIEmbeddingProvider(apiKey, model, logger)
 }
 
+func NewONNXEmbeddingProvider(modelPath string, logger *logrus.Logger) EmbeddingProvider {
+	return internalrag.NewONNXEmbeddingProvider(modelPath, logger)
+}
+
+func NewFallbackEmbeddingProvider(primary, fallback EmbeddingProvider) EmbeddingProvider {
+	return internalrag.NewFallbackEmbeddingProvider(primary, fallback)
+}
+
 func NewEmbeddingService(provider EmbeddingProvider, logger *logrus.Logger) EmbeddingService {
 	return internalrag.NewEmbeddingService(provider, logger)
+}
+
+func NewAdaptiveVectorStore(tier string, local VectorStore, remote VectorStore, syncEnabled bool) VectorStore {
+	return internalrag.NewAdaptiveVectorStore(tier, local, remote, syncEnabled)
+}
+
+func StartSyncWorker(ctx context.Context, store VectorStore, interval time.Duration) {
+    if s, ok := store.(interface{ StartSyncWorker(context.Context, time.Duration) }); ok {
+        s.StartSyncWorker(ctx, interval)
+    }
+}
+
+func NewSchemaIndexer(store VectorStore, embeddings EmbeddingService, logger *logrus.Logger) *SchemaIndexer {
+	return internalrag.NewSchemaIndexer(store, embeddings, logger)
 }

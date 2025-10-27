@@ -395,7 +395,7 @@ export class PreferenceRepository {
 
     const map: Record<string, PreferenceValue> = {}
     prefs.forEach((pref) => {
-      map[pref.key] = pref.value
+      map[pref.key] = pref.value as PreferenceValue
     })
 
     return map
@@ -413,7 +413,7 @@ export class PreferenceRepository {
 
     return prefs.map((pref) => ({
       key: pref.key,
-      value: pref.value,
+      value: pref.value as PreferenceValue,
       category: pref.category,
     }))
   }

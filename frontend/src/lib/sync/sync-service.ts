@@ -382,7 +382,19 @@ export class SyncService {
         entityType: 'saved_query',
         entityId: query.id,
         action: 'update',
-        data: query,
+        data: {
+          id: query.id,
+          user_id: query.user_id,
+          name: query.title,
+          description: query.description,
+          query: query.query_text,
+          tags: query.tags,
+          folder: query.folder,
+          favorite: query.is_favorite,
+          created_at: query.created_at,
+          updated_at: query.updated_at,
+          sync_version: query.sync_version,
+        } as unknown as any,
         timestamp: query.updated_at.getTime(),
         syncVersion: query.sync_version,
         deviceId: deviceInfo.deviceId,
@@ -615,34 +627,45 @@ export class SyncService {
     savedQueries: SavedQueryRecord[]
     queryHistory?: QueryHistoryRecord[]
   }): Promise<void> {
-    // Merge connections
+    // Merge connections (sanitized from server)
     for (const remoteConn of remote.connections) {
-      const remoteData = remoteConn as any
-      const syncVersion = remoteData.sync_version || 0
+      const rc: any = remoteConn
+      const syncVersion = (rc.sync_version ?? 0) as number
       await this.indexedDB.put(STORE_NAMES.CONNECTIONS, {
-        ...remoteData,
+        ...rc,
         synced: true,
         sync_version: syncVersion + 1,
       })
     }
 
-    // Merge saved queries
+    // Map server saved query shape -> local SavedQueryRecord
     for (const remoteQuery of remote.savedQueries) {
-      await this.indexedDB.put(STORE_NAMES.SAVED_QUERIES, {
-        ...remoteQuery,
+      const localShape: SavedQueryRecord = {
+        id: (remoteQuery as any).id,
+        user_id: (remoteQuery as any).user_id,
+        title: (remoteQuery as any).name ?? (remoteQuery as any).title,
+        description: (remoteQuery as any).description,
+        query_text: (remoteQuery as any).query ?? (remoteQuery as any).query_text,
+        tags: (remoteQuery as any).tags ?? [],
+        folder: (remoteQuery as any).folder,
+        is_favorite: (remoteQuery as any).favorite ?? (remoteQuery as any).is_favorite ?? false,
+        created_at: new Date((remoteQuery as any).created_at ?? new Date()),
+        updated_at: new Date((remoteQuery as any).updated_at ?? new Date()),
         synced: true,
-        sync_version: remoteQuery.sync_version + 1,
-      })
+        sync_version: (remoteQuery as any).sync_version + 1,
+      }
+      await this.indexedDB.put(STORE_NAMES.SAVED_QUERIES, localShape)
     }
 
     // Merge query history (if enabled)
     if (remote.queryHistory && this.config.syncQueryHistory) {
-      for (const remoteHistory of remote.queryHistory) {
-        await this.indexedDB.put(STORE_NAMES.QUERY_HISTORY, {
-          ...remoteHistory,
+      for (const rh of remote.queryHistory) {
+        const local = {
+          ...rh,
           synced: true,
-          sync_version: remoteHistory.sync_version + 1,
-        })
+          sync_version: rh.sync_version + 1,
+        }
+        await this.indexedDB.put(STORE_NAMES.QUERY_HISTORY, local)
       }
     }
   }

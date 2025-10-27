@@ -322,7 +322,7 @@ export class PasswordTransferManager {
       // Convert to base64
       const ciphertext = this.arrayBufferToBase64(encrypted)
       const keyData = this.arrayBufferToBase64(exportedKey)
-      const ivData = this.arrayBufferToBase64(iv)
+      const ivData = this.arrayBufferToBase64(iv.buffer)
 
       return {
         ciphertext,

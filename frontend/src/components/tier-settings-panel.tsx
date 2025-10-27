@@ -311,7 +311,7 @@ export function TierSettingsPanel() {
             />
             <FeatureRow
               name="Role-Based Access Control"
-              enabled={features.rbac}
+              enabled={!!features.rbac}
               requiredTier={rbacGate.requiredTier}
             />
             <FeatureRow

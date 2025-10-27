@@ -228,13 +228,15 @@ rag:
   
   # Embedding Configuration
   embedding:
-    provider: "openai"  # Options: openai, local
+    provider: "onnx"  # onnx, openai, local
     model: "text-embedding-3-small"
-    dimension: 1536
+    dimension: 384
     batch_size: 100
     
-    # Local embedding model (if not using OpenAI)
-    local_model_path: ""
+    # Local embedding model (ONNX sentence-transformer)
+    local_model_path: "./internal/rag/models/all-MiniLM-L6-v2.onnx"
+    fallback_provider: "openai"    # openai fallback if ONNX fails
+    fallback_model: "text-embedding-3-small"
   
   # Learning Pipeline Configuration
   learning:

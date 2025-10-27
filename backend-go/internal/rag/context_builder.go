@@ -258,20 +258,21 @@ func (cb *ContextBuilder) BuildContext(ctx context.Context, query string, connec
 
 // fetchRelevantSchemas retrieves relevant schema information
 func (cb *ContextBuilder) fetchRelevantSchemas(ctx context.Context, embedding []float32, connectionID string) ([]SchemaContext, error) {
-	// Search for relevant schema documents
-	filter := map[string]interface{}{
-		"connection_id": connectionID,
-		"type":          string(DocumentTypeSchema),
-	}
-
-	docs, err := cb.vectorStore.SearchSimilar(ctx, embedding, 10, filter)
+    // Use hybrid search (vector + FTS) and filter in-memory for type/connection
+    docs, err := cb.vectorStore.HybridSearch(ctx, "", embedding, 20)
 	if err != nil {
 		return nil, err
 	}
 
-	// Convert documents to schema contexts
+    // Convert documents to schema contexts
 	schemas := make([]SchemaContext, 0, len(docs))
 	for _, doc := range docs {
+        if doc.Type != DocumentTypeSchema {
+            continue
+        }
+        if connectionID != "" && doc.ConnectionID != connectionID {
+            continue
+        }
 		schema := cb.parseSchemaDocument(doc)
 		schema.Relevance = doc.Score
 		schemas = append(schemas, schema)

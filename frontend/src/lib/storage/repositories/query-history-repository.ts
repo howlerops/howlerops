@@ -138,7 +138,7 @@ export class QueryHistoryRepository {
       id: data.id || crypto.randomUUID(),
       user_id: data.user_id,
       query_text: this.sanitizeQuery(data.query_text),
-      connection_id: data.connection_id,
+      connection_id: data.connection_id!,
       execution_time_ms: data.execution_time_ms,
       row_count: data.row_count,
       error: data.error,
@@ -510,7 +510,8 @@ export class QueryHistoryRepository {
     })
 
     // Delete them
-    await Promise.all(oldest.data.map((record) => this.delete(record.id)))
+    const list: QueryHistoryRecord[] = (oldest as any).data ?? []
+    await Promise.all(list.map((record) => this.delete(record.id)))
   }
 
   /**

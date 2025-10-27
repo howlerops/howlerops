@@ -15,6 +15,7 @@ import type {
   ConflictResolution,
 } from '@/types/sync'
 import { useTierStore } from '@/store/tier-store'
+import { useSyncStore } from '@/store/sync-store'
 
 /**
  * Sync API client errors
@@ -226,7 +227,7 @@ export class SyncClient {
     const params = new URLSearchParams()
 
     if (options?.since) {
-      params.append('since', options.since.getTime().toString())
+      params.append('since', options.since.toISOString())
     }
 
     if (options?.cursor) {
@@ -236,6 +237,11 @@ export class SyncClient {
     if (options?.limit) {
       params.append('limit', options.limit.toString())
     }
+
+    // Include device_id for server-side filtering/rate limiting
+    const state = useSyncStore.getState()
+    const deviceId = state.getDeviceInfo()?.deviceId
+    if (deviceId) params.append('device_id', deviceId)
 
     const query = params.toString()
     const endpoint = `/api/sync/download${query ? `?${query}` : ''}`
@@ -262,10 +268,9 @@ export class SyncClient {
     resolution: ConflictResolution,
     mergedData?: unknown
   ): Promise<void> {
-    await this.request<void>('/api/sync/resolve', {
+    await this.request<void>(`/api/sync/conflicts/${encodeURIComponent(conflictId)}/resolve`, {
       method: 'POST',
       body: JSON.stringify({
-        conflict_id: conflictId,
         resolution,
         merged_data: mergedData,
       }),

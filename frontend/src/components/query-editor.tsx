@@ -51,6 +51,7 @@ import { waitForWails } from "@/lib/wails-runtime"
 import { buildExecutableSql } from "@/utils/sql"
 import { SelectDatabasePrompt } from "@/components/select-database-prompt"
 import { SaveQueryDialog } from "@/components/saved-queries/SaveQueryDialog"
+import { SavedQueriesPanel } from "@/components/saved-queries/SavedQueriesPanel"
 import { useAuthStore } from "@/store/auth-store"
 
 
@@ -104,6 +105,7 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
   const [editorContent, setEditorContent] = useState("")
   const [naturalLanguagePrompt, setNaturalLanguagePrompt] = useState("")
   const [showAIDialog, setShowAIDialog] = useState(false)
+  const [showSavedQueries, setShowSavedQueries] = useState(false)
   const [aiSidebarMode, setAISidebarMode] = useState<'sql' | 'generic'>('sql')
   const [lastExecutionError, setLastExecutionError] = useState<string | null>(null)
   const [lastConnectionError, setLastConnectionError] = useState<string | null>(null)
@@ -641,6 +643,19 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [user, editorContent])
+
+  // Keyboard shortcut for opening Saved Queries (Ctrl/Cmd+Shift+L)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toUpperCase() === 'L') {
+        e.preventDefault()
+        if (user) setShowSavedQueries(true)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [user])
 
   // Removed handleSaveTab - not currently used
 
@@ -1718,6 +1733,16 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
               Save Query
             </Button>
           )}
+          {user && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setShowSavedQueries(true)}
+              title="Open Saved Queries (Ctrl/Cmd+Shift+L)"
+            >
+              Library
+            </Button>
+          )}
         </div>
 
         <div className="text-xs text-muted-foreground">
@@ -1760,11 +1785,25 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
             mode={mode}
             columnLoader={columnLoader}
             className="h-full"
+            aiEnabled={useAIStore.getState().config.enabled && useAIStore.getState().providerSynced}
+            aiLanguage={'sql'}
           />
         )}
       </div>
 
       {/* Multi-DB Connection Selector Dialog */}
+      {/* Saved Queries Panel */}
+      {user && (
+        <SavedQueriesPanel
+          open={showSavedQueries}
+          onClose={() => setShowSavedQueries(false)}
+          userId={user.id}
+          onLoadQuery={(q) => {
+            setEditorContent(q.query_text)
+            setShowSavedQueries(false)
+          }}
+        />
+      )}
       {mode === 'multi' && activeTab && (
         <MultiDBConnectionSelector
           open={showConnectionSelector}
