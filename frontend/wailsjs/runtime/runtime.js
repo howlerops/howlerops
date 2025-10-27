@@ -1,280 +1,238 @@
-/**
- * Wails runtime wrapper - works in both desktop and web modes
- * In desktop mode: uses window.runtime provided by Wails
- * In web mode: provides safe mock implementations
- */
+/*
+ _       __      _ __
+| |     / /___ _(_) /____
+| | /| / / __ `/ / / ___/
+| |/ |/ / /_/ / / (__  )
+|__/|__/\__,_/_/_/____/
+The electron alternative for Go
+(c) Lea Anthony 2019-present
+*/
 
-const isDesktop = () => typeof window !== 'undefined' && window.runtime;
-const warn = (name) => console.warn(`Desktop-only feature: ${name}() is not available in web version`);
-
-// Logging functions
 export function LogPrint(message) {
-    if (isDesktop()) return window.runtime.LogPrint(message);
-    console.log(message);
+    window.runtime.LogPrint(message);
 }
 
 export function LogTrace(message) {
-    if (isDesktop()) return window.runtime.LogTrace(message);
-    console.trace(message);
+    window.runtime.LogTrace(message);
 }
 
 export function LogDebug(message) {
-    if (isDesktop()) return window.runtime.LogDebug(message);
-    console.debug(message);
+    window.runtime.LogDebug(message);
 }
 
 export function LogInfo(message) {
-    if (isDesktop()) return window.runtime.LogInfo(message);
-    console.info(message);
+    window.runtime.LogInfo(message);
 }
 
 export function LogWarning(message) {
-    if (isDesktop()) return window.runtime.LogWarning(message);
-    console.warn(message);
+    window.runtime.LogWarning(message);
 }
 
 export function LogError(message) {
-    if (isDesktop()) return window.runtime.LogError(message);
-    console.error(message);
+    window.runtime.LogError(message);
 }
 
 export function LogFatal(message) {
-    if (isDesktop()) return window.runtime.LogFatal(message);
-    console.error(message);
+    window.runtime.LogFatal(message);
 }
 
-// Events
 export function EventsOnMultiple(eventName, callback, maxCallbacks) {
-    if (isDesktop()) return window.runtime.EventsOnMultiple(eventName, callback, maxCallbacks);
-    warn('EventsOnMultiple');
-    return () => {};
+    return window.runtime.EventsOnMultiple(eventName, callback, maxCallbacks);
 }
 
 export function EventsOn(eventName, callback) {
-    if (isDesktop()) return window.runtime.EventsOnMultiple(eventName, callback, -1);
-    warn('EventsOn');
-    return () => {};
+    return EventsOnMultiple(eventName, callback, -1);
 }
 
 export function EventsOff(eventName, ...additionalEventNames) {
-    if (isDesktop()) return window.runtime.EventsOff(eventName, ...additionalEventNames);
-    warn('EventsOff');
+    return window.runtime.EventsOff(eventName, ...additionalEventNames);
 }
 
 export function EventsOnce(eventName, callback) {
-    if (isDesktop()) return window.runtime.EventsOnMultiple(eventName, callback, 1);
-    warn('EventsOnce');
-    return () => {};
+    return EventsOnMultiple(eventName, callback, 1);
 }
 
 export function EventsEmit(eventName) {
-    if (isDesktop()) {
-        let args = [eventName].slice.call(arguments);
-        return window.runtime.EventsEmit.apply(null, args);
-    }
-    warn('EventsEmit');
+    let args = [eventName].slice.call(arguments);
+    return window.runtime.EventsEmit.apply(null, args);
 }
 
-// Window functions
 export function WindowReload() {
-    if (isDesktop()) return window.runtime.WindowReload();
-    window.location.reload();
+    window.runtime.WindowReload();
 }
 
 export function WindowReloadApp() {
-    if (isDesktop()) return window.runtime.WindowReloadApp();
-    window.location.reload();
+    window.runtime.WindowReloadApp();
 }
 
 export function WindowSetAlwaysOnTop(b) {
-    if (isDesktop()) return window.runtime.WindowSetAlwaysOnTop(b);
-    warn('WindowSetAlwaysOnTop');
+    window.runtime.WindowSetAlwaysOnTop(b);
 }
 
 export function WindowSetSystemDefaultTheme() {
-    if (isDesktop()) return window.runtime.WindowSetSystemDefaultTheme();
-    warn('WindowSetSystemDefaultTheme');
+    window.runtime.WindowSetSystemDefaultTheme();
 }
 
 export function WindowSetLightTheme() {
-    if (isDesktop()) return window.runtime.WindowSetLightTheme();
-    warn('WindowSetLightTheme');
+    window.runtime.WindowSetLightTheme();
 }
 
 export function WindowSetDarkTheme() {
-    if (isDesktop()) return window.runtime.WindowSetDarkTheme();
-    warn('WindowSetDarkTheme');
+    window.runtime.WindowSetDarkTheme();
 }
 
 export function WindowCenter() {
-    if (isDesktop()) return window.runtime.WindowCenter();
-    warn('WindowCenter');
+    window.runtime.WindowCenter();
 }
 
 export function WindowSetTitle(title) {
-    if (isDesktop()) return window.runtime.WindowSetTitle(title);
-    document.title = title;
+    window.runtime.WindowSetTitle(title);
 }
 
 export function WindowFullscreen() {
-    if (isDesktop()) return window.runtime.WindowFullscreen();
-    warn('WindowFullscreen');
+    window.runtime.WindowFullscreen();
 }
 
 export function WindowUnfullscreen() {
-    if (isDesktop()) return window.runtime.WindowUnfullscreen();
-    warn('WindowUnfullscreen');
+    window.runtime.WindowUnfullscreen();
 }
 
 export function WindowIsFullscreen() {
-    if (isDesktop()) return window.runtime.WindowIsFullscreen();
-    return false;
+    return window.runtime.WindowIsFullscreen();
 }
 
 export function WindowGetSize() {
-    if (isDesktop()) return window.runtime.WindowGetSize();
-    return { width: window.innerWidth, height: window.innerHeight };
+    return window.runtime.WindowGetSize();
 }
 
 export function WindowSetSize(width, height) {
-    if (isDesktop()) return window.runtime.WindowSetSize(width, height);
-    warn('WindowSetSize');
+    window.runtime.WindowSetSize(width, height);
 }
 
 export function WindowSetMaxSize(width, height) {
-    if (isDesktop()) return window.runtime.WindowSetMaxSize(width, height);
-    warn('WindowSetMaxSize');
+    window.runtime.WindowSetMaxSize(width, height);
 }
 
 export function WindowSetMinSize(width, height) {
-    if (isDesktop()) return window.runtime.WindowSetMinSize(width, height);
-    warn('WindowSetMinSize');
+    window.runtime.WindowSetMinSize(width, height);
 }
 
 export function WindowSetPosition(x, y) {
-    if (isDesktop()) return window.runtime.WindowSetPosition(x, y);
-    warn('WindowSetPosition');
+    window.runtime.WindowSetPosition(x, y);
 }
 
 export function WindowGetPosition() {
-    if (isDesktop()) return window.runtime.WindowGetPosition();
-    return { x: 0, y: 0 };
+    return window.runtime.WindowGetPosition();
 }
 
 export function WindowHide() {
-    if (isDesktop()) return window.runtime.WindowHide();
-    warn('WindowHide');
+    window.runtime.WindowHide();
 }
 
 export function WindowShow() {
-    if (isDesktop()) return window.runtime.WindowShow();
-    warn('WindowShow');
+    window.runtime.WindowShow();
 }
 
 export function WindowMaximise() {
-    if (isDesktop()) return window.runtime.WindowMaximise();
-    warn('WindowMaximise');
+    window.runtime.WindowMaximise();
 }
 
 export function WindowToggleMaximise() {
-    if (isDesktop()) return window.runtime.WindowToggleMaximise();
-    warn('WindowToggleMaximise');
+    window.runtime.WindowToggleMaximise();
 }
 
 export function WindowUnmaximise() {
-    if (isDesktop()) return window.runtime.WindowUnmaximise();
-    warn('WindowUnmaximise');
+    window.runtime.WindowUnmaximise();
 }
 
 export function WindowIsMaximised() {
-    if (isDesktop()) return window.runtime.WindowIsMaximised();
-    return false;
+    return window.runtime.WindowIsMaximised();
 }
 
 export function WindowMinimise() {
-    if (isDesktop()) return window.runtime.WindowMinimise();
-    warn('WindowMinimise');
+    window.runtime.WindowMinimise();
 }
 
 export function WindowUnminimise() {
-    if (isDesktop()) return window.runtime.WindowUnminimise();
-    warn('WindowUnminimise');
+    window.runtime.WindowUnminimise();
 }
 
 export function WindowSetBackgroundColour(R, G, B, A) {
-    if (isDesktop()) return window.runtime.WindowSetBackgroundColour(R, G, B, A);
-    warn('WindowSetBackgroundColour');
+    window.runtime.WindowSetBackgroundColour(R, G, B, A);
 }
 
 export function ScreenGetAll() {
-    if (isDesktop()) return window.runtime.ScreenGetAll();
-    return [];
+    return window.runtime.ScreenGetAll();
 }
 
 export function WindowIsMinimised() {
-    if (isDesktop()) return window.runtime.WindowIsMinimised();
-    return false;
+    return window.runtime.WindowIsMinimised();
 }
 
 export function WindowIsNormal() {
-    if (isDesktop()) return window.runtime.WindowIsNormal();
-    return true;
+    return window.runtime.WindowIsNormal();
 }
 
 export function BrowserOpenURL(url) {
-    if (isDesktop()) return window.runtime.BrowserOpenURL(url);
-    window.open(url, '_blank');
+    window.runtime.BrowserOpenURL(url);
 }
 
 export function Environment() {
-    if (isDesktop()) return window.runtime.Environment();
-    return { platform: 'web', buildType: 'production' };
+    return window.runtime.Environment();
 }
 
 export function Quit() {
-    if (isDesktop()) return window.runtime.Quit();
-    warn('Quit');
+    window.runtime.Quit();
 }
 
 export function Hide() {
-    if (isDesktop()) return window.runtime.Hide();
-    warn('Hide');
+    window.runtime.Hide();
 }
 
 export function Show() {
-    if (isDesktop()) return window.runtime.Show();
-    warn('Show');
+    window.runtime.Show();
 }
 
 export function ClipboardGetText() {
-    if (isDesktop()) return window.runtime.ClipboardGetText();
-    warn('ClipboardGetText - use navigator.clipboard instead');
-    return Promise.resolve('');
+    return window.runtime.ClipboardGetText();
 }
 
 export function ClipboardSetText(text) {
-    if (isDesktop()) return window.runtime.ClipboardSetText(text);
-    warn('ClipboardSetText - use navigator.clipboard instead');
-    return Promise.resolve();
+    return window.runtime.ClipboardSetText(text);
 }
 
+/**
+ * Callback for OnFileDrop returns a slice of file path strings when a drop is finished.
+ *
+ * @export
+ * @callback OnFileDropCallback
+ * @param {number} x - x coordinate of the drop
+ * @param {number} y - y coordinate of the drop
+ * @param {string[]} paths - A list of file paths.
+ */
+
+/**
+ * OnFileDrop listens to drag and drop events and calls the callback with the coordinates of the drop and an array of path strings.
+ *
+ * @export
+ * @param {OnFileDropCallback} callback - Callback for OnFileDrop returns a slice of file path strings when a drop is finished.
+ * @param {boolean} [useDropTarget=true] - Only call the callback when the drop finished on an element that has the drop target style. (--wails-drop-target)
+ */
 export function OnFileDrop(callback, useDropTarget) {
-    if (isDesktop()) return window.runtime.OnFileDrop(callback, useDropTarget);
-    warn('OnFileDrop');
-    return () => {};
+    return window.runtime.OnFileDrop(callback, useDropTarget);
 }
 
+/**
+ * OnFileDropOff removes the drag and drop listeners and handlers.
+ */
 export function OnFileDropOff() {
-    if (isDesktop()) return window.runtime.OnFileDropOff();
-    warn('OnFileDropOff');
+    return window.runtime.OnFileDropOff();
 }
 
 export function CanResolveFilePaths() {
-    if (isDesktop()) return window.runtime.CanResolveFilePaths();
-    return false;
+    return window.runtime.CanResolveFilePaths();
 }
 
 export function ResolveFilePaths(files) {
-    if (isDesktop()) return window.runtime.ResolveFilePaths(files);
-    return Promise.resolve([]);
+    return window.runtime.ResolveFilePaths(files);
 }
