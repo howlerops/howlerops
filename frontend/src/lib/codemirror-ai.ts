@@ -12,7 +12,18 @@ let inlineCopilotImpl: ((
 try {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const mod = require('codemirror-copilot')
-  inlineCopilotImpl = mod?.inlineCopilot ?? null
+  // Support multiple export shapes across versions
+  if (typeof mod === 'function') {
+    inlineCopilotImpl = mod
+  } else if (typeof mod?.inlineCopilot === 'function') {
+    inlineCopilotImpl = mod.inlineCopilot
+  } else if (typeof mod?.default === 'function') {
+    inlineCopilotImpl = mod.default
+  } else if (typeof mod?.default?.inlineCopilot === 'function') {
+    inlineCopilotImpl = mod.default.inlineCopilot
+  } else {
+    inlineCopilotImpl = null
+  }
 } catch {
   inlineCopilotImpl = null
 }
