@@ -22,6 +22,8 @@ import (
 	"github.com/creack/pty"
 	"github.com/sirupsen/logrus"
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 
 	"github.com/sql-studio/backend-go/pkg/ai"
 	"github.com/sql-studio/backend-go/pkg/database"
@@ -53,7 +55,8 @@ type App struct {
 
 // ConnectionRequest represents a database connection request
 type ConnectionRequest struct {
-	ID                string            `json:"id,omitempty"` // Optional stored connection ID
+	ID                string            `json:"id,omitempty"`   // Optional stored connection ID
+	Name              string            `json:"name,omitempty"` // Connection display name
 	Type              string            `json:"type"`
 	Host              string            `json:"host"`
 	Port              int               `json:"port"`
@@ -70,7 +73,7 @@ type QueryRequest struct {
 	ConnectionID string `json:"connectionId"`
 	Query        string `json:"query"`
 	Limit        int    `json:"limit,omitempty"`
-    Timeout      int    `json:"timeout,omitempty"` // seconds
+	Timeout      int    `json:"timeout,omitempty"` // seconds
 }
 
 // QueryResponse represents a query execution response
@@ -114,14 +117,33 @@ type QueryRowUpdateResponse struct {
 
 // ConnectionInfo represents connection information
 type ConnectionInfo struct {
-	ID        string    `json:"id"`
-	Type      string    `json:"type"`
-	Host      string    `json:"host"`
-	Port      int       `json:"port"`
-	Database  string    `json:"database"`
-	Username  string    `json:"username"`
-	Active    bool      `json:"active"`
-	CreatedAt time.Time `json:"createdAt"`
+	ID        string `json:"id"`
+	Type      string `json:"type"`
+	Host      string `json:"host"`
+	Port      int    `json:"port"`
+	Database  string `json:"database"`
+	Username  string `json:"username"`
+	Active    bool   `json:"active"`
+	CreatedAt string `json:"createdAt"`
+}
+
+// SyntheticViewSummary represents a synthetic view without backend-specific types
+type SyntheticViewSummary struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Version     string `json:"version"`
+	CreatedAt   string `json:"createdAt"`
+	UpdatedAt   string `json:"updatedAt"`
+}
+
+// HealthStatus represents a connection health check without time.Duration/time.Time fields
+type HealthStatus struct {
+	Status       string            `json:"status"`
+	Message      string            `json:"message"`
+	Timestamp    string            `json:"timestamp"`
+	ResponseTime int64             `json:"response_time"`
+	Metrics      map[string]string `json:"metrics"`
 }
 
 // TableInfo represents table metadata
@@ -136,16 +158,51 @@ type TableInfo struct {
 
 // ColumnInfo represents column metadata
 type ColumnInfo struct {
-	Name               string  `json:"name"`
-	DataType           string  `json:"dataType"`
-	Nullable           bool    `json:"nullable"`
-	DefaultValue       *string `json:"defaultValue"`
-	PrimaryKey         bool    `json:"primaryKey"`
-	Unique             bool    `json:"unique"`
-	OrdinalPosition    int     `json:"ordinalPosition"`
-	CharacterMaxLength *int64  `json:"characterMaxLength"`
-	NumericPrecision   *int    `json:"numericPrecision"`
-	NumericScale       *int    `json:"numericScale"`
+	Name               string            `json:"name"`
+	DataType           string            `json:"data_type"`
+	Nullable           bool              `json:"nullable"`
+	DefaultValue       *string           `json:"default_value"`
+	PrimaryKey         bool              `json:"primary_key"`
+	Unique             bool              `json:"unique"`
+	Indexed            bool              `json:"indexed"`
+	Comment            string            `json:"comment"`
+	OrdinalPosition    int               `json:"ordinal_position"`
+	CharacterMaxLength *int64            `json:"character_maximum_length"`
+	NumericPrecision   *int              `json:"numeric_precision"`
+	NumericScale       *int              `json:"numeric_scale"`
+	Metadata           map[string]string `json:"metadata"`
+}
+
+// IndexInfo represents index metadata without backend dependencies
+type IndexInfo struct {
+	Name     string            `json:"name"`
+	Columns  []string          `json:"columns"`
+	Unique   bool              `json:"unique"`
+	Primary  bool              `json:"primary"`
+	Type     string            `json:"type"`
+	Method   string            `json:"method"`
+	Metadata map[string]string `json:"metadata"`
+}
+
+// ForeignKeyInfo mirrors foreign key metadata with string-friendly fields
+type ForeignKeyInfo struct {
+	Name              string   `json:"name"`
+	Columns           []string `json:"columns"`
+	ReferencedTable   string   `json:"referenced_table"`
+	ReferencedSchema  string   `json:"referenced_schema"`
+	ReferencedColumns []string `json:"referenced_columns"`
+	OnDelete          string   `json:"on_delete"`
+	OnUpdate          string   `json:"on_update"`
+}
+
+// TableStructure represents a table definition suitable for the frontend bindings
+type TableStructure struct {
+	Table       TableInfo         `json:"table"`
+	Columns     []ColumnInfo      `json:"columns"`
+	Indexes     []IndexInfo       `json:"indexes"`
+	ForeignKeys []ForeignKeyInfo  `json:"foreign_keys"`
+	Triggers    []string          `json:"triggers"`
+	Statistics  map[string]string `json:"statistics"`
 }
 
 // Multi-Database Query Types
@@ -579,19 +636,13 @@ func (a *App) applyAIConfiguration() error {
 func (a *App) rebuildEmbeddingService() {
 	a.embeddingService = nil
 
-	// Prefer ONNX local provider if configured
-	// Fallback to OpenAI if ONNX isn't available or not configured
-	var provider rag.EmbeddingProvider
+	// Always prefer the local ONNX style projector so we stay offline first.
+	onnxModelPath := getEnvOrDefault("HOWLEROPS_EMBEDDING_MODEL", "")
+	provider := rag.NewONNXEmbeddingProvider(onnxModelPath, a.logger)
 
-	// Read backend config if available; otherwise use AI config to fall back
-	// For desktop app, we infer ONNX model path relative to repo if present
-	onnxModelPath := "backend-go/internal/rag/models/all-MiniLM-L6-v2.onnx"
-
-	// Try ONNX first
-	provider = rag.NewONNXEmbeddingProvider(onnxModelPath, a.logger)
-
-	// If OpenAI is configured, wrap with fallback so remote works when desired
-	if a.aiConfig != nil && a.aiConfig.OpenAI.APIKey != "" {
+	// If an OpenAI embedding key exists we expose it as an optional fallback, but the primary path
+	// will continue to use the local provider so that RAG works without internet access.
+	if a.aiConfig != nil && strings.TrimSpace(a.aiConfig.OpenAI.APIKey) != "" {
 		openAIModel := "text-embedding-3-small"
 		openAIProv := rag.NewOpenAIEmbeddingProvider(a.aiConfig.OpenAI.APIKey, openAIModel, a.logger)
 		provider = rag.NewFallbackEmbeddingProvider(provider, openAIProv)
@@ -634,6 +685,41 @@ func (a *App) OnShutdown(ctx context.Context) {
 
 	// Emit shutdown event
 	wailsRuntime.EventsEmit(ctx, "app:shutdown")
+}
+
+// SaveConnection saves connection metadata to storage
+func (a *App) SaveConnection(req ConnectionRequest) error {
+	a.logger.WithFields(logrus.Fields{
+		"id":       req.ID,
+		"type":     req.Type,
+		"host":     req.Host,
+		"database": req.Database,
+	}).Info("Saving connection metadata")
+
+	// Convert request to storage connection
+	conn := &storage.Connection{
+		ID:           req.ID,
+		Name:         req.Name,
+		Type:         req.Type,
+		Host:         req.Host,
+		Port:         req.Port,
+		DatabaseName: req.Database,
+		Username:     req.Username,
+		CreatedBy:    "local-user", // TODO: get from auth context
+		Metadata:     make(map[string]string),
+	}
+
+	// Store password separately in secure storage
+	if req.Password != "" {
+		err := a.credentialService.StorePassword(req.ID, req.Password)
+		if err != nil {
+			a.logger.WithError(err).Warn("Failed to store password securely")
+		}
+		conn.PasswordEncrypted = "***" // Don't store plaintext
+	}
+
+	// Save to storage
+	return a.storageManager.SaveConnection(context.Background(), conn)
 }
 
 // CreateConnection creates a new database connection
@@ -698,6 +784,11 @@ func (a *App) CreateConnection(req ConnectionRequest) (*ConnectionInfo, error) {
 		}(connection.ID)
 	}
 
+	createdAt := ""
+	if !connection.CreatedAt.IsZero() {
+		createdAt = connection.CreatedAt.Format(time.RFC3339)
+	}
+
 	return &ConnectionInfo{
 		ID:        connection.ID,
 		Type:      string(config.Type),
@@ -706,7 +797,7 @@ func (a *App) CreateConnection(req ConnectionRequest) (*ConnectionInfo, error) {
 		Database:  config.Database,
 		Username:  config.Username,
 		Active:    connection.Active,
-		CreatedAt: connection.CreatedAt,
+		CreatedAt: createdAt,
 	}, nil
 }
 
@@ -901,8 +992,72 @@ func (a *App) GetTables(connectionID, schema string) ([]TableInfo, error) {
 }
 
 // GetTableStructure returns the structure of a table
-func (a *App) GetTableStructure(connectionID, schema, table string) (*database.TableStructure, error) {
-	return a.databaseService.GetTableStructure(connectionID, schema, table)
+func (a *App) GetTableStructure(connectionID, schema, table string) (*TableStructure, error) {
+	structure, err := a.databaseService.GetTableStructure(connectionID, schema, table)
+	if err != nil {
+		return nil, err
+	}
+
+	columns := make([]ColumnInfo, 0, len(structure.Columns))
+	for _, column := range structure.Columns {
+		columns = append(columns, ColumnInfo{
+			Name:               column.Name,
+			DataType:           column.DataType,
+			Nullable:           column.Nullable,
+			DefaultValue:       column.DefaultValue,
+			PrimaryKey:         column.PrimaryKey,
+			Unique:             column.Unique,
+			Indexed:            column.Indexed,
+			Comment:            column.Comment,
+			OrdinalPosition:    column.OrdinalPosition,
+			CharacterMaxLength: column.CharacterMaxLength,
+			NumericPrecision:   column.NumericPrecision,
+			NumericScale:       column.NumericScale,
+			Metadata:           column.Metadata,
+		})
+	}
+
+	indexes := make([]IndexInfo, 0, len(structure.Indexes))
+	for _, idx := range structure.Indexes {
+		indexes = append(indexes, IndexInfo{
+			Name:     idx.Name,
+			Columns:  idx.Columns,
+			Unique:   idx.Unique,
+			Primary:  idx.Primary,
+			Type:     idx.Type,
+			Method:   idx.Method,
+			Metadata: idx.Metadata,
+		})
+	}
+
+	fks := make([]ForeignKeyInfo, 0, len(structure.ForeignKeys))
+	for _, fk := range structure.ForeignKeys {
+		fks = append(fks, ForeignKeyInfo{
+			Name:              fk.Name,
+			Columns:           fk.Columns,
+			ReferencedTable:   fk.ReferencedTable,
+			ReferencedSchema:  fk.ReferencedSchema,
+			ReferencedColumns: fk.ReferencedColumns,
+			OnDelete:          fk.OnDelete,
+			OnUpdate:          fk.OnUpdate,
+		})
+	}
+
+	return &TableStructure{
+		Table: TableInfo{
+			Schema:    structure.Table.Schema,
+			Name:      structure.Table.Name,
+			Type:      structure.Table.Type,
+			Comment:   structure.Table.Comment,
+			RowCount:  structure.Table.RowCount,
+			SizeBytes: structure.Table.SizeBytes,
+		},
+		Columns:     columns,
+		Indexes:     indexes,
+		ForeignKeys: fks,
+		Triggers:    structure.Triggers,
+		Statistics:  structure.Statistics,
+	}, nil
 }
 
 // OpenFileDialog opens a file dialog and returns the selected file path
@@ -983,20 +1138,24 @@ func (a *App) HasPassword(connectionID string) bool {
 
 // ShowInfoDialog shows an information dialog
 func (a *App) ShowInfoDialog(title, message string) {
-	wailsRuntime.MessageDialog(a.ctx, wailsRuntime.MessageDialogOptions{
+	if _, err := wailsRuntime.MessageDialog(a.ctx, wailsRuntime.MessageDialogOptions{
 		Type:    wailsRuntime.InfoDialog,
 		Title:   title,
 		Message: message,
-	})
+	}); err != nil {
+		a.logger.WithError(err).Warn("Failed to display info dialog")
+	}
 }
 
 // ShowErrorDialog shows an error dialog
 func (a *App) ShowErrorDialog(title, message string) {
-	wailsRuntime.MessageDialog(a.ctx, wailsRuntime.MessageDialogOptions{
+	if _, err := wailsRuntime.MessageDialog(a.ctx, wailsRuntime.MessageDialogOptions{
 		Type:    wailsRuntime.ErrorDialog,
 		Title:   title,
 		Message: message,
-	})
+	}); err != nil {
+		a.logger.WithError(err).Warn("Failed to display error dialog")
+	}
 }
 
 // ShowQuestionDialog shows a question dialog and returns the result
@@ -1010,8 +1169,12 @@ func (a *App) ShowQuestionDialog(title, message string) (bool, error) {
 }
 
 // GetConnectionHealth returns health status for a connection
-func (a *App) GetConnectionHealth(connectionID string) (*database.HealthStatus, error) {
-	return a.databaseService.GetConnectionHealth(connectionID)
+func (a *App) GetConnectionHealth(connectionID string) (*HealthStatus, error) {
+	status, err := a.databaseService.GetConnectionHealth(connectionID)
+	if err != nil {
+		return nil, err
+	}
+	return convertHealthStatus(status), nil
 }
 
 // GetDatabaseVersion returns the database version
@@ -1060,8 +1223,37 @@ func (a *App) GetConnectionStats() map[string]database.PoolStats {
 	return a.databaseService.GetConnectionStats()
 }
 
-func (a *App) HealthCheckAll() map[string]*database.HealthStatus {
-	return a.databaseService.HealthCheckAll()
+func (a *App) HealthCheckAll() map[string]*HealthStatus {
+	raw := a.databaseService.HealthCheckAll()
+	results := make(map[string]*HealthStatus, len(raw))
+	for key, status := range raw {
+		results[key] = convertHealthStatus(status)
+	}
+	return results
+}
+
+func convertHealthStatus(status *database.HealthStatus) *HealthStatus {
+	if status == nil {
+		return &HealthStatus{}
+	}
+
+	timestamp := ""
+	if !status.Timestamp.IsZero() {
+		timestamp = status.Timestamp.Format(time.RFC3339)
+	}
+
+	metrics := status.Metrics
+	if metrics == nil {
+		metrics = make(map[string]string)
+	}
+
+	return &HealthStatus{
+		Status:       status.Status,
+		Message:      status.Message,
+		Timestamp:    timestamp,
+		ResponseTime: status.ResponseTime.Milliseconds(),
+		Metrics:      metrics,
+	}
 }
 
 func (a *App) GetSupportedDatabaseTypes() []string {
@@ -1525,7 +1717,7 @@ func buildLoginMessage(defaultMessage string, result deviceLoginResult) string {
 		lines = append(lines, fmt.Sprintf("Code: %s", result.UserCode))
 	}
 
-	if result.DeviceCode != "" && strings.ToUpper(result.DeviceCode) != strings.ToUpper(result.UserCode) {
+	if result.DeviceCode != "" && !strings.EqualFold(result.DeviceCode, result.UserCode) {
 		lines = append(lines, fmt.Sprintf("Device Code: %s", result.DeviceCode))
 	}
 
@@ -1600,7 +1792,6 @@ func isDecorativeLoginLine(line string) bool {
 			continue
 		default:
 			isDecorativeChars = false
-			break
 		}
 	}
 	if isDecorativeChars {
@@ -1904,7 +2095,6 @@ func (a *App) runDeviceLoginCommand(binaryPath string, args []string, provider s
 			if err != nil {
 				if strings.TrimSpace(residual) != "" {
 					emit(residual)
-					residual = ""
 				}
 
 				if err != io.EOF {
@@ -2378,65 +2568,41 @@ func (a *App) GenerateSQLFromNaturalLanguage(req NLQueryRequest) (*GeneratedSQLR
 		return nil, fmt.Errorf("AI service not available")
 	}
 
-	// Build comprehensive schema context
-	var schemaContext string
+	isMultiDB := strings.Contains(req.Context, "Multi-DB Mode") || strings.Contains(req.Context, "@connection_name") || isMultiDatabaseSQL(req.Prompt)
 
-	// Check if this is a multi-database query based on context
-	isMultiDB := strings.Contains(req.Context, "Multi-DB Mode") || strings.Contains(req.Context, "@connection_name")
+	var connectionSchema string
+	if !isMultiDB && req.ConnectionID != "" {
+		connectionSchema = a.buildDetailedSchemaContext(req.ConnectionID)
+	}
 
-	if isMultiDB {
-		// Multi-database mode: context already contains comprehensive schema info from frontend
-		schemaContext = req.Context
+	manualContext := buildManualContext(isMultiDB, connectionSchema, req.Context)
 
-		// Add additional instructions for multi-DB SQL generation
-		schemaContext += "\n\nIMPORTANT SQL Generation Rules for Multi-Database Mode:\n"
-		schemaContext += "1. Use @connection_name.table_name syntax for all table references\n"
-		schemaContext += "2. Use @connection_name.schema_name.table_name for non-public schemas\n"
-		schemaContext += "3. Table aliases are recommended for readability\n"
-		schemaContext += "4. Cross-database JOINs are supported\n"
-		schemaContext += "5. Ensure connection names match exactly (case-sensitive)\n"
-	} else if req.ConnectionID != "" {
-		// Single database mode: build detailed schema context for the active connection
-		detailedContext := a.buildDetailedSchemaContext(req.ConnectionID)
-
-		if detailedContext != "" {
-			schemaContext = detailedContext
+	if generated, err := a.tryGenerateWithRAG(req, manualContext, isMultiDB); err == nil {
+		response := &GeneratedSQLResponse{
+			SQL:         strings.TrimSpace(generated.Query),
+			Confidence:  float64(generated.Confidence),
+			Explanation: generated.Explanation,
+			Warnings:    generated.Warnings,
 		}
-
-		// Add custom context if provided
-		if req.Context != "" {
-			if schemaContext != "" {
-				schemaContext += "\n\n"
-			}
-			schemaContext += req.Context
-		}
+		sanitizeSQLResponse(&ai.SQLResponse{
+			SQL:         response.SQL,
+			Confidence:  response.Confidence,
+			Explanation: response.Explanation,
+		})
+		return response, nil
 	} else {
-		// No connection specified, use provided context only
-		schemaContext = req.Context
+		a.logger.WithError(err).Warn("RAG-enhanced SQL generation failed, falling back to direct provider call")
 	}
 
-	// Enhance prompt with mode-specific instructions
-	enhancedPrompt := req.Prompt
-	if isMultiDB {
-		enhancedPrompt = fmt.Sprintf(
-			"Generate a SQL query for the following request in MULTI-DATABASE mode. "+
-				"Use @connection_name.table_name syntax for all tables. "+
-				"Request: %s",
-			req.Prompt,
-		)
-	}
-
-	// Generate SQL using AI service with provider configuration
-	request := &ai.SQLRequest{
-		Prompt:      enhancedPrompt,
-		Schema:      schemaContext,
+	fallbackPrompt, fallbackSchema := buildFallbackPrompt(req.Prompt, manualContext, isMultiDB)
+	result, err := a.aiService.GenerateSQLWithRequest(a.ctx, &ai.SQLRequest{
+		Prompt:      fallbackPrompt,
+		Schema:      fallbackSchema,
 		Provider:    req.Provider,
 		Model:       req.Model,
 		MaxTokens:   req.MaxTokens,
 		Temperature: req.Temperature,
-	}
-
-	result, err := a.aiService.GenerateSQLWithRequest(a.ctx, request)
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate SQL: %w", err)
 	}
@@ -2447,9 +2613,141 @@ func (a *App) GenerateSQLFromNaturalLanguage(req NLQueryRequest) (*GeneratedSQLR
 		SQL:         strings.TrimSpace(result.SQL),
 		Confidence:  result.Confidence,
 		Explanation: result.Explanation,
-		Warnings:    []string{}, // TODO: Add warnings if confidence is low
+		Warnings:    []string{},
 	}, nil
 }
+
+func (a *App) tryGenerateWithRAG(req NLQueryRequest, manualContext string, isMulti bool) (*rag.GeneratedSQL, error) {
+	if a.storageManager == nil {
+		return nil, fmt.Errorf("storage manager not initialised")
+	}
+
+	if a.embeddingService == nil {
+		a.rebuildEmbeddingService()
+	}
+
+	if a.embeddingService == nil {
+		return nil, fmt.Errorf("embedding service unavailable")
+	}
+
+	rawVectorStore := a.storageManager.GetVectorStore()
+	vectorStore, ok := rawVectorStore.(rag.VectorStore)
+	if !ok || vectorStore == nil {
+		return nil, fmt.Errorf("vector store unavailable")
+	}
+
+	contextBuilder := rag.NewContextBuilder(vectorStore, a.embeddingService, a.logger)
+	provider := &ragLLMProvider{
+		app:           a,
+		request:       req,
+		manualContext: manualContext,
+		multiMode:     isMulti,
+	}
+
+	generator := rag.NewSmartSQLGenerator(contextBuilder, provider, a.logger)
+	connectionID := req.ConnectionID
+	if isMulti {
+		connectionID = ""
+	}
+
+	return generator.Generate(a.ctx, req.Prompt, connectionID)
+}
+
+func buildManualContext(isMulti bool, schemaContext, provided string) string {
+	sections := make([]string, 0, 3)
+	if trimmed := strings.TrimSpace(schemaContext); trimmed != "" {
+		sections = append(sections, trimmed)
+	}
+	if trimmed := strings.TrimSpace(provided); trimmed != "" {
+		sections = append(sections, trimmed)
+	}
+	if isMulti {
+		sections = append(sections, multiDBGuidance)
+	}
+	return aggregateContextSections(sections...)
+}
+
+func buildFallbackPrompt(userPrompt string, manualContext string, isMulti bool) (string, string) {
+	contextBlock := strings.TrimSpace(manualContext)
+	var builder strings.Builder
+
+	if isMulti {
+		builder.WriteString("You are operating in multi-database mode; use @connection_name.table syntax for remote tables.\n")
+		builder.WriteString("Ensure schema-qualified names for non-public schemas.\n\n")
+	}
+	if contextBlock != "" {
+		builder.WriteString("Context:\n")
+		builder.WriteString(contextBlock)
+		builder.WriteString("\n\n")
+	}
+
+	builder.WriteString("User request:\n")
+	builder.WriteString(userPrompt)
+
+	return builder.String(), contextBlock
+}
+
+func aggregateContextSections(sections ...string) string {
+	valid := make([]string, 0, len(sections))
+	for _, section := range sections {
+		if trimmed := strings.TrimSpace(section); trimmed != "" {
+			valid = append(valid, trimmed)
+		}
+	}
+	return strings.Join(valid, "\n\n---\n\n")
+}
+
+func renderQueryContext(ctx *rag.QueryContext) string {
+	if ctx == nil {
+		return ""
+	}
+
+	var builder strings.Builder
+
+	if len(ctx.RelevantSchemas) > 0 {
+		builder.WriteString("Relevant schemas:\n")
+		for i, schema := range ctx.RelevantSchemas {
+			if i >= 5 {
+				builder.WriteString("- ...\n")
+				break
+			}
+			builder.WriteString(fmt.Sprintf("- %s", schema.TableName))
+			if schema.Description != "" {
+				builder.WriteString(fmt.Sprintf(" · %s", schema.Description))
+			}
+			builder.WriteString("\n")
+		}
+		builder.WriteString("\n")
+	}
+
+	if len(ctx.SimilarQueries) > 0 {
+		builder.WriteString("Similar query patterns:\n")
+		for i, pattern := range ctx.SimilarQueries {
+			if i >= 3 {
+				break
+			}
+			builder.WriteString(fmt.Sprintf("- %s (used %d×)\n", pattern.Pattern, pattern.Frequency))
+		}
+		builder.WriteString("\n")
+	}
+
+	if ctx.DataStatistics != nil {
+		builder.WriteString("Data characteristics:\n")
+		builder.WriteString(fmt.Sprintf("- Approx rows: %d\n", ctx.DataStatistics.TotalRows))
+		if ctx.DataStatistics.GrowthRate != 0 {
+			builder.WriteString(fmt.Sprintf("- Growth rate: %.2f%%\n", ctx.DataStatistics.GrowthRate))
+		}
+	}
+
+	return strings.TrimSpace(builder.String())
+}
+
+const multiDBGuidance = `IMPORTANT SQL Generation Rules for Multi-Database Mode:
+1. Use @connection_name.table_name syntax for remote tables.
+2. Use @connection_name.schema_name.table_name for non-public schemas.
+3. Alias tables clearly when combining databases.
+4. Cross-database JOINs are allowed; ensure join conditions use compatible keys.
+5. Connection names are case-sensitive.`
 
 // GenericChat handles generic conversational AI requests without SQL-specific expectations
 func (a *App) GenericChat(req GenericChatRequest) (*GenericChatResponse, error) {
@@ -2492,6 +2790,139 @@ func (a *App) GenericChat(req GenericChatRequest) (*GenericChatResponse, error) 
 		TokensUsed: response.TokensUsed,
 		Metadata:   response.Metadata,
 	}, nil
+}
+
+type ragLLMProvider struct {
+	app           *App
+	request       NLQueryRequest
+	manualContext string
+	multiMode     bool
+}
+
+func (p *ragLLMProvider) GenerateSQL(ctx context.Context, prompt string, queryCtx *rag.QueryContext) (*rag.GeneratedSQL, error) {
+	aggregatedContext := aggregateContextSections(p.manualContext, renderQueryContext(queryCtx))
+	finalPrompt := composePrompt(prompt, aggregatedContext, p.multiMode)
+
+	resp, err := p.app.aiService.GenerateSQLWithRequest(ctx, &ai.SQLRequest{
+		Prompt:      finalPrompt,
+		Schema:      aggregatedContext,
+		Provider:    p.resolveProvider(),
+		Model:       p.resolveModel(),
+		MaxTokens:   p.resolveMaxTokens(),
+		Temperature: p.resolveTemperature(),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &rag.GeneratedSQL{
+		Query:       strings.TrimSpace(resp.SQL),
+		Explanation: resp.Explanation,
+		Confidence:  float32(resp.Confidence),
+	}, nil
+}
+
+func (p *ragLLMProvider) ExplainSQL(ctx context.Context, sql string) (*rag.SQLExplanation, error) {
+	prompt := fmt.Sprintf("Explain the purpose and mechanics of the following SQL query:\n\n%s", sql)
+	resp, err := p.app.aiService.Chat(ctx, &ai.ChatRequest{
+		Prompt:      prompt,
+		Provider:    p.resolveProvider(),
+		Model:       p.resolveModel(),
+		MaxTokens:   p.resolveMaxTokens() / 2,
+		Temperature: 0.2,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &rag.SQLExplanation{
+		Summary: resp.Content,
+		Steps:   []rag.ExplanationStep{},
+		Complexity: func() string {
+			if strings.Count(sql, "JOIN") > 1 {
+				return "complex"
+			}
+			if strings.Contains(strings.ToUpper(sql), "GROUP BY") {
+				return "moderate"
+			}
+			return "simple"
+		}(),
+		EstimatedTime: "",
+	}, nil
+}
+
+func (p *ragLLMProvider) OptimizeSQL(ctx context.Context, sql string, hints []rag.OptimizationHint) (*rag.OptimizedSQL, error) {
+	resp, err := p.app.aiService.OptimizeQuery(ctx, sql)
+	if err != nil {
+		return nil, err
+	}
+
+	improvements := []rag.Improvement{}
+	if resp.Explanation != "" {
+		improvements = append(improvements, rag.Improvement{
+			Type:        "rewrite",
+			Description: resp.Explanation,
+			Before:      sql,
+			After:       resp.OptimizedSQL,
+		})
+	}
+
+	return &rag.OptimizedSQL{
+		OriginalQuery:  sql,
+		OptimizedQuery: resp.OptimizedSQL,
+		Improvements:   improvements,
+		EstimatedGain:  0,
+	}, nil
+}
+
+func (p *ragLLMProvider) resolveProvider() string {
+	if provider := strings.TrimSpace(p.request.Provider); provider != "" {
+		return provider
+	}
+	if p.app.aiConfig != nil {
+		return string(p.app.aiConfig.DefaultProvider)
+	}
+	return "openai"
+}
+
+func (p *ragLLMProvider) resolveModel() string {
+	return strings.TrimSpace(p.request.Model)
+}
+
+func (p *ragLLMProvider) resolveMaxTokens() int {
+	if p.request.MaxTokens > 0 {
+		return p.request.MaxTokens
+	}
+	if p.app.aiConfig != nil && p.app.aiConfig.MaxTokens > 0 {
+		return p.app.aiConfig.MaxTokens
+	}
+	return 2048
+}
+
+func (p *ragLLMProvider) resolveTemperature() float64 {
+	if p.request.Temperature > 0 {
+		return p.request.Temperature
+	}
+	if p.app.aiConfig != nil && p.app.aiConfig.Temperature > 0 {
+		return p.app.aiConfig.Temperature
+	}
+	return 0.1
+}
+
+func composePrompt(userPrompt string, context string, multi bool) string {
+	var builder strings.Builder
+	if multi {
+		builder.WriteString("Multi-database mode is active. Use @connection_name.table syntax for remote tables.\n")
+		builder.WriteString("Ensure joins reference the correct connection names and schema-qualified identifiers.\n\n")
+	}
+	if trimmed := strings.TrimSpace(context); trimmed != "" {
+		builder.WriteString("Context:\n")
+		builder.WriteString(trimmed)
+		builder.WriteString("\n\n")
+	}
+	builder.WriteString("User request:\n")
+	builder.WriteString(userPrompt)
+	return builder.String()
 }
 
 // buildDetailedSchemaContext constructs a concise schema summary with column details for a connection.
@@ -2567,6 +2998,24 @@ func (a *App) buildDetailedSchemaContext(connectionID string) string {
 			if structure != nil && len(structure.Columns) > 0 {
 				columns := formatColumnsForAI(structure.Columns, maxColumnsPerTable)
 				builder.WriteString("Columns: " + strings.Join(columns, ", ") + "\n")
+			}
+
+			// Include foreign key relationships to improve join reasoning
+			if structure != nil && len(structure.ForeignKeys) > 0 {
+				builder.WriteString("Relationships: ")
+				rels := make([]string, 0, len(structure.ForeignKeys))
+				for _, fk := range structure.ForeignKeys {
+					// e.g., orders.customer_id -> public.customers.id
+					left := strings.Join(fk.Columns, ",")
+					rightSchema := fk.ReferencedSchema
+					if strings.TrimSpace(rightSchema) == "" {
+						rightSchema = schemaName
+					}
+					right := fmt.Sprintf("%s.%s(%s)", rightSchema, fk.ReferencedTable, strings.Join(fk.ReferencedColumns, ","))
+					rels = append(rels, fmt.Sprintf("%s -> %s", left, right))
+				}
+				builder.WriteString(strings.Join(rels, "; "))
+				builder.WriteString("\n")
 			}
 
 			totalTables++
@@ -3148,10 +3597,11 @@ func (a *App) GetAIProviderStatus() (map[string]ProviderStatus, error) {
 
 	// Fill in missing providers as unavailable
 	allProviders := []string{"openai", "anthropic", "claudecode", "codex", "ollama", "huggingface"}
+	titleCaser := cases.Title(language.English)
 	for _, name := range allProviders {
 		if _, exists := result[name]; !exists {
 			result[name] = ProviderStatus{
-				Name:      strings.Title(name),
+				Name:      titleCaser.String(name),
 				Available: false,
 				Error:     "Not configured",
 			}
@@ -3585,16 +4035,6 @@ func (a *App) GetMultiConnectionSchema(connectionIDs []string) (*CombinedSchema,
 			if views, ok := syntheticSchema["views"].([]map[string]interface{}); ok {
 				for _, view := range views {
 					if name, ok := view["name"].(string); ok {
-						// Convert columns to table info format
-						var columns []string
-						if cols, ok := view["columns"].([]map[string]interface{}); ok {
-							for _, col := range cols {
-								if colName, ok := col["name"].(string); ok {
-									columns = append(columns, colName)
-								}
-							}
-						}
-
 						syntheticTables = append(syntheticTables, TableInfo{
 							Schema:  "synthetic",
 							Name:    name,
@@ -3711,9 +4151,9 @@ func (a *App) SaveSyntheticView(viewDef storage.ViewDefinition) (string, error) 
 }
 
 // ListSyntheticViews returns a list of all synthetic views
-func (a *App) ListSyntheticViews() ([]storage.ViewSummary, error) {
+func (a *App) ListSyntheticViews() ([]SyntheticViewSummary, error) {
 	if a.syntheticViews == nil {
-		return []storage.ViewSummary{}, nil
+		return []SyntheticViewSummary{}, nil
 	}
 
 	views, err := a.syntheticViews.ListSyntheticViews()
@@ -3721,7 +4161,28 @@ func (a *App) ListSyntheticViews() ([]storage.ViewSummary, error) {
 		return nil, fmt.Errorf("failed to list synthetic views: %w", err)
 	}
 
-	return views, nil
+	summaries := make([]SyntheticViewSummary, 0, len(views))
+	for _, view := range views {
+		createdAt := ""
+		if !view.CreatedAt.IsZero() {
+			createdAt = view.CreatedAt.Format(time.RFC3339)
+		}
+		updatedAt := ""
+		if !view.UpdatedAt.IsZero() {
+			updatedAt = view.UpdatedAt.Format(time.RFC3339)
+		}
+
+		summaries = append(summaries, SyntheticViewSummary{
+			ID:          view.ID,
+			Name:        view.Name,
+			Description: view.Description,
+			Version:     view.Version,
+			CreatedAt:   createdAt,
+			UpdatedAt:   updatedAt,
+		})
+	}
+
+	return summaries, nil
 }
 
 // GetSyntheticView retrieves a synthetic view by ID

@@ -310,6 +310,10 @@ export function SaveAIMemorySessions(arg1) {
   return window['go']['main']['App']['SaveAIMemorySessions'](arg1);
 }
 
+export function SaveConnection(arg1) {
+  return window['go']['main']['App']['SaveConnection'](arg1);
+}
+
 export function SaveFileDialog() {
   return window['go']['main']['App']['SaveFileDialog']();
 }

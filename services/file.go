@@ -3,7 +3,6 @@ package services
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -24,21 +23,21 @@ type FileService struct {
 
 // FileInfo represents file metadata
 type FileInfo struct {
-	Name        string    `json:"name"`
-	Path        string    `json:"path"`
-	Size        int64     `json:"size"`
-	ModTime     time.Time `json:"modTime"`
-	IsDirectory bool      `json:"isDirectory"`
-	Extension   string    `json:"extension"`
-	Permissions string    `json:"permissions"`
+	Name        string `json:"name"`
+	Path        string `json:"path"`
+	Size        int64  `json:"size"`
+	ModTime     string `json:"modTime"`
+	IsDirectory bool   `json:"isDirectory"`
+	Extension   string `json:"extension"`
+	Permissions string `json:"permissions"`
 }
 
 // RecentFile represents a recently opened file
 type RecentFile struct {
-	Path       string    `json:"path"`
-	Name       string    `json:"name"`
-	LastOpened time.Time `json:"lastOpened"`
-	Size       int64     `json:"size"`
+	Path       string `json:"path"`
+	Name       string `json:"name"`
+	LastOpened string `json:"lastOpened"`
+	Size       int64  `json:"size"`
 }
 
 // NewFileService creates a new file service
@@ -161,7 +160,7 @@ func (f *FileService) ReadFile(filePath string) (string, error) {
 		return "", fmt.Errorf("file path cannot be empty")
 	}
 
-	content, err := ioutil.ReadFile(filePath)
+	content, err := os.ReadFile(filePath)
 	if err != nil {
 		f.logger.WithFields(logrus.Fields{
 			"file_path": filePath,
@@ -191,7 +190,7 @@ func (f *FileService) WriteFile(filePath, content string) error {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 
-	err := ioutil.WriteFile(filePath, []byte(content), 0644)
+	err := os.WriteFile(filePath, []byte(content), 0644)
 	if err != nil {
 		f.logger.WithFields(logrus.Fields{
 			"file_path": filePath,
@@ -230,7 +229,7 @@ func (f *FileService) GetFileInfo(filePath string) (*FileInfo, error) {
 		Name:        stat.Name(),
 		Path:        filePath,
 		Size:        stat.Size(),
-		ModTime:     stat.ModTime(),
+		ModTime:     stat.ModTime().Format(time.RFC3339),
 		IsDirectory: stat.IsDir(),
 		Extension:   filepath.Ext(filePath),
 		Permissions: stat.Mode().String(),
@@ -264,7 +263,7 @@ func (f *FileService) GetRecentFiles() ([]RecentFile, error) {
 		recentFiles = append(recentFiles, RecentFile{
 			Path:       filePath,
 			Name:       filepath.Base(filePath),
-			LastOpened: stat.ModTime(),
+			LastOpened: stat.ModTime().Format(time.RFC3339),
 			Size:       stat.Size(),
 		})
 	}
@@ -317,15 +316,15 @@ func (f *FileService) GetWorkspaceFiles(dirPath string, extensions []string) ([]
 		}
 	}
 
-	files, err := ioutil.ReadDir(dirPath)
+	entries, err := os.ReadDir(dirPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read directory: %w", err)
 	}
 
 	fileInfos := make([]FileInfo, 0)
-	for _, file := range files {
-		filePath := filepath.Join(dirPath, file.Name())
-		ext := strings.ToLower(filepath.Ext(file.Name()))
+	for _, entry := range entries {
+		filePath := filepath.Join(dirPath, entry.Name())
+		ext := strings.ToLower(filepath.Ext(entry.Name()))
 
 		// Filter by extensions if provided
 		if len(extensions) > 0 {
@@ -336,19 +335,24 @@ func (f *FileService) GetWorkspaceFiles(dirPath string, extensions []string) ([]
 					break
 				}
 			}
-			if !found && !file.IsDir() {
+			if !found && !entry.IsDir() {
 				continue
 			}
 		}
 
+		info, err := entry.Info()
+		if err != nil {
+			continue
+		}
+
 		fileInfos = append(fileInfos, FileInfo{
-			Name:        file.Name(),
+			Name:        entry.Name(),
 			Path:        filePath,
-			Size:        file.Size(),
-			ModTime:     file.ModTime(),
-			IsDirectory: file.IsDir(),
+			Size:        info.Size(),
+			ModTime:     info.ModTime().Format(time.RFC3339),
+			IsDirectory: info.IsDir(),
 			Extension:   ext,
-			Permissions: file.Mode().String(),
+			Permissions: info.Mode().String(),
 		})
 	}
 
@@ -408,7 +412,7 @@ func (f *FileService) CopyFile(srcPath, destPath string) error {
 		return fmt.Errorf("source and destination paths cannot be empty")
 	}
 
-	content, err := ioutil.ReadFile(srcPath)
+	content, err := os.ReadFile(srcPath)
 	if err != nil {
 		return fmt.Errorf("failed to read source file: %w", err)
 	}
@@ -419,7 +423,7 @@ func (f *FileService) CopyFile(srcPath, destPath string) error {
 		return fmt.Errorf("failed to create destination directory: %w", err)
 	}
 
-	err = ioutil.WriteFile(destPath, content, 0644)
+	err = os.WriteFile(destPath, content, 0644)
 	if err != nil {
 		return fmt.Errorf("failed to write destination file: %w", err)
 	}
@@ -448,7 +452,7 @@ func (f *FileService) GetTempDir() string {
 
 // CreateTempFile creates a temporary file with the given content
 func (f *FileService) CreateTempFile(content, prefix, suffix string) (string, error) {
-	tempFile, err := ioutil.TempFile("", prefix+"*"+suffix)
+	tempFile, err := os.CreateTemp("", prefix+"*"+suffix)
 	if err != nil {
 		return "", fmt.Errorf("failed to create temporary file: %w", err)
 	}
@@ -497,7 +501,7 @@ func (f *FileService) SaveToDownloads(filename, content string) (string, error) 
 	filePath := filepath.Join(downloadsPath, filename)
 
 	// Write the file
-	err = ioutil.WriteFile(filePath, []byte(content), 0644)
+	err = os.WriteFile(filePath, []byte(content), 0644)
 	if err != nil {
 		f.logger.WithFields(logrus.Fields{
 			"file_path": filePath,

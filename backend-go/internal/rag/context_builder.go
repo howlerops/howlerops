@@ -258,21 +258,21 @@ func (cb *ContextBuilder) BuildContext(ctx context.Context, query string, connec
 
 // fetchRelevantSchemas retrieves relevant schema information
 func (cb *ContextBuilder) fetchRelevantSchemas(ctx context.Context, embedding []float32, connectionID string) ([]SchemaContext, error) {
-    // Use hybrid search (vector + FTS) and filter in-memory for type/connection
-    docs, err := cb.vectorStore.HybridSearch(ctx, "", embedding, 20)
+	// Use hybrid search (vector + FTS) and filter in-memory for type/connection
+	docs, err := cb.vectorStore.HybridSearch(ctx, "", embedding, 20)
 	if err != nil {
 		return nil, err
 	}
 
-    // Convert documents to schema contexts
+	// Convert documents to schema contexts
 	schemas := make([]SchemaContext, 0, len(docs))
 	for _, doc := range docs {
-        if doc.Type != DocumentTypeSchema {
-            continue
-        }
-        if connectionID != "" && doc.ConnectionID != connectionID {
-            continue
-        }
+		if doc.Type != DocumentTypeSchema {
+			continue
+		}
+		if connectionID != "" && doc.ConnectionID != connectionID {
+			continue
+		}
 		schema := cb.parseSchemaDocument(doc)
 		schema.Relevance = doc.Score
 		schemas = append(schemas, schema)
@@ -493,21 +493,65 @@ func (cb *ContextBuilder) calculateConfidence(context *QueryContext) float32 {
 // Helper methods for parsing and analysis
 
 func (cb *ContextBuilder) parseSchemaDocument(doc *Document) SchemaContext {
-	// Parse schema information from document
-	// This would be implemented based on actual document structure
+	meta := doc.Metadata
+	var tableName, description string
+	var rowCount int64
+
+	if meta != nil {
+		if name, ok := meta["table_name"].(string); ok {
+			tableName = name
+		}
+		if desc, ok := meta["description"].(string); ok {
+			description = desc
+		}
+		switch v := meta["row_count"].(type) {
+		case int:
+			rowCount = int64(v)
+		case int64:
+			rowCount = v
+		case float64:
+			rowCount = int64(v)
+		}
+	}
+
 	return SchemaContext{
-		TableName: doc.Metadata["table_name"].(string),
-		// ... other fields
+		TableName:     tableName,
+		Description:   description,
+		RowCount:      rowCount,
+		Columns:       []ColumnInfo{},
+		Indexes:       []IndexInfo{},
+		Relationships: []RelationshipInfo{},
 	}
 }
 
 func (cb *ContextBuilder) parseBusinessRule(doc *Document) BusinessRule {
-	// Parse business rule from document
-	return BusinessRule{
-		Name:        doc.Metadata["name"].(string),
+	meta := doc.Metadata
+	rule := BusinessRule{
 		Description: doc.Content,
-		// ... other fields
+		Conditions:  []string{},
+		Metadata:    map[string]interface{}{},
 	}
+
+	if meta != nil {
+		if name, ok := meta["name"].(string); ok {
+			rule.Name = name
+		}
+		if mapping, ok := meta["sql_mapping"].(string); ok {
+			rule.SQLMapping = mapping
+		}
+		if priority, ok := meta["priority"].(float64); ok {
+			rule.Priority = int(priority)
+		}
+		if conds, ok := meta["conditions"].([]interface{}); ok {
+			for _, c := range conds {
+				if s, ok := c.(string); ok && s != "" {
+					rule.Conditions = append(rule.Conditions, s)
+				}
+			}
+		}
+	}
+
+	return rule
 }
 
 func (cb *ContextBuilder) isRuleApplicable(rule BusinessRule, query string) bool {

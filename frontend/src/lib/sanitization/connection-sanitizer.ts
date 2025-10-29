@@ -9,7 +9,7 @@
 
 import type { DatabaseConnection, SSHTunnelConfig, VPCConfig } from '@/store/connection-store'
 import { SanitizationConfig, getGlobalConfig } from './config'
-import { detectCredentials } from './credential-detector'
+import { detectCredentials, type CredentialDetectionResult, CredentialType } from './credential-detector'
 
 export interface SanitizedConnection extends Omit<DatabaseConnection, 'password' | 'sshTunnel'> {
   /**
@@ -97,6 +97,50 @@ export interface ConnectionSanitizationResult {
   safetyIssues: string[]
 }
 
+const detectCredentialInValue = (
+  value: string,
+  config: SanitizationConfig
+): CredentialDetectionResult => {
+  const direct = detectCredentials(value, config)
+  let bestMatch = direct
+
+  if (!direct.isCredential || direct.confidence < 0.8) {
+    const tokens = value.split(/[\s,;:|]+/)
+    for (const token of tokens) {
+      const trimmed = token.trim()
+      if (!trimmed) {
+        continue
+      }
+      const check = detectCredentials(trimmed, config)
+      if (check.isCredential && check.confidence > bestMatch.confidence) {
+        bestMatch = check
+      }
+    }
+  }
+
+  const substringPatterns: Array<{ type: CredentialType; regex: RegExp; confidence: number }> = [
+    { type: CredentialType.API_KEY, regex: /(sk|rk|pk)-[A-Za-z0-9]{8,}/i, confidence: 0.8 },
+    { type: CredentialType.API_KEY, regex: /api[_-]?key[^A-Za-z0-9]*[A-Za-z0-9]{8,}/i, confidence: 0.75 },
+    { type: CredentialType.JWT_TOKEN, regex: /eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/, confidence: 0.8 }
+  ]
+
+  for (const pattern of substringPatterns) {
+    if (pattern.regex.test(value)) {
+      const match: CredentialDetectionResult = {
+        isCredential: true,
+        type: pattern.type,
+        confidence: pattern.confidence,
+        reason: 'Credential substring detected'
+      }
+      if (match.confidence > bestMatch.confidence) {
+        bestMatch = match
+      }
+    }
+  }
+
+  return bestMatch
+}
+
 /**
  * Main connection sanitization function
  */
@@ -104,6 +148,34 @@ export function sanitizeConnection(
   connection: DatabaseConnection,
   config: SanitizationConfig = getGlobalConfig()
 ): ConnectionSanitizationResult {
+  if (!connection || typeof connection !== 'object') {
+    const fallback: SanitizedConnection = {
+      id: '',
+      name: '',
+      type: 'unknown' as DatabaseConnection['type'],
+      database: '',
+      isConnected: false,
+      passwordRequired: false,
+      sanitizedAt: new Date(),
+      sanitizationFlags: {
+        passwordRemoved: false,
+        sshPasswordRemoved: false,
+        sshPrivateKeyRemoved: false,
+        parametersModified: false,
+        vpcConfigModified: false,
+      },
+    }
+
+    return {
+      sanitizedConnection: fallback,
+      wasModified: false,
+      removedFields: [],
+      unexpectedCredentials: [],
+      isSafeToSync: false,
+      safetyIssues: ['Invalid connection object'],
+    }
+  }
+
   const result: ConnectionSanitizationResult = {
     sanitizedConnection: null as any, // Will be set below
     wasModified: false,
@@ -184,7 +256,7 @@ export function sanitizeConnection(
       }
 
       // Check if the value looks like a credential
-      const credCheck = detectCredentials(value, config)
+      const credCheck = detectCredentialInValue(value, config)
       if (credCheck.isCredential) {
         result.unexpectedCredentials.push({
           field: `parameters.${key}`,
@@ -216,7 +288,7 @@ export function sanitizeConnection(
       const sanitizedCustom: Record<string, string> = {}
 
       for (const [key, value] of Object.entries(connection.vpcConfig.customConfig)) {
-        const credCheck = detectCredentials(value, config)
+        const credCheck = detectCredentialInValue(value, config ?? getGlobalConfig())
         if (credCheck.isCredential) {
           result.unexpectedCredentials.push({
             field: `vpcConfig.customConfig.${key}`,
@@ -246,7 +318,7 @@ export function sanitizeConnection(
   for (const field of deepScanFields) {
     if (connection[field as keyof DatabaseConnection]) {
       const value = String(connection[field as keyof DatabaseConnection])
-      const credCheck = detectCredentials(value, config)
+      const credCheck = detectCredentialInValue(value, config)
 
       if (credCheck.isCredential && credCheck.confidence > 0.7) {
         result.unexpectedCredentials.push({
@@ -312,7 +384,6 @@ export function prepareConnectionsForSync(
 } {
   const safeConnections: SanitizedConnection[] = []
   const unsafeConnections: Array<{ connection: DatabaseConnection; reasons: string[] }> = []
-
   for (const connection of connections) {
     const result = sanitizeConnection(connection, config)
 
@@ -500,7 +571,7 @@ function deepScanConnection(
       const currentPath = path ? `${path}.${key}` : key
 
       if (typeof value === 'string' && value) {
-        const credCheck = detectCredentials(value, config)
+        const credCheck = detectCredentialInValue(value, config ?? getGlobalConfig())
         if (credCheck.isCredential && credCheck.confidence > 0.5) {
           findings.push({
             path: currentPath,

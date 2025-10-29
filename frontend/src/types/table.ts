@@ -37,6 +37,7 @@ export interface EditableTableProps {
   onCellEdit?: (rowId: string, columnId: string, value: CellValue) => Promise<boolean>;
   onRowSelect?: (selectedRows: string[]) => void;
   onRowClick?: (rowId: string, rowData: TableRow) => void;
+  onRowInspect?: (rowId: string, rowData: TableRow) => void;
   onSort?: (sorting: SortingState) => void;
   onFilter?: (filters: ColumnFiltersState) => void;
   onExport?: (options: ExportOptions) => void;

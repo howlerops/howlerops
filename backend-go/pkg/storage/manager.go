@@ -6,8 +6,8 @@ import (
 	"fmt"
 
 	"github.com/sirupsen/logrus"
-    internalrag "github.com/sql-studio/backend-go/internal/rag"
-    pkgrag "github.com/sql-studio/backend-go/pkg/rag"
+	internalrag "github.com/sql-studio/backend-go/internal/rag"
+	pkgrag "github.com/sql-studio/backend-go/pkg/rag"
 )
 
 // Config holds storage manager configuration
@@ -60,29 +60,29 @@ func NewManager(ctx context.Context, config *Config, logger *logrus.Logger) (*Ma
 		logger:     logger,
 	}
 
-    // Determine active storage based on mode
+	// Determine active storage based on mode
 	switch config.Mode {
 	case ModeSolo:
 		manager.storage = localStore
 		logger.Info("Storage manager initialized in solo mode")
 
-    // If cloud sync is configured (remote URL present), enable individual-tier local-first sync
-    if config.Team != nil && config.Team.URL != "" {
-        db, err := sql.Open("sqlite3", config.Team.URL)
-        if err != nil {
-            logger.WithError(err).Warn("Failed to open remote DB for individual sync; continuing local-only")
-        } else {
-            remote := internalrag.NewTursoRemoteVectorStore(db, logger)
-            if err := remote.Initialize(context.Background()); err != nil {
-                logger.WithError(err).Warn("Failed to initialize remote vector store; continuing local-only")
-            } else {
-                adaptive := pkgrag.NewAdaptiveVectorStore("individual", localStore.vectorStore, remote, true)
-                pkgrag.StartSyncWorker(context.Background(), adaptive, 200_000_000) // 200ms
-                localStore.vectorStore = adaptive
-                logger.Info("Solo mode with cloud user: enabled individual-tier local-first sync")
-            }
-        }
-    }
+		// If cloud sync is configured (remote URL present), enable individual-tier local-first sync
+		if config.Team != nil && config.Team.URL != "" {
+			db, err := sql.Open("sqlite3", config.Team.URL)
+			if err != nil {
+				logger.WithError(err).Warn("Failed to open remote DB for individual sync; continuing local-only")
+			} else {
+				remote := internalrag.NewTursoRemoteVectorStore(db, logger)
+				if err := remote.Initialize(context.Background()); err != nil {
+					logger.WithError(err).Warn("Failed to initialize remote vector store; continuing local-only")
+				} else {
+					adaptive := pkgrag.NewAdaptiveVectorStore("individual", localStore.vectorStore, remote, true)
+					pkgrag.StartSyncWorker(context.Background(), adaptive, 200_000_000) // 200ms
+					localStore.vectorStore = adaptive
+					logger.Info("Solo mode with cloud user: enabled individual-tier local-first sync")
+				}
+			}
+		}
 
 	case ModeTeam:
 		if config.Team == nil || !config.Team.Enabled {
@@ -90,36 +90,36 @@ func NewManager(ctx context.Context, config *Config, logger *logrus.Logger) (*Ma
 			manager.mode = ModeSolo
 			manager.storage = localStore
 		} else {
-            // Local-first with remote sync enabled by default for logged-in cloud users (team mode)
-            // Wrap local vector store with adaptive sync if remote URL is provided
-            if config.Team.URL != "" {
-                db, err := sql.Open("sqlite3", config.Team.URL)
-                if err != nil {
-                    logger.WithError(err).Warn("Failed to open Turso remote DB; continuing local-only")
-                    manager.mode = ModeSolo
-                    manager.storage = localStore
-                } else {
-                    remote := internalrag.NewTursoRemoteVectorStore(db, logger)
-                    if err := remote.Initialize(context.Background()); err != nil {
-                        logger.WithError(err).Warn("Failed to initialize Turso remote vector store; continuing local-only")
-                        manager.mode = ModeSolo
-                        manager.storage = localStore
-                    } else {
-                        adaptive := pkgrag.NewAdaptiveVectorStore("team", localStore.vectorStore, remote, true)
-                        // conservative heartbeat; per-doc backoff governs actual sync
-                        pkgrag.StartSyncWorker(context.Background(), adaptive, 200_000_000) // 200ms
-                        localStore.vectorStore = adaptive
-                        manager.mode = ModeTeam
-                        manager.storage = localStore
-                        logger.Info("Team mode enabled: local-first with remote sync")
-                    }
-                }
-            } else {
-                // No remote provided; fall back to local-only semantics
-                logger.Warn("Team mode requested without remote URL; using local storage")
-                manager.mode = ModeSolo
-                manager.storage = localStore
-            }
+			// Local-first with remote sync enabled by default for logged-in cloud users (team mode)
+			// Wrap local vector store with adaptive sync if remote URL is provided
+			if config.Team.URL != "" {
+				db, err := sql.Open("sqlite3", config.Team.URL)
+				if err != nil {
+					logger.WithError(err).Warn("Failed to open Turso remote DB; continuing local-only")
+					manager.mode = ModeSolo
+					manager.storage = localStore
+				} else {
+					remote := internalrag.NewTursoRemoteVectorStore(db, logger)
+					if err := remote.Initialize(context.Background()); err != nil {
+						logger.WithError(err).Warn("Failed to initialize Turso remote vector store; continuing local-only")
+						manager.mode = ModeSolo
+						manager.storage = localStore
+					} else {
+						adaptive := pkgrag.NewAdaptiveVectorStore("team", localStore.vectorStore, remote, true)
+						// conservative heartbeat; per-doc backoff governs actual sync
+						pkgrag.StartSyncWorker(context.Background(), adaptive, 200_000_000) // 200ms
+						localStore.vectorStore = adaptive
+						manager.mode = ModeTeam
+						manager.storage = localStore
+						logger.Info("Team mode enabled: local-first with remote sync")
+					}
+				}
+			} else {
+				// No remote provided; fall back to local-only semantics
+				logger.Warn("Team mode requested without remote URL; using local storage")
+				manager.mode = ModeSolo
+				manager.storage = localStore
+			}
 
 			// Future implementation:
 			// teamStore, err := NewTursoStorage(config.Team, config.UserID, logger)

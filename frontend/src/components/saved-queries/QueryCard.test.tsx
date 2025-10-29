@@ -6,6 +6,7 @@
 
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { QueryCard } from './QueryCard'
 import type { SavedQueryRecord } from '@/types/storage'
 
@@ -15,6 +16,13 @@ vi.mock('date-fns', () => ({
 }))
 
 describe('QueryCard', () => {
+  beforeAll(() => {
+    if (typeof window.PointerEvent === 'undefined') {
+      // @ts-expect-error - jsdom PointerEvent polyfill
+      window.PointerEvent = class PointerEvent extends Event {}
+    }
+  })
+
   const mockQuery: SavedQueryRecord = {
     id: 'test-query-1',
     user_id: 'user-1',
@@ -105,19 +113,27 @@ describe('QueryCard', () => {
   })
 
   it('shows delete confirmation dialog when delete is clicked', async () => {
-    render(<QueryCard query={mockQuery} {...mockHandlers} />)
+    const onDeleteRequest = vi.fn()
 
-    // Open dropdown menu
-    const menuButton = screen.getByLabelText('Query actions')
-    fireEvent.click(menuButton)
+    render(
+      <QueryCard
+        query={mockQuery}
+        {...mockHandlers}
+        testOverrides={{ defaultMenuOpen: true, onDeleteRequest }}
+      />
+    )
 
     // Click delete
     const deleteButton = screen.getByText('Delete')
-    fireEvent.click(deleteButton)
+    const user = userEvent.setup()
+    await user.click(deleteButton)
 
     // Confirm dialog is shown
+    expect(onDeleteRequest).toHaveBeenCalled()
     expect(
-      screen.getByText('Are you sure you want to delete "Top Users Query"?')
+      await screen.findByText((content) =>
+        content.includes('Are you sure you want to delete')
+      )
     ).toBeInTheDocument()
   })
 

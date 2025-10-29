@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
-import { Database, Clock, Save, AlertCircle, Download, Search, Inbox, Loader2, CheckCircle2, Eye } from 'lucide-react'
+import { Database, Clock, Save, AlertCircle, Download, Search, Inbox, Loader2, CheckCircle2, Trash2 } from 'lucide-react'
 
 import { EditableTable } from './editable-table/editable-table'
 import { JsonRowViewerSidebar } from './json-row-viewer-sidebar'
@@ -40,6 +40,8 @@ interface ToolbarProps {
   metadata?: QueryEditableMetadata | null
   onDiscardChanges?: () => void
   onJumpToFirstError?: () => void
+  canDeleteRows?: boolean
+  onDeleteSelected?: () => void
 }
 
 const inferColumnType = (dataType?: string): TableColumn['type'] => {
@@ -73,6 +75,10 @@ const serialiseCsvValue = (value: unknown): string => {
     return `"${stringValue.replace(/"/g, '""')}"`
   }
   return stringValue
+}
+
+const quoteIdentifier = (identifier: string): string => {
+  return `"${String(identifier).replace(/"/g, '""')}"`
 }
 
 const ExportButton = ({ context, onExport }: { context: EditableTableContext; onExport: (options: ExportOptions) => Promise<void> }) => {
@@ -194,6 +200,8 @@ const QueryResultsToolbar = ({
   metadata,
   onDiscardChanges,
   onJumpToFirstError,
+  canDeleteRows,
+  onDeleteSelected,
 }: ToolbarProps) => {
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     context.actions.updateGlobalFilter(event.target.value)
@@ -203,6 +211,7 @@ const QueryResultsToolbar = ({
   const dirtyCount = context.state.dirtyRows.size
   const hasValidationErrors = invalidCellsCount > 0
   const canSaveWithValidation = canSave && !hasValidationErrors
+  const selectedCount = context.state.selectedRows.length
 
   return (
     <div className="flex flex-col gap-2 border-b border-gray-200 bg-background px-1 py-1">
@@ -253,6 +262,19 @@ const QueryResultsToolbar = ({
                 </button>
               )}
             </div>
+          )}
+
+          {/* Delete selected rows */}
+          {canDeleteRows && selectedCount > 0 && onDeleteSelected && (
+            <Button
+              variant="destructive"
+              size="icon"
+              onClick={onDeleteSelected}
+              className="h-9 w-9"
+              title={`Delete ${selectedCount} selected row${selectedCount === 1 ? '' : 's'}`}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
           )}
           
           {/* Export Button */}
@@ -369,10 +391,16 @@ export const QueryResultsTable = ({
   const [jsonViewerOpen, setJsonViewerOpen] = useState(false)
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null)
   const [selectedRowData, setSelectedRowData] = useState<TableRow | null>(null)
+  const [pendingDeleteIds, setPendingDeleteIds] = useState<string[]>([])
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const updateResultRows = useQueryStore((state) => state.updateResultRows)
   const columnsLookup = useMemo(() => buildColumnsLookup(metadata), [metadata])
   const tableContextRef = useRef<EditableTableContext | null>(null)
+  const canDeleteRows = useMemo(() => {
+    return Boolean(metadata?.enabled && metadata?.table && metadata?.primaryKeys?.length)
+  }, [metadata])
 
   useEffect(() => {
     setDirtyRowIds([])
@@ -506,6 +534,167 @@ export const QueryResultsTable = ({
     updateResultRows,
   ])
 
+  const getMetaForColumn = useCallback((columnName: string) => {
+    const lower = columnName.toLowerCase()
+    return metadata?.columns?.find((col) => {
+      const candidates = [col.name, col.resultName].filter(Boolean) as string[]
+      return candidates.some((candidate) => candidate.toLowerCase() === lower)
+    })
+  }, [metadata])
+
+  const formatValueForColumn = useCallback((columnName: string, value: unknown): string => {
+    const meta = getMetaForColumn(columnName)
+    const dataType = meta?.dataType?.toLowerCase() ?? ''
+
+    if (value === null || value === undefined) {
+      return 'NULL'
+    }
+
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? String(value) : `'${String(value).replace(/'/g, "''")}'`
+    }
+
+    if (typeof value === 'boolean') {
+      return value ? 'TRUE' : 'FALSE'
+    }
+
+    if (dataType.includes('bool')) {
+      const normalized = String(value).toLowerCase()
+      if (['true', 't', '1', 'yes'].includes(normalized)) return 'TRUE'
+      if (['false', 'f', '0', 'no'].includes(normalized)) return 'FALSE'
+    }
+
+    if (dataType.match(/int|numeric|decimal|float|double|real|serial|money/)) {
+      const numeric = Number(value)
+      if (!Number.isNaN(numeric)) {
+        return String(numeric)
+      }
+    }
+
+    const stringValue = value instanceof Date ? value.toISOString() : String(value)
+    return `'${stringValue.replace(/'/g, "''")}'`
+  }, [getMetaForColumn])
+
+  const handleRequestDelete = useCallback(() => {
+    const selected = tableContextRef.current?.state.selectedRows ?? []
+    if (!selected.length) {
+      return
+    }
+    setPendingDeleteIds(selected)
+    setShowDeleteDialog(true)
+  }, [])
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!canDeleteRows || pendingDeleteIds.length === 0) {
+      setShowDeleteDialog(false)
+      return
+    }
+
+    if (!connectionId || !metadata?.table) {
+      toast({
+        title: 'Delete failed',
+        description: 'Missing connection or table information for deletion.',
+        variant: 'destructive'
+      })
+      setShowDeleteDialog(false)
+      return
+    }
+
+    setIsDeleting(true)
+
+    try {
+      const currentRows = resolveCurrentRows()
+      const rowsToDelete = currentRows.filter(row => pendingDeleteIds.includes(row.__rowId))
+
+      if (!rowsToDelete.length) {
+        throw new Error('No matching rows found to delete.')
+      }
+
+      const whereClauses: string[] = []
+
+      rowsToDelete.forEach((row) => {
+        const primaryKey = buildPrimaryKeyMap(row, metadata, columnsLookup)
+        if (!primaryKey) {
+          throw new Error('Unable to determine primary key for one of the selected rows.')
+        }
+
+        const clauseParts = Object.entries(primaryKey).map(([pkColumn, pkValue]) => {
+          const columnIdentifier = quoteIdentifier(pkColumn)
+          if (pkValue === null || pkValue === undefined) {
+            return `${columnIdentifier} IS NULL`
+          }
+          const valueLiteral = formatValueForColumn(pkColumn, pkValue)
+          return `${columnIdentifier} = ${valueLiteral}`
+        })
+
+        if (clauseParts.length > 0) {
+          whereClauses.push(`(${clauseParts.join(' AND ')})`)
+        }
+      })
+
+      if (!whereClauses.length) {
+        throw new Error('Unable to build a deletion condition for the selected rows.')
+      }
+
+      const tableIdentifier = metadata.schema
+        ? `${quoteIdentifier(metadata.schema)}.${quoteIdentifier(metadata.table)}`
+        : quoteIdentifier(metadata.table)
+
+      const deleteStatement = `DELETE FROM ${tableIdentifier} WHERE ${whereClauses.join(' OR ')};`
+
+      const response = await wailsEndpoints.queries.execute(connectionId, deleteStatement)
+      if (!response.success) {
+        throw new Error(response.message || 'Failed to delete selected rows.')
+      }
+
+      const remainingRows = currentRows.filter(row => !pendingDeleteIds.includes(row.__rowId))
+      const updatedOriginalRows = { ...originalRows }
+      pendingDeleteIds.forEach(id => {
+        delete updatedOriginalRows[id]
+      })
+
+      updateResultRows(resultId, remainingRows, updatedOriginalRows)
+      setDirtyRowIds(prev => prev.filter(id => !pendingDeleteIds.includes(id)))
+      tableContextRef.current?.actions.selectAllRows(false)
+      tableContextRef.current?.actions.clearInvalidCells()
+
+      if (selectedRowId && pendingDeleteIds.includes(selectedRowId)) {
+        setJsonViewerOpen(false)
+        setSelectedRowId(null)
+        setSelectedRowData(null)
+      }
+
+      toast({
+        title: 'Rows deleted',
+        description: `${pendingDeleteIds.length} row${pendingDeleteIds.length === 1 ? '' : 's'} deleted successfully.`,
+        variant: 'default'
+      })
+
+      setPendingDeleteIds([])
+    } catch (error) {
+      toast({
+        title: 'Delete failed',
+        description: error instanceof Error ? error.message : 'Failed to delete selected rows.',
+        variant: 'destructive'
+      })
+    } finally {
+      setIsDeleting(false)
+      setShowDeleteDialog(false)
+    }
+  }, [
+    canDeleteRows,
+    columnsLookup,
+    connectionId,
+    formatValueForColumn,
+    metadata,
+    originalRows,
+    pendingDeleteIds,
+    resolveCurrentRows,
+    resultId,
+    selectedRowId,
+    updateResultRows,
+  ])
+
   // Keyboard shortcut handler for Ctrl+S (Cmd+S on Mac)
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -529,7 +718,7 @@ export const QueryResultsTable = ({
   }, [metadata?.enabled, dirtyRowIds.length, handleSave])
 
   const tableColumns: TableColumn[] = useMemo(() => {
-    const dataColumns = columnNames.map<TableColumn>((columnName) => {
+    return columnNames.map<TableColumn>((columnName) => {
       const metaColumn = metadata?.columns?.find((col) => {
         const candidate = (col.resultName ?? col.name)?.toLowerCase()
         return candidate ? candidate === columnName.toLowerCase() : false
@@ -546,23 +735,6 @@ export const QueryResultsTable = ({
         minWidth: 120,
       }
     })
-
-    // Add sticky actions column at the beginning (left side)
-    const actionsColumn: TableColumn = {
-      id: '__actions',
-      accessorKey: '__actions',
-      header: ' ',
-      type: 'text',
-      editable: false,
-      sortable: false,
-      filterable: false,
-      minWidth: 50,
-      maxWidth: 50,
-      sticky: 'left',
-      width: 50,
-    }
-
-    return [actionsColumn, ...dataColumns]
   }, [columnNames, metadata])
 
   // const handleExportCsv = useCallback(() => {
@@ -868,11 +1040,13 @@ export const QueryResultsTable = ({
         metadata={metadata}
         onDiscardChanges={handleDiscardChanges}
         onJumpToFirstError={handleJumpToFirstError}
+        canDeleteRows={canDeleteRows}
+        onDeleteSelected={canDeleteRows ? handleRequestDelete : undefined}
       />
     )
   }, [rowCount, columnNames.length, executionTimeMs, executedAt, dirtyRowIds.length,
       canSave, saving, handleSave, handleExport, metadata,
-      handleDiscardChanges, handleJumpToFirstError])
+      handleDiscardChanges, handleJumpToFirstError, canDeleteRows, handleRequestDelete])
 
   const safeAffectedRows = Number.isFinite(affectedRows) ? affectedRows : 0
   const hasTabularResults = columnNames.length > 0 && rows.length > 0
@@ -881,33 +1055,7 @@ export const QueryResultsTable = ({
     safeAffectedRows === 1
       ? '1 row affected.'
       : `${safeAffectedRows.toLocaleString()} rows affected.`
-
-  // Add __actions value to each row for the actions column
-  const rowsWithActions = useMemo(() => {
-    return rows.map(row => ({
-      ...row,
-      __actions: row.__rowId, // Store the rowId so we can use it in the cell renderer
-    }))
-  }, [rows])
-
-  // Custom cell renderer for the actions column
-  const renderActionsCell = useCallback((value: CellValue, row: TableRow) => {
-    const rowId = row.__rowId as string
-    return (
-      <div className="flex items-center justify-center">
-        <button
-          onClick={(e) => {
-            e.stopPropagation()
-            handleRowClick(rowId, row)
-          }}
-          className="p-1 hover:bg-accent rounded transition-colors"
-          title="View row details"
-        >
-          <Eye className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-        </button>
-      </div>
-    )
-  }, [handleRowClick])
+  const pendingDeleteCount = pendingDeleteIds.length
 
   return (
     <div className="flex flex-1 min-h-0 flex-col">
@@ -931,10 +1079,10 @@ export const QueryResultsTable = ({
         </div>
       ) : (
         <EditableTable
-          data={rowsWithActions as TableRow[]}
+          data={rows as TableRow[]}
           columns={tableColumns}
           onDirtyChange={handleDirtyChange}
-          enableMultiSelect={false}
+          enableMultiSelect={canDeleteRows}
           enableGlobalFilter={false}
           enableExport={true}
           loading={saving}
@@ -942,13 +1090,61 @@ export const QueryResultsTable = ({
           height="100%"
           onExport={handleExport}
           onCellEdit={handleCellEdit}
+          onRowInspect={handleRowClick}
           toolbar={renderToolbar}
           footer={null}
-          customCellRenderers={{
-            __actions: renderActionsCell
-          }}
         />
       )}
+
+      <Dialog
+        open={showDeleteDialog}
+        onOpenChange={(open) => {
+          if (isDeleting) return
+          if (!open) {
+            setShowDeleteDialog(false)
+            setPendingDeleteIds([])
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete selected rows?</DialogTitle>
+            <DialogDescription>
+              {pendingDeleteCount === 1
+                ? 'This will permanently delete the selected row.'
+                : `This will permanently delete ${pendingDeleteCount} rows.`}
+              {' '}This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowDeleteDialog(false)
+                setPendingDeleteIds([])
+              }}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDelete}
+              disabled={isDeleting}
+              className="gap-2"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Deleting…
+                </>
+              ) : (
+                `Delete ${pendingDeleteCount} row${pendingDeleteCount === 1 ? '' : 's'}`
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="flex-shrink-0 border-t border-border bg-muted/40 px-4 py-2 text-xs text-muted-foreground flex items-center justify-between">
         <div className="flex items-center gap-4">

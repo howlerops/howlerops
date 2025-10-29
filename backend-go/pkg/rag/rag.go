@@ -1,10 +1,10 @@
 package rag
 
 import (
-    "context"
-    "time"
-    "github.com/sirupsen/logrus"
-    internalrag "github.com/sql-studio/backend-go/internal/rag"
+	"context"
+	"github.com/sirupsen/logrus"
+	internalrag "github.com/sql-studio/backend-go/internal/rag"
+	"time"
 )
 
 type (
@@ -15,6 +15,16 @@ type (
 	Document          = internalrag.Document
 	CacheStats        = internalrag.CacheStats
 	SchemaIndexer     = internalrag.SchemaIndexer
+	ContextBuilder    = internalrag.ContextBuilder
+	QueryContext      = internalrag.QueryContext
+	OptimizationHint  = internalrag.OptimizationHint
+	GeneratedSQL      = internalrag.GeneratedSQL
+	SQLExplanation    = internalrag.SQLExplanation
+	ExplanationStep   = internalrag.ExplanationStep
+	OptimizedSQL      = internalrag.OptimizedSQL
+	Improvement       = internalrag.Improvement
+	SmartSQLGenerator = internalrag.SmartSQLGenerator
+	LLMProvider       = internalrag.LLMProvider
 )
 
 const (
@@ -48,11 +58,29 @@ func NewAdaptiveVectorStore(tier string, local VectorStore, remote VectorStore, 
 }
 
 func StartSyncWorker(ctx context.Context, store VectorStore, interval time.Duration) {
-    if s, ok := store.(interface{ StartSyncWorker(context.Context, time.Duration) }); ok {
-        s.StartSyncWorker(ctx, interval)
-    }
+	if s, ok := store.(interface {
+		StartSyncWorker(context.Context, time.Duration)
+	}); ok {
+		s.StartSyncWorker(ctx, interval)
+	}
 }
 
 func NewSchemaIndexer(store VectorStore, embeddings EmbeddingService, logger *logrus.Logger) *SchemaIndexer {
 	return internalrag.NewSchemaIndexer(store, embeddings, logger)
+}
+
+func NewContextBuilder(
+	vectorStore VectorStore,
+	embeddingService EmbeddingService,
+	logger *logrus.Logger,
+) *ContextBuilder {
+	return internalrag.NewContextBuilder(vectorStore, embeddingService, logger)
+}
+
+func NewSmartSQLGenerator(
+	contextBuilder *ContextBuilder,
+	llmProvider LLMProvider,
+	logger *logrus.Logger,
+) *SmartSQLGenerator {
+	return internalrag.NewSmartSQLGenerator(contextBuilder, llmProvider, logger)
 }

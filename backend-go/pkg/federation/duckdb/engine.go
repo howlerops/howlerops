@@ -1,3 +1,6 @@
+//go:build duckdb
+// +build duckdb
+
 package duckdb
 
 import (
@@ -8,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-    _ "github.com/marcboeker/go-duckdb"
+	_ "github.com/marcboeker/go-duckdb"
 	"github.com/sirupsen/logrus"
 )
 

@@ -153,8 +153,10 @@ func (s *serviceImpl) initializeProviders() error {
 		}
 	}
 
-	// AI providers are optional - users can configure them later through the app
-	// Allow starting with zero providers configured
+	if len(s.providers) == 0 {
+		return fmt.Errorf("no AI providers configured")
+	}
+
 	s.logger.WithField("providers", len(s.providers)).Info("AI providers initialized")
 	return nil
 }

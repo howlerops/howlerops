@@ -1,7 +1,7 @@
 import React, { memo, useCallback, useRef, useEffect } from 'react';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Eye } from 'lucide-react';
 import { cn } from '../../utils/cn';
-import { CellValue, TableColumn, CellEditState } from '../../types/table';
+import { CellValue, TableColumn, CellEditState, TableRow } from '../../types/table';
 import { formatCellValue } from '../../utils/table';
 import { CellEditor } from './cell-editor';
 
@@ -20,6 +20,8 @@ interface TableCellProps {
   onCancel: () => void;
   onUpdateEdit: (value: CellValue, isValid: boolean, error?: string) => void;
   editingState: CellEditState | null;
+  onInspectRow?: (rowId: string, rowData: TableRow) => void;
+  rowData: TableRow;
 }
 
 export const TableCell = memo<TableCellProps>(({
@@ -37,6 +39,8 @@ export const TableCell = memo<TableCellProps>(({
   onCancel,
   onUpdateEdit,
   editingState,
+  onInspectRow,
+  rowData,
 }) => {
   const cellRef = useRef<HTMLDivElement>(null);
   const doubleClickTimeoutRef = useRef<number | null>(null);
@@ -90,9 +94,10 @@ export const TableCell = memo<TableCellProps>(({
 
   const renderCellContent = () => {
     if (isEditing) {
+      const editorValue = editingState ? editingState.value : value;
       return (
         <CellEditor
-          value={editingState?.value ?? value}
+          value={editorValue}
           type={column.type}
           onChange={(newValue, isValid, error) => {
             onUpdateEdit(newValue, isValid, error);
@@ -171,7 +176,7 @@ export const TableCell = memo<TableCellProps>(({
     <div
       ref={cellRef}
       className={cn(
-        'relative h-full w-full flex items-center px-3 py-2 text-sm',
+        'relative group h-full w-full flex items-center px-3 py-2 text-sm',
         'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-inset',
         'cursor-pointer select-none',
         {
@@ -211,6 +216,28 @@ export const TableCell = memo<TableCellProps>(({
       {/* Required field indicator */}
       {column.required && (
         <div className="absolute top-1 left-1 text-destructive text-xs">*</div>
+      )}
+
+      {/* JSON inspector trigger */}
+      {onInspectRow && !isEditing && (
+        <button
+          type="button"
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onInspectRow(rowId, rowData);
+          }}
+          className={cn(
+            'absolute bottom-1 right-1 flex h-6 w-6 items-center justify-center rounded-full',
+            'bg-background/80 text-muted-foreground shadow-sm',
+            'opacity-0 transition-opacity duration-150',
+            'group-hover:opacity-100 focus-visible:opacity-100'
+          )}
+          tabIndex={-1}
+          aria-label="Open row JSON"
+        >
+          <Eye className="h-3.5 w-3.5" />
+        </button>
       )}
     </div>
   );

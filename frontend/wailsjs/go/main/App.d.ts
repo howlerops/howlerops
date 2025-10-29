@@ -70,7 +70,7 @@ export function GetAvailableEnvironments():Promise<Array<string>>;
 
 export function GetConnectionCount():Promise<number>;
 
-export function GetConnectionHealth(arg1:string):Promise<database.HealthStatus>;
+export function GetConnectionHealth(arg1:string):Promise<main.HealthStatus>;
 
 export function GetConnectionIDs():Promise<Array<string>>;
 
@@ -112,7 +112,7 @@ export function GetSyntheticSchema():Promise<Record<string, any>>;
 
 export function GetSyntheticView(arg1:string):Promise<storage.ViewDefinition>;
 
-export function GetTableStructure(arg1:string,arg2:string,arg3:string):Promise<database.TableStructure>;
+export function GetTableStructure(arg1:string,arg2:string,arg3:string):Promise<main.TableStructure>;
 
 export function GetTables(arg1:string,arg2:string):Promise<Array<main.TableInfo>>;
 
@@ -124,7 +124,7 @@ export function HandleKeyboardEvent(arg1:services.KeyboardEvent):Promise<void>;
 
 export function HasPassword(arg1:string):Promise<boolean>;
 
-export function HealthCheckAll():Promise<Record<string, database.HealthStatus>>;
+export function HealthCheckAll():Promise<Record<string, main.HealthStatus>>;
 
 export function ImportKeyboardBindings(arg1:Record<string, services.KeyboardAction>):Promise<void>;
 
@@ -134,7 +134,7 @@ export function InvalidateSchemaCache(arg1:string):Promise<void>;
 
 export function ListConnections():Promise<Array<string>>;
 
-export function ListSyntheticViews():Promise<Array<storage.ViewSummary>>;
+export function ListSyntheticViews():Promise<Array<main.SyntheticViewSummary>>;
 
 export function LoadAIMemorySessions():Promise<Array<main.AIMemorySessionPayload>>;
 
@@ -159,6 +159,8 @@ export function RemoveKeyboardBinding(arg1:string):Promise<void>;
 export function ResetKeyboardBindings():Promise<void>;
 
 export function SaveAIMemorySessions(arg1:Array<main.AIMemorySessionPayload>):Promise<void>;
+
+export function SaveConnection(arg1:main.ConnectionRequest):Promise<void>;
 
 export function SaveFileDialog():Promise<string>;
 

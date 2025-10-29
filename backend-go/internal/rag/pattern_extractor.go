@@ -6,5 +6,3 @@ type PatternExtractor struct{}
 func NewPatternExtractor() *PatternExtractor { return &PatternExtractor{} }
 
 func (pe *PatternExtractor) Extract(query string) string { return query }
-
-

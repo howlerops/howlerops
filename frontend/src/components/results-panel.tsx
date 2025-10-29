@@ -189,10 +189,19 @@ export function ResultsPanel({ onFixWithAI }: ResultsPanelProps = {}) {
                     (c) => c.id === activeTab.connectionId && c.isConnected
                   )
                   if (tabConnection) {
-                    return tabConnection.id
+                    // Use sessionId if available (for backend connection manager), fallback to id
+                    return tabConnection.sessionId || tabConnection.id
                   }
                 }
-                // Fallback to the result's connection ID
+                // Fallback to the result's connection ID - try to find sessionId for it
+                if (latestResult.connectionId) {
+                  const resultConnection = connections.find(
+                    (c) => c.id === latestResult.connectionId && c.isConnected
+                  )
+                  if (resultConnection) {
+                    return resultConnection.sessionId || resultConnection.id
+                  }
+                }
                 return latestResult.connectionId
               })()}
               executionTimeMs={latestResult.executionTime}

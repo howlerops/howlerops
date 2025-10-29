@@ -1,41 +1,5 @@
 export namespace database {
 	
-	export class ColumnInfo {
-	    name: string;
-	    data_type: string;
-	    nullable: boolean;
-	    default_value?: string;
-	    primary_key: boolean;
-	    unique: boolean;
-	    indexed: boolean;
-	    comment: string;
-	    ordinal_position: number;
-	    character_maximum_length?: number;
-	    numeric_precision?: number;
-	    numeric_scale?: number;
-	    metadata: Record<string, string>;
-	
-	    static createFrom(source: any = {}) {
-	        return new ColumnInfo(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.name = source["name"];
-	        this.data_type = source["data_type"];
-	        this.nullable = source["nullable"];
-	        this.default_value = source["default_value"];
-	        this.primary_key = source["primary_key"];
-	        this.unique = source["unique"];
-	        this.indexed = source["indexed"];
-	        this.comment = source["comment"];
-	        this.ordinal_position = source["ordinal_position"];
-	        this.character_maximum_length = source["character_maximum_length"];
-	        this.numeric_precision = source["numeric_precision"];
-	        this.numeric_scale = source["numeric_scale"];
-	        this.metadata = source["metadata"];
-	    }
-	}
 	export class ForeignKeyRef {
 	    table: string;
 	    column: string;
@@ -116,184 +80,6 @@ export namespace database {
 	        this.columns = this.convertValues(source["columns"], EditableColumn);
 	        this.pending = source["pending"];
 	        this.job_id = source["job_id"];
-	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
-	}
-	export class ForeignKeyInfo {
-	    name: string;
-	    columns: string[];
-	    referenced_table: string;
-	    referenced_schema: string;
-	    referenced_columns: string[];
-	    on_delete: string;
-	    on_update: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new ForeignKeyInfo(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.name = source["name"];
-	        this.columns = source["columns"];
-	        this.referenced_table = source["referenced_table"];
-	        this.referenced_schema = source["referenced_schema"];
-	        this.referenced_columns = source["referenced_columns"];
-	        this.on_delete = source["on_delete"];
-	        this.on_update = source["on_update"];
-	    }
-	}
-	
-	export class HealthStatus {
-	    status: string;
-	    message: string;
-	    // Go type: time
-	    timestamp: any;
-	    response_time: number;
-	    metrics: Record<string, string>;
-	
-	    static createFrom(source: any = {}) {
-	        return new HealthStatus(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.status = source["status"];
-	        this.message = source["message"];
-	        this.timestamp = this.convertValues(source["timestamp"], null);
-	        this.response_time = source["response_time"];
-	        this.metrics = source["metrics"];
-	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
-	}
-	export class IndexInfo {
-	    name: string;
-	    columns: string[];
-	    unique: boolean;
-	    primary: boolean;
-	    type: string;
-	    method: string;
-	    metadata: Record<string, string>;
-	
-	    static createFrom(source: any = {}) {
-	        return new IndexInfo(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.name = source["name"];
-	        this.columns = source["columns"];
-	        this.unique = source["unique"];
-	        this.primary = source["primary"];
-	        this.type = source["type"];
-	        this.method = source["method"];
-	        this.metadata = source["metadata"];
-	    }
-	}
-	export class TableInfo {
-	    schema: string;
-	    name: string;
-	    type: string;
-	    comment: string;
-	    // Go type: time
-	    created_at?: any;
-	    // Go type: time
-	    updated_at?: any;
-	    row_count: number;
-	    size_bytes: number;
-	    owner: string;
-	    metadata: Record<string, string>;
-	
-	    static createFrom(source: any = {}) {
-	        return new TableInfo(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.schema = source["schema"];
-	        this.name = source["name"];
-	        this.type = source["type"];
-	        this.comment = source["comment"];
-	        this.created_at = this.convertValues(source["created_at"], null);
-	        this.updated_at = this.convertValues(source["updated_at"], null);
-	        this.row_count = source["row_count"];
-	        this.size_bytes = source["size_bytes"];
-	        this.owner = source["owner"];
-	        this.metadata = source["metadata"];
-	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
-	}
-	export class TableStructure {
-	    table: TableInfo;
-	    columns: ColumnInfo[];
-	    indexes: IndexInfo[];
-	    foreign_keys: ForeignKeyInfo[];
-	    triggers: string[];
-	    statistics: Record<string, string>;
-	
-	    static createFrom(source: any = {}) {
-	        return new TableStructure(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.table = this.convertValues(source["table"], TableInfo);
-	        this.columns = this.convertValues(source["columns"], ColumnInfo);
-	        this.indexes = this.convertValues(source["indexes"], IndexInfo);
-	        this.foreign_keys = this.convertValues(source["foreign_keys"], ForeignKeyInfo);
-	        this.triggers = source["triggers"];
-	        this.statistics = source["statistics"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -736,6 +522,42 @@ export namespace main {
 	        this.description = source["description"];
 	    }
 	}
+	export class ColumnInfo {
+	    name: string;
+	    data_type: string;
+	    nullable: boolean;
+	    default_value?: string;
+	    primary_key: boolean;
+	    unique: boolean;
+	    indexed: boolean;
+	    comment: string;
+	    ordinal_position: number;
+	    character_maximum_length?: number;
+	    numeric_precision?: number;
+	    numeric_scale?: number;
+	    metadata: Record<string, string>;
+	
+	    static createFrom(source: any = {}) {
+	        return new ColumnInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.data_type = source["data_type"];
+	        this.nullable = source["nullable"];
+	        this.default_value = source["default_value"];
+	        this.primary_key = source["primary_key"];
+	        this.unique = source["unique"];
+	        this.indexed = source["indexed"];
+	        this.comment = source["comment"];
+	        this.ordinal_position = source["ordinal_position"];
+	        this.character_maximum_length = source["character_maximum_length"];
+	        this.numeric_precision = source["numeric_precision"];
+	        this.numeric_scale = source["numeric_scale"];
+	        this.metadata = source["metadata"];
+	    }
+	}
 	export class ConflictingTable {
 	    connectionId: string;
 	    tableName: string;
@@ -887,8 +709,7 @@ export namespace main {
 	    database: string;
 	    username: string;
 	    active: boolean;
-	    // Go type: time
-	    createdAt: any;
+	    createdAt: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new ConnectionInfo(source);
@@ -903,29 +724,12 @@ export namespace main {
 	        this.database = source["database"];
 	        this.username = source["username"];
 	        this.active = source["active"];
-	        this.createdAt = this.convertValues(source["createdAt"], null);
+	        this.createdAt = source["createdAt"];
 	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
 	}
 	export class ConnectionRequest {
 	    id?: string;
+	    name?: string;
 	    type: string;
 	    host: string;
 	    port: number;
@@ -943,6 +747,7 @@ export namespace main {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
+	        this.name = source["name"];
 	        this.type = source["type"];
 	        this.host = source["host"];
 	        this.port = source["port"];
@@ -1039,6 +844,30 @@ export namespace main {
 	        this.changes = source["changes"];
 	    }
 	}
+	export class ForeignKeyInfo {
+	    name: string;
+	    columns: string[];
+	    referenced_table: string;
+	    referenced_schema: string;
+	    referenced_columns: string[];
+	    on_delete: string;
+	    on_update: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ForeignKeyInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.columns = source["columns"];
+	        this.referenced_table = source["referenced_table"];
+	        this.referenced_schema = source["referenced_schema"];
+	        this.referenced_columns = source["referenced_columns"];
+	        this.on_delete = source["on_delete"];
+	        this.on_update = source["on_update"];
+	    }
+	}
 	export class GeneratedSQLResponse {
 	    sql: string;
 	    confidence: number;
@@ -1120,6 +949,50 @@ export namespace main {
 	        this.provider = source["provider"];
 	        this.model = source["model"];
 	        this.tokensUsed = source["tokensUsed"];
+	        this.metadata = source["metadata"];
+	    }
+	}
+	export class HealthStatus {
+	    status: string;
+	    message: string;
+	    timestamp: string;
+	    response_time: number;
+	    metrics: Record<string, string>;
+	
+	    static createFrom(source: any = {}) {
+	        return new HealthStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.status = source["status"];
+	        this.message = source["message"];
+	        this.timestamp = source["timestamp"];
+	        this.response_time = source["response_time"];
+	        this.metrics = source["metrics"];
+	    }
+	}
+	export class IndexInfo {
+	    name: string;
+	    columns: string[];
+	    unique: boolean;
+	    primary: boolean;
+	    type: string;
+	    method: string;
+	    metadata: Record<string, string>;
+	
+	    static createFrom(source: any = {}) {
+	        return new IndexInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.columns = source["columns"];
+	        this.unique = source["unique"];
+	        this.primary = source["primary"];
+	        this.type = source["type"];
+	        this.method = source["method"];
 	        this.metadata = source["metadata"];
 	    }
 	}
@@ -1425,7 +1298,69 @@ export namespace main {
 	}
 	
 	
+	export class SyntheticViewSummary {
+	    id: string;
+	    name: string;
+	    description: string;
+	    version: string;
+	    createdAt: string;
+	    updatedAt: string;
 	
+	    static createFrom(source: any = {}) {
+	        return new SyntheticViewSummary(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.description = source["description"];
+	        this.version = source["version"];
+	        this.createdAt = source["createdAt"];
+	        this.updatedAt = source["updatedAt"];
+	    }
+	}
+	
+	export class TableStructure {
+	    table: TableInfo;
+	    columns: ColumnInfo[];
+	    indexes: IndexInfo[];
+	    foreign_keys: ForeignKeyInfo[];
+	    triggers: string[];
+	    statistics: Record<string, string>;
+	
+	    static createFrom(source: any = {}) {
+	        return new TableStructure(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.table = this.convertValues(source["table"], TableInfo);
+	        this.columns = this.convertValues(source["columns"], ColumnInfo);
+	        this.indexes = this.convertValues(source["indexes"], IndexInfo);
+	        this.foreign_keys = this.convertValues(source["foreign_keys"], ForeignKeyInfo);
+	        this.triggers = source["triggers"];
+	        this.statistics = source["statistics"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class ValidationResult {
 	    valid: boolean;
 	    errors?: string[];
@@ -1475,8 +1410,7 @@ export namespace services {
 	    name: string;
 	    path: string;
 	    size: number;
-	    // Go type: time
-	    modTime: any;
+	    modTime: string;
 	    isDirectory: boolean;
 	    extension: string;
 	    permissions: string;
@@ -1490,29 +1424,11 @@ export namespace services {
 	        this.name = source["name"];
 	        this.path = source["path"];
 	        this.size = source["size"];
-	        this.modTime = this.convertValues(source["modTime"], null);
+	        this.modTime = source["modTime"];
 	        this.isDirectory = source["isDirectory"];
 	        this.extension = source["extension"];
 	        this.permissions = source["permissions"];
 	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
 	}
 	export class KeyboardAction {
 	    key: string;
@@ -1557,8 +1473,7 @@ export namespace services {
 	export class RecentFile {
 	    path: string;
 	    name: string;
-	    // Go type: time
-	    lastOpened: any;
+	    lastOpened: string;
 	    size: number;
 	
 	    static createFrom(source: any = {}) {
@@ -1569,27 +1484,9 @@ export namespace services {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.path = source["path"];
 	        this.name = source["name"];
-	        this.lastOpened = this.convertValues(source["lastOpened"], null);
+	        this.lastOpened = source["lastOpened"];
 	        this.size = source["size"];
 	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
 	}
 
 }
@@ -1666,49 +1563,6 @@ export namespace storage {
 	        this.sources = this.convertValues(source["sources"], SourceDefinition);
 	        this.compiledDuckDBSQL = source["compiledDuckDBSQL"];
 	        this.options = this.convertValues(source["options"], ViewOptions);
-	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
-	}
-	
-	export class ViewSummary {
-	    id: string;
-	    name: string;
-	    description: string;
-	    version: string;
-	    // Go type: time
-	    createdAt: any;
-	    // Go type: time
-	    updatedAt: any;
-	
-	    static createFrom(source: any = {}) {
-	        return new ViewSummary(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.id = source["id"];
-	        this.name = source["name"];
-	        this.description = source["description"];
-	        this.version = source["version"];
-	        this.createdAt = this.convertValues(source["createdAt"], null);
-	        this.updatedAt = this.convertValues(source["updatedAt"], null);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

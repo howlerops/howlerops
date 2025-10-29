@@ -21,7 +21,7 @@ import (
 // LocalSQLiteStorage implements Storage interface for local solo mode
 type LocalSQLiteStorage struct {
 	db          *sql.DB
-    vectorStore rag.VectorStore
+	vectorStore rag.VectorStore
 	secretStore *SecretStore
 	userID      string
 	mode        Mode
@@ -320,22 +320,22 @@ func NewLocalStorage(config *LocalStorageConfig, logger *logrus.Logger) (*LocalS
 		}
 	}
 
-    vectorStore, err := rag.NewVectorStore(vectorConfig, logger)
+	vectorStore, err := rag.NewVectorStore(vectorConfig, logger)
 	if err != nil {
 		db.Close()
 		return nil, fmt.Errorf("failed to create vector store: %w", err)
 	}
 
-    if err := vectorStore.Initialize(context.Background()); err != nil {
+	if err := vectorStore.Initialize(context.Background()); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("failed to initialize vector store: %w", err)
 	}
 
-    // Optional: wrap with adaptive store for local-first sync if enabled via env/config
-    adaptive := maybeWrapAdaptive(vectorStore, logger)
-    if adaptive != nil {
-        vectorStore = adaptive
-    }
+	// Optional: wrap with adaptive store for local-first sync if enabled via env/config
+	adaptive := maybeWrapAdaptive(vectorStore, logger)
+	if adaptive != nil {
+		vectorStore = adaptive
+	}
 
 	// Create secret store
 	secretStore := NewSecretStore(db, logger)

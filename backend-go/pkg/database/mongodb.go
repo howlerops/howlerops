@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"os"
 	"reflect"
 	"strings"
 	"sync"
@@ -69,6 +70,9 @@ func (m *MongoDBDatabase) Connect(ctx context.Context, config ConnectionConfig) 
 	timeout := 30 * time.Second
 	if config.ConnectionTimeout > 0 {
 		timeout = config.ConnectionTimeout
+	}
+	if strings.EqualFold(os.Getenv("SQLSTUDIO_FAST_DB_TESTS"), "1") && timeout > 2*time.Second {
+		timeout = 2 * time.Second
 	}
 	clientOpts.SetConnectTimeout(timeout)
 	clientOpts.SetServerSelectionTimeout(timeout)

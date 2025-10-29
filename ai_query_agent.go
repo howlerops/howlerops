@@ -13,6 +13,7 @@ import (
 
 	"github.com/sql-studio/backend-go/pkg/ai"
 	"github.com/sql-studio/backend-go/pkg/database"
+	"github.com/sql-studio/backend-go/pkg/database/multiquery"
 )
 
 // AIQueryAgentRequest represents a request to the AI query agent workflow.
@@ -725,13 +726,18 @@ func (a *App) ExecuteReadOnlyQuery(connectionID string, query string, maxRows in
 	if a.databaseService == nil {
 		return nil, fmt.Errorf("database service not available")
 	}
-	if strings.TrimSpace(connectionID) == "" {
+	isMulti := isMultiDatabaseSQL(query)
+	if strings.TrimSpace(connectionID) == "" && !isMulti {
 		return nil, fmt.Errorf("connection ID is required")
 	}
 
 	clean := strings.TrimSpace(query)
 	if clean == "" {
 		return nil, fmt.Errorf("query cannot be empty")
+	}
+
+	if isMultiDatabaseSQL(clean) {
+		return a.executeMultiReadOnlyQuery(clean, maxRows, timeout)
 	}
 
 	if !isSelectOnly(clean) {
@@ -760,6 +766,37 @@ func (a *App) ExecuteReadOnlyQuery(connectionID string, query string, maxRows in
 		ExecutionTimeMs: result.Duration.Milliseconds(),
 		Limited:         limited || (maxRows > 0 && result.RowCount >= int64(maxRows)),
 		ConnectionID:    connectionID,
+	}, nil
+}
+
+func (a *App) executeMultiReadOnlyQuery(query string, maxRows int, timeout time.Duration) (*ReadOnlyQueryResult, error) {
+	options := &multiquery.Options{
+		Timeout:  timeout,
+		Strategy: multiquery.StrategyAuto,
+		Limit:    maxRows,
+	}
+
+	resp, err := a.databaseService.ExecuteMultiDatabaseQuery(query, options)
+	if err != nil {
+		return nil, err
+	}
+
+	rows := convertRows(resp.Columns, resp.Rows)
+	var durationMs int64
+	if parsed, err := time.ParseDuration(resp.Duration); err == nil {
+		durationMs = parsed.Milliseconds()
+	}
+
+	connectionLabel := strings.Join(resp.ConnectionsUsed, ",")
+	limited := maxRows > 0 && resp.RowCount >= int64(maxRows)
+
+	return &ReadOnlyQueryResult{
+		Columns:         append([]string(nil), resp.Columns...),
+		Rows:            rows,
+		RowCount:        resp.RowCount,
+		ExecutionTimeMs: durationMs,
+		Limited:         limited,
+		ConnectionID:    connectionLabel,
 	}, nil
 }
 
@@ -817,6 +854,10 @@ func isSelectOnly(query string) bool {
 	}
 
 	return true
+}
+
+func isMultiDatabaseSQL(query string) bool {
+	return strings.Contains(query, "@")
 }
 
 func removeSQLComments(query string) string {

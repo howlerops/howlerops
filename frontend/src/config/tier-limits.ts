@@ -23,10 +23,10 @@ import type { TierFeatures, TierLimits, TierLevel } from '@/types/tiers'
  */
 export const TIER_LIMITS: Record<TierLevel, TierLimits> = {
   local: {
-    connections: 5,
-    queryHistory: 50,
-    aiMemories: 10,
-    savedQueries: 20,
+    connections: null,
+    queryHistory: null,
+    aiMemories: null,
+    savedQueries: null, // unlimited saved queries for local tier
     exportFileSize: 10 * 1024 * 1024, // 10MB
   },
   individual: {

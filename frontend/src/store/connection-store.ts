@@ -282,6 +282,24 @@ export const useConnectionStore = create<ConnectionState>()(
               throw new Error(response.message || 'Failed to create connection')
             }
 
+            // Save connection metadata to backend storage for RAG indexing
+            try {
+              await wailsEndpoints.connections.save({
+                id: connectionId,
+                name: connection.name,
+                type: connection.type,
+                host: connection.host ?? '',
+                port: connection.port ?? 0,
+                database: connection.database,
+                username: connection.username ?? '',
+                password: credentials?.password ?? '',
+                parameters: aliasParameters,
+              })
+            } catch (saveError) {
+              console.warn('Failed to save connection metadata:', saveError)
+              // Don't fail the connection if saving metadata fails
+            }
+
             const updatedConnection: DatabaseConnection = {
               ...connection,
               sessionId: response.data.id,

@@ -396,159 +396,286 @@ export function sanitizeQuery(
 
   // Analyze tokens for sensitive content
   const sanitizedTokens: Token[] = []
-  let previousKeyword = ''
-  let inSensitiveContext = false
-  let currentTable = ''
-  let currentSchema = ''
+  const clauseContextKeywords = new Set(['WHERE', 'HAVING', 'SET', 'VALUES', 'ON', 'USING'])
+  const clauseTerminators = new Set(['GROUP', 'ORDER', 'LIMIT', 'RETURNING', 'UNION', 'EXCEPT', 'INTERSECT', 'END'])
+  const tableContextKeywords = new Set(['FROM', 'JOIN', 'UPDATE', 'INTO', 'TABLE', 'DELETE', 'USING'])
+  const sensitiveKeywords = new Set(['GRANT', 'REVOKE', 'PASSWORD', 'IDENTIFIED'])
+  const sensitiveCombinations = new Set([
+    'CREATE USER',
+    'ALTER USER',
+    'DROP USER',
+    'CREATE ROLE',
+    'ALTER ROLE',
+    'DROP ROLE',
+    'CREATE LOGIN',
+    'ALTER LOGIN',
+    'SET PASSWORD'
+  ])
+  const reasonsSeen = new Set<string>()
+
+  const normalizeIdentifier = (raw: string): string => {
+    let value = raw.trim()
+    if (!value) {
+      return value
+    }
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith('`') && value.endsWith('`')) ||
+      (value.startsWith('[') && value.endsWith(']'))
+    ) {
+      value = value.slice(1, -1)
+    }
+    return value
+  }
+
+  const sensitiveFragments = ['password', 'credential', 'secret', 'token', 'auth', 'key']
+
+  const isSensitiveTableName = (name: string): boolean => {
+    if (!name) {
+      return false
+    }
+    if (shouldExcludeTable(name, config)) {
+      return true
+    }
+    const lower = name.toLowerCase()
+    if (sensitiveFragments.some(fragment => lower.includes(fragment))) {
+      return true
+    }
+    return config.sensitiveColumnPatterns.some(pattern => pattern.test(name))
+  }
+
+  const isSensitiveSchemaName = (name: string): boolean => {
+    if (!name) {
+      return false
+    }
+    if (shouldExcludeSchema(name, config)) {
+      return true
+    }
+    const lower = name.toLowerCase()
+    return sensitiveFragments.some(fragment => lower.includes(fragment))
+  }
+
+  const markPrivate = (reason: string) => {
+    if (!reasonsSeen.has(reason)) {
+      reasonsSeen.add(reason)
+      if (reason) {
+        result.reasons.push(reason)
+      }
+    }
+    result.privacyLevel = QueryPrivacyLevel.PRIVATE
+  }
+
+  let lastKeyword: string | null = null
+  let clause: string | null = null
+  let sensitiveContext = false
+  let pendingSchema: string | null = null
+  let lastTokenWasTable = false
+  let lastIdentifierInfo: { name: string; sensitive: boolean } | null = null
 
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i]
     const nextToken = i < tokens.length - 1 ? tokens[i + 1] : null
     const prevToken = i > 0 ? tokens[i - 1] : null
 
-    // Track keywords for context
     if (token.type === TokenType.KEYWORD) {
-      previousKeyword = token.value.toUpperCase()
+      const currentKeyword = token.value.toUpperCase()
+      const combined = lastKeyword ? `${lastKeyword} ${currentKeyword}` : ''
+      let markedSensitive = false
 
-      // Check for sensitive operations
-      const sensitiveOps = [
-        'CREATE USER', 'ALTER USER', 'DROP USER',
-        'CREATE ROLE', 'ALTER ROLE', 'DROP ROLE',
-        'GRANT', 'REVOKE', 'SET PASSWORD',
-        'CREATE LOGIN', 'ALTER LOGIN'
-      ]
-
-      // Check if this is part of a sensitive operation
-      if (prevToken?.type === TokenType.KEYWORD) {
-        const combined = `${prevToken.value.toUpperCase()} ${token.value.toUpperCase()}`
-        if (sensitiveOps.includes(combined)) {
-          result.privacyLevel = QueryPrivacyLevel.PRIVATE
-          result.reasons.push(`Sensitive operation detected: ${combined}`)
-          result.stats.sensitiveOperationsFound++
-          inSensitiveContext = true
-        }
-      }
-
-      // Check single keyword sensitive operations
-      if (['GRANT', 'REVOKE', 'PASSWORD'].includes(previousKeyword)) {
-        result.privacyLevel = QueryPrivacyLevel.PRIVATE
-        result.reasons.push(`Sensitive keyword: ${previousKeyword}`)
+      if (sensitiveCombinations.has(combined)) {
+        markPrivate(`Sensitive operation detected: ${combined}`)
         result.stats.sensitiveOperationsFound++
-        inSensitiveContext = true
+        result.stats.credentialsDetected++
+        sensitiveContext = true
+        markedSensitive = true
       }
+
+      if (!markedSensitive && sensitiveKeywords.has(currentKeyword)) {
+        markPrivate(`Sensitive keyword: ${currentKeyword}`)
+        result.stats.sensitiveOperationsFound++
+        result.stats.credentialsDetected++
+        sensitiveContext = true
+        markedSensitive = true
+      }
+
+      if (clauseContextKeywords.has(currentKeyword)) {
+        clause = currentKeyword
+      } else if (clauseTerminators.has(currentKeyword)) {
+        clause = null
+        sensitiveContext = false
+        pendingSchema = null
+      }
+
+      if (['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'WITH', 'CREATE'].includes(currentKeyword)) {
+        if (!clauseContextKeywords.has(currentKeyword)) {
+          clause = null
+        }
+        pendingSchema = null
+        lastTokenWasTable = false
+      }
+
+      lastKeyword = currentKeyword
+      lastTokenWasTable = false
+      lastIdentifierInfo = null
+      sanitizedTokens.push(token)
+      continue
     }
 
-    // Track table/schema names
     if (token.type === TokenType.IDENTIFIER) {
-      if (prevToken?.value.toUpperCase() === 'FROM' ||
-          prevToken?.value.toUpperCase() === 'JOIN' ||
-          prevToken?.value.toUpperCase() === 'INTO' ||
-          prevToken?.value.toUpperCase() === 'TABLE') {
+      const cleanName = normalizeIdentifier(token.value)
 
-        // Handle schema.table notation
-        if (nextToken?.value === '.') {
-          currentSchema = token.value
-        } else if (prevToken?.value === '.') {
-          currentTable = token.value
-        } else {
-          currentTable = token.value
-          currentSchema = ''
-        }
-
-        // Check for sensitive tables/schemas
-        if (currentSchema && shouldExcludeSchema(currentSchema, config)) {
-          result.privacyLevel = QueryPrivacyLevel.PRIVATE
-          result.reasons.push(`Sensitive schema: ${currentSchema}`)
-          result.stats.sensitiveTablesFound++
-        }
-
-        if (currentTable && shouldExcludeTable(currentTable, config)) {
-          result.privacyLevel = QueryPrivacyLevel.PRIVATE
-          result.reasons.push(`Sensitive table: ${currentTable}`)
-          result.stats.sensitiveTablesFound++
-        }
+      if (nextToken?.type === TokenType.OPERATOR && nextToken.value === '.') {
+        pendingSchema = cleanName
+        sanitizedTokens.push(token)
+        lastTokenWasTable = false
+        lastIdentifierInfo = null
+        continue
       }
+
+      if (prevToken?.type === TokenType.OPERATOR && prevToken.value === '.') {
+        if (pendingSchema && isSensitiveSchemaName(pendingSchema)) {
+          markPrivate(`Sensitive schema: ${pendingSchema}`)
+          result.stats.sensitiveTablesFound++
+        }
+        pendingSchema = null
+
+        if (isSensitiveTableName(cleanName)) {
+          markPrivate(`Sensitive table: ${cleanName}`)
+          result.stats.sensitiveTablesFound++
+        }
+
+        sanitizedTokens.push(token)
+        lastTokenWasTable = true
+        lastIdentifierInfo = null
+        continue
+      }
+
+      if (tableContextKeywords.has(lastKeyword ?? '')) {
+        if (pendingSchema && isSensitiveSchemaName(pendingSchema)) {
+          markPrivate(`Sensitive schema: ${pendingSchema}`)
+          result.stats.sensitiveTablesFound++
+        }
+        pendingSchema = null
+
+        if (isSensitiveTableName(cleanName)) {
+          markPrivate(`Sensitive table: ${cleanName}`)
+          result.stats.sensitiveTablesFound++
+        }
+
+        sanitizedTokens.push(token)
+        lastTokenWasTable = true
+        lastIdentifierInfo = null
+        continue
+      }
+
+      if (lastTokenWasTable) {
+        lastTokenWasTable = false
+        sanitizedTokens.push(token)
+        lastIdentifierInfo = null
+        continue
+      }
+
+      const isSensitiveColumn = config.sensitiveColumnPatterns.some(pattern => pattern.test(cleanName))
+      if (isSensitiveColumn) {
+        markPrivate(`Sensitive column referenced: ${cleanName}`)
+        result.stats.credentialsDetected++
+        sensitiveContext = true
+      }
+
+      sanitizedTokens.push(token)
+      lastTokenWasTable = false
+      lastIdentifierInfo = { name: cleanName, sensitive: isSensitiveColumn }
+      continue
     }
 
-    // Sanitize string literals
     if (token.type === TokenType.STRING_LITERAL) {
-      // Extract the actual string content (without quotes)
       const content = token.value.slice(1, -1)
-
-      // Check if it's a credential
       const credCheck = detectCredentials(content, config)
       if (credCheck.isCredential) {
         result.stats.credentialsDetected++
-        result.privacyLevel = QueryPrivacyLevel.PRIVATE
-        result.reasons.push(`Credential detected in string literal: ${credCheck.type}`)
+        markPrivate(`Credential detected in string literal: ${credCheck.type}`)
+        sensitiveContext = true
       }
 
-      // Determine sanitization based on privacy mode and context
       let shouldSanitize = false
-
       if (config.privacyMode === PrivacyMode.STRICT) {
         shouldSanitize = true
       } else if (config.privacyMode === PrivacyMode.NORMAL) {
-        // Sanitize in WHERE, SET, VALUES, or if it's a credential
         shouldSanitize =
           credCheck.isCredential ||
-          inSensitiveContext ||
-          ['WHERE', 'SET', 'VALUES', 'IDENTIFIED', 'PASSWORD'].includes(previousKeyword) ||
+          sensitiveContext ||
+          (clause !== null && clauseContextKeywords.has(clause)) ||
           mightBeCredential(content)
-      } else if (config.privacyMode === PrivacyMode.PERMISSIVE) {
-        // Only sanitize obvious credentials
-        shouldSanitize = credCheck.isCredential && credCheck.confidence > 0.8
+      } else {
+        shouldSanitize = credCheck.isCredential || sensitiveContext
       }
 
       if (shouldSanitize) {
-        sanitizedTokens.push({
-          ...token,
-          value: '?'
-        })
+        if (!credCheck.isCredential && lastIdentifierInfo?.sensitive) {
+          result.stats.credentialsDetected++
+        }
+        sanitizedTokens.push({ ...token, value: '?' })
         result.wasModified = true
         result.stats.literalsRemoved++
       } else {
         sanitizedTokens.push(token)
       }
-    }
-    // Sanitize numeric literals in sensitive contexts
-    else if (token.type === TokenType.NUMERIC_LITERAL) {
-      let shouldSanitize = false
 
+      lastTokenWasTable = false
+      lastIdentifierInfo = null
+      continue
+    }
+
+    if (token.type === TokenType.NUMERIC_LITERAL) {
+      let shouldSanitize = false
       if (config.privacyMode === PrivacyMode.STRICT) {
         shouldSanitize = true
       } else if (config.privacyMode === PrivacyMode.NORMAL) {
-        // Sanitize in WHERE, HAVING, LIMIT (could be IDs)
-        shouldSanitize = ['WHERE', 'HAVING', 'LIMIT', 'SET'].includes(previousKeyword)
+        shouldSanitize =
+          sensitiveContext ||
+          (clause !== null && ['WHERE', 'HAVING', 'ON', 'USING'].includes(clause))
       }
 
       if (shouldSanitize) {
-        sanitizedTokens.push({
-          ...token,
-          value: '?'
-        })
+        sanitizedTokens.push({ ...token, value: '?' })
         result.wasModified = true
         result.stats.literalsRemoved++
       } else {
         sanitizedTokens.push(token)
       }
+
+      lastTokenWasTable = false
+      lastIdentifierInfo = null
+      continue
     }
-    // Sanitize comments if they contain credentials
-    else if (token.type === TokenType.COMMENT) {
+
+    if (token.type === TokenType.COMMENT) {
       const credCheck = detectCredentials(token.value, config)
       if (credCheck.isCredential) {
-        // Remove the entire comment if it contains credentials
         result.wasModified = true
         result.stats.credentialsDetected++
-        result.privacyLevel = QueryPrivacyLevel.PRIVATE
-        result.reasons.push(`Credential detected in comment`)
-        // Don't add this token to sanitizedTokens (removes it)
-      } else {
-        sanitizedTokens.push(token)
+        markPrivate('Credential detected in comment')
+        continue
       }
-    }
-    else {
+
       sanitizedTokens.push(token)
+      lastTokenWasTable = false
+      lastIdentifierInfo = null
+      continue
+    }
+
+    if (token.type === TokenType.OPERATOR && token.value === ';') {
+      clause = null
+      sensitiveContext = false
+      pendingSchema = null
+      lastTokenWasTable = false
+      lastIdentifierInfo = null
+    }
+
+    sanitizedTokens.push(token)
+    lastTokenWasTable = false
+    if (token.type !== TokenType.WHITESPACE) {
+      lastIdentifierInfo = null
     }
   }
 

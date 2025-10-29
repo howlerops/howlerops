@@ -8,6 +8,7 @@ import {
   flexRender,
 } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { Eye } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useTableState } from '../../hooks/use-table-state';
 import { useKeyboardNavigation } from '../../hooks/use-keyboard-navigation';
@@ -76,6 +77,7 @@ export const EditableTable: React.FC<EditableTableProps> = ({
   onCellEdit, // eslint-disable-line @typescript-eslint/no-unused-vars
   onRowSelect,
   onRowClick,
+  onRowInspect,
   onSort,
   onFilter,
   onExport,
@@ -127,16 +129,33 @@ export const EditableTable: React.FC<EditableTableProps> = ({
         cell: ({ row, column, getValue }) => {
           const rawColumnId = column.id ?? (column as unknown as { columnDef?: { id?: string; accessorKey?: string } }).columnDef?.id ?? (column as unknown as { columnDef?: { id?: string; accessorKey?: string } }).columnDef?.accessorKey;
           const currentColumnId = String(rawColumnId ?? columnId);
+          const rowData = row.original as TableRow;
 
           // Check if there's a custom renderer for this column
           const customRenderer = customCellRenderers[currentColumnId];
           if (customRenderer) {
             return (
               <div
+                className="relative group h-full"
                 data-row-id={row.original.__rowId!}
                 data-column-id={currentColumnId}
               >
                 {customRenderer(getValue() as CellValue, row.original)}
+                {onRowInspect && (
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      onRowInspect(row.original.__rowId!, row.original);
+                    }}
+                    className="absolute bottom-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-background/80 text-muted-foreground opacity-0 shadow-sm transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100"
+                    tabIndex={-1}
+                    aria-label="Open row JSON"
+                  >
+                    <Eye className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </div>
             );
           }
@@ -164,6 +183,8 @@ export const EditableTable: React.FC<EditableTableProps> = ({
                 onCancel={actions.cancelEditing}
                 onUpdateEdit={actions.updateEditingCell}
                 editingState={state.editingCell}
+                onInspectRow={onRowInspect}
+                rowData={rowData}
               />
             </div>
           );
@@ -200,7 +221,16 @@ export const EditableTable: React.FC<EditableTableProps> = ({
     }
 
     return baseColumns;
-  }, [tableColumns, data, enableMultiSelect, enableColumnResizing, state, actions]);
+  }, [
+    tableColumns,
+    data,
+    enableMultiSelect,
+    enableColumnResizing,
+    state,
+    actions,
+    customCellRenderers,
+    onRowInspect,
+  ]);
 
   // TanStack Table returns mutable helpers; safe to instantiate per render.
   // eslint-disable-next-line react-hooks/incompatible-library
@@ -306,6 +336,26 @@ export const EditableTable: React.FC<EditableTableProps> = ({
         actions.startEditing(rowData.original.__rowId, columnId, value);
       }
     }, [rows, columns, actions]),
+    onDelete: useCallback((rowIndex: number, columnIndex: number) => {
+      const row = rows[rowIndex];
+      const column = columns[columnIndex];
+      const columnId = (column?.id ?? (column as unknown as { columnDef?: { id?: string; accessorKey?: string } })?.columnDef?.id ?? (column as unknown as { columnDef?: { id?: string; accessorKey?: string } })?.columnDef?.accessorKey) as string | undefined;
+      if (!row || !column || !columnId || columnId === 'select') {
+        return;
+      }
+
+      const metaColumn = (column as unknown as { columnDef?: { meta?: { originalColumn?: TableColumn } } })?.columnDef?.meta?.originalColumn;
+      if (metaColumn && metaColumn.editable === false) {
+        return;
+      }
+
+      const rowData = row as { original: { __rowId: string } };
+      if (!rowData.original.__rowId) {
+        return;
+      }
+
+      actions.updateCell(rowData.original.__rowId, columnId, null);
+    }, [rows, columns, actions]),
     onUndo: actions.undo,
     onRedo: actions.redo,
     disabled: loading,
@@ -398,7 +448,7 @@ export const EditableTable: React.FC<EditableTableProps> = ({
       >
         <div
           ref={tableContainerRef}
-          className="overflow-auto"
+          className="relative overflow-auto"
           style={{ 
             height: typeof height === 'number' ? `${height}px` : height || '400px',
           }}

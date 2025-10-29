@@ -7,6 +7,8 @@
  * @module sanitization
  */
 
+import type { DatabaseConnection } from '@/store/connection-store'
+
 // Configuration exports
 export {
   PrivacyMode,
@@ -55,24 +57,42 @@ export {
   validateSanitization
 } from './connection-sanitizer'
 
+import type { SanitizationConfig } from './config'
+import type { QuerySanitizationResult } from './query-sanitizer'
+import type {
+  ConnectionSanitizationResult,
+  SanitizedConnection,
+} from './connection-sanitizer'
+import type { CredentialDetectionResult } from './credential-detector'
+import {
+  mergeConfig,
+  getGlobalConfig,
+  QueryPrivacyLevel,
+} from './config'
+import { sanitizeQuery } from './query-sanitizer'
+import {
+  sanitizeConnection,
+  prepareConnectionsForSync,
+} from './connection-sanitizer'
+import {
+  detectCredentials,
+  deepScanForCredentials,
+} from './credential-detector'
+
 /**
  * High-level sanitization interface for common use cases
  */
 export class Sanitizer {
-  private config: import('./config').SanitizationConfig
+  private config: SanitizationConfig
 
-  constructor(config?: Partial<import('./config').SanitizationConfig>) {
-    const { mergeConfig, getGlobalConfig } = require('./config')
-    this.config = config
-      ? mergeConfig(config)
-      : getGlobalConfig()
+  constructor(config?: Partial<SanitizationConfig>) {
+    this.config = config ? mergeConfig(config) : getGlobalConfig()
   }
 
   /**
    * Sanitize a SQL query
    */
-  sanitizeQuery(query: string): import('./query-sanitizer').QuerySanitizationResult {
-    const { sanitizeQuery } = require('./query-sanitizer')
+  sanitizeQuery(query: string): QuerySanitizationResult {
     return sanitizeQuery(query, this.config)
   }
 
@@ -80,17 +100,15 @@ export class Sanitizer {
    * Sanitize a database connection
    */
   sanitizeConnection(
-    connection: import('@/store/connection-store').DatabaseConnection
-  ): import('./connection-sanitizer').ConnectionSanitizationResult {
-    const { sanitizeConnection } = require('./connection-sanitizer')
+    connection: DatabaseConnection
+  ): ConnectionSanitizationResult {
     return sanitizeConnection(connection, this.config)
   }
 
   /**
    * Check if a string contains credentials
    */
-  detectCredentials(input: string): import('./credential-detector').CredentialDetectionResult {
-    const { detectCredentials } = require('./credential-detector')
+  detectCredentials(input: string): CredentialDetectionResult {
     return detectCredentials(input, this.config)
   }
 
@@ -99,10 +117,10 @@ export class Sanitizer {
    */
   prepareForSync(data: {
     queries?: string[]
-    connections?: import('@/store/connection-store').DatabaseConnection[]
+    connections?: DatabaseConnection[]
   }): {
-    sanitizedQueries: import('./query-sanitizer').QuerySanitizationResult[]
-    sanitizedConnections: import('./connection-sanitizer').SanitizedConnection[]
+    sanitizedQueries: QuerySanitizationResult[]
+    sanitizedConnections: SanitizedConnection[]
     issues: string[]
   } {
     const issues: string[] = []
@@ -113,7 +131,6 @@ export class Sanitizer {
       : []
 
     // Check for private queries
-    const { QueryPrivacyLevel } = require('./config')
     const privateQueries = sanitizedQueries.filter(
       r => r.privacyLevel === QueryPrivacyLevel.PRIVATE
     )
@@ -122,7 +139,6 @@ export class Sanitizer {
     }
 
     // Sanitize connections
-    const { prepareConnectionsForSync } = require('./connection-sanitizer')
     const connectionResults = data.connections
       ? prepareConnectionsForSync(data.connections, this.config)
       : { safeConnections: [], unsafeConnections: [] }
@@ -144,7 +160,6 @@ export class Sanitizer {
    * Validate that data is safe for sync
    */
   validateForSync(data: any): { isSafe: boolean; issues: string[] } {
-    const { deepScanForCredentials } = require('./credential-detector')
     const scanResults = deepScanForCredentials(data, this.config)
 
     if (scanResults.length === 0) {
@@ -161,15 +176,14 @@ export class Sanitizer {
   /**
    * Update configuration
    */
-  updateConfig(updates: Partial<import('./config').SanitizationConfig>): void {
-    const { mergeConfig } = require('./config')
+  updateConfig(updates: Partial<SanitizationConfig>): void {
     this.config = mergeConfig({ ...this.config, ...updates })
   }
 
   /**
    * Get current configuration
    */
-  getConfig(): import('./config').SanitizationConfig {
+  getConfig(): SanitizationConfig {
     return { ...this.config }
   }
 }

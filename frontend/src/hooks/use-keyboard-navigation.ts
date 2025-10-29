@@ -130,6 +130,21 @@ export const useKeyboardNavigation = ({
       return;
     }
 
+    const target = event.target as HTMLElement | null;
+    if (target) {
+      const tagName = target.tagName;
+      if (
+        target.closest('[data-cell-editor="true"]') ||
+        tagName === 'INPUT' ||
+        tagName === 'TEXTAREA' ||
+        tagName === 'SELECT' ||
+        tagName === 'BUTTON' ||
+        target.getAttribute('contenteditable') === 'true'
+      ) {
+        return;
+      }
+    }
+
     const { focusedCell, isEditing, selection } = navigationState;
 
     if (!focusedCell) {

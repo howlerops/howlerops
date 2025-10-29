@@ -3,11 +3,13 @@ package updater
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 )
@@ -128,7 +130,7 @@ func TestCheckForUpdate(t *testing.T) {
 		},
 	}
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := newTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(mockRelease)
 	}))
@@ -224,7 +226,7 @@ func TestRecordUpdateCheck(t *testing.T) {
 
 func TestFetchLatestRelease_Error(t *testing.T) {
 	// Create mock server that returns error
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := newTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("Internal Server Error"))
 	}))
@@ -242,7 +244,7 @@ func TestFetchLatestRelease_Error(t *testing.T) {
 
 func TestFetchLatestRelease_InvalidJSON(t *testing.T) {
 	// Create mock server that returns invalid JSON
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := newTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte("invalid json"))
 	}))
@@ -261,7 +263,7 @@ func TestFetchLatestRelease_InvalidJSON(t *testing.T) {
 func TestDownloadChecksum(t *testing.T) {
 	// Create mock server
 	expectedHash := "abc123def456789"
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := newTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(expectedHash + "  filename.bin\n"))
 	}))
 	defer server.Close()
@@ -330,4 +332,19 @@ func containsMiddle(s, substr string) bool {
 		}
 	}
 	return false
+}
+
+func newTestServer(t *testing.T, handler http.Handler) *httptest.Server {
+	t.Helper()
+
+	defer func() {
+		if r := recover(); r != nil {
+			if strings.Contains(fmt.Sprint(r), "failed to listen on a port") {
+				t.Skipf("Skipping test: cannot bind test server: %v", r)
+			}
+			panic(r)
+		}
+	}()
+
+	return httptest.NewServer(handler)
 }

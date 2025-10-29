@@ -1,0 +1,19 @@
+#!/bin/bash
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+LOG_FILE="${REPO_DIR}/go-wrapper.log"
+export GOCACHE="${REPO_DIR}/.gocache"
+if [ -z "${CGO_LDFLAGS+x}" ]; then
+  export CGO_LDFLAGS="-framework UniformTypeIdentifiers"
+fi
+REAL_GO="/opt/homebrew/bin/go"
+timestamp() {
+  date -u "+%Y-%m-%dT%H:%M:%SZ"
+}
+
+echo "$(timestamp) go $@" >> "$LOG_FILE"
+"$REAL_GO" "$@"
+STATUS=$?
+echo "$(timestamp) exit $STATUS" >> "$LOG_FILE"
+exit $STATUS

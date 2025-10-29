@@ -268,12 +268,27 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
     }
   }, [memoriesHydrated, agentHydrated, syncAgentFromMemory])
 
-  // Keyboard shortcut for diagnostics panel (Ctrl/Cmd+Shift+D)
+  // Keyboard shortcuts:
+  // - Ctrl/Cmd+Shift+D: toggle diagnostics
+  // - Ctrl/Cmd+Shift+L: open Saved Queries library
+  // - Ctrl/Cmd+Shift+S: open Save Query dialog
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'D') {
         e.preventDefault()
         setShowDiagnostics(prev => !prev)
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'L' || e.key === 'l')) {
+        e.preventDefault()
+        setShowSavedQueries(prev => !prev)
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'S' || e.key === 's')) {
+        if ((editorRef.current?.getValue() ?? editorContent).trim()) {
+          e.preventDefault()
+          setShowSaveQueryDialog(true)
+        }
       }
     }
     
@@ -1149,146 +1164,146 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
 
         {/* Tab Bar */}
         <div className="flex items-center">
-        <div className="flex-1 flex items-center overflow-x-auto">
-          <Tabs value={activeTabId || ''} className="w-full">
-            <TabsList className="h-10 bg-transparent border-0 rounded-none p-0">
-              {tabs.map((tab) => {
-                const hasNoConnection = !tab.connectionId
-                
-                return (<div key={tab.id} className="flex items-center border-r">
-                  <TabsTrigger
-                    value={tab.id}
-                    onClick={() => handleTabClick(tab.id)}
-                    className={cn(
-                      "h-10 px-3 rounded-none border-0 data-[state=active]:bg-background",
-                      "data-[state=active]:border-b-2 data-[state=active]:border-primary",
-                      "flex items-center space-x-2 min-w-[120px] max-w-[200px]",
-                      mode === 'single' && hasNoConnection && "border-b-2 border-accent/50"
-                    )}
-                  >
-                    <span className={cn(
-                      "truncate",
-                      mode === 'single' && hasNoConnection && "text-accent-foreground"
-                    )}>
-                      {tab.title}
-                      {tab.isDirty && <span className="ml-1">•</span>}
-                      {mode === 'single' && hasNoConnection && <span className="ml-1" title="No connection selected">⚠️</span>}
-                    </span>
-                  </TabsTrigger>
+          <div className="flex-1 flex items-center overflow-x-auto">
+            <Tabs value={activeTabId || ''} className="w-full">
+              <TabsList className="h-10 bg-transparent border-0 rounded-none p-0">
+                {tabs.map((tab) => {
+                  const hasNoConnection = !tab.connectionId
                   
-                  {/* Connection Selector - Conditional based on mode */}
-                  {mode === 'single' ? (
-                    // Single-DB Mode: Show dropdown
-                    <div className="px-2">
-                      <Select
-                        value={tab.connectionId || ''}
-                        onValueChange={(value) => handleTabConnectionChange(tab.id, value)}
-                        disabled={isConnecting}
-                      >
-                        <SelectTrigger
-                          className={cn(
-                            "h-6 w-32 text-xs",
-                            !tab.connectionId && "border-accent text-accent-foreground bg-accent/10"
-                          )}
-                          title={!tab.connectionId ? "No database selected - select one to execute queries" : undefined}
-                        >
-                          <SelectValue placeholder={isConnecting ? "Connecting..." : "⚠️ Select DB"} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {!tab.connectionId && (
-                            <div className="px-2 py-1.5 text-xs text-accent-foreground bg-accent/10 border-b flex items-center gap-2">
-                              <AlertCircle className="h-3 w-3" />
-                              <span>Please select a connection</span>
-                            </div>
-                          )}
-                          {connections.map((conn) => (
-                            <SelectItem key={conn.id} value={conn.id}>
-                              <div className="flex items-center gap-2">
-                                <Database className="h-3 w-3" />
-                                <span className="flex-1">{conn.name}</span>
-                                {conn.isConnected ? (
-                                  <span className="text-xs text-green-500 font-bold" title="Connected">●</span>
-                                ) : (
-                                  <span className="text-xs text-muted-foreground" title="Not connected">○</span>
-                                )}
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {lastConnectionError && (
-                        <div className="text-xs text-destructive mt-1 max-w-32 truncate" title={lastConnectionError}>
-                          {lastConnectionError}
-                        </div>
+                  return (<div key={tab.id} className="flex items-center border-r">
+                    <TabsTrigger
+                      value={tab.id}
+                      onClick={() => handleTabClick(tab.id)}
+                      className={cn(
+                        "h-10 px-3 rounded-none border-0 data-[state=active]:bg-background",
+                        "data-[state=active]:border-b-2 data-[state=active]:border-primary",
+                        "flex items-center space-x-2 min-w-[120px] max-w-[200px]",
+                        mode === 'single' && hasNoConnection && "border-b-2 border-accent/50"
                       )}
-                    </div>
-                  ) : (
-                    // Multi-DB Mode: Show connection badge with click to open selector
-                    <div className="px-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setActiveTab(tab.id)
-                          setShowConnectionSelector(true)
-                        }}
-                        className="h-6 px-2 text-xs bg-accent/10 border-accent hover:bg-accent/20"
-                      >
-                        <Network className="h-3 w-3 mr-1 text-accent-foreground" />
-                        {(() => {
-                          const activeConnections = getActiveConnectionsForTab(tab)
-                          const filteredConns = getFilteredConnections()
-                          return `${activeConnections.length}/${filteredConns.length} DBs`
-                        })()}
-                      </Button>
-                    </div>
-                  )}
-
-                  {/* Close Button */}
-                  {tabs.length > 1 && (
-                    <span
-                      role="button"
-                      tabIndex={0}
-                      className="px-1 inline-flex h-4 w-4 cursor-pointer items-center justify-center rounded hover:bg-destructive/10 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-destructive"
-                      onClick={(e) => handleCloseTab(tab.id, e)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault()
-                          handleCloseTab(tab.id, e)
-                        }
-                      }}
                     >
-                      <X className="h-3 w-3" />
-                    </span>
-                  )}
-                </div>)
-              })}
-            </TabsList>
-          </Tabs>
-        </div>
+                      <span className={cn(
+                        "truncate",
+                        mode === 'single' && hasNoConnection && "text-accent-foreground"
+                      )}>
+                        {tab.title}
+                        {tab.isDirty && <span className="ml-1">•</span>}
+                        {mode === 'single' && hasNoConnection && <span className="ml-1" title="No connection selected">⚠️</span>}
+                      </span>
+                    </TabsTrigger>
+                    
+                    {/* Connection Selector - Conditional based on mode */}
+                    {mode === 'single' ? (
+                      // Single-DB Mode: Show dropdown
+                      <div className="px-2">
+                        <Select
+                          value={tab.connectionId || ''}
+                          onValueChange={(value) => handleTabConnectionChange(tab.id, value)}
+                          disabled={isConnecting}
+                        >
+                          <SelectTrigger
+                            className={cn(
+                              "h-6 w-32 text-xs",
+                              !tab.connectionId && "border-accent text-accent-foreground bg-accent/10"
+                            )}
+                            title={!tab.connectionId ? "No database selected - select one to execute queries" : undefined}
+                          >
+                            <SelectValue placeholder={isConnecting ? "Connecting..." : "⚠️ Select DB"} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {!tab.connectionId && (
+                              <div className="px-2 py-1.5 text-xs text-accent-foreground bg-accent/10 border-b flex items-center gap-2">
+                                <AlertCircle className="h-3 w-3" />
+                                <span>Please select a connection</span>
+                              </div>
+                            )}
+                            {connections.map((conn) => (
+                              <SelectItem key={conn.id} value={conn.id}>
+                                <div className="flex items-center gap-2">
+                                  <Database className="h-3 w-3" />
+                                  <span className="flex-1">{conn.name}</span>
+                                  {conn.isConnected ? (
+                                    <span className="text-xs text-green-500 font-bold" title="Connected">●</span>
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground" title="Not connected">○</span>
+                                  )}
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {lastConnectionError && (
+                          <div className="text-xs text-destructive mt-1 max-w-32 truncate" title={lastConnectionError}>
+                            {lastConnectionError}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      // Multi-DB Mode: Show connection badge with click to open selector
+                      <div className="px-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setActiveTab(tab.id)
+                            setShowConnectionSelector(true)
+                          }}
+                          className="h-6 px-2 text-xs bg-accent/10 border-accent hover:bg-accent/20"
+                        >
+                          <Network className="h-3 w-3 mr-1 text-accent-foreground" />
+                          {(() => {
+                            const activeConnections = getActiveConnectionsForTab(tab)
+                            const filteredConns = getFilteredConnections()
+                            return `${activeConnections.length}/${filteredConns.length} DBs`
+                          })()}
+                        </Button>
+                      </div>
+                    )}
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="ml-2"
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={handleCreateSqlTab}>
-              <Database className="h-4 w-4 mr-2" />
-              SQL Editor Tab
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleCreateAiTab}>
-              <Sparkles className="h-4 w-4 mr-2" />
-              AI Query Agent
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+                    {/* Close Button */}
+                    {tabs.length > 1 && (
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        className="px-1 inline-flex h-4 w-4 cursor-pointer items-center justify-center rounded hover:bg-destructive/10 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-destructive"
+                        onClick={(e) => handleCloseTab(tab.id, e)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault()
+                            handleCloseTab(tab.id, e)
+                          }
+                        }}
+                      >
+                        <X className="h-3 w-3" />
+                      </span>
+                    )}
+                  </div>)
+                })}
+              </TabsList>
+            </Tabs>
+          </div>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="ml-2"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleCreateSqlTab}>
+                <Database className="h-4 w-4 mr-2" />
+                SQL Editor Tab
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleCreateAiTab}>
+                <Sparkles className="h-4 w-4 mr-2" />
+                AI Query Agent
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -1308,7 +1323,7 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
         <Sheet open={showAIDialog} onOpenChange={setShowAIDialog}>
           <SheetContent
             side="right"
-            className="w-[600px] sm:max-w-[600px] m-4 h-[calc(100vh-2rem)] rounded-xl shadow-2xl border overflow-y-auto flex flex-col"
+            className="w-[600px] sm:max-w-[600px] m-4 h-[calc(100vh-2rem)] rounded-xl shadow-2xl border overflow-y-auto flex flex-col p-4"
           >
             <SheetHeader className="space-y-4 border-b pb-4">
               <div className="space-y-2">
@@ -1320,15 +1335,76 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
                     </SheetTitle>
                   </div>
                   {!isFixMode && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={handleCreateMemorySession}
-                      className="h-8 px-2 text-xs"
-                    >
-                      <Plus className="h-3 w-3 mr-1" />
-                      New Session
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      {/* Mode toggle */}
+                      {canToggle && (
+                        <div className="flex items-center rounded-md border bg-background overflow-hidden">
+                          <Button
+                            variant={mode === 'single' ? 'default' : 'ghost'}
+                            size="sm"
+                            className="h-8 px-2 text-xs"
+                            onClick={() => mode === 'multi' && toggleMode()}
+                          >
+                            Single
+                          </Button>
+                          <Button
+                            variant={mode === 'multi' ? 'default' : 'ghost'}
+                            size="sm"
+                            className="h-8 px-2 text-xs"
+                            onClick={() => mode === 'single' && toggleMode()}
+                          >
+                            Multi
+                          </Button>
+                        </div>
+                      )}
+
+                      {/* Connection controls per mode */}
+                      {mode === 'single' ? (
+                        <Select
+                          value={activeTab?.connectionId || ''}
+                          onValueChange={(value) => activeTab && handleTabConnectionChange(activeTab.id, value)}
+                          disabled={isConnecting}
+                        >
+                          <SelectTrigger className="h-8 w-44 text-xs" title={!activeTab?.connectionId ? 'Select a database' : undefined}>
+                            <SelectValue placeholder={isConnecting ? 'Connecting…' : 'Select database'} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {connections.map((conn) => (
+                              <SelectItem key={conn.id} value={conn.id}>
+                                <div className="flex items-center gap-2 text-xs">
+                                  <Database className="h-3 w-3" />
+                                  <span className="flex-1">{conn.name}</span>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 px-2 text-xs"
+                          onClick={() => setShowConnectionSelector(true)}
+                        >
+                          <Network className="h-3 w-3 mr-1" />
+                          {(() => {
+                            const count = activeTab ? getActiveConnectionsForTab(activeTab).length : 0
+                            const total = getFilteredConnections().length
+                            return `${count}/${total} DBs`
+                          })()}
+                        </Button>
+                      )}
+
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleCreateMemorySession}
+                        className="h-8 px-2 text-xs"
+                      >
+                        <Plus className="h-3 w-3 mr-1" />
+                        New Session
+                      </Button>
+                    </div>
                   )}
                 </div>
                 <SheetDescription className="mt-2 text-left">
@@ -1390,7 +1466,7 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
 
             <div className="flex-1 overflow-hidden">
               {isFixMode || aiSheetTab === 'assistant' ? (
-                <div className="grid h-full gap-4 py-4 overflow-y-auto">
+                <div className="grid h-full gap-4 py-4 px-2 overflow-y-auto">
                   {!isFixMode && (
                     <>
                       <div className="space-y-2">
@@ -1720,29 +1796,25 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
             </Button>
           )}
 
-          {/* Save Query Button */}
-          {user && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowSaveQueryDialog(true)}
-              disabled={!editorContent.trim()}
-              title="Save query to library (Ctrl/Cmd+Shift+S)"
-            >
-              <Save className="h-4 w-4 mr-2" />
-              Save Query
-            </Button>
-          )}
-          {user && (
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setShowSavedQueries(true)}
-              title="Open Saved Queries (Ctrl/Cmd+Shift+L)"
-            >
-              Library
-            </Button>
-          )}
+          {/* Save Query Button (always available; uses local-user fallback) */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowSaveQueryDialog(true)}
+            disabled={!editorContent.trim()}
+            title="Save query to library (Ctrl/Cmd+Shift+S)"
+          >
+            <Save className="h-4 w-4 mr-2" />
+            Save Query
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowSavedQueries(true)}
+            title="Open Saved Queries (Ctrl/Cmd+Shift+L)"
+          >
+            Query Library
+          </Button>
         </div>
 
         <div className="text-xs text-muted-foreground">

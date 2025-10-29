@@ -22,6 +22,7 @@ export const CellEditor: React.FC<CellEditorProps> = ({
     value?.toString() ?? ''
   );
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(null);
+  const hasFocusedRef = useRef(false);
   const onChangeRef = useRef(onChange);
 
   // Keep onChange ref up to date
@@ -31,10 +32,18 @@ export const CellEditor: React.FC<CellEditorProps> = ({
 
   // Focus the input when the editor is mounted
   useEffect(() => {
-    if (autoFocus && inputRef.current) {
-      inputRef.current.focus();
-      if ('select' in inputRef.current) {
-        inputRef.current.select();
+    if (!autoFocus || !inputRef.current || hasFocusedRef.current) return;
+
+    hasFocusedRef.current = true;
+    const element = inputRef.current;
+    element.focus();
+
+    if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
+      const length = element.value.length;
+      try {
+        element.setSelectionRange(length, length);
+      } catch {
+        // Ignore browsers that don't support setSelectionRange (e.g. type="number")
       }
     }
   }, [autoFocus]);
@@ -215,7 +224,7 @@ export const CellEditor: React.FC<CellEditorProps> = ({
   };
 
   return (
-    <div className="relative w-full h-full">
+    <div className="relative w-full h-full" data-cell-editor="true">
       {renderInput()}
 
       {/* Validation error */}

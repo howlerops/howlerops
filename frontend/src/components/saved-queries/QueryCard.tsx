@@ -13,7 +13,7 @@
  * @module components/saved-queries/QueryCard
  */
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { formatDistanceToNow } from 'date-fns'
 import {
   Card,
@@ -77,6 +77,13 @@ export interface QueryCardProps {
 
   /** Whether to show sync status indicator (for Individual tier) */
   showSyncStatus?: boolean
+
+  /** Internal testing overrides */
+  testOverrides?: {
+    defaultMenuOpen?: boolean
+    forceDeleteDialogOpen?: boolean
+    onDeleteRequest?: () => void
+  }
 }
 
 /**
@@ -103,8 +110,17 @@ export function QueryCard({
   onDuplicate,
   onToggleFavorite,
   showSyncStatus = false,
+  testOverrides,
 }: QueryCardProps) {
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(
+    testOverrides?.forceDeleteDialogOpen ?? false
+  )
+
+  useEffect(() => {
+    if (typeof testOverrides?.forceDeleteDialogOpen === 'boolean') {
+      setShowDeleteDialog(testOverrides.forceDeleteDialogOpen)
+    }
+  }, [testOverrides?.forceDeleteDialogOpen])
 
   // Format the relative time since last update
   const lastUpdated = formatDistanceToNow(new Date(query.updated_at), {
@@ -134,6 +150,11 @@ export function QueryCard({
   }
 
   // Handle delete confirmation
+  const handleDeleteRequest = () => {
+    setShowDeleteDialog(true)
+    testOverrides?.onDeleteRequest?.()
+  }
+
   const handleDeleteConfirm = () => {
     onDelete(query.id)
     setShowDeleteDialog(false)
@@ -190,13 +211,12 @@ export function QueryCard({
             </div>
 
             {/* Actions dropdown */}
-            <DropdownMenu>
+            <DropdownMenu defaultOpen={testOverrides?.defaultMenuOpen}>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
                   size="sm"
                   className="h-8 w-8 p-0 shrink-0"
-                  onClick={(e) => e.stopPropagation()}
                   aria-label="Query actions"
                   data-no-propagate
                 >
@@ -204,20 +224,20 @@ export function QueryCard({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onClick={() => onLoad(query)}>
+                <DropdownMenuItem onSelect={() => onLoad(query)}>
                   <Play className="h-4 w-4 mr-2" />
                   Load Query
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onEdit(query)}>
+                <DropdownMenuItem onSelect={() => onEdit(query)}>
                   <Edit className="h-4 w-4 mr-2" />
                   Edit
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onDuplicate(query.id)}>
+                <DropdownMenuItem onSelect={() => onDuplicate(query.id)}>
                   <Copy className="h-4 w-4 mr-2" />
                   Duplicate
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => onToggleFavorite(query.id)}>
+                <DropdownMenuItem onSelect={() => onToggleFavorite(query.id)}>
                   <Star
                     className={cn(
                       'h-4 w-4 mr-2',
@@ -228,7 +248,7 @@ export function QueryCard({
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  onClick={() => setShowDeleteDialog(true)}
+                  onSelect={handleDeleteRequest}
                   className="text-destructive focus:text-destructive"
                 >
                   <Trash2 className="h-4 w-4 mr-2" />

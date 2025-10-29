@@ -193,6 +193,50 @@ export class WailsApiClient {
     }
   }
 
+  async saveConnection(data: unknown) {
+    try {
+      const request = (data || {}) as {
+        id?: string
+        name?: string
+        type?: string
+        host?: string
+        port?: number
+        database?: string
+        username?: string
+        password?: string
+        ssl_mode?: string
+        connection_timeout?: number
+        parameters?: Record<string, string>
+      }
+
+      await App.SaveConnection({
+        id: request.id || '',
+        name: request.name || '',
+        type: request.type || 'postgresql',
+        host: request.host || 'localhost',
+        port: request.port || 5432,
+        database: request.database || '',
+        username: request.username || '',
+        password: request.password || '',
+        sslMode: request.ssl_mode || 'disable',
+        connectionTimeout: request.connection_timeout || 30,
+        parameters: request.parameters || {}
+      })
+
+      return {
+        data: null,
+        success: true,
+        message: 'Connection saved successfully'
+      }
+    } catch (error) {
+      return {
+        data: null,
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to save connection'
+      }
+    }
+  }
+
   async testConnection(data: unknown) {
     try {
       const connectionData = data as {
@@ -487,6 +531,10 @@ export const wailsEndpoints = {
 
     create: async (data: unknown) => {
       return wailsApiClient.createConnection(data)
+    },
+
+    save: async (data: unknown) => {
+      return wailsApiClient.saveConnection(data)
     },
 
     test: async (data: unknown) => {

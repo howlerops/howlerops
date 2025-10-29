@@ -8,5 +8,3 @@ type TursoVectorSync struct{}
 func NewTursoVectorSync() *TursoVectorSync { return &TursoVectorSync{} }
 
 func (t *TursoVectorSync) Sync(ctx context.Context, doc *Document) error { return nil }
-
-

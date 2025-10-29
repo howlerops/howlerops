@@ -100,25 +100,16 @@ export function detectCredentials(
   // Trim for analysis (but preserve original for position tracking)
   const trimmed = input.trim()
 
-  // Quick length check - very long strings are suspicious
-  if (trimmed.length > config.maxSafeStringLength) {
-    return {
-      isCredential: true,
-      type: CredentialType.UNKNOWN,
-      confidence: 0.7,
-      reason: `String exceeds safe length (${trimmed.length} > ${config.maxSafeStringLength})`
-    }
-  }
-
   // Check for SSH private keys (highest priority)
   for (const pattern of config.credentialPatterns.privateKey) {
     if (pattern.test(trimmed)) {
-      return {
+      const result: CredentialDetectionResult = {
         isCredential: true,
         type: CredentialType.SSH_PRIVATE_KEY,
         confidence: 1.0,
         reason: 'SSH private key detected'
       }
+      return result
     }
   }
 
@@ -131,24 +122,26 @@ export function detectCredentials(
   ]
   for (const pattern of certPatterns) {
     if (pattern.test(trimmed)) {
-      return {
+      const result: CredentialDetectionResult = {
         isCredential: true,
         type: CredentialType.CERTIFICATE,
         confidence: 1.0,
         reason: 'Certificate detected'
       }
+      return result
     }
   }
 
   // Check for JWT tokens
   for (const pattern of config.credentialPatterns.jwt) {
     if (pattern.test(trimmed)) {
-      return {
+      const result: CredentialDetectionResult = {
         isCredential: true,
         type: CredentialType.JWT_TOKEN,
         confidence: 1.0,
         reason: 'JWT token detected'
       }
+      return result
     }
   }
 
@@ -166,38 +159,73 @@ export function detectCredentials(
 
   // Additional connection string patterns
   const connStringIndicators = [
-    'mongodb://',
-    'mongodb+srv://',
-    'postgresql://',
-    'postgres://',
-    'mysql://',
-    'redis://',
-    'amqp://',
-    'kafka://',
-    'elasticsearch://',
-    'http://.*:.*@',  // HTTP with credentials
-    'https://.*:.*@'  // HTTPS with credentials
+    /mongodb:\/\//i,
+    /mongodb\+srv:\/\//i,
+    /postgres(?:ql)?:\/\//i,
+    /mysql:\/\//i,
+    /redis:\/\//i,
+    /amqp:\/\//i,
+    /kafka:\/\//i,
+    /elasticsearch:\/\//i,
+    /https?:\/\/[^\s]+:[^\s]+@/i,
   ]
   for (const indicator of connStringIndicators) {
-    if (trimmed.toLowerCase().includes(indicator)) {
-      return {
+    if (indicator.test(trimmed)) {
+      const result: CredentialDetectionResult = {
         isCredential: true,
         type: CredentialType.CONNECTION_STRING,
         confidence: 0.9,
-        reason: `Connection string indicator found: ${indicator}`
+        reason: 'Connection string indicator detected',
       }
+      return result
     }
+  }
+
+  // Check for common hash formats before other heuristics to avoid misclassification
+  const hashPatterns = [
+    { pattern: /^[a-f0-9]{32}$/i, name: 'MD5' },
+    { pattern: /^[a-f0-9]{40}$/i, name: 'SHA1' },
+    { pattern: /^[a-f0-9]{56}$/i, name: 'SHA224' },
+    { pattern: /^[a-f0-9]{64}$/i, name: 'SHA256' },
+    { pattern: /^[a-f0-9]{96}$/i, name: 'SHA384' },
+    { pattern: /^[a-f0-9]{128}$/i, name: 'SHA512' },
+    { pattern: /^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$/, name: 'bcrypt' },
+    { pattern: /^\$argon2(i|d|id)\$/, name: 'Argon2' },
+    { pattern: /^pbkdf2/i, name: 'PBKDF2' },
+  ]
+  for (const { pattern, name } of hashPatterns) {
+    if (pattern.test(trimmed)) {
+      const result: CredentialDetectionResult = {
+        isCredential: true,
+        type: CredentialType.HASH,
+        confidence: 0.95,
+        reason: `${name} hash detected`,
+      }
+      return result
+    }
+  }
+
+  // Quick length check - very long strings are suspicious (after explicit pattern checks)
+  if (trimmed.length > config.maxSafeStringLength) {
+    const result: CredentialDetectionResult = {
+      isCredential: true,
+      type: CredentialType.UNKNOWN,
+      confidence: 0.7,
+      reason: `String exceeds safe length (${trimmed.length} > ${config.maxSafeStringLength})`,
+    }
+    return result
   }
 
   // Check for API keys
   for (const pattern of config.credentialPatterns.apiKey) {
     if (pattern.test(trimmed)) {
-      return {
+      const result: CredentialDetectionResult = {
         isCredential: true,
         type: CredentialType.API_KEY,
         confidence: 0.9,
         reason: 'API key pattern detected'
       }
+      return result
     }
   }
 
@@ -218,47 +246,29 @@ export function detectCredentials(
   ]
   for (const prefix of apiKeyPrefixes) {
     if (trimmed.toLowerCase().startsWith(prefix.toLowerCase())) {
-      return {
+      if (trimmed.length < 16) {
+        continue
+      }
+      const result: CredentialDetectionResult = {
         isCredential: true,
         type: CredentialType.API_KEY,
         confidence: 0.85,
         reason: `API key prefix detected: ${prefix}`
       }
+      return result
     }
   }
 
   // Check for password patterns
   for (const pattern of config.credentialPatterns.password) {
     if (pattern.test(trimmed)) {
-      return {
+      const result: CredentialDetectionResult = {
         isCredential: true,
         type: CredentialType.PASSWORD,
         confidence: 0.8,
         reason: 'Password pattern detected'
       }
-    }
-  }
-
-  // Check for common hash formats
-  const hashPatterns = [
-    { pattern: /^[a-f0-9]{32}$/i, name: 'MD5' },
-    { pattern: /^[a-f0-9]{40}$/i, name: 'SHA1' },
-    { pattern: /^[a-f0-9]{56}$/i, name: 'SHA224' },
-    { pattern: /^[a-f0-9]{64}$/i, name: 'SHA256' },
-    { pattern: /^[a-f0-9]{96}$/i, name: 'SHA384' },
-    { pattern: /^[a-f0-9]{128}$/i, name: 'SHA512' },
-    { pattern: /^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$/, name: 'bcrypt' },
-    { pattern: /^\$argon2(i|d|id)\$/, name: 'Argon2' },
-    { pattern: /^pbkdf2/, name: 'PBKDF2' }
-  ]
-  for (const { pattern, name } of hashPatterns) {
-    if (pattern.test(trimmed)) {
-      return {
-        isCredential: true,
-        type: CredentialType.HASH,
-        confidence: 0.95,
-        reason: `${name} hash detected`
-      }
+      return result
     }
   }
 
@@ -270,17 +280,19 @@ export function detectCredentials(
       /^\d{4}-\d{2}-\d{2}/,  // Dates
       /^[A-Z0-9]{2,}-\d+$/,  // Order numbers, reference codes
       /^v?\d+\.\d+\.\d+/,  // Version numbers
+      /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i,  // Email addresses
     ]
 
     if (!likelyNotCredential.some(p => p.test(trimmed))) {
-      return {
+      const result: CredentialDetectionResult = {
         isCredential: true,
         type: CredentialType.UNKNOWN,
         confidence: 0.6,
         reason: 'High entropy string detected (possible credential)'
       }
+      return result
+      }
     }
-  }
 
   // Check for suspicious key-value patterns in the string
   const keyValuePatterns = [
@@ -296,13 +308,14 @@ export function detectCredentials(
   for (const pattern of keyValuePatterns) {
     const match = pattern.exec(trimmed)
     if (match) {
-      return {
+      const result: CredentialDetectionResult = {
         isCredential: true,
         type: CredentialType.UNKNOWN,
         confidence: 0.75,
         reason: `Credential key-value pattern detected`,
         positions: [{ start: match.index, end: match.index + match[0].length }]
       }
+      return result
     }
   }
 
@@ -318,12 +331,13 @@ export function detectCredentials(
 
   for (const pattern of envVarPatterns) {
     if (pattern.test(trimmed)) {
-      return {
+      const result: CredentialDetectionResult = {
         isCredential: true,
         type: CredentialType.UNKNOWN,
         confidence: 0.5,
         reason: 'Environment variable reference to credential'
       }
+      return result
     }
   }
 
@@ -395,12 +409,12 @@ export function deepScanForCredentials(
 
         const lowerKey = key.toLowerCase()
         if (keysToFlag.some(flag => lowerKey.includes(flag))) {
-          // Even if the value is empty/null, flag it as potentially containing credentials
           if (typeof val === 'string' && val) {
             const result = detectCredentials(val, config)
-            // Boost confidence for sensitive keys
             result.confidence = Math.min(1, result.confidence + 0.2)
             results.push({ path: `${path}.${key}`, result })
+          } else {
+            scan(val, `${path}.${key}`)
           }
         } else {
           scan(val, `${path}.${key}`)
@@ -434,32 +448,57 @@ export function mightBeCredential(str: string): boolean {
 /**
  * Redact credentials in a string
  */
+const SENSITIVE_KEY_PATTERN = /(password|pass|pwd|secret|token|key|credential|auth)/i
+
 export function redactCredentials(
   input: string,
   config?: SanitizationConfig
 ): { redacted: string; detections: CredentialDetectionResult[] } {
   const detections: CredentialDetectionResult[] = []
-  let redacted = input
 
-  // Split by common delimiters and check each part
-  const parts = input.split(/(\s+|[,;:|])/g)
-  const processedParts = parts.map((part, index) => {
-    if (!part || part.match(/^\s*$/)) return part
+  const maskValue = (value: string): string => {
+    if (value.length <= 2) {
+      return '*'.repeat(value.length)
+    }
+    return value[0] + '*'.repeat(value.length - 2) + value[value.length - 1]
+  }
 
-    const detection = detectCredentials(part, config)
+  const segments = input.split(/(\s+|[,;:|])/g)
+  const processed = segments.map((segment) => {
+    if (!segment || /^\s*$/.test(segment)) {
+      return segment
+    }
+
+    const eqIndex = segment.indexOf('=')
+    if (eqIndex > 0 && eqIndex < segment.length - 1) {
+      const key = segment.slice(0, eqIndex + 1)
+      const value = segment.slice(eqIndex + 1)
+      const detection = detectCredentials(value, config)
+      if (detection.isCredential && detection.confidence > 0.5) {
+        detections.push(detection)
+        return key + maskValue(value)
+      }
+
+      if (SENSITIVE_KEY_PATTERN.test(key)) {
+        detections.push({
+          isCredential: true,
+          type: CredentialType.UNKNOWN,
+          confidence: 0.6,
+          reason: `Sensitive key '${key.slice(0, -1)}' detected`,
+        })
+        return key + maskValue(value)
+      }
+      return segment
+    }
+
+    const detection = detectCredentials(segment, config)
     if (detection.isCredential && detection.confidence > 0.5) {
       detections.push(detection)
-      // Preserve first and last char for context, redact middle
-      if (part.length > 4) {
-        return part[0] + '*'.repeat(part.length - 2) + part[part.length - 1]
-      } else {
-        return '*'.repeat(part.length)
-      }
+      return maskValue(segment)
     }
-    return part
+
+    return segment
   })
 
-  redacted = processedParts.join('')
-
-  return { redacted, detections }
+  return { redacted: processed.join(''), detections }
 }

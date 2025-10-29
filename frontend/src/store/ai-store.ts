@@ -614,26 +614,6 @@ export const useAIStore = create<AIState & AIActions>()(
               : `Conversation Memory:\n${memoryContext}`
           }
 
-          if (config.syncMemories) {
-            try {
-              const recalled = await RecallAIMemorySessions(prompt, 5)
-              if (Array.isArray(recalled) && recalled.length > 0) {
-                const recallContext = recalled
-                  .map((item) => {
-                    const summary = item.summary ? `Summary: ${item.summary}\n` : ''
-                    return `Session: ${item.title}\n${summary}Memory:\n${item.content}`
-                  })
-                  .join('\n---\n')
-
-                context = context
-                  ? `${context}\n\n---\n\nRelated Sessions:\n${recallContext}`
-                  : `Related Sessions:\n${recallContext}`
-              }
-            } catch (error) {
-              console.error('Failed to recall AI memories for fix:', error)
-            }
-          }
-
           let recallContext = ''
           if (config.syncMemories) {
             try {
@@ -660,9 +640,12 @@ export const useAIStore = create<AIState & AIActions>()(
           // Call the Wails backend method
           const model = config.selectedModel || 'gpt-4o-mini'
 
+          // Prefer a connected DB and pass sessionId when available
+          const primaryConn = (connections || []).find(c => c.isConnected) || connections?.[0]
+          const effectiveConnectionId = primaryConn ? (primaryConn.sessionId || primaryConn.id) : ''
           const request = {
             prompt: enhancedPrompt,
-            connectionId: connections?.[0]?.id || '', // Use first connection if available
+            connectionId: effectiveConnectionId,
             context,
             provider,
             model,
@@ -771,7 +754,8 @@ export const useAIStore = create<AIState & AIActions>()(
           })
 
           // Call the Wails backend method with context
-          const connectionId = connections?.[0]?.id || ''
+          const primaryConn = (connections || []).find(c => c.isConnected) || connections?.[0]
+          const connectionId = primaryConn ? (primaryConn.sessionId || primaryConn.id) : ''
           const model = config.selectedModel || ''
           const request = {
             query,

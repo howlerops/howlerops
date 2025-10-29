@@ -16,11 +16,14 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { SchemaContextSelector } from "@/components/schema-context-selector"
 import { useAIGeneration, useAIConfig } from "@/store/ai-store"
+import { useQueryMode } from "@/hooks/use-query-mode"
+import { AISchemaContextBuilder } from "@/lib/ai-schema-context"
+import { MultiDBConnectionSelector } from "@/components/multi-db-connection-selector"
 import { useAIMemoryStore } from "@/store/ai-memory-store"
 import type { DatabaseConnection } from "@/store/connection-store"
 import type { SchemaNode } from "@/hooks/use-schema-introspection"
 import { cn } from "@/lib/utils"
-import { AlertCircle, Loader2, MessageCircle, Pencil, Plus, SendHorizontal, Sparkles } from "lucide-react"
+import { AlertCircle, Loader2, MessageCircle, Pencil, Plus, SendHorizontal, Sparkles, Database, Network } from "lucide-react"
 
 interface GenericChatSidebarProps {
   open: boolean
@@ -44,6 +47,10 @@ export function GenericChatSidebar({ open, onClose, connections, schemasMap }: G
   const [isRenaming, setIsRenaming] = useState(false)
   const [renameValue, setRenameValue] = useState("")
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
+  const { mode, canToggle, toggleMode } = useQueryMode('auto')
+  const [singleConnectionId, setSingleConnectionId] = useState<string>("")
+  const [selectedConnectionIds, setSelectedConnectionIds] = useState<string[]>([])
+  const [showSelector, setShowSelector] = useState(false)
 
   const genericSessions = useMemo(() =>
     Object.values(memorySessions)
@@ -85,6 +92,37 @@ export function GenericChatSidebar({ open, onClose, connections, schemasMap }: G
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' })
     }
   }, [activeMessages])
+
+  // Initialize selections when opening
+  useEffect(() => {
+    if (!open) return
+    if (connections.length > 0 && !singleConnectionId) {
+      setSingleConnectionId(connections[0].id)
+    }
+    if (connections.length > 0 && selectedConnectionIds.length === 0) {
+      setSelectedConnectionIds(connections.map(c => c.id))
+    }
+  }, [open, connections, singleConnectionId, selectedConnectionIds.length])
+
+  // Auto-generate schema context based on selection
+  useEffect(() => {
+    try {
+      if (mode === 'multi' && selectedConnectionIds.length > 0) {
+        const conns = connections.filter(c => selectedConnectionIds.includes(c.id))
+        const ctx = AISchemaContextBuilder.buildMultiDatabaseContext(conns, schemasMap, undefined)
+        setSchemaContext(AISchemaContextBuilder.generateCompactSchemaContext(ctx))
+      } else if (mode === 'single' && singleConnectionId) {
+        const conn = connections.find(c => c.id === singleConnectionId)
+        const schemas = conn ? (schemasMap.get(conn.id) || schemasMap.get(conn.name) || []) : []
+        if (conn && schemas.length > 0) {
+          const ctx = AISchemaContextBuilder.buildSingleDatabaseContext(conn, schemas)
+          setSchemaContext(AISchemaContextBuilder.generateCompactSchemaContext(ctx))
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, [mode, singleConnectionId, selectedConnectionIds, connections, schemasMap])
 
   const handleCreateSession = () => {
     const id = startNewSession({
@@ -209,6 +247,62 @@ export function GenericChatSidebar({ open, onClose, connections, schemasMap }: G
               <Plus className="h-4 w-4" />
             </Button>
           </div>
+          {/* Mode & database selectors */}
+          <div className="flex items-center gap-2">
+            {canToggle && (
+              <div className="flex items-center rounded-md border bg-background overflow-hidden">
+                <Button
+                  variant={mode === 'single' ? 'default' : 'ghost'}
+                  size="sm"
+                  className="h-8 px-2 text-xs"
+                  onClick={() => mode === 'multi' && toggleMode()}
+                >
+                  Single
+                </Button>
+                <Button
+                  variant={mode === 'multi' ? 'default' : 'ghost'}
+                  size="sm"
+                  className="h-8 px-2 text-xs"
+                  onClick={() => mode === 'single' && toggleMode()}
+                >
+                  Multi
+                </Button>
+              </div>
+            )}
+
+            {mode === 'single' ? (
+              <Select
+                value={singleConnectionId}
+                onValueChange={(value) => setSingleConnectionId(value)}
+                disabled={connections.length === 0}
+              >
+                <SelectTrigger className="h-8 w-44 text-xs">
+                  <SelectValue placeholder="Select database" />
+                </SelectTrigger>
+                <SelectContent>
+                  {connections.map(conn => (
+                    <SelectItem key={conn.id} value={conn.id}>
+                      <div className="flex items-center gap-2 text-xs">
+                        <Database className="h-3 w-3" />
+                        <span className="flex-1">{conn.name || conn.database}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 px-2 text-xs"
+                onClick={() => setShowSelector(true)}
+              >
+                <Network className="h-3 w-3 mr-1" />
+                {selectedConnectionIds.length}/{connections.length} DBs
+              </Button>
+            )}
+          </div>
+
           {isRenaming && activeSession && (
             <div className="flex items-center gap-2">
               <Input value={renameValue} onChange={event => setRenameValue(event.target.value)} placeholder="Rename session" />
@@ -320,6 +414,15 @@ export function GenericChatSidebar({ open, onClose, connections, schemasMap }: G
           </div>
         </div>
       </SheetContent>
+      {mode === 'multi' && (
+        <MultiDBConnectionSelector
+          open={showSelector}
+          onClose={() => setShowSelector(false)}
+          selectedConnectionIds={selectedConnectionIds}
+          onSelectionChange={(ids) => setSelectedConnectionIds(ids)}
+          filteredConnections={connections}
+        />
+      )}
     </Sheet>
   )
 }
