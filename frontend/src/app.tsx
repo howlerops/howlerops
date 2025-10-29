@@ -1,4 +1,4 @@
-import { useEffect, lazy, Suspense } from 'react'
+import { useEffect, lazy, Suspense, useMemo } from 'react'
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
@@ -13,6 +13,8 @@ import { initializeTierStore } from './store/tier-store'
 import { initializeOrganizationStore } from './store/organization-store'
 import { initializeConnectionStore } from './store/connection-store'
 import { Loader2 } from 'lucide-react'
+import { ProtectedRoute } from './components/auth/protected-route'
+import { shouldEnforceHostedAuth } from './lib/environment'
 
 // Lazy load pages for code splitting
 const Dashboard = lazy(() => import('./pages/dashboard').then(m => ({ default: m.Dashboard })))
@@ -21,6 +23,7 @@ const Settings = lazy(() => import('./pages/settings').then(m => ({ default: m.S
 const InviteAcceptPage = lazy(() => import('./pages/InviteAcceptPage').then(m => ({ default: m.InviteAcceptPage })))
 const PendingInvitationsPage = lazy(() => import('./pages/PendingInvitationsPage').then(m => ({ default: m.PendingInvitationsPage })))
 const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'))
+const AuthPage = lazy(() => import('./pages/AuthPage').then(m => ({ default: m.AuthPage })))
 
 // Loading component
 function LoadingSpinner() {
@@ -32,6 +35,8 @@ function LoadingSpinner() {
 }
 
 function App() {
+  const enforceAuth = useMemo(() => shouldEnforceHostedAuth(), [])
+
   // Initialize stores and migrate credentials on app startup
   useEffect(() => {
     // Initialize stores
@@ -64,6 +69,23 @@ function App() {
     return () => clearTimeout(autoConnectTimer)
   }, [])
 
+  const mainAppRoutes = (
+    <MainLayout>
+      <div className="flex flex-1 min-h-0 flex-col">
+        <Suspense fallback={<LoadingSpinner />}>
+          <Routes>
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/connections" element={<Connections />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/invitations" element={<PendingInvitationsPage />} />
+            <Route path="/analytics" element={<AnalyticsPage />} />
+          </Routes>
+        </Suspense>
+      </div>
+    </MainLayout>
+  )
+
   return (
     <ErrorBoundary
       onError={(error, errorInfo) => {
@@ -77,6 +99,8 @@ function App() {
             <NavigationProvider>
               <Suspense fallback={<LoadingSpinner />}>
                 <Routes>
+                  <Route path="/auth" element={<AuthPage />} />
+
                   {/* Public invitation route - no MainLayout wrapper */}
                   <Route path="/invite/:token" element={<InviteAcceptPage />} />
 
@@ -84,20 +108,11 @@ function App() {
                   <Route
                     path="/*"
                     element={
-                      <MainLayout>
-                        <div className="flex flex-1 min-h-0 flex-col">
-                          <Suspense fallback={<LoadingSpinner />}>
-                            <Routes>
-                              <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                              <Route path="/dashboard" element={<Dashboard />} />
-                              <Route path="/connections" element={<Connections />} />
-                              <Route path="/settings" element={<Settings />} />
-                              <Route path="/invitations" element={<PendingInvitationsPage />} />
-                              <Route path="/analytics" element={<AnalyticsPage />} />
-                            </Routes>
-                          </Suspense>
-                        </div>
-                      </MainLayout>
+                      enforceAuth ? (
+                        <ProtectedRoute redirectTo="/auth">{mainAppRoutes}</ProtectedRoute>
+                      ) : (
+                        mainAppRoutes
+                      )
                     }
                   />
                 </Routes>
