@@ -2975,6 +2975,68 @@ func (a *App) buildDetailedSchemaContext(connectionID string) string {
 			tableLimit = maxTablesPerSchema
 		}
 
+		remaining := maxTotalTables - totalTables
+		if tableLimit > remaining {
+			tableLimit = remaining
+		}
+
+		type tableSummary struct {
+			columns       string
+			relationships string
+		}
+
+		summaries := make([]tableSummary, tableLimit)
+		var wg sync.WaitGroup
+		semaphore := make(chan struct{}, 4)
+
+		for i := 0; i < tableLimit; i++ {
+			table := tables[i]
+			wg.Add(1)
+			semaphore <- struct{}{}
+			go func(idx int, tbl database.TableInfo) {
+				defer wg.Done()
+				defer func() { <-semaphore }()
+
+				structure, err := a.databaseService.GetTableStructure(connectionID, schemaName, tbl.Name)
+				if err != nil {
+					a.logger.WithError(err).WithFields(logrus.Fields{
+						"connection_id": connectionID,
+						"schema":        schemaName,
+						"table":         tbl.Name,
+					}).Debug("Failed to load table structure for AI context")
+					return
+				}
+
+				if structure == nil {
+					return
+				}
+
+				summary := tableSummary{}
+				if len(structure.Columns) > 0 {
+					columns := formatColumnsForAI(structure.Columns, maxColumnsPerTable)
+					summary.columns = "Columns: " + strings.Join(columns, ", ")
+				}
+
+				if len(structure.ForeignKeys) > 0 {
+					rels := make([]string, 0, len(structure.ForeignKeys))
+					for _, fk := range structure.ForeignKeys {
+						left := strings.Join(fk.Columns, ",")
+						rightSchema := fk.ReferencedSchema
+						if strings.TrimSpace(rightSchema) == "" {
+							rightSchema = schemaName
+						}
+						right := fmt.Sprintf("%s.%s(%s)", rightSchema, fk.ReferencedTable, strings.Join(fk.ReferencedColumns, ","))
+						rels = append(rels, fmt.Sprintf("%s -> %s", left, right))
+					}
+					summary.relationships = "Relationships: " + strings.Join(rels, "; ")
+				}
+
+				summaries[idx] = summary
+			}(i, table)
+		}
+
+		wg.Wait()
+
 		for i := 0; i < tableLimit && totalTables < maxTotalTables; i++ {
 			table := tables[i]
 			tableType := strings.ToLower(table.Type)
@@ -2984,37 +3046,13 @@ func (a *App) buildDetailedSchemaContext(connectionID string) string {
 
 			builder.WriteString(fmt.Sprintf("Table: %s (%s)\n", table.Name, tableType))
 
-			structure, err := a.databaseService.GetTableStructure(connectionID, schemaName, table.Name)
-			if err != nil {
-				a.logger.WithError(err).WithFields(logrus.Fields{
-					"connection_id": connectionID,
-					"schema":        schemaName,
-					"table":         table.Name,
-				}).Debug("Failed to load table structure for AI context")
-				totalTables++
-				continue
+			if summaries[i].columns != "" {
+				builder.WriteString(summaries[i].columns)
+				builder.WriteString("\n")
 			}
 
-			if structure != nil && len(structure.Columns) > 0 {
-				columns := formatColumnsForAI(structure.Columns, maxColumnsPerTable)
-				builder.WriteString("Columns: " + strings.Join(columns, ", ") + "\n")
-			}
-
-			// Include foreign key relationships to improve join reasoning
-			if structure != nil && len(structure.ForeignKeys) > 0 {
-				builder.WriteString("Relationships: ")
-				rels := make([]string, 0, len(structure.ForeignKeys))
-				for _, fk := range structure.ForeignKeys {
-					// e.g., orders.customer_id -> public.customers.id
-					left := strings.Join(fk.Columns, ",")
-					rightSchema := fk.ReferencedSchema
-					if strings.TrimSpace(rightSchema) == "" {
-						rightSchema = schemaName
-					}
-					right := fmt.Sprintf("%s.%s(%s)", rightSchema, fk.ReferencedTable, strings.Join(fk.ReferencedColumns, ","))
-					rels = append(rels, fmt.Sprintf("%s -> %s", left, right))
-				}
-				builder.WriteString(strings.Join(rels, "; "))
+			if summaries[i].relationships != "" {
+				builder.WriteString(summaries[i].relationships)
 				builder.WriteString("\n")
 			}
 
@@ -3279,11 +3317,19 @@ func (a *App) SaveAIMemorySessions(sessions []AIMemorySessionPayload) error {
 		return fmt.Errorf("failed to save AI memory sessions: %w", err)
 	}
 
-	if err := a.indexAIMemorySessions(a.ctx, sessions); err != nil {
-		a.logger.WithError(err).Warn("Failed to index AI memory sessions")
-	}
-
 	a.pruneAIMemoryDocuments(previousSessions, sessions)
+
+	if len(sessions) > 0 {
+		snapshot := append([]AIMemorySessionPayload(nil), sessions...)
+		go func(payload []AIMemorySessionPayload) {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+
+			if err := a.indexAIMemorySessions(ctx, payload); err != nil {
+				a.logger.WithError(err).Warn("Failed to index AI memory sessions")
+			}
+		}(snapshot)
+	}
 
 	return nil
 }

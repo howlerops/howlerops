@@ -11,6 +11,22 @@ import { QueryEditableMetadata, QueryResultRow, useQueryStore } from '../store/q
 import { wailsEndpoints } from '../lib/wails-api'
 import type { CellValue, EditableTableContext } from '../types/table'
 import { toast } from '../hooks/use-toast'
+import { useConnectionStore, type DatabaseConnection } from '../store/connection-store'
+
+type IdentifierQuoteStyle = 'double' | 'backtick' | 'square'
+
+const getIdentifierQuoteStyle = (type?: DatabaseConnection['type']): IdentifierQuoteStyle => {
+  switch (type) {
+    case 'mysql':
+    case 'mariadb':
+    case 'tidb':
+      return 'backtick'
+    case 'mssql':
+      return 'square'
+    default:
+      return 'double'
+  }
+}
 
 interface QueryResultsTableProps {
   resultId: string
@@ -75,10 +91,6 @@ const serialiseCsvValue = (value: unknown): string => {
     return `"${stringValue.replace(/"/g, '""')}"`
   }
   return stringValue
-}
-
-const quoteIdentifier = (identifier: string): string => {
-  return `"${String(identifier).replace(/"/g, '""')}"`
 }
 
 const ExportButton = ({ context, onExport }: { context: EditableTableContext; onExport: (options: ExportOptions) => Promise<void> }) => {
@@ -395,6 +407,38 @@ export const QueryResultsTable = ({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
 
+  const connectionType = useConnectionStore(
+    useCallback((state) => {
+      if (connectionId) {
+        const connection = state.connections.find((conn) => conn.id === connectionId)
+        if (connection) {
+          return connection.type
+        }
+      }
+      return state.activeConnection?.type
+    }, [connectionId])
+  )
+
+  const identifierQuoteStyle = useMemo(
+    () => getIdentifierQuoteStyle(connectionType),
+    [connectionType]
+  )
+
+  const quoteIdentifier = useCallback(
+    (identifier: string) => {
+      const value = String(identifier)
+      switch (identifierQuoteStyle) {
+        case 'backtick':
+          return `\`${value.replace(/`/g, '``')}\``
+        case 'square':
+          return `[${value.replace(/]/g, ']]')}]`
+        default:
+          return `"${value.replace(/"/g, '""')}"`
+      }
+    },
+    [identifierQuoteStyle]
+  )
+
   const updateResultRows = useQueryStore((state) => state.updateResultRows)
   const columnsLookup = useMemo(() => buildColumnsLookup(metadata), [metadata])
   const tableContextRef = useRef<EditableTableContext | null>(null)
@@ -689,6 +733,7 @@ export const QueryResultsTable = ({
     metadata,
     originalRows,
     pendingDeleteIds,
+    quoteIdentifier,
     resolveCurrentRows,
     resultId,
     selectedRowId,

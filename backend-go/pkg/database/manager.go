@@ -113,9 +113,6 @@ func NewManagerWithConfig(logger *logrus.Logger, mqConfig *multiquery.Config) *M
 
 // CreateConnection creates a new database connection
 func (m *Manager) CreateConnection(ctx context.Context, config ConnectionConfig) (*Connection, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
 	aliasTargets := make(map[string]struct{})
 	displayName := strings.TrimSpace(config.Database)
 	if displayName != "" {
@@ -160,6 +157,9 @@ func (m *Manager) CreateConnection(ctx context.Context, config ConnectionConfig)
 	if err := db.Connect(ctx, config); err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
 
 	// Generate connection ID
 	connectionID := uuid.New().String()
@@ -417,7 +417,10 @@ func (m *Manager) HealthCheckAll(ctx context.Context) map[string]*HealthStatus {
 	m.mu.RUnlock()
 
 	results := make(map[string]*HealthStatus)
-	var wg sync.WaitGroup
+	var (
+		wg        sync.WaitGroup
+		resultsMu sync.Mutex
+	)
 
 	for _, id := range connectionIDs {
 		wg.Add(1)
@@ -432,7 +435,9 @@ func (m *Manager) HealthCheckAll(ctx context.Context) map[string]*HealthStatus {
 					Metrics:   make(map[string]string),
 				}
 			}
+			resultsMu.Lock()
 			results[connectionID] = status
+			resultsMu.Unlock()
 		}(id)
 	}
 
@@ -671,95 +676,110 @@ func (m *Manager) ValidateMultiQuery(parsed *multiquery.ParsedQuery) error {
 
 // GetMultiConnectionSchema returns combined schema for multiple connections with smart caching
 func (m *Manager) GetMultiConnectionSchema(ctx context.Context, connectionIDs []string) (*multiquery.CombinedSchema, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
 	combined := &multiquery.CombinedSchema{
 		Connections: make(map[string]*multiquery.ConnectionSchema),
 		Conflicts:   []multiquery.SchemaConflict{},
 	}
 
-	// Use channels for parallel processing
+	type resolvedConnection struct {
+		requestedID string
+		db          Database
+	}
+
+	resolved := make([]resolvedConnection, 0, len(connectionIDs))
+	missing := make([]string, 0)
+
+	m.mu.RLock()
+	cache := m.schemaCache
+	logger := m.logger
+	for _, connID := range connectionIDs {
+		resolvedID := connID
+		if _, exists := m.connections[connID]; !exists {
+			if sessionID, ok := m.connectionNames[connID]; ok {
+				resolvedID = sessionID
+			} else {
+				missing = append(missing, connID)
+				continue
+			}
+		}
+
+		db, exists := m.connections[resolvedID]
+		if !exists {
+			missing = append(missing, connID)
+			continue
+		}
+
+		resolved = append(resolved, resolvedConnection{
+			requestedID: connID,
+			db:          db,
+		})
+	}
+	m.mu.RUnlock()
+
+	for _, connID := range missing {
+		logger.WithField("connection", connID).Warn("Connection not found while loading schema")
+	}
+
 	type schemaResult struct {
 		connID string
 		schema *multiquery.ConnectionSchema
 		err    error
 	}
 
-	resultChan := make(chan schemaResult, len(connectionIDs))
+	resultChan := make(chan schemaResult, len(resolved))
+	var wg sync.WaitGroup
 
-	// Process each connection in parallel
-	for _, connID := range connectionIDs {
-		go func(connID string) {
-			result := schemaResult{connID: connID}
+	for _, info := range resolved {
+		wg.Add(1)
+		go func(info resolvedConnection) {
+			defer wg.Done()
 
-			// Resolve connection name to sessionId
-			resolvedID := connID
-			// Try direct lookup first (sessionId)
-			if _, exists := m.connections[connID]; !exists {
-				// Try name resolution
-				if sessionID, exists := m.connectionNames[connID]; exists {
-					resolvedID = sessionID
-				} else {
-					result.err = fmt.Errorf("connection not found: %s", connID)
+			result := schemaResult{connID: info.requestedID}
+
+			if cache != nil {
+				if cached, err := cache.GetCachedSchema(ctx, info.requestedID, info.db); err == nil && cached != nil {
+					connSchema := &multiquery.ConnectionSchema{
+						ConnectionID: info.requestedID,
+						Schemas:      cached.Schemas,
+						Tables:       make([]multiquery.TableInfo, 0),
+					}
+
+					for _, tables := range cached.Tables {
+						for _, table := range tables {
+							connSchema.Tables = append(connSchema.Tables, multiquery.TableInfo{
+								Schema:    table.Schema,
+								Name:      table.Name,
+								Type:      table.Type,
+								Comment:   table.Comment,
+								RowCount:  table.RowCount,
+								SizeBytes: table.SizeBytes,
+							})
+						}
+					}
+
+					result.schema = connSchema
+					logger.WithField("connection", info.requestedID).Debug("Schema loaded from cache")
 					resultChan <- result
 					return
+				} else if err != nil {
+					logger.WithError(err).Debug("Failed to read cached schema")
 				}
 			}
 
-			db, exists := m.connections[resolvedID]
-			if !exists {
-				result.err = fmt.Errorf("connection not found: %s", connID)
-				resultChan <- result
-				return
-			}
-
-			// Try cache first (massive performance boost!)
-			cached, err := m.schemaCache.GetCachedSchema(ctx, connID, db)
-			if err == nil && cached != nil {
-				// Use cached schema - 520x faster!
-				connSchema := &multiquery.ConnectionSchema{
-					ConnectionID: connID,
-					Schemas:      cached.Schemas,
-					Tables:       []multiquery.TableInfo{},
-				}
-
-				// Convert from cached format
-				for _, tables := range cached.Tables {
-					for _, table := range tables {
-						connSchema.Tables = append(connSchema.Tables, multiquery.TableInfo{
-							Schema:    table.Schema,
-							Name:      table.Name,
-							Type:      table.Type,
-							Comment:   table.Comment,
-							RowCount:  table.RowCount,
-							SizeBytes: table.SizeBytes,
-						})
-					}
-				}
-
-				result.schema = connSchema
-				m.logger.WithField("connection", connID).Debug("Schema loaded from cache")
-				resultChan <- result
-				return
-			}
-
-			// Cache miss - fetch fresh
-			schemas, err := db.GetSchemas(ctx)
+			schemas, err := info.db.GetSchemas(ctx)
 			if err != nil {
-				result.err = fmt.Errorf("failed to get schemas for connection %s: %w", connID, err)
+				result.err = fmt.Errorf("failed to get schemas for connection %s: %w", info.requestedID, err)
 				resultChan <- result
 				return
 			}
 
-			tablesMap := make(map[string][]TableInfo)
 			connSchema := &multiquery.ConnectionSchema{
-				ConnectionID: connID,
+				ConnectionID: info.requestedID,
 				Schemas:      schemas,
 				Tables:       []multiquery.TableInfo{},
 			}
+			tablesMap := make(map[string][]TableInfo)
 
-			// Get tables for each schema in parallel
 			type tableResult struct {
 				schema string
 				tables []TableInfo
@@ -767,28 +787,34 @@ func (m *Manager) GetMultiConnectionSchema(ctx context.Context, connectionIDs []
 			}
 
 			tableChan := make(chan tableResult, len(schemas))
-			for _, schema := range schemas {
+			var tableWG sync.WaitGroup
+			semaphore := make(chan struct{}, 4)
+
+			for _, schemaName := range schemas {
+				tableWG.Add(1)
+				semaphore <- struct{}{}
 				go func(schema string) {
-					tables, err := db.GetTables(ctx, schema)
+					defer tableWG.Done()
+					defer func() { <-semaphore }()
+					tables, err := info.db.GetTables(ctx, schema)
 					tableChan <- tableResult{
 						schema: schema,
 						tables: tables,
 						err:    err,
 					}
-				}(schema)
+				}(schemaName)
 			}
 
-			// Collect table results
-			for i := 0; i < len(schemas); i++ {
-				tableRes := <-tableChan
+			tableWG.Wait()
+			close(tableChan)
+
+			for tableRes := range tableChan {
 				if tableRes.err != nil {
-					m.logger.WithError(tableRes.err).Warnf("Failed to get tables for schema %s in connection %s", tableRes.schema, connID)
+					logger.WithError(tableRes.err).Warnf("Failed to get tables for schema %s in connection %s", tableRes.schema, info.requestedID)
 					continue
 				}
 
 				tablesMap[tableRes.schema] = tableRes.tables
-
-				// Convert database.TableInfo to multiquery.TableInfo
 				for _, table := range tableRes.tables {
 					connSchema.Tables = append(connSchema.Tables, multiquery.TableInfo{
 						Schema:    table.Schema,
@@ -801,28 +827,32 @@ func (m *Manager) GetMultiConnectionSchema(ctx context.Context, connectionIDs []
 				}
 			}
 
-			// Cache the schema for future use
-			if err := m.schemaCache.CacheSchema(ctx, connID, db, schemas, tablesMap); err != nil {
-				m.logger.WithError(err).Warn("Failed to cache schema")
+			if cache != nil {
+				if err := cache.CacheSchema(ctx, info.requestedID, info.db, schemas, tablesMap); err != nil {
+					logger.WithError(err).Warn("Failed to cache schema")
+				} else {
+					logger.WithField("connection", info.requestedID).Debug("Schema fetched and cached")
+				}
+			} else {
+				logger.WithField("connection", info.requestedID).Debug("Schema fetched (cache disabled)")
 			}
 
 			result.schema = connSchema
-			m.logger.WithField("connection", connID).Debug("Schema fetched and cached")
 			resultChan <- result
-		}(connID)
+		}(info)
 	}
 
-	// Collect all results
-	for i := 0; i < len(connectionIDs); i++ {
-		result := <-resultChan
+	wg.Wait()
+	close(resultChan)
+
+	for result := range resultChan {
 		if result.err != nil {
-			m.logger.WithError(result.err).Warnf("Failed to load schema for connection %s", result.connID)
+			logger.WithError(result.err).Warnf("Failed to load schema for connection %s", result.connID)
 			continue
 		}
 		combined.Connections[result.connID] = result.schema
 	}
 
-	// Detect naming conflicts
 	combined.Conflicts = m.detectSchemaConflicts(combined.Connections)
 
 	return combined, nil
