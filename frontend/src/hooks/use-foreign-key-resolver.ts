@@ -44,7 +44,7 @@ export function useForeignKeyResolver() {
       const data: ForeignKeyData = {
         tableName: foreignKeyInfo.tableName,
         columnName: foreignKeyInfo.columnName,
-        relatedRows: (response.data.rows || []).map((row: any[]) => {
+        relatedRows: (response.data.rows || []).map((row: CellValue[]) => {
           const record: Record<string, CellValue> = {}
           response.data.columns.forEach((col: string, index: number) => {
             record[col] = row[index]

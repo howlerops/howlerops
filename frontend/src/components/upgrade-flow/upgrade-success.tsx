@@ -11,7 +11,6 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import {
-  Sparkles,
   CheckCircle2,
   Cloud,
   Smartphone,
@@ -20,7 +19,6 @@ import {
   ArrowRight,
   Calendar,
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
 
 export interface UpgradeSuccessProps {
   /**
@@ -117,7 +115,7 @@ async function triggerConfetti() {
         colors: ['#3B82F6', '#A855F7', '#EC4899', '#10B981'],
       })
     }, 250)
-  } catch (error) {
+  } catch {
     // Confetti library not available, skip animation
     console.log('canvas-confetti not installed, skipping celebration animation')
   }

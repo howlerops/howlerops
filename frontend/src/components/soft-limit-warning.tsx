@@ -361,7 +361,7 @@ export function UsageStatsCard({
           const isUnlimited = limit.max === null
           const percentage = isUnlimited || !limit.max ? 0 : Math.min(100, (limit.current / limit.max) * 100)
           const severity = calculateSeverity(limit.current, limit.max || Infinity)
-          const config = severityConfig[severity]
+          const _config = severityConfig[severity]
 
           return (
             <div key={limit.name} className="space-y-1.5">

@@ -245,7 +245,7 @@ export function broadcastSync<T extends object>(
       }
 
       // Call config with wrapped setState
-      // @ts-ignore - Middleware signature is correct but TypeScript inference is too strict
+      // @ts-expect-error - Middleware signature is correct but TypeScript inference is too strict
       return config(wrappedSetState, get, api)
     }
   }

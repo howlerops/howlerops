@@ -110,7 +110,7 @@ export function useConflictResolution() {
   const detectConflictType = useCallback((
     localValue: unknown,
     remoteValue: unknown,
-    _baseValue: unknown // eslint-disable-line @typescript-eslint/no-unused-vars
+    _baseValue: unknown  
   ): 'value' | 'type' | 'structural' => {
     const localType = typeof localValue;
     const remoteType = typeof remoteValue;

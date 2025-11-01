@@ -9,7 +9,6 @@ import React from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Sparkles, Database, History, Brain, FileDown } from 'lucide-react'
-import type { UpgradeTrigger } from '@/store/upgrade-prompt-store'
 
 /**
  * Limit type to icon mapping
@@ -111,8 +110,8 @@ export interface SoftLimitToastProps {
  */
 export function showSoftLimitToast({
   limitType,
-  usage,
-  softLimit,
+  _usage,
+  _softLimit,
   onUpgrade,
   title: customTitle,
   description: customDescription,

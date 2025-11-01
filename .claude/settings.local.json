@@ -69,7 +69,11 @@
       "Bash(RESEND_API_KEY=\"re_placeholder_will_be_overridden_by_secret_manager\" )",
       "Bash(set -a)",
       "Bash(source .env.production)",
-      "Bash(set +a)"
+      "Bash(set +a)",
+      "Bash(bun run typecheck)",
+      "Bash(npm run lint)",
+      "Bash(npm run lint -- src/hooks/use-feature-gate.ts)",
+      "Bash(echo \"Exit code: $?\")"
     ],
     "deny": [],
     "ask": []

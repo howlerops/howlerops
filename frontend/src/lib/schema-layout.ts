@@ -118,7 +118,7 @@ export class LayoutEngine {
   private static circularLayout(
     nodes: SchemaVisualizerNode[],
     edges: SchemaVisualizerEdge[],
-    _options: LayoutOptions // eslint-disable-line @typescript-eslint/no-unused-vars
+    _options: LayoutOptions  
   ): { nodes: SchemaVisualizerNode[]; edges: SchemaVisualizerEdge[] } {
     const radius = Math.max(200, nodes.length * 20)
     const centerX = 400

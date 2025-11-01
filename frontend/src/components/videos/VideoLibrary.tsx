@@ -2,7 +2,6 @@ import { useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { Search, Play, Clock } from "lucide-react"
 import { VideoPlayer } from "./VideoPlayer"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
@@ -93,7 +92,7 @@ export function VideoLibrary() {
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null)
 
   const difficulties = ["beginner", "intermediate", "advanced"]
-  const categories = Array.from(new Set(videos.map((v) => v.category)))
+  const _categories = Array.from(new Set(videos.map((v) => v.category)))
 
   const filteredVideos = videos.filter((video) => {
     const matchesSearch =

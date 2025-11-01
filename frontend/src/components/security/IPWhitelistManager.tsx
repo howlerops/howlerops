@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,7 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Shield, Plus, Trash2, AlertCircle, Globe, Network } from 'lucide-react';
+import { Plus, Trash2, AlertCircle, Globe, Network } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 interface IPWhitelistEntry {
@@ -39,26 +39,26 @@ interface IPWhitelistManagerProps {
 
 export function IPWhitelistManager({ organizationId }: IPWhitelistManagerProps) {
   const [entries, setEntries] = useState<IPWhitelistEntry[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [_isLoading, setIsLoading] = useState(true);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchWhitelist();
-  }, [organizationId]);
-
-  const fetchWhitelist = async () => {
+  const fetchWhitelist = useCallback(async () => {
     try {
       const response = await fetch(`/api/organizations/${organizationId}/ip-whitelist`);
       if (!response.ok) throw new Error('Failed to fetch IP whitelist');
       const data = await response.json();
       setEntries(data);
-    } catch (err) {
+    } catch {
       setError('Failed to load IP whitelist');
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [organizationId]);
+
+  useEffect(() => {
+    fetchWhitelist();
+  }, [fetchWhitelist]);
 
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to remove this IP from the whitelist?')) {
@@ -76,7 +76,7 @@ export function IPWhitelistManager({ organizationId }: IPWhitelistManagerProps) 
       if (!response.ok) throw new Error('Failed to remove IP');
 
       setEntries(entries.filter(e => e.id !== id));
-    } catch (err) {
+    } catch {
       setError('Failed to remove IP from whitelist');
     }
   };
@@ -193,7 +193,7 @@ function AddIPDialog({ organizationId, onClose, onSuccess }: AddIPDialogProps) {
     setError(null);
 
     try {
-      const body: any = { description };
+      const body: { description: string; ip_address?: string; ip_range?: string } = { description };
       if (ipType === 'single') {
         body.ip_address = ipAddress;
       } else {

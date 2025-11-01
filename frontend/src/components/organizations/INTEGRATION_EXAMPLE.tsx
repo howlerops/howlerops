@@ -88,7 +88,7 @@ export function OrganizationSettingsExample() {
     }
   }
 
-  const handleTransferOwnership = async (newOwnerId: string, password: string) => {
+  const handleTransferOwnership = async (_newOwnerId: string, _password: string) => {
     setLoading({ ...loading, transfer: true })
     try {
       // Call your API endpoint for transfer
@@ -357,7 +357,7 @@ interface Resource {
   owner_id: string
 }
 
-function ResourceList({ items, canEdit }: { items: Resource[]; canEdit: (r: Resource) => boolean }) {
+function ResourceList({ _items, _canEdit }: { _items: Resource[]; _canEdit: (r: Resource) => boolean }) {
   return null
 }
 
@@ -373,6 +373,6 @@ function NavLink({ to, children }: { to: string; children: React.ReactNode }) {
   return <a href={to}>{children}</a>
 }
 
-function handleEdit(conn: Connection) {}
-function handleDelete(conn: Connection) {}
+function handleEdit(_conn: Connection) {}
+function handleDelete(_conn: Connection) {}
 const resources: Resource[] = []

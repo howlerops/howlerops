@@ -18,7 +18,7 @@ import { toast } from 'sonner'
 import { useAuthStore } from '@/store/auth-store'
 import { useOrganizationStore } from '@/store/organization-store'
 import { authFetch, AuthApiError } from '@/lib/api/auth-client'
-import { isInvitationValid, OrganizationRole } from '@/types/organization'
+import { OrganizationRole } from '@/types/organization'
 import {
   Card,
   CardContent,
@@ -75,18 +75,7 @@ export function InviteAcceptPage() {
   const [accepting, setAccepting] = useState(false)
   const [declining, setDeclining] = useState(false)
 
-  // Fetch invitation details on mount
-  useEffect(() => {
-    if (!token) {
-      setError('Invalid invitation link')
-      setLoading(false)
-      return
-    }
-
-    fetchInvitationDetails()
-  }, [token])
-
-  const fetchInvitationDetails = async () => {
+  const fetchInvitationDetails = React.useCallback(async () => {
     if (!token) return
 
     setLoading(true)
@@ -107,7 +96,18 @@ export function InviteAcceptPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [token, isAuthenticated])
+
+  // Fetch invitation details on mount
+  useEffect(() => {
+    if (!token) {
+      setError('Invalid invitation link')
+      setLoading(false)
+      return
+    }
+
+    fetchInvitationDetails()
+  }, [token, fetchInvitationDetails])
 
   const handleAccept = async () => {
     if (!invitation) return

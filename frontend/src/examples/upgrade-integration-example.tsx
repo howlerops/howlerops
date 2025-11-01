@@ -23,7 +23,7 @@ import { trackQueryExecution } from '@/lib/upgrade-reminders'
  * Example 1: Connection Management with Soft Limits
  */
 export function ConnectionManagementExample() {
-  const { connections, addConnection } = useConnectionStore()
+  const { connections, _addConnection } = useConnectionStore()
   const { checkLimit } = useTierStore()
   const { showUpgrade } = useUpgrade()
 
@@ -66,7 +66,7 @@ export function ConnectionManagementExample() {
 export function QueryHistoryExample() {
   const [queries, setQueries] = useState<string[]>([])
 
-  const handleExecuteQuery = (query: string) => {
+  const _handleExecuteQuery = (query: string) => {
     // Execute query...
     console.log('Executing:', query)
 
@@ -204,7 +204,7 @@ export function LockedFeatureExample() {
  * Example 5: Export with File Size Check
  */
 export function ExportExample() {
-  const { checkLimit } = useTierStore()
+  const { _checkLimit } = useTierStore()
   const { showUpgrade } = useUpgrade()
 
   const handleExport = (dataSize: number) => {

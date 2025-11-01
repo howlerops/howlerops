@@ -5,7 +5,7 @@
  * Beautiful comparison with feature highlights.
  */
 
-import React, { useState } from 'react'
+import React from 'react'
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -26,7 +26,6 @@ import {
   BookMarked,
   TrendingUp,
 } from 'lucide-react'
-import { TIER_METADATA } from '@/config/tier-limits'
 import { cn } from '@/lib/utils'
 
 const FEATURES = {
@@ -89,7 +88,7 @@ export interface PlanSelectionProps {
  */
 function calculatePrice(
   basePrice: number,
-  billingPeriod: 'monthly' | 'annual'
+  _billingPeriod: 'monthly' | 'annual'
 ): { monthly: number; annual: number; discount: number } {
   const annual = basePrice * 12 * 0.8 // 20% discount
   const discount = basePrice * 12 - annual

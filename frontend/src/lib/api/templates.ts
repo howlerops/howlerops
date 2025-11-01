@@ -20,7 +20,7 @@ class TemplatesApiError extends Error {
   constructor(
     message: string,
     public statusCode?: number,
-    public response?: any
+    public response?: Record<string, unknown>
   ) {
     super(message)
     this.name = 'TemplatesApiError'
@@ -231,7 +231,7 @@ export function parseTemplateParameters(sql: string): string[] {
 
 export function interpolateTemplate(
   sql: string,
-  params: Record<string, any>
+  params: Record<string, string | number | boolean | null>
 ): string {
   return sql.replace(/\{\{(\w+)\}\}/g, (_, paramName) => {
     const value = params[paramName]

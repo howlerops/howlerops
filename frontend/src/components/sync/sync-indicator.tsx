@@ -24,8 +24,6 @@ import {
   CloudOff,
   RefreshCw,
   AlertCircle,
-  CheckCircle2,
-  Clock,
   Settings,
   WifiOff,
   Loader2,
@@ -38,7 +36,7 @@ import { cn } from '@/lib/utils'
  */
 export function SyncIndicator() {
   const {
-    status,
+    _status,
     isSyncing,
     lastSyncAt,
     syncEnabled,
@@ -133,7 +131,7 @@ export function SyncIndicator() {
     return 'Not synced'
   }
 
-  const getStatusColor = () => {
+  const _getStatusColor = () => {
     if (!syncEnabled || !isOnline) return 'secondary'
     if (hasError) return 'destructive'
     if (hasConflicts) return 'warning'
@@ -172,7 +170,7 @@ export function SyncIndicator() {
  * Compact sync indicator (for space-constrained areas)
  */
 export function SyncIndicatorCompact() {
-  const { status, isSyncing, syncEnabled, hasConflicts, hasError } = useSyncStatus()
+  const { _status, isSyncing, syncEnabled, hasConflicts, hasError } = useSyncStatus()
   const [isOnline] = useState(navigator.onLine)
 
   const getIcon = () => {
@@ -196,7 +194,7 @@ export function SyncIndicatorCompact() {
  */
 function SyncSettingsDialog() {
   const { syncEnabled, lastSyncAt, progress } = useSyncStatus()
-  const { enableSync, disableSync, updateConfig } = useSyncActions()
+  const { enableSync, disableSync, _updateConfig } = useSyncActions()
   const [open, setOpen] = useState(false)
 
   return (
@@ -331,7 +329,7 @@ export function SyncProgressBar() {
 /**
  * Format relative time
  */
-function formatRelativeTime(date: Date): string {
+function _formatRelativeTime(date: Date): string {
   try {
     return formatDistanceToNow(date, { addSuffix: true })
   } catch {

@@ -268,7 +268,7 @@ export function useTableSync(options: UseTableSyncOptions) {
    */
   const insertRow = useCallback(async (
     row: Record<string, unknown>,
-    _position?: number // eslint-disable-line @typescript-eslint/no-unused-vars
+    _position?: number  
   ) => {
     const operationId = uuidv4();
     const tempRowId = `temp_${Date.now()}`;
@@ -613,7 +613,7 @@ export function useTableSync(options: UseTableSyncOptions) {
   useEffect(() => {
     if (connectionState.status === 'connected') {
       joinRoom(tableId, 'table', { tableName, schema });
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+       
       setSyncState(prev => ({ ...prev, isOnline: true }));
     } else {
       setSyncState(prev => ({ ...prev, isOnline: false }));

@@ -255,9 +255,9 @@ export async function migratePasswordsFromLocalStorage(): Promise<void> {
 
       // Remove passwords from the localStorage data
       parsed.state.connections = parsed.state.connections.map((conn: any) => {
-        const { password, sshTunnel, ...rest } = conn
+        const { _password, sshTunnel, ...rest } = conn
         if (sshTunnel) {
-          const { password: sshPassword, privateKey, ...sshRest } = sshTunnel // eslint-disable-line @typescript-eslint/no-unused-vars
+          const { password: _sshPassword, _privateKey, ...sshRest } = sshTunnel  
           return { ...rest, sshTunnel: sshRest }
         }
         return rest

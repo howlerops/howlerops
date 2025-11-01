@@ -133,7 +133,7 @@ export function WebSocketDebugPanel({
   const formatEventData = useCallback((data: unknown): string => {
     try {
       return JSON.stringify(data, null, 2);
-    } catch (error) { // eslint-disable-line @typescript-eslint/no-unused-vars
+    } catch {  
       return String(data);
     }
   }, []);
@@ -188,7 +188,7 @@ export function WebSocketDebugPanel({
   if (!isVisible) return null;
 
   const statusReport = getStatusReport();
-  const wsStats = getWSStats(); // eslint-disable-line @typescript-eslint/no-unused-vars
+  const _wsStats = getWSStats();  
   const optimisticStats = getOptimisticStats();
   const conflictStats = getConflictStats();
 

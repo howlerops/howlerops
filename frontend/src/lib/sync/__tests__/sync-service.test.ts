@@ -12,8 +12,7 @@ import { SyncService } from '../sync-service'
 import { getIndexedDBClient } from '@/lib/storage/indexeddb-client'
 import { getSyncClient } from '@/lib/api/sync-client'
 import { STORE_NAMES } from '@/types/storage'
-import type { ConnectionRecord, SavedQueryRecord } from '@/types/storage'
-import type { SyncConfig } from '@/types/sync'
+import type { ConnectionRecord } from '@/types/storage'
 
 // Mock dependencies
 vi.mock('@/lib/storage/indexeddb-client')

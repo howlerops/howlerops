@@ -15,7 +15,6 @@ import {
   STORE_NAMES,
   type UIPreferenceRecord,
   type CreateInput,
-  NotFoundError,
 } from '@/types/storage'
 
 /**

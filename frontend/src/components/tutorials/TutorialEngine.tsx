@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { X, ArrowRight, ArrowLeft, CheckCircle2 } from "lucide-react"
-import { Tutorial, TutorialStep, TutorialProgress } from "@/types/tutorial"
+import { Tutorial, TutorialProgress } from "@/types/tutorial"
 import { onboardingTracker } from "@/lib/analytics/onboarding-tracking"
 import { cn } from "@/lib/utils"
 
@@ -23,7 +23,7 @@ export function TutorialEngine({
   onComplete,
 }: TutorialEngineProps) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
-  const [highlightedElement, setHighlightedElement] = useState<HTMLElement | null>(null)
+  const [_highlightedElement, setHighlightedElement] = useState<HTMLElement | null>(null)
   const [startTime] = useState(Date.now())
 
   const currentStep = tutorial.steps[currentStepIndex]
@@ -68,24 +68,6 @@ export function TutorialEngine({
     }
   }, [open, tutorial.id])
 
-  const handleNext = useCallback(async () => {
-    // Execute onNext hook
-    await currentStep?.onNext?.()
-
-    // Track step completion
-    onboardingTracker.trackTutorialStepCompleted(tutorial.id, currentStepIndex + 1)
-
-    if (isLastStep) {
-      handleComplete()
-    } else {
-      setCurrentStepIndex((prev) => prev + 1)
-    }
-  }, [currentStep, currentStepIndex, isLastStep, tutorial.id])
-
-  const handlePrevious = useCallback(() => {
-    setCurrentStepIndex((prev) => Math.max(0, prev - 1))
-  }, [])
-
   const handleComplete = useCallback(() => {
     const duration = Date.now() - startTime
     onboardingTracker.trackTutorialCompleted(tutorial.id, duration)
@@ -112,6 +94,24 @@ export function TutorialEngine({
     onOpenChange(false)
     onComplete?.()
   }, [startTime, tutorial.id, totalSteps, onOpenChange, onComplete])
+
+  const handleNext = useCallback(async () => {
+    // Execute onNext hook
+    await currentStep?.onNext?.()
+
+    // Track step completion
+    onboardingTracker.trackTutorialStepCompleted(tutorial.id, currentStepIndex + 1)
+
+    if (isLastStep) {
+      handleComplete()
+    } else {
+      setCurrentStepIndex((prev) => prev + 1)
+    }
+  }, [currentStep, currentStepIndex, isLastStep, tutorial.id, handleComplete])
+
+  const handlePrevious = useCallback(() => {
+    setCurrentStepIndex((prev) => Math.max(0, prev - 1))
+  }, [])
 
   const handleClose = useCallback(() => {
     onboardingTracker.trackTutorialAbandoned(tutorial.id, currentStepIndex + 1)

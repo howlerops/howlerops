@@ -28,8 +28,8 @@ import {
 } from './index';
 
 // Example 1: Basic Usage with Convenience Functions
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-async function basicUsageExample() {
+ 
+async function _basicUsageExample() {
   console.log('=== Basic Usage Example ===');
 
   // Parse raw query results
@@ -92,8 +92,8 @@ async function basicUsageExample() {
 }
 
 // Example 2: Advanced Usage with Worker Manager
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-async function advancedUsageExample() {
+ 
+async function _advancedUsageExample() {
   console.log('=== Advanced Usage Example ===');
 
   // Initialize worker manager with custom configuration
@@ -235,8 +235,8 @@ async function advancedUsageExample() {
 }
 
 // Example 3: Real-time Data Processing with Progress
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-async function realtimeProcessingExample() {
+ 
+async function _realtimeProcessingExample() {
   console.log('=== Real-time Processing Example ===');
 
   const manager = getWorkerManager();
@@ -302,8 +302,8 @@ async function realtimeProcessingExample() {
 }
 
 // Example 4: Error Handling and Recovery
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-async function errorHandlingExample() {
+ 
+async function _errorHandlingExample() {
   console.log('=== Error Handling Example ===');
 
   const manager = getWorkerManager();

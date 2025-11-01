@@ -281,7 +281,7 @@ export function useConnectionStatus() {
         connectionStartRef.current = now;
       }
 
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+
       setMetrics(prev => ({
         ...prev,
         lastConnectedAt: now,
@@ -290,7 +290,7 @@ export function useConnectionStatus() {
       updateStabilityHistory(true);
 
       // If this was a reconnection
-      if (metrics.reconnectAttempts > 0) {
+      if (connectionState.reconnectAttempts > 0) {
         setMetrics(prev => ({
           ...prev,
           totalReconnects: prev.totalReconnects + 1,
@@ -308,7 +308,7 @@ export function useConnectionStatus() {
 
       updateStabilityHistory(false);
     }
-  }, [connectionState.status, updateStabilityHistory]);
+  }, [connectionState.status, connectionState.reconnectAttempts, updateStabilityHistory]);
 
   /**
    * Start periodic monitoring

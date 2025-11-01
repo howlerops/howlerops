@@ -7,7 +7,6 @@
 
 import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Progress } from '@/components/ui/progress'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -95,7 +94,7 @@ export function UsageStats({
   compact = false,
   className,
 }: UsageStatsProps) {
-  const { checkLimit, getLimits, currentTier } = useTierStore()
+  const { _checkLimit, getLimits, currentTier } = useTierStore()
   const { connections } = useConnectionStore()
   const { showUpgradeModal, UpgradeModalComponent } = useUpgradeModal()
 

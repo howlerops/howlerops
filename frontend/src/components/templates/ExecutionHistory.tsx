@@ -12,7 +12,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
@@ -57,7 +56,12 @@ export function ExecutionHistory({ scheduleId, open, onClose }: ExecutionHistory
   const [selectedExecution, setSelectedExecution] = useState<ScheduleExecution | null>(null)
 
   const schedule = schedules.find((s) => s.id === scheduleId)
-  const scheduleExecutions = executions.get(scheduleId) || []
+
+  // Memoize scheduleExecutions to prevent creating new array reference on every render
+  const scheduleExecutions = React.useMemo(
+    () => executions.get(scheduleId) || [],
+    [executions, scheduleId]
+  )
 
   useEffect(() => {
     if (open && scheduleId) {

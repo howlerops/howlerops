@@ -55,21 +55,7 @@ export function QueryOptimizer({ sql, connectionId, isEnabled = true }: QueryOpt
   const [error, setError] = useState<string | null>(null)
   const [expandedSuggestions, setExpandedSuggestions] = useState<Set<number>>(new Set())
 
-  useEffect(() => {
-    if (!isEnabled || !sql || sql.trim().length < 10) {
-      setAnalysis(null)
-      return
-    }
-
-    // Debounce analysis (run 1 second after user stops typing)
-    const timer = setTimeout(() => {
-      performAnalysis()
-    }, 1000)
-
-    return () => clearTimeout(timer)
-  }, [sql, connectionId, isEnabled])
-
-  const performAnalysis = async () => {
+  const performAnalysis = useCallback(async () => {
     setIsLoading(true)
     setError(null)
 
@@ -82,7 +68,21 @@ export function QueryOptimizer({ sql, connectionId, isEnabled = true }: QueryOpt
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [sql, connectionId])
+
+  useEffect(() => {
+    if (!isEnabled || !sql || sql.trim().length < 10) {
+      setAnalysis(null)
+      return
+    }
+
+    // Debounce analysis (run 1 second after user stops typing)
+    const timer = setTimeout(() => {
+      performAnalysis()
+    }, 1000)
+
+    return () => clearTimeout(timer)
+  }, [sql, connectionId, isEnabled, performAnalysis])
 
   const toggleSuggestion = (index: number) => {
     const newExpanded = new Set(expandedSuggestions)

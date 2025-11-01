@@ -53,7 +53,8 @@ export function PageErrorBoundary({ children, pageName = 'page' }: PageErrorBoun
   )
 }
 
-// Higher-order component for wrapping pages
+// Higher-order component for wrapping pages - legitimate React pattern
+// eslint-disable-next-line react-refresh/only-export-components
 export function withPageErrorBoundary<P extends object>(
   Component: React.ComponentType<P>,
   pageName?: string

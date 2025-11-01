@@ -273,14 +273,14 @@ export function MembersListMobile({
   members,
   currentUserId,
   currentUserRole,
-  onRoleChange,
+  _onRoleChange,
   onRemoveMember,
   onInviteClick,
   loading = false,
   error = null,
   className,
 }: MembersListProps) {
-  const [expandedId, setExpandedId] = React.useState<string | null>(null)
+  const [_expandedId, setExpandedId] = React.useState<string | null>(null)
   const [removingMemberId, setRemovingMemberId] = React.useState<string | null>(null)
 
   const canInvite = canRemoveMembers(currentUserRole)

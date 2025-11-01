@@ -9,7 +9,6 @@ import {
   clearMigrationFlag,
   retryMigration,
   type StoredCredential,
-  type MigrationResult,
 } from './migrate-credentials'
 
 // Mock localStorage

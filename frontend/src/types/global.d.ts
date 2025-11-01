@@ -8,7 +8,7 @@ declare global {
     gtag?: (
       command: 'event' | 'config' | 'set',
       targetId: string,
-      config?: Record<string, any>
+      config?: Record<string, string | number | boolean | undefined>
     ) => void
   }
 }

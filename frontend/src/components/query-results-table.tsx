@@ -395,7 +395,10 @@ export const QueryResultsTable = ({
   executedAt,
   affectedRows,
 }: QueryResultsTableProps) => {
-  const columnNames = Array.isArray(columns) ? columns : []
+  const columnNames = useMemo(
+    () => (Array.isArray(columns) ? columns : []),
+    [columns]
+  )
   const [dirtyRowIds, setDirtyRowIds] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   

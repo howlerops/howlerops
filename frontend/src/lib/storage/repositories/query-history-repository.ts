@@ -510,6 +510,7 @@ export class QueryHistoryRepository {
     })
 
     // Delete them
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const list: QueryHistoryRecord[] = (oldest as any).data ?? []
     await Promise.all(list.map((record) => this.delete(record.id)))
   }

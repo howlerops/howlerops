@@ -28,8 +28,7 @@ import {
   ArrowRight,
   ArrowLeft,
 } from 'lucide-react'
-
-const ONBOARDING_KEY = 'organization-onboarding-completed'
+import { markOnboardingComplete } from '@/lib/onboarding-utils'
 
 interface OnboardingModalProps {
   /** Whether the modal is open */
@@ -201,7 +200,7 @@ export function OnboardingModal({
 
   const handleComplete = () => {
     // Mark onboarding as completed
-    localStorage.setItem(ONBOARDING_KEY, 'true')
+    markOnboardingComplete()
     onClose()
   }
 
@@ -261,18 +260,4 @@ export function OnboardingModal({
       </DialogContent>
     </Dialog>
   )
-}
-
-/**
- * Check if user has completed onboarding
- */
-export function hasCompletedOnboarding(): boolean {
-  return localStorage.getItem(ONBOARDING_KEY) === 'true'
-}
-
-/**
- * Reset onboarding state (for testing)
- */
-export function resetOnboarding(): void {
-  localStorage.removeItem(ONBOARDING_KEY)
 }

@@ -12,7 +12,6 @@ import {
   getQueryHistoryRepository,
   getPreferenceRepository,
 } from './repositories'
-import type { ConnectionRecord, QueryHistoryRecord } from '@/types/storage'
 
 /**
  * Migration result
@@ -95,9 +94,14 @@ async function migrateQueryHistory(userId: string): Promise<number> {
     let migrated = 0
 
     // Extract unique queries from tabs
-    const uniqueQueries = new Map<string, any>()
+    interface LegacyTab {
+      content?: string
+      connectionId?: string
+      lastExecuted?: string
+    }
+    const uniqueQueries = new Map<string, LegacyTab>()
 
-    tabs.forEach((tab: any) => {
+    tabs.forEach((tab: LegacyTab) => {
       if (tab.content && tab.lastExecuted) {
         const key = `${tab.content}-${tab.connectionId}-${tab.lastExecuted}`
         if (!uniqueQueries.has(key)) {

@@ -13,7 +13,7 @@
  */
 
 import React, { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import {
   Dialog,
   DialogContent,
@@ -32,7 +32,6 @@ import {
   TrendingUp,
   Lock,
   Check,
-  X,
   Clock,
   Shield,
   Database,
@@ -175,7 +174,7 @@ export function UpgradeModal({
   trigger = 'manual',
   recommendedTier = 'individual',
 }: UpgradeModalProps) {
-  const { currentTier } = useTierStore()
+  const { _currentTier } = useTierStore()
   const { markShown, dismiss } = useUpgradePromptStore()
   const [selectedPlan, setSelectedPlan] = useState<'individual' | 'team'>(recommendedTier)
 
@@ -406,8 +405,9 @@ export function UpgradeModal({
 }
 
 /**
- * Hook to easily show upgrade modal
+ * Hook to easily show upgrade modal - tightly coupled with UpgradeModal component
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function useUpgradeModal() {
   const [open, setOpen] = useState(false)
   const [trigger, setTrigger] = useState<UpgradeTrigger>('manual')

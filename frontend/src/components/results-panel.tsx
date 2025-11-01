@@ -30,12 +30,12 @@ export function ResultsPanel({ onFixWithAI }: ResultsPanelProps = {}) {
 
   useEffect(() => {
     if (!hasHistory && showHistory) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+
       setShowHistory(false)
     }
-  }, [hasHistory])
+  }, [hasHistory, showHistory])
 
-  /* eslint-disable react-hooks/preserve-manual-memoization */
+   
   const numericColumns = useMemo(() => {
     if (!latestResult) return []
     return latestResult.columns.filter((column) => {
@@ -47,18 +47,18 @@ export function ResultsPanel({ onFixWithAI }: ResultsPanelProps = {}) {
       })
     })
   }, [latestResult])
-  /* eslint-enable react-hooks/preserve-manual-memoization */
+   
 
   const [selectedMetric, setSelectedMetric] = useState<string | null>(null)
 
   useEffect(() => {
     if (numericColumns.length === 0) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+
       setSelectedMetric(null)
     } else if (!selectedMetric || !numericColumns.includes(selectedMetric)) {
       setSelectedMetric(numericColumns[0])
     }
-  }, [numericColumns])
+  }, [numericColumns, selectedMetric])
 
   const metricValues = useMemo(() => {
     if (!latestResult || !selectedMetric) return []
@@ -70,7 +70,7 @@ export function ResultsPanel({ onFixWithAI }: ResultsPanelProps = {}) {
         return Number.isNaN(numeric) ? null : numeric
       })
       .filter((value): value is number => value !== null)
-  }, [latestResult, selectedMetric]) // eslint-disable-line react-hooks/preserve-manual-memoization
+  }, [latestResult, selectedMetric])  
 
   const metricStats = useMemo(() => {
     if (metricValues.length === 0) {

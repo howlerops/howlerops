@@ -50,13 +50,16 @@ export function ScheduleCreator({ open, onClose, template: initialTemplate }: Sc
 
   const [errors, setErrors] = useState<Record<string, string>>({})
 
-  // Find selected template
-  const selectedTemplate = templates.find((t) => t.id === formData.template_id) || initialTemplate
+  // Find selected template - memoize to prevent creating new object reference on every render
+  const selectedTemplate = React.useMemo(
+    () => templates.find((t) => t.id === formData.template_id) || initialTemplate,
+    [templates, formData.template_id, initialTemplate]
+  )
 
   // Initialize parameters when template changes
   useEffect(() => {
     if (selectedTemplate) {
-      const params: Record<string, any> = {}
+      const params: Record<string, TemplateParameterValue> = {}
       selectedTemplate.parameters.forEach((param) => {
         if (param.default !== undefined) {
           params[param.name] = param.default
@@ -289,7 +292,7 @@ export function ScheduleCreator({ open, onClose, template: initialTemplate }: Sc
                 <Label htmlFor="storage">Result Storage</Label>
                 <Select
                   value={formData.result_storage}
-                  onValueChange={(v: any) => updateField('result_storage', v)}
+                  onValueChange={(v) => updateField('result_storage', v as CreateScheduleInput['result_storage'])}
                 >
                   <SelectTrigger id="storage">
                     <SelectValue />

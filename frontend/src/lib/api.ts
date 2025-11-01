@@ -52,7 +52,13 @@ export const queryClient = new QueryClient({
       staleTime: 5 * 60 * 1000, // 5 minutes
       gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
       retry: (failureCount, error: unknown) => {
-        if ((error as any)?.response?.status === 404) return false
+        // Type guard for axios error
+        interface AxiosError {
+          response?: {
+            status: number
+          }
+        }
+        if ((error as AxiosError)?.response?.status === 404) return false
         return failureCount < 3
       },
     },

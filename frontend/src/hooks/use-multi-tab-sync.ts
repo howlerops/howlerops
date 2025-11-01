@@ -30,6 +30,14 @@ import { getPasswordTransferManager, type PasswordData } from '@/lib/sync/passwo
 import { getStoreRegistry } from '@/lib/sync/store-registry'
 
 /**
+ * Extended window interface for password share callbacks
+ */
+interface WindowWithPasswordShare extends Window {
+  __passwordShareApprove?: (passwords: PasswordData[]) => Promise<void>
+  __passwordShareDeny?: () => void
+}
+
+/**
  * Broadcast sync state store
  */
 interface BroadcastSyncState {
@@ -170,8 +178,8 @@ export function useMultiTabSync(): UseMultiTabSyncReturn {
         })
 
         // Store approve/deny callbacks
-        ;(window as any).__passwordShareApprove = approve
-        ;(window as any).__passwordShareDeny = deny
+        ;(window as WindowWithPasswordShare).__passwordShareApprove = approve
+        ;(window as WindowWithPasswordShare).__passwordShareDeny = deny
       }
     )
 
@@ -194,8 +202,8 @@ export function useMultiTabSync(): UseMultiTabSyncReturn {
       unsubscribePasswordReceived()
 
       // Clean up stored callbacks
-      delete (window as any).__passwordShareApprove
-      delete (window as any).__passwordShareDeny
+      delete (window as WindowWithPasswordShare).__passwordShareApprove
+      delete (window as WindowWithPasswordShare).__passwordShareDeny
     }
   }, [setConnected, setTabs, setPrimary])
 
@@ -218,28 +226,28 @@ export function useMultiTabSync(): UseMultiTabSyncReturn {
    * Approve password share request
    */
   const approvePasswordShare = useCallback(async (passwords: PasswordData[]) => {
-    const approve = (window as any).__passwordShareApprove
+    const approve = (window as WindowWithPasswordShare).__passwordShareApprove
     if (approve) {
       await approve(passwords)
     }
 
     setPasswordShareRequest(null)
-    delete (window as any).__passwordShareApprove
-    delete (window as any).__passwordShareDeny
+    delete (window as WindowWithPasswordShare).__passwordShareApprove
+    delete (window as WindowWithPasswordShare).__passwordShareDeny
   }, [])
 
   /**
    * Deny password share request
    */
   const denyPasswordShare = useCallback(() => {
-    const deny = (window as any).__passwordShareDeny
+    const deny = (window as WindowWithPasswordShare).__passwordShareDeny
     if (deny) {
       deny()
     }
 
     setPasswordShareRequest(null)
-    delete (window as any).__passwordShareApprove
-    delete (window as any).__passwordShareDeny
+    delete (window as WindowWithPasswordShare).__passwordShareApprove
+    delete (window as WindowWithPasswordShare).__passwordShareDeny
   }, [])
 
   /**

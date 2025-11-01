@@ -32,8 +32,9 @@ interface UpgradeContextValue {
 const UpgradeContext = createContext<UpgradeContextValue | null>(null)
 
 /**
- * Hook to access upgrade context
+ * Hook to access upgrade context - standard React Context pattern
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function useUpgrade() {
   const context = useContext(UpgradeContext)
   if (!context) {

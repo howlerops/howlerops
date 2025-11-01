@@ -36,7 +36,7 @@ export function SavedQueriesList() {
     try {
       await deleteQuery(id)
       toast.success('Query deleted')
-    } catch (error) {
+    } catch {
       toast.error('Failed to delete query')
     }
   }
@@ -45,7 +45,7 @@ export function SavedQueriesList() {
     try {
       await duplicateQuery(id)
       toast.success('Query duplicated')
-    } catch (error) {
+    } catch {
       toast.error('Failed to duplicate query')
     }
   }
@@ -53,7 +53,7 @@ export function SavedQueriesList() {
   const handleToggleFavorite = async (id: string) => {
     try {
       await toggleFavorite(id)
-    } catch (error) {
+    } catch {
       toast.error('Failed to update favorite status')
     }
   }

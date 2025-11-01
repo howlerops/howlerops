@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, CheckCircle, XCircle, Upload, Eye } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, Eye } from 'lucide-react';
 
 interface WhiteLabelConfig {
   organization_id: string;
@@ -32,7 +32,7 @@ interface DomainVerification {
 }
 
 export default function WhiteLabelingPage() {
-  const [config, setConfig] = useState<WhiteLabelConfig | null>(null);
+  const [_config, setConfig] = useState<WhiteLabelConfig | null>(null);
   const [domains, setDomains] = useState<DomainVerification[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -79,7 +79,7 @@ export default function WhiteLabelingPage() {
           hide_branding: data.hide_branding || false,
         });
       }
-    } catch (err) {
+    } catch {
       setError('Failed to load white-label configuration');
     } finally {
       setLoading(false);

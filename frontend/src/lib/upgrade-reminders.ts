@@ -74,7 +74,7 @@ function isPreferredTime(config: ReminderConfig): boolean {
  */
 function isActiveUser(config: ReminderConfig): boolean {
   const promptStore = useUpgradePromptStore.getState()
-  const { totalQueries, firstLaunch } = promptStore
+  const { _totalQueries, firstLaunch } = promptStore
 
   // Check session queries
   const sessionQueries = sessionStorage.getItem('session-query-count')
@@ -298,7 +298,7 @@ export function useUpgradeReminders() {
  */
 export function registerReminderListeners(onShowUpgrade: (trigger: UpgradeTrigger) => void) {
   // Listen for periodic reminder events
-  window.addEventListener('show-periodic-upgrade-reminder', ((event: CustomEvent) => {
+  window.addEventListener('show-periodic-upgrade-reminder', ((_event: CustomEvent) => {
     onShowUpgrade('periodic')
   }) as EventListener)
 

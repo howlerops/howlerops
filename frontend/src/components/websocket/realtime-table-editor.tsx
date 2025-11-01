@@ -75,7 +75,7 @@ export function RealtimeTableEditor({
     optimisticState,
     editCell,
     insertRow,
-    updateRow, // eslint-disable-line @typescript-eslint/no-unused-vars
+    _updateRow,  
     deleteRow,
     getTableData,
     getRow,
@@ -92,7 +92,7 @@ export function RealtimeTableEditor({
     },
   });
 
-  const { activeConflicts, hasConflicts } = useConflictResolution(); // eslint-disable-line @typescript-eslint/no-unused-vars
+  const { _activeConflicts, hasConflicts } = useConflictResolution();  
 
   // Local state
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);

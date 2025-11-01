@@ -45,7 +45,7 @@ export function ConnectionStatusIndicator({
     formatDuration,
     isHealthy,
     isDegraded,
-    isUnhealthy, // eslint-disable-line @typescript-eslint/no-unused-vars
+    _isUnhealthy,  
     hasIssues,
   } = useConnectionStatus();
 

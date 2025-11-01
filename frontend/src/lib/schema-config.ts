@@ -230,7 +230,7 @@ export class SchemaConfigBuilder {
         tablePositions: parsed.tablePositions || {},
         schemaColors: parsed.schemaColors || { DEFAULT: '#6366f1' },
       }
-    } catch (_error) { // eslint-disable-line @typescript-eslint/no-unused-vars
+    } catch {  
       throw new Error('Invalid JSON configuration')
     }
   }

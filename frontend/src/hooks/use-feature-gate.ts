@@ -23,11 +23,12 @@
  * ```
  */
 
-import { useMemo, useCallback } from 'react'
+import { useMemo, useCallback, createElement } from 'react'
 import type { ReactNode } from 'react'
 import { useTierStore } from '@/store/tier-store'
 import type { TierFeatures, TierLevel } from '@/types/tiers'
 import { getRequiredTier } from '@/config/tier-limits'
+import { PreviewWrapper, LockedWrapper, BadgeWrapper } from '@/components/feature-gating-helpers'
 
 /**
  * Feature gate mode
@@ -171,11 +172,7 @@ export function useFeatureGate(
 
   const renderPreview = useCallback(
     (children: ReactNode, options?: PreviewOptions): ReactNode => {
-      // Use helper component to avoid circular dependencies
-      const React = require('react')
-      const { PreviewWrapper } = require('@/components/feature-gating-helpers')
-
-      return React.createElement(PreviewWrapper, {
+      return createElement(PreviewWrapper, {
         feature,
         tier: requiredTier || 'individual',
         title: options?.title || feature,
@@ -191,11 +188,7 @@ export function useFeatureGate(
 
   const renderLocked = useCallback(
     (children: ReactNode, title: string, benefits: string[]): ReactNode => {
-      // Use helper component to avoid circular dependencies
-      const React = require('react')
-      const { LockedWrapper } = require('@/components/feature-gating-helpers')
-
-      return React.createElement(LockedWrapper, {
+      return createElement(LockedWrapper, {
         feature,
         tier: requiredTier || 'individual',
         title,
@@ -207,11 +200,7 @@ export function useFeatureGate(
   )
 
   const renderBadge = useCallback((): ReactNode => {
-    // Use helper component to avoid circular dependencies
-    const React = require('react')
-    const { BadgeWrapper } = require('@/components/feature-gating-helpers')
-
-    return React.createElement(BadgeWrapper, {
+    return createElement(BadgeWrapper, {
       tier: requiredTier || 'individual',
     })
   }, [requiredTier])

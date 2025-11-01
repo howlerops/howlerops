@@ -36,7 +36,6 @@ import {
   Copy,
   CheckCircle,
   AlertCircle,
-  Clock,
   Shield,
   Eye,
   EyeOff,
@@ -60,7 +59,7 @@ interface APIKeyManagerProps {
 
 export function APIKeyManager({ organizationId }: APIKeyManagerProps) {
   const [keys, setKeys] = useState<APIKey[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [_isLoading, setIsLoading] = useState(true);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -74,7 +73,7 @@ export function APIKeyManager({ organizationId }: APIKeyManagerProps) {
       if (!response.ok) throw new Error('Failed to fetch API keys');
       const data = await response.json();
       setKeys(data);
-    } catch (err) {
+    } catch {
       setError('Failed to load API keys');
     } finally {
       setIsLoading(false);
@@ -96,7 +95,7 @@ export function APIKeyManager({ organizationId }: APIKeyManagerProps) {
       setKeys(keys.map(k =>
         k.id === keyId ? { ...k, revoked_at: new Date().toISOString() } : k
       ));
-    } catch (err) {
+    } catch {
       setError('Failed to revoke API key');
     }
   };
@@ -213,7 +212,7 @@ export function APIKeyManager({ organizationId }: APIKeyManagerProps) {
           <CreateAPIKeyDialog
             organizationId={organizationId}
             onClose={() => setShowCreateDialog(false)}
-            onSuccess={(newKey) => {
+            onSuccess={(_newKey) => {
               fetchAPIKeys();
               setShowCreateDialog(false);
             }}
@@ -227,7 +226,7 @@ export function APIKeyManager({ organizationId }: APIKeyManagerProps) {
 interface CreateAPIKeyDialogProps {
   organizationId?: string;
   onClose: () => void;
-  onSuccess: (key: any) => void;
+  onSuccess: (key: APIKey) => void;
 }
 
 function CreateAPIKeyDialog({ organizationId, onClose, onSuccess }: CreateAPIKeyDialogProps) {

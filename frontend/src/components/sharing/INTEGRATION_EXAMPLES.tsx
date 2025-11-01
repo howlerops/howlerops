@@ -7,14 +7,14 @@
  * @module components/sharing/INTEGRATION_EXAMPLES
  */
 
-/* eslint-disable @typescript-eslint/no-unused-vars */
+
 import { useState } from 'react'
 import { VisibilityToggle } from './VisibilityToggle'
 import { SharedResourceCard } from './SharedResourceCard'
 import { ConflictResolutionDialog } from './ConflictResolutionDialog'
 import { useConnectionsStore } from '@/store/connections-store'
 import { useQueriesStore } from '@/store/queries-store'
-import type { Connection } from '@/lib/api/connections'
+import type { Connection, ConnectionVisibility, CreateConnectionInput } from '@/lib/api/connections'
 import type { SavedQuery } from '@/lib/api/queries'
 import type { Conflict } from '@/types/sync'
 
@@ -357,7 +357,7 @@ export function ConnectionFormIntegrationExample() {
     visibility: 'personal',
   })
 
-  const { shareConnection, unshareConnection, createConnection } =
+  const { shareConnection, _unshareConnection, createConnection } =
     useConnectionsStore()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -365,7 +365,7 @@ export function ConnectionFormIntegrationExample() {
 
     try {
       // Create connection
-      const newConnection = await createConnection(formData as any)
+      const newConnection = await createConnection(formData as CreateConnectionInput)
       console.log('Connection created:', newConnection)
 
       // If visibility is 'shared', share with current organization
@@ -400,12 +400,12 @@ export function ConnectionFormIntegrationExample() {
         <VisibilityToggle
           resourceId="new" // Will be set after creation
           resourceType="connection"
-          currentVisibility={formData.visibility as any}
+          currentVisibility={formData.visibility as ConnectionVisibility | undefined}
           currentOrgId={formData.organization_id}
           onShare={(id, orgId) => {
             setFormData({ ...formData, visibility: 'shared', organization_id: orgId })
           }}
-          onUnshare={(id) => {
+          onUnshare={(_id) => {
             setFormData({ ...formData, visibility: 'personal', organization_id: undefined })
           }}
           onUpdate={() => {}}

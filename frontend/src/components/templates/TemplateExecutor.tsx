@@ -20,8 +20,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
-import { Play, AlertCircle, CheckCircle, Clock, Code } from 'lucide-react'
-import type { QueryTemplate, QueryResult, TemplateParameter } from '@/types/templates'
+import { Play, AlertCircle, CheckCircle, Clock } from 'lucide-react'
+import type { QueryTemplate, QueryResult, TemplateParameter, TemplateParameterValue } from '@/types/templates'
 import { useTemplatesStore } from '@/store/templates-store'
 import { interpolateTemplate } from '@/lib/api/templates'
 // Using simple pre/code for SQL display - can be upgraded to CodeMirror if needed
@@ -33,9 +33,9 @@ interface TemplateExecutorProps {
 }
 
 export function TemplateExecutor({ template, open, onClose }: TemplateExecutorProps) {
-  const [params, setParams] = useState<Record<string, any>>(() => {
+  const [params, setParams] = useState<Record<string, TemplateParameterValue>>(() => {
     // Initialize with default values
-    const defaults: Record<string, any> = {}
+    const defaults: Record<string, TemplateParameterValue> = {}
     template.parameters.forEach((param) => {
       if (param.default !== undefined) {
         defaults[param.name] = param.default
@@ -105,7 +105,7 @@ export function TemplateExecutor({ template, open, onClose }: TemplateExecutorPr
 
   const isValid = Object.keys(validationErrors).length === 0
 
-  const handleParamChange = (name: string, value: any) => {
+  const handleParamChange = (name: string, value: TemplateParameterValue) => {
     setParams((prev) => ({ ...prev, [name]: value }))
     setError(null)
   }
@@ -247,9 +247,9 @@ export function TemplateExecutor({ template, open, onClose }: TemplateExecutorPr
 
 interface ParameterInputProps {
   parameter: TemplateParameter
-  value: any
+  value: TemplateParameterValue
   error?: string
-  onChange: (value: any) => void
+  onChange: (value: TemplateParameterValue) => void
 }
 
 function ParameterInput({ parameter, value, error, onChange }: ParameterInputProps) {
@@ -260,7 +260,7 @@ function ParameterInput({ parameter, value, error, onChange }: ParameterInputPro
           <div className="flex items-center space-x-2">
             <Checkbox
               id={parameter.name}
-              checked={value}
+              checked={value as boolean}
               onCheckedChange={onChange}
             />
             <Label htmlFor={parameter.name} className="font-normal cursor-pointer">
@@ -273,7 +273,7 @@ function ParameterInput({ parameter, value, error, onChange }: ParameterInputPro
         return (
           <Input
             type="date"
-            value={value}
+            value={value === null ? '' : String(value)}
             onChange={(e) => onChange(e.target.value)}
           />
         )
@@ -282,7 +282,7 @@ function ParameterInput({ parameter, value, error, onChange }: ParameterInputPro
         return (
           <Input
             type="number"
-            value={value}
+            value={value === null ? '' : String(value)}
             onChange={(e) => onChange(e.target.value)}
             min={parameter.validation?.min}
             max={parameter.validation?.max}
@@ -294,7 +294,7 @@ function ParameterInput({ parameter, value, error, onChange }: ParameterInputPro
         if (parameter.validation?.options) {
           return (
             <select
-              value={value}
+              value={value === null ? '' : String(value)}
               onChange={(e) => onChange(e.target.value)}
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
@@ -311,7 +311,7 @@ function ParameterInput({ parameter, value, error, onChange }: ParameterInputPro
         return (
           <Input
             type="text"
-            value={value}
+            value={value === null ? '' : String(value)}
             onChange={(e) => onChange(e.target.value)}
             placeholder={parameter.default ? String(parameter.default) : undefined}
           />

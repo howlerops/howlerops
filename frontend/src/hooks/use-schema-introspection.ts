@@ -34,7 +34,7 @@ const normaliseSyntheticColumn = (column: unknown): SyntheticViewColumn | null =
   }
 }
 
-const normaliseSyntheticView = (view: unknown): SyntheticViewDefinition | null => {
+const _normaliseSyntheticView = (view: unknown): SyntheticViewDefinition | null => {
   if (!view || typeof view !== 'object') {
     return null
   }
@@ -64,7 +64,7 @@ export type { SchemaNode } from '@/store/schema-store'
 
 // Deprecated: Old SchemaCache - replaced by centralized useSchemaStore
 // Keeping for backward compatibility during migration
-class SchemaCache {
+class _SchemaCache {
   private static instance: SchemaCache
 
   static getInstance(): SchemaCache {
@@ -102,7 +102,7 @@ export function useSchemaIntrospection() {
   const isLoading = useSchemaStore((state) => state.isLoading)
   const getError = useSchemaStore((state) => state.getError)
   const invalidate = useSchemaStore((state) => state.invalidate)
-  const invalidateAll = useSchemaStore((state) => state.invalidateAll)
+  const _invalidateAll = useSchemaStore((state) => state._invalidateAll)
 
   const [schema, setSchema] = useState<SchemaNode[]>([])
   const [loading, setLoading] = useState(false)

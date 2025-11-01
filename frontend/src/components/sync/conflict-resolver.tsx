@@ -13,8 +13,10 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
-import { AlertTriangle, CheckCircle, XCircle, Clock, Database, FileText } from 'lucide-react'
+import { AlertTriangle, CheckCircle, Clock, Database, FileText } from 'lucide-react'
 import type { Conflict, ConflictResolution } from '@/types/sync'
+import type { Connection } from '@/lib/api/connections'
+import type { SavedQuery } from '@/lib/api/queries'
 
 interface ConflictResolverProps {
   /** Whether to show the modal */
@@ -166,10 +168,10 @@ function ConflictItem({ conflict, onResolve, resolving }: ConflictItemProps) {
 
   const getEntityName = () => {
     if (conflict.entityType === 'connection') {
-      return (conflict.localVersion as any)?.name || 'Unknown Connection'
+      return (conflict.localVersion as Connection)?.name || 'Unknown Connection'
     }
     if (conflict.entityType === 'saved_query') {
-      return (conflict.localVersion as any)?.title || 'Unknown Query'
+      return (conflict.localVersion as SavedQuery)?.title || 'Unknown Query'
     }
     return conflict.entityId
   }

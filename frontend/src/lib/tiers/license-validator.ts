@@ -16,7 +16,7 @@
  * The checksum prevents tampering and ensures license integrity.
  */
 
-import type { TierLevel, LicenseValidationResult, LicenseMetadata } from '@/types/tiers'
+import type { TierLevel, LicenseValidationResult } from '@/types/tiers'
 
 /**
  * License key format regex
@@ -228,9 +228,9 @@ export async function validateLicenseKey(key: string): Promise<LicenseValidation
  * @returns Server validation result
  */
 async function validateWithServer(
-  key: string,
-  tier: TierLevel,
-  uuid: string
+  _key: string,
+  _tier: TierLevel,
+  _uuid: string
 ): Promise<{
   valid: boolean
   message?: string

@@ -36,7 +36,7 @@ interface TranscriptItem {
 export function VideoPlayer({
   videoId,
   src,
-  title,
+  _title,
   transcript = [],
   onComplete,
 }: VideoPlayerProps) {

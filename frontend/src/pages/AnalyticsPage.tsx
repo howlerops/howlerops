@@ -28,9 +28,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Progress } from '@/components/ui/progress'
 import {
   AlertTriangle,
-  TrendingUp,
-  TrendingDown,
-  Activity,
   Database,
   Users,
   Clock,
@@ -319,7 +316,7 @@ export default function AnalyticsPage() {
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Analytics Dashboard</h1>
         <div className="flex items-center gap-4">
-          <Select value={timeRange} onValueChange={(v: any) => setTimeRange(v)}>
+          <Select value={timeRange} onValueChange={(v) => setTimeRange(v as '24h' | '7d' | '30d')}>
             <SelectTrigger className="w-32">
               <SelectValue />
             </SelectTrigger>

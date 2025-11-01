@@ -118,7 +118,7 @@ export function TwoFactorSetup({ isOpen, onClose, onSuccess }: TwoFactorSetupPro
     if (isOpen && !setupData) {
       initSetup();
     }
-  }, [isOpen]);
+  }, [isOpen, setupData]);
 
   return (
     <Dialog open={isOpen} onOpenChange={() => !isLoading && onClose()}>
@@ -297,11 +297,16 @@ export function TwoFactorSetup({ isOpen, onClose, onSuccess }: TwoFactorSetupPro
   );
 }
 
+interface TwoFactorStatus {
+  enabled: boolean;
+  backup_codes_count?: number;
+}
+
 export function TwoFactorStatus() {
-  const [status, setStatus] = useState<any>(null);
+  const [status, setStatus] = useState<TwoFactorStatus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showSetup, setShowSetup] = useState(false);
-  const [showDisable, setShowDisable] = useState(false);
+  const [_showDisable, setShowDisable] = useState(false);
 
   React.useEffect(() => {
     fetchStatus();
@@ -321,7 +326,7 @@ export function TwoFactorStatus() {
     }
   };
 
-  const handleDisable = async (password: string) => {
+  const _handleDisable = async (password: string) => {
     try {
       const response = await fetch('/api/auth/2fa/disable', {
         method: 'POST',

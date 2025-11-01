@@ -435,7 +435,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
   // Auto-connect on mount
   useEffect(() => {
     if (opts.autoConnect) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+       
       connect();
     }
 

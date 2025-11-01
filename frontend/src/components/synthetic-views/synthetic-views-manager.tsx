@@ -6,6 +6,12 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from '@/components/ui/label'
 import { Plus, Edit, Trash2, Eye, Database, Lock, Calendar } from 'lucide-react'
 
+interface WailsApp {
+  ListSyntheticViews: () => Promise<ViewSummary[]>
+  GetSyntheticView: (viewId: string) => Promise<ViewDefinition>
+  DeleteSyntheticView: (viewId: string) => Promise<void>
+}
+
 interface ViewDefinition {
   id: string
   name: string
@@ -51,8 +57,8 @@ export const SyntheticViewsManager: React.FC<SyntheticViewsManagerProps> = ({
       
       // Load synthetic views
       try {
-        // @ts-ignore - Wails API may not be available in development
-        const App = await import('../../wailsjs/go/main/App') as any
+        // @ts-expect-error - Wails API may not be available in development
+        const App = await import('../../wailsjs/go/main/App') as WailsApp
         const viewsList = await App.ListSyntheticViews()
         setViews(viewsList)
       } catch (importError) {
@@ -72,8 +78,8 @@ export const SyntheticViewsManager: React.FC<SyntheticViewsManagerProps> = ({
   const loadViewDetails = async (viewId: string) => {
     try {
       try {
-        // @ts-ignore - Wails API may not be available in development
-        const App = await import('../../wailsjs/go/main/App') as any
+        // @ts-expect-error - Wails API may not be available in development
+        const App = await import('../../wailsjs/go/main/App') as WailsApp
         const view = await App.GetSyntheticView(viewId)
         setSelectedView(view)
         if (onViewSelect) {
@@ -97,8 +103,8 @@ export const SyntheticViewsManager: React.FC<SyntheticViewsManagerProps> = ({
 
     try {
       try {
-        // @ts-ignore - Wails API may not be available in development
-        const App = await import('../../wailsjs/go/main/App') as any
+        // @ts-expect-error - Wails API may not be available in development
+        const App = await import('../../wailsjs/go/main/App') as WailsApp
         await App.DeleteSyntheticView(viewId)
         
         // Remove from local state
@@ -121,8 +127,8 @@ export const SyntheticViewsManager: React.FC<SyntheticViewsManagerProps> = ({
   const handleEditView = async (view: ViewSummary) => {
     try {
       try {
-        // @ts-ignore - Wails API may not be available in development
-        const App = await import('../../wailsjs/go/main/App') as any
+        // @ts-expect-error - Wails API may not be available in development
+        const App = await import('../../wailsjs/go/main/App') as WailsApp
         const viewDetails = await App.GetSyntheticView(view.id)
         if (onViewEdit) {
           onViewEdit(viewDetails)

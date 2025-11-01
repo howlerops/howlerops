@@ -9,7 +9,7 @@
  * - Audit log viewing
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Tabs,
@@ -33,23 +33,11 @@ import {
   Th,
   Td,
   useToast,
-  FormControl,
-  FormLabel,
-  Input,
-  Select,
-  Switch,
   Alert,
   AlertIcon,
   AlertTitle,
   AlertDescription,
   Spinner,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-  ModalCloseButton,
   useDisclosure,
 } from '@chakra-ui/react';
 
@@ -86,16 +74,9 @@ export const CompliancePage: React.FC = () => {
   const [piiFields, setPIIFields] = useState<PIIField[]>([]);
   const [loading, setLoading] = useState(true);
   const toast = useToast();
-  const { isOpen, onOpen, onClose } = useDisclosure();
+  const { _isOpen, onOpen, _onClose } = useDisclosure();
 
-  // Load compliance data
-  useEffect(() => {
-    loadRetentionPolicies();
-    loadGDPRRequests();
-    loadPIIFields();
-  }, []);
-
-  const loadRetentionPolicies = async () => {
+  const loadRetentionPolicies = useCallback(async () => {
     try {
       // TODO: Replace with actual API call
       const orgId = 'current-org-id';
@@ -112,7 +93,14 @@ export const CompliancePage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  // Load compliance data
+  useEffect(() => {
+    loadRetentionPolicies();
+    loadGDPRRequests();
+    loadPIIFields();
+  }, [loadRetentionPolicies]);
 
   const loadGDPRRequests = async () => {
     try {
@@ -135,7 +123,7 @@ export const CompliancePage: React.FC = () => {
     }
   };
 
-  const createRetentionPolicy = async (policy: Partial<RetentionPolicy>) => {
+  const _createRetentionPolicy = async (policy: Partial<RetentionPolicy>) => {
     try {
       const orgId = 'current-org-id';
       const response = await fetch(`/api/organizations/${orgId}/retention-policy`, {

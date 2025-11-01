@@ -60,7 +60,7 @@ export function TemplateCard({
   onDuplicate,
   onSchedule,
 }: TemplateCardProps) {
-  const router = useRouter()
+  const _router = useRouter()
 
   const categoryColor = CATEGORY_COLORS[template.category] || CATEGORY_COLORS.custom
 

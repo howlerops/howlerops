@@ -205,7 +205,7 @@ export function SharedResourcesPage() {
       )}
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'connections' | 'queries')}>
         <TabsList className="mb-6">
           <TabsTrigger value="connections" className="gap-2">
             <Database className="h-4 w-4" />

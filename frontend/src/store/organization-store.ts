@@ -18,7 +18,6 @@ import type {
   CreateOrganizationInput,
   UpdateOrganizationInput,
   CreateInvitationInput,
-  UpdateMemberRoleInput,
   OrganizationRole,
   AuditLogQueryParams,
 } from '@/types/organization'

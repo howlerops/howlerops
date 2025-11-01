@@ -10,11 +10,9 @@
 import { getIndexedDBClient } from '@/lib/storage/indexeddb-client'
 import { getSyncClient } from '@/lib/api/sync-client'
 import {
-  sanitizeConnection,
   prepareConnectionsForSync,
   type SanitizedConnection,
 } from '@/lib/sanitization/connection-sanitizer'
-import { sanitizeQuery } from '@/lib/sanitization/query-sanitizer'
 import { useTierStore } from '@/store/tier-store'
 import { STORE_NAMES } from '@/types/storage'
 import type {
@@ -31,7 +29,6 @@ import type {
   DeviceInfo,
   SyncProgress,
   UploadChangesRequest,
-  DEFAULT_SYNC_CONFIG,
 } from '@/types/sync'
 import { generateDeviceId } from '@/types/sync'
 

@@ -12,6 +12,8 @@ import { createBrowserRouter } from 'react-router-dom'
 import { TemplatesPage } from './pages/TemplatesPage'
 import { SchedulesPage } from './pages/SchedulesPage'
 
+// This is an example file that intentionally exports multiple examples
+// eslint-disable-next-line react-refresh/only-export-components
 export const exampleRouter = createBrowserRouter([
   {
     path: '/',
@@ -297,7 +299,7 @@ function ScheduleFormExample() {
 
 function TemplateSearchExample() {
   const {
-    templates,
+    _templates,
     setFilters,
     setSortBy,
     getFilteredTemplates,
@@ -404,7 +406,7 @@ function TemplatesDashboard() {
     totalTemplates: templates.length,
     publicTemplates: templates.filter((t) => t.is_public).length,
     activeSchedules: schedules.filter((s) => s.status === 'active').length,
-    totalExecutions: schedules.reduce((sum, s) => {
+    totalExecutions: schedules.reduce((sum, _s) => {
       // Sum up executions (would come from API)
       return sum
     }, 0),

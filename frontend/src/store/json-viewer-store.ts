@@ -115,7 +115,7 @@ export const useJsonViewerStore = create<JsonViewerState & JsonViewerActions>((s
   ...initialState,
 
   // Sidebar control
-  openRow: (rowId: string, rowData: TableRow, metadata?: QueryEditableMetadata | null) => {
+  openRow: (rowId: string, rowData: TableRow, _metadata?: QueryEditableMetadata | null) => {
     set({
       isOpen: true,
       currentRow: rowData,
@@ -289,14 +289,14 @@ export const useJsonViewerStore = create<JsonViewerState & JsonViewerActions>((s
   },
 
   expandAllKeys: () => {
-    set(state => ({
+    set(_state => ({
       expandedKeys: new Set(['*']), // Use special key to indicate all expanded
       collapsedKeys: new Set()
     }))
   },
 
   collapseAllKeys: () => {
-    set(state => ({
+    set(_state => ({
       expandedKeys: new Set(),
       collapsedKeys: new Set(['*']) // Use special key to indicate all collapsed
     }))
@@ -374,7 +374,7 @@ export const useJsonViewerStore = create<JsonViewerState & JsonViewerActions>((s
     })
   },
 
-  loadForeignKeyData: async (key: string, connectionId: string, query: string) => {
+  loadForeignKeyData: async (key: string, _connectionId: string, _query: string) => {
     // This would integrate with the existing query system
     // For now, we'll just mark it as loaded
     set(state => {

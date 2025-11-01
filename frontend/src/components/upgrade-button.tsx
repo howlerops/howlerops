@@ -114,7 +114,7 @@ export function UpgradeButton({
   return (
     <Button
       onClick={handleClick}
-      variant={variant as any}
+      variant={variant as 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link'}
       size={buttonSize}
       className={cn(
         'gap-2',

@@ -35,7 +35,7 @@ export function useQueryMode(initialMode?: 'auto' | QueryMode): UseQueryModeRetu
   useEffect(() => {
     if (initialMode === 'auto' || !initialMode) {
       const newMode: QueryMode = connectionCount > 1 ? 'multi' : 'single';
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+       
       setMode(newMode);
     }
   }, [connectionCount, initialMode]);

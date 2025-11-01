@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
   Search,
@@ -43,7 +43,7 @@ export function TemplatesPage() {
     templates,
     loading,
     error,
-    filters,
+    filters: _filters,
     sortBy,
     fetchTemplates,
     deleteTemplate,
@@ -58,7 +58,7 @@ export function TemplatesPage() {
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [executingTemplate, setExecutingTemplate] = useState<QueryTemplate | null>(null)
   const [schedulingTemplate, setSchedulingTemplate] = useState<QueryTemplate | null>(null)
-  const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const [_showCreateDialog, setShowCreateDialog] = useState(false)
 
   // Load templates on mount
   useEffect(() => {
@@ -77,7 +77,7 @@ export function TemplatesPage() {
   // Get filtered templates
   const filteredTemplates = useMemo(() => {
     return getFilteredTemplates()
-  }, [getFilteredTemplates, filters, sortBy, templates])
+  }, [getFilteredTemplates])
 
   // Get all unique tags from templates
   const allTags = useMemo(() => {

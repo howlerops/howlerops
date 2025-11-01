@@ -241,6 +241,12 @@ export interface TableMetrics {
   };
 }
 
+export interface SearchMatch {
+  path: string;
+  key: string;
+  value: CellValue;
+}
+
 export interface JsonViewerState {
   isOpen: boolean;
   currentRow: TableRow | null;
@@ -253,7 +259,7 @@ export interface JsonViewerState {
   collapsedKeys: Set<string>;
   searchQuery: string;
   searchResults: {
-    matches: any[];
+    matches: SearchMatch[];
     currentIndex: number;
     totalMatches: number;
   };
@@ -261,7 +267,7 @@ export interface JsonViewerState {
   searchKeys: boolean;
   searchValues: boolean;
   expandedForeignKeys: Set<string>;
-  foreignKeyCache: Map<string, any>;
+  foreignKeyCache: Map<string, unknown>;
   isLoading: boolean;
   isSaving: boolean;
   saveError: string | null;

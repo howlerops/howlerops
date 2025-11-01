@@ -44,7 +44,7 @@ export function formatJson(data: unknown, indent = 2): FormattedJson {
     // Tokenize the formatted JSON
     tokens.push(...tokenizeJson(formatted))
     
-  } catch (error) {
+  } catch {
     // Fallback for circular references or other issues
     formatted = '[Circular Reference]'
     tokens.push({

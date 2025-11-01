@@ -41,7 +41,6 @@ import {
   Search,
   X,
   Star,
-  ArrowUpDown,
   ArrowUp,
   ArrowDown,
   Folder,
@@ -50,7 +49,6 @@ import {
   Loader2,
   Inbox,
   Filter,
-  SlidersHorizontal,
 } from 'lucide-react'
 import { useSavedQueriesStore } from '@/store/saved-queries-store'
 import { useTierStore } from '@/store/tier-store'
@@ -96,7 +94,7 @@ export function SavedQueriesPanel({
     sortDirection,
     setSearchText,
     setSelectedFolder,
-    setSelectedTags,
+    _setSelectedTags,
     toggleTag,
     setShowFavoritesOnly,
     setSortBy,
@@ -375,7 +373,7 @@ export function SavedQueriesPanel({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">Sort by:</span>
-                <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+                <Select value={sortBy} onValueChange={(value: string) => setSortBy(value as 'title' | 'created_at' | 'updated_at')}>
                   <SelectTrigger className="w-[140px] h-8">
                     <SelectValue />
                   </SelectTrigger>

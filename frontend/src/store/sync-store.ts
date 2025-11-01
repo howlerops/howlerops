@@ -394,8 +394,13 @@ export const useSyncStore = create<SyncStore>()(
 
               // Convert conflict dates
               if (state.pendingConflicts) {
+                interface SerializedConflict {
+                  localUpdatedAt: string
+                  remoteUpdatedAt: string
+                  [key: string]: unknown
+                }
                 state.pendingConflicts = state.pendingConflicts.map(
-                  (c: any) => ({
+                  (c: SerializedConflict) => ({
                     ...c,
                     localUpdatedAt: new Date(c.localUpdatedAt),
                     remoteUpdatedAt: new Date(c.remoteUpdatedAt),

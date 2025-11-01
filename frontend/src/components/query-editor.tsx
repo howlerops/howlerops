@@ -215,7 +215,7 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
     }
 
     return map
-  }, [activeConnection?.id, activeConnection?.name, activeConnection?.sessionId, activeConnection?.isConnected, schema])
+  }, [activeConnection?.id, activeConnection?.name, schema])
 
   const codeMirrorConnections = useMemo(
     () => editorConnections.map(conn => ({
@@ -272,6 +272,9 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
   // - Ctrl/Cmd+Shift+D: toggle diagnostics
   // - Ctrl/Cmd+Shift+L: open Saved Queries library
   // - Ctrl/Cmd+Shift+S: open Save Query dialog
+  const editorContentRef = useRef(editorContent)
+  useEffect(() => { editorContentRef.current = editorContent }, [editorContent])
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'D') {
@@ -285,13 +288,13 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
       }
 
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'S' || e.key === 's')) {
-        if ((editorRef.current?.getValue() ?? editorContent).trim()) {
+        if ((editorRef.current?.getValue() ?? editorContentRef.current).trim()) {
           e.preventDefault()
           setShowSaveQueryDialog(true)
         }
       }
     }
-    
+
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
@@ -483,12 +486,12 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
   // Visual Query Builder handlers
   const handleVisualQueryChange = useCallback((queryIR: QueryIR) => {
     setVisualQueryIR(queryIR)
-    
+
     // Generate SQL from IR
     try {
       const sql = generateSQLFromIR(queryIR, 'postgres') // TODO: Get dialect from connection
       setEditorContent(sql)
-      
+
       if (activeTab) {
         updateTab(activeTab.id, {
           content: sql,
@@ -498,7 +501,7 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
     } catch (error) {
       console.error('Failed to generate SQL from visual query:', error)
     }
-  }, [activeTab, updateTab, generateSQLFromIR])
+  }, [activeTab, updateTab])
 
   const handleVisualSQLChange = useCallback((sql: string) => {
     setEditorContent(sql)

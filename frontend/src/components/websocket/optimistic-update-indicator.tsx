@@ -37,7 +37,7 @@ export function OptimisticUpdateIndicator({
   const {
     optimisticState,
     getPendingUpdates,
-    getUpdate, // eslint-disable-line @typescript-eslint/no-unused-vars
+    _getUpdate,  
     rollbackUpdate,
     clearAllUpdates,
     getStats,

@@ -44,7 +44,7 @@ export function QueryProgressIndicator({
     canCancel,
     executeQuery,
     cancelQuery,
-    getCombinedResult, // eslint-disable-line @typescript-eslint/no-unused-vars
+    _getCombinedResult,  
     getStats,
   } = useRealtimeQuery({
     connectionName,

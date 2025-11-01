@@ -15,7 +15,7 @@
 
 import * as React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Sparkles, Check, Crown, Zap, Star, Heart, Trophy } from 'lucide-react'
+import { Sparkles, Check, Crown, Zap, Star } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { GradientFeatureBadge } from './feature-badge'
 import type { TierLevel } from '@/types/tiers'

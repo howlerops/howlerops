@@ -139,7 +139,7 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
           console.log('ReactFlow nodes and edges:', {
             nodes: flowNodes.length,
             edges: flowEdges.length,
-            edgeTypes: flowEdges.map((e: any) => e.type)
+            edgeTypes: (flowEdges as Edge[]).map((e: Edge) => e.type)
           })
 
           // Smart layout selection based on table count
@@ -177,7 +177,7 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
   }, [schema, setNodes, setEdges])
 
   // Filter options
-  const filterOptions: FilterOptions = useMemo(() => ({ // eslint-disable-line @typescript-eslint/no-unused-vars
+  const _filterOptions: FilterOptions = useMemo(() => ({  
     searchTerm: debouncedSearchTerm,
     selectedSchemas,
     showForeignKeys,

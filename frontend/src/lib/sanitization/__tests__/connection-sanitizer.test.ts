@@ -12,8 +12,7 @@ import {
   prepareConnectionsForSync,
   hasRequiredCredentials,
   restoreCredentials,
-  validateSanitization,
-  type SanitizedConnection
+  validateSanitization
 } from '../connection-sanitizer'
 import type { DatabaseConnection } from '@/store/connection-store'
 import { createDefaultConfig } from '../config'

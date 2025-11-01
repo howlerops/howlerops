@@ -47,7 +47,7 @@ import { getQueryHistoryRepository } from '@/lib/storage/repositories/query-hist
  * ```
  */
 export function TierSettingsPanel() {
-  const navigate = useNavigate()
+  const _navigate = useNavigate()
   const {
     currentTier,
     licenseKey,
@@ -65,7 +65,7 @@ export function TierSettingsPanel() {
   const [activationError, setActivationError] = useState<string | null>(null)
 
   const features = getFeatures()
-  const limits = getLimits()
+  const _limits = getLimits()
 
   // Load query history count
   React.useEffect(() => {

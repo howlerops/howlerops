@@ -355,7 +355,7 @@ export class StreamingQueryClient extends EventEmitter {
         if (buffer.trim()) {
           try {
             yield JSON.parse(buffer);
-          } catch (_error) { // eslint-disable-line @typescript-eslint/no-unused-vars
+          } catch {  
             console.error('Failed to parse final buffer:', buffer);
           }
         }
@@ -372,7 +372,7 @@ export class StreamingQueryClient extends EventEmitter {
         if (line.trim()) {
           try {
             yield JSON.parse(line);
-          } catch (_error) { // eslint-disable-line @typescript-eslint/no-unused-vars
+          } catch {  
             console.error('Failed to parse line:', line);
           }
         }

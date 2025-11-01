@@ -311,7 +311,7 @@ export class WailsApiClient {
         page: 1,
         pageSize: 50
       }
-    } catch (_error) { // eslint-disable-line @typescript-eslint/no-unused-vars
+    } catch {  
       return {
         data: [],
         total: 0,
@@ -344,7 +344,7 @@ export class WailsApiClient {
       }
 
       // Load defaults from preferences
-      const { PreferenceRepository, PreferenceCategory } = await import('@/lib/storage/repositories/preference-repository')
+      const { PreferenceRepository, _PreferenceCategory } = await import('@/lib/storage/repositories/preference-repository')
       const pref = new PreferenceRepository()
       const timeoutPref = await pref.getUserPreference('local-user', 'queryTimeoutSeconds')
       const limitPref = await pref.getUserPreference('local-user', 'defaultResultLimit')
@@ -352,6 +352,7 @@ export class WailsApiClient {
       const limitRows = typeof options?.limit === 'number' ? options.limit : (typeof limitPref?.value === 'number' ? limitPref.value : 1000)
 
       // Note: Timeout is supported by backend; TS bindings may lag until regenerated
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const req: any = {
         connectionId,
         query: sql,
@@ -359,6 +360,7 @@ export class WailsApiClient {
         timeout: timeoutSeconds
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = await (App.ExecuteQuery as any)(req)
 
       const hasError = typeof result.error === 'string' ? result.error.length > 0 : Boolean(result.error)
@@ -522,9 +524,9 @@ export const wailsEndpoints = {
   // Connection endpoints
   connections: {
     list: async (
-      _page: number = 1, // eslint-disable-line @typescript-eslint/no-unused-vars
-      _pageSize: number = 50, // eslint-disable-line @typescript-eslint/no-unused-vars
-      _filter?: string // eslint-disable-line @typescript-eslint/no-unused-vars
+      _page: number = 1,  
+      _pageSize: number = 50,  
+      _filter?: string  
     ) => {
       return wailsApiClient.listConnections()
     },

@@ -15,7 +15,7 @@ export function Slider({ value, defaultValue, max = 100, min = 0, step = 1, onVa
 
   React.useEffect(() => {
     if (typeof value?.[0] === 'number') setInternal(value![0])
-  }, [value?.[0]])
+  }, [value])
 
   return (
     <input

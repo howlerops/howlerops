@@ -48,7 +48,7 @@ export function searchJson(
       const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
       searchPattern = new RegExp(escapedQuery, caseSensitive ? 'g' : 'gi')
     }
-  } catch (error) {
+  } catch {
     // Invalid regex, return empty results
     return {
       matches: [],

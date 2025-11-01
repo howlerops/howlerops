@@ -101,7 +101,7 @@ export function PemKeyUpload({ onUpload, onError, disabled, className }: PemKeyU
     setIsDragOver(false)
   }
 
-  const handlePaste = (e: React.ClipboardEvent) => {
+  const _handlePaste = (e: React.ClipboardEvent) => {
     const pastedText = e.clipboardData.getData('text')
     if (pastedText) {
       const error = validatePemKey(pastedText)

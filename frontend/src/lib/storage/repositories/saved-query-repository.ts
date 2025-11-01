@@ -319,8 +319,8 @@ export class SavedQueryRepository {
     // Sort if not using index
     if (!indexName || searchText || tags) {
       filtered.sort((a, b) => {
-        let aVal: any
-        let bVal: any
+        let aVal: string | Date
+        let bVal: string | Date
 
         switch (sortBy) {
           case 'title':

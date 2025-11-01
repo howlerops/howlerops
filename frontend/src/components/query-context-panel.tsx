@@ -106,7 +106,7 @@ export const QueryContextPanel: React.FC<QueryContextPanelProps> = ({ connection
   // Load context when query or connection changes
   useEffect(() => {
     if (query && query.length > 10 && connectionId) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+       
       loadContext();
     } else {
       setContext(null);

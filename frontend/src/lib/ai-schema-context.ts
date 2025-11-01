@@ -116,20 +116,35 @@ export class AISchemaContextBuilder {
    * Convert SchemaNode structure to SchemaInfo for AI context
    */
   private static convertSchemaNodesToSchemaInfo(schemas: SchemaNode[]): SchemaInfo[] {
+    // Type guard for column metadata
+    interface ColumnMetadata {
+      dataType?: string
+      nullable?: boolean
+      primaryKey?: boolean
+      unique?: boolean
+      defaultValue?: string
+    }
+
     return schemas.map(schema => ({
       name: schema.name,
       tables: (schema.children || []).map(table => ({
         name: table.name,
-        columns: (table.children || []).map(col => ({
-          name: col.name,
-          dataType: (col.metadata as any)?.dataType || 'unknown',
-          nullable: (col.metadata as any)?.nullable || false,
-          primaryKey: (col.metadata as any)?.primaryKey,
-          unique: (col.metadata as any)?.unique,
-          defaultValue: (col.metadata as any)?.defaultValue
-        })),
+        columns: (table.children || []).map(col => {
+          const metadata = col.metadata as ColumnMetadata | undefined
+          return {
+            name: col.name,
+            dataType: metadata?.dataType || 'unknown',
+            nullable: metadata?.nullable || false,
+            primaryKey: metadata?.primaryKey,
+            unique: metadata?.unique,
+            defaultValue: metadata?.defaultValue
+          }
+        }),
         primaryKeys: (table.children || [])
-          .filter(col => (col.metadata as any)?.primaryKey)
+          .filter(col => {
+            const metadata = col.metadata as ColumnMetadata | undefined
+            return metadata?.primaryKey
+          })
           .map(col => col.name),
         foreignKeys: [] // TODO: Extract foreign key information if available
       }))

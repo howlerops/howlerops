@@ -22,7 +22,6 @@ import {
   QuotaExceededError,
   VersionMismatchError,
   TransactionError,
-  NotFoundError,
   type StoreName,
   type QueryOptions,
   type PaginatedResult,
@@ -336,7 +335,7 @@ export class IndexedDBClient {
         const offset = options?.offset ?? 0
         let skipped = 0
         let count = 0
-        let lastKey: IDBValidKey | undefined
+        let _lastKey: IDBValidKey | undefined
 
         const request = source.openCursor(
           options?.range,
@@ -464,7 +463,7 @@ export class IndexedDBClient {
 
     return new Promise<IDBValidKey[]>((resolve, reject) => {
       const keys: IDBValidKey[] = []
-      let completed = 0
+      const _completed = 0
 
       transaction.onerror = () => {
         reject(

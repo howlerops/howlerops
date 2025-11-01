@@ -76,7 +76,7 @@ async function makeAPICall(page: Page, method: string, endpoint: string, body?: 
 }
 
 test.describe('RBAC Permission System', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page: _page }) => {
     // Setup test data if needed
     // This could involve API calls to create test organization and users
   })

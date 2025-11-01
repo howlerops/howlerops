@@ -10,7 +10,7 @@ let inlineCopilotImpl: ((
 ) => Extension) | null = null
 
 try {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
+   
   const mod = require('codemirror-copilot')
   // Support multiple export shapes across versions
   if (typeof mod === 'function') {

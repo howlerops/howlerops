@@ -130,7 +130,7 @@ export function cronToHumanReadable(expression: string): string {
     }
 
     return parts.join(' ')
-  } catch (error) {
+  } catch {
     return 'Invalid cron expression'
   }
 }

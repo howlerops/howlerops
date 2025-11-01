@@ -54,19 +54,19 @@ export function PendingInvitationsPage() {
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({})
   const [error, setError] = useState<string | null>(null)
 
-  // Fetch invitations on mount
-  useEffect(() => {
-    loadInvitations()
-  }, [])
-
-  const loadInvitations = async () => {
+  const loadInvitations = React.useCallback(async () => {
     setError(null)
     try {
       await fetchPendingInvitations()
-    } catch (err) {
+    } catch {
       setError('Failed to load invitations. Please try again.')
     }
-  }
+  }, [fetchPendingInvitations])
+
+  // Fetch invitations on mount
+  useEffect(() => {
+    loadInvitations()
+  }, [loadInvitations])
 
   const handleAccept = async (invitation: OrganizationInvitation) => {
     setActionLoading({ ...actionLoading, [invitation.id]: true })

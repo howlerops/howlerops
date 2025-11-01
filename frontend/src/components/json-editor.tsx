@@ -57,7 +57,7 @@ export function JsonEditor({
   wordWrap,
   expandedKeys,
   collapsedKeys,
-  onToggleEdit,
+  _onToggleEdit,
   onUpdateField,
   onToggleKeyExpansion,
   onCopyJson,

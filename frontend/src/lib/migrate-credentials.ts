@@ -51,14 +51,29 @@ export interface MigrationResult {
 }
 
 /**
+ * Wails API interface
+ */
+interface WailsWindow extends Window {
+  go?: {
+    main?: {
+      App?: {
+        StorePassword?: (service: string, account: string, password: string) => Promise<void>
+        GetPassword?: (service: string, account: string) => Promise<string>
+      }
+    }
+  }
+}
+
+/**
  * Check if keychain API is available
  * This will be true once the Wails backend exposes keychain functions
  */
 function isKeychainAvailable(): boolean {
+  const wailsWindow = window as WailsWindow
   return typeof window !== 'undefined' &&
-         typeof (window as any).go !== 'undefined' &&
-         typeof (window as any).go?.main?.App?.StorePassword === 'function' &&
-         typeof (window as any).go?.main?.App?.GetPassword === 'function'
+         typeof wailsWindow.go !== 'undefined' &&
+         typeof wailsWindow.go?.main?.App?.StorePassword === 'function' &&
+         typeof wailsWindow.go?.main?.App?.GetPassword === 'function'
 }
 
 /**
@@ -70,11 +85,11 @@ async function storePasswordInKeychain(
   credentialType: 'password' | 'ssh_password' | 'ssh_private_key',
   value: string
 ): Promise<void> {
-  const wailsGo = (window as any).go
-  if (wailsGo?.main?.App?.StorePassword) {
+  const wailsWindow = window as WailsWindow
+  if (wailsWindow.go?.main?.App?.StorePassword) {
     const service = 'sql-studio'
     const account = `${connectionId}-${credentialType}`
-    await wailsGo.main.App.StorePassword(service, account, value)
+    await wailsWindow.go.main.App.StorePassword(service, account, value)
   } else {
     throw new Error('Keychain API not available')
   }

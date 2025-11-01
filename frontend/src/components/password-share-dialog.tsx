@@ -330,9 +330,10 @@ export function PasswordShareDialog({
 }
 
 /**
- * Hook to automatically show password share dialog
+ * Hook to automatically show password share dialog - provides component API
  */
-export function usePasswordShareDialog(connections: DatabaseConnection[]) {
+// eslint-disable-next-line react-refresh/only-export-components
+export function usePasswordShareDialog(_connections: DatabaseConnection[]) {
   const [isOpen, setIsOpen] = useState(false)
 
   // This would be connected to the multi-tab sync hook
