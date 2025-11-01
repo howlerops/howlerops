@@ -24,6 +24,26 @@ interface SchemaData {
   connectionName?: string
 }
 
+interface RawTableInfo {
+  name: string
+  rowCount?: number
+  sizeBytes?: number
+  comment?: string
+}
+
+interface RawColumnInfo {
+  name: string
+  dataType?: string
+  characterMaximumLength?: number
+  numericPrecision?: number
+  numericScale?: number
+  isNullable?: string
+  columnDefault?: string | null
+  isPrimaryKey?: boolean
+  isForeignKey?: boolean
+  [key: string]: unknown
+}
+
 interface SchemaStoreState {
   // Cache: sessionId -> SchemaData
   cache: Map<string, SchemaData>
@@ -156,7 +176,7 @@ export const useSchemaStore = create<SchemaStoreState>()(
 
               if (tablesResponse.success && tablesResponse.data) {
                 schemaNode.children = await Promise.all(
-                  tablesResponse.data.map(async (tableInfo: any, tableIndex: number) => {
+                  tablesResponse.data.map(async (tableInfo: RawTableInfo, tableIndex: number) => {
                     const tableId = `${schemaInfo.name}.${tableInfo.name}.${tableIndex}`
                     const tableNode: SchemaNode = {
                       id: tableId,
@@ -179,7 +199,7 @@ export const useSchemaStore = create<SchemaStoreState>()(
                       )
 
                       if (columnsResponse.success && columnsResponse.data) {
-                        tableNode.children = columnsResponse.data.map((columnInfo: any, columnIndex: number) => ({
+                        tableNode.children = columnsResponse.data.map((columnInfo: RawColumnInfo, columnIndex: number) => ({
                           id: `${tableId}.${columnInfo.name}.${columnIndex}`,
                           name: formatColumnName(columnInfo),
                           type: 'column' as const,

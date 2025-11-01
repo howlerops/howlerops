@@ -40,7 +40,6 @@ import {
   OrganizationRole as OrgRole,
   OrganizationRole,
 } from '@/types/organization'
-import { cn } from '@/lib/utils'
 
 interface InviteMemberModalProps {
   open: boolean

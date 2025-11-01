@@ -220,35 +220,4 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 }
 
-// Higher-order component for easier usage
-export function withErrorBoundary<P extends object>(
-  Component: React.ComponentType<P>,
-  errorBoundaryProps?: Omit<Props, 'children'>
-) {
-  const WrappedComponent = (props: P) => (
-    <ErrorBoundary {...errorBoundaryProps}>
-      <Component {...props} />
-    </ErrorBoundary>
-  )
-  
-  WrappedComponent.displayName = `withErrorBoundary(${Component.displayName || Component.name})`
-  
-  return WrappedComponent
-}
-
-// Hook for programmatic error reporting
-export function useErrorHandler() {
-  return (error: Error, errorInfo?: ErrorInfo) => {
-    console.error('Manual error report:', error, errorInfo)
-    
-    // You could dispatch to a global error store here
-    // or trigger error reporting service
-    
-    if (process.env.NODE_ENV === 'production') {
-      // Log to external service
-      console.log('Error reported to service:', { error, errorInfo })
-    }
-  }
-}
-
 export default ErrorBoundary

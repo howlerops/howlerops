@@ -271,7 +271,6 @@ export class SharedBufferManager {
   private writeBooleanBit(position: number, bitIndex: number, value: boolean): void {
     if (!this.dataView) return;
 
-    const _byteIndex = Math.floor(bitIndex / 8); // eslint-disable-line @typescript-eslint/no-unused-vars
     const bit = bitIndex % 8;
     let byte = this.dataView.getUint8(position);
 
@@ -373,7 +372,6 @@ export class SharedBufferManager {
   private readBooleanBit(position: number, bitIndex: number): boolean {
     if (!this.dataView) return false;
 
-    const _byteIndex = Math.floor(bitIndex / 8); // eslint-disable-line @typescript-eslint/no-unused-vars
     const bit = bitIndex % 8;
     const byte = this.dataView.getUint8(position);
 

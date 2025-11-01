@@ -10,7 +10,6 @@
 
 import * as React from 'react'
 import {
-  Building2,
   Users,
   FileText,
   AlertTriangle,
@@ -27,12 +26,13 @@ import { TransferOwnershipModal } from './TransferOwnershipModal'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { usePermissions } from '@/hooks/usePermissions'
-import { PermissionGate, RoleGate } from '@/components/PermissionGate'
+import { RoleGate } from '@/components/PermissionGate'
 import type {
   Organization,
   OrganizationMember,
   UpdateOrganizationInput,
   AuditLog,
+  AuditLogQueryParams,
 } from '@/types/organization'
 import { OrganizationRole } from '@/types/organization'
 import { cn } from '@/lib/utils'
@@ -47,7 +47,7 @@ interface OrganizationSettingsPageProps {
   onTransferOwnership: (newOwnerId: string, password: string) => Promise<void>
   onUpdateMemberRole: (memberId: string, data: { role: OrganizationRole }) => Promise<void>
   onRemoveMember: (memberId: string) => Promise<void>
-  onFetchAuditLogs: (params: any) => Promise<AuditLog[]>
+  onFetchAuditLogs: (params: AuditLogQueryParams) => Promise<AuditLog[]>
   onInviteClick: () => void
   loading?: {
     organization?: boolean

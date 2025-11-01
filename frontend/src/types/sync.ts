@@ -7,7 +7,7 @@
  * @module types/sync
  */
 
-import type { ConnectionRecord, SavedQueryRecord, QueryHistoryRecord } from './storage'
+import type { SavedQueryRecord, QueryHistoryRecord } from './storage'
 import type { SanitizedConnection } from '@/lib/sanitization/connection-sanitizer'
 
 /**

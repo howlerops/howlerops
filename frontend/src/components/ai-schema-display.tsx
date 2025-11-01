@@ -53,7 +53,6 @@ export function AISchemaDisplay({
   useEffect(() => {
     const connectedDbs = connections.filter(c => c.isConnected)
     if (connectedDbs.length > 0) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setExpandedDatabases(new Set([connectedDbs[0].id]))
 
       const schemas = schemasMap.get(connectedDbs[0].id) || schemasMap.get(connectedDbs[0].name)

@@ -108,7 +108,7 @@ export async function deleteTemplate(id: string): Promise<void> {
 
 export async function executeTemplate(
   id: string,
-  params: Record<string, any>
+  params: Record<string, unknown>
 ): Promise<QueryResult> {
   return fetchApi<QueryResult>(`/api/v1/templates/${id}/execute`, {
     method: 'POST',

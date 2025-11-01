@@ -1,4 +1,4 @@
-import { test, expect, Page, BrowserContext } from '@playwright/test'
+import { test, expect, Page } from '@playwright/test'
 
 /**
  * RBAC Permission System E2E Tests
@@ -57,7 +57,7 @@ async function navigateToSettings(page: Page) {
   await page.waitForSelector('[data-testid="org-settings"]')
 }
 
-async function makeAPICall(page: Page, method: string, endpoint: string, body?: any) {
+async function makeAPICall(page: Page, method: string, endpoint: string, body?: Record<string, unknown>) {
   return await page.evaluate(async ({ method, endpoint, body }) => {
     const token = localStorage.getItem('auth_token')
     const response = await fetch(endpoint, {

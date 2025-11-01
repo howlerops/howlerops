@@ -449,7 +449,7 @@ async function calculateAggregations(
 async function calculateStatistics(
   payload: { data: QueryResult; columns: string[] },
   signal: AbortSignal,
-  _operationId: string // eslint-disable-line @typescript-eslint/no-unused-vars
+  _operationId: string
 ): Promise<Record<string, unknown>> {
   const { data, columns } = payload;
   const stats: Record<string, unknown> = {};

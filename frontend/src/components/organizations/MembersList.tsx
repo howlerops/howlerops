@@ -6,7 +6,7 @@
  */
 
 import * as React from 'react'
-import { Users, UserPlus, Loader2, MoreHorizontal, Trash2, Shield, User } from 'lucide-react'
+import { UserPlus, Loader2, Trash2, Shield, User } from 'lucide-react'
 import { RoleManagement } from './RoleManagement'
 import { usePermissions } from '@/hooks/usePermissions'
 import { PermissionGate } from '@/components/PermissionGate'
@@ -21,13 +21,6 @@ import {
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import {
   Dialog,
   DialogContent,
@@ -44,7 +37,6 @@ import type {
 } from '@/types/organization'
 import {
   canRemoveMembers,
-  canChangeRole,
   getRoleDisplayName,
   getRoleBadgeVariant,
   formatRelativeTime,
@@ -76,7 +68,6 @@ export function MembersList({
   className,
 }: MembersListProps) {
   const [removingMemberId, setRemovingMemberId] = React.useState<string | null>(null)
-  const [changingRoleId, setChangingRoleId] = React.useState<string | null>(null)
 
   const { hasPermission } = usePermissions()
   const canInvite = hasPermission('members:invite')
@@ -337,8 +328,6 @@ export function MembersListMobile({
       <div className="space-y-2">
         {members.map((member) => {
           const isCurrentUser = member.user_id === currentUserId
-          const isExpanded = expandedId === member.id
-
           return (
             <div key={member.id} className="rounded-lg border bg-card p-3">
               <div className="flex items-center gap-3">

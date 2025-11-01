@@ -1,6 +1,12 @@
 import { create } from 'zustand'
 import { TableRow, CellValue } from '../types/table'
 import { QueryEditableMetadata } from '../store/query-store'
+import type { SearchMatch } from '../lib/json-search'
+
+interface ForeignKeyCacheEntry {
+  loaded: boolean
+  timestamp: number
+}
 
 export interface JsonViewerState {
   // Sidebar state
@@ -21,7 +27,7 @@ export interface JsonViewerState {
   // Search
   searchQuery: string
   searchResults: {
-    matches: any[]
+    matches: SearchMatch[]
     currentIndex: number
     totalMatches: number
   }
@@ -31,7 +37,7 @@ export interface JsonViewerState {
   
   // Foreign key expansion
   expandedForeignKeys: Set<string>
-  foreignKeyCache: Map<string, any>
+  foreignKeyCache: Map<string, ForeignKeyCacheEntry>
   
   // Loading states
   isLoading: boolean

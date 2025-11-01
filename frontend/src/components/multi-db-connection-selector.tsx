@@ -42,7 +42,6 @@ export function MultiDBConnectionSelector({
 
   // Update local selection when prop changes (controlled component pattern)
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLocalSelection(selectedConnectionIds)
   }, [selectedConnectionIds, open])
 
@@ -208,4 +207,3 @@ export function MultiDBConnectionSelector({
     </Dialog>
   )
 }
-

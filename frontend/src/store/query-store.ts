@@ -774,7 +774,11 @@ export const useQueryStore = create<QueryState>()(
 })
 )
 
-if (typeof window !== 'undefined') {
+const hasWailsRuntime =
+  typeof window !== 'undefined' &&
+  typeof (window as { runtime?: { EventsOnMultiple?: unknown } }).runtime?.EventsOnMultiple === 'function'
+
+if (hasWailsRuntime) {
   EventsOn('query:editableMetadata', (payload: unknown) => {
     try {
       const data = (payload ?? {}) as Record<string, unknown>

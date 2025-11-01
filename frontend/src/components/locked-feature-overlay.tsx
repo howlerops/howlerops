@@ -18,7 +18,7 @@
  */
 
 import * as React from 'react'
-import { Lock, Sparkles, X, ChevronRight } from 'lucide-react'
+import { Lock, X, ChevronRight } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { FeatureBadge } from './feature-badge'

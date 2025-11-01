@@ -95,7 +95,8 @@ export function PermissionGate({
             <div className="inline-flex">
               {React.Children.map(children, (child) => {
                 if (React.isValidElement(child)) {
-                  return React.cloneElement(child as React.ReactElement<any>, {
+                  const element = child as React.ReactElement<{ disabled?: boolean; 'aria-label'?: string }>
+                  return React.cloneElement(element, {
                     disabled: true,
                     'aria-label': message,
                   })

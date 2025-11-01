@@ -17,17 +17,11 @@ import {
   ChevronRight,
   Copy,
   Save,
-  X,
   Eye,
-  EyeOff,
   Edit,
-  Expand,
-  ChevronDown,
-  WrapText,
   Database,
   AlertCircle,
-  Loader2,
-  CheckCircle2
+  Loader2
 } from 'lucide-react'
 import { TableRow, CellValue } from '@/types/table'
 import { QueryEditableMetadata, QueryEditableColumn } from '@/store/query-store'
@@ -62,7 +56,6 @@ export function JsonRowViewerSidebar({
     currentRow,
     currentRowId,
     isEditing,
-    editedData,
     validationErrors,
     wordWrap,
     searchQuery,
@@ -78,7 +71,6 @@ export function JsonRowViewerSidebar({
     hasChanges,
     hasValidationErrors,
     canSave,
-    currentMatch,
     expandedForeignKeys,
     openRow,
     closeViewer,
@@ -90,15 +82,9 @@ export function JsonRowViewerSidebar({
     navigateToPreviousMatch,
     clearSearch,
     toggleKeyExpansion,
-    expandAllKeys,
-    collapseAllKeys,
-    toggleWordWrap,
     toggleForeignKey,
     loadForeignKeyData,
-    isKeyExpanded,
-    isForeignKeyExpanded,
     setSearchOptions,
-    getTokenClass
   } = useJsonViewer({
     rowData,
     columns,
@@ -114,7 +100,7 @@ export function JsonRowViewerSidebar({
     } else if (!open) {
       closeViewer()
     }
-  }, [open, rowData, rowId])
+  }, [open, rowData, rowId, openRow, closeViewer])
 
   const handleSave = useCallback(async () => {
     if (!onSave) return

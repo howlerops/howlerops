@@ -11,7 +11,7 @@ import { OrganizationSettingsPage } from './OrganizationSettingsPage'
 import { InviteMemberModal } from './InviteMemberModal'
 import { useOrganizationStore } from '@/store/organization-store'
 import { useAuthStore } from '@/store/auth-store'
-import type { CreateInvitationInput, AuditLogQueryParams } from '@/types/organization'
+import type { CreateInvitationInput, AuditLogQueryParams, UpdateOrganizationInput, OrganizationRole } from '@/types/organization'
 import { toast } from 'sonner'
 
 /**
@@ -61,7 +61,7 @@ export function OrganizationSettingsExample() {
   }
 
   // Handlers
-  const handleUpdateOrganization = async (data: any) => {
+  const handleUpdateOrganization = async (data: UpdateOrganizationInput) => {
     setLoading({ ...loading, organization: true })
     try {
       await updateOrganization(currentOrg.id, data)
@@ -104,14 +104,14 @@ export function OrganizationSettingsExample() {
     }
   }
 
-  const handleUpdateMemberRole = async (memberId: string, data: { role: any }) => {
+  const handleUpdateMemberRole = async (memberId: string, payload: { role: OrganizationRole }) => {
     setLoading({ ...loading, members: true })
     try {
       // Find member by ID to get user_id
       const member = currentOrgMembers.find((m) => m.id === memberId)
       if (!member) throw new Error('Member not found')
 
-      await updateMemberRole(currentOrg.id, member.user_id, data.role)
+      await updateMemberRole(currentOrg.id, member.user_id, payload.role)
       toast.success('Member role updated')
     } catch (error) {
       toast.error('Failed to update member role')

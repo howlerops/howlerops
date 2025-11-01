@@ -74,7 +74,7 @@ export const EditableTable: React.FC<EditableTableProps> = ({
   data: initialData,
   columns: tableColumns,
   onDataChange,
-  onCellEdit, // eslint-disable-line @typescript-eslint/no-unused-vars
+  onCellEdit: _onCellEdit,
   onRowSelect,
   onRowClick,
   onRowInspect,
@@ -317,7 +317,7 @@ export const EditableTable: React.FC<EditableTableProps> = ({
   } = useKeyboardNavigation({
     rowCount: rowCount,
     columnCount: columns.length,
-    onCellFocus: useCallback((rowIndex: number, columnIndex: number) => { // eslint-disable-line @typescript-eslint/no-unused-vars
+    onCellFocus: useCallback((rowIndex: number, _columnIndex: number) => {
       // Smooth scroll to focused cell with virtualization
       if (virtualizerWorking && rowIndex >= 0 && rowIndex < rowCount) {
         virtualizer.scrollToIndex(rowIndex, {

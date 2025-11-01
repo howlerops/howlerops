@@ -48,7 +48,7 @@ test.describe('Organization Management', () => {
     await expect(page.locator('text=Test Company')).toBeVisible();
 
     // And: User is redirected to organization dashboard
-    await expect(page).toHaveURL(/\/organizations\/[^\/]+/);
+    await expect(page).toHaveURL(/\/organizations\/[^/]+/);
 
     // And: Organization name is displayed
     await expect(page.locator('h1:has-text("Test Company")')).toBeVisible();
@@ -92,6 +92,7 @@ test.describe('Organization Management', () => {
 
     // Get invitation token from the page (in real app, would be from email)
     const invitationLink = await page.locator('[data-testid="invitation-link"]').getAttribute('href');
+    await expect(invitationLink).toBeTruthy();
 
     // Given: User B opens new browser context (simulate different user)
     const memberPage = await context.newPage();
@@ -363,7 +364,7 @@ test.describe('Accessibility', () => {
     await page.keyboard.press('Enter'); // Should open organization
 
     // Verify navigation worked
-    await expect(page).toHaveURL(/\/organizations\/[^\/]+/);
+    await expect(page).toHaveURL(/\/organizations\/[^/]+/);
   });
 
   test('Screen reader labels present', async ({ page }) => {

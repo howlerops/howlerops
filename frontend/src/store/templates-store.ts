@@ -35,7 +35,7 @@ interface TemplatesStore {
   updateTemplate: (id: string, input: UpdateTemplateInput) => Promise<void>
   deleteTemplate: (id: string) => Promise<void>
   duplicateTemplate: (id: string) => Promise<QueryTemplate>
-  executeTemplate: (id: string, params: Record<string, any>) => Promise<QueryResult>
+  executeTemplate: (id: string, params: Record<string, unknown>) => Promise<QueryResult>
 
   // Schedules Actions
   fetchSchedules: () => Promise<void>
@@ -185,7 +185,7 @@ export const useTemplatesStore = create<TemplatesStore>()(
         }
       },
 
-      executeTemplate: async (id: string, params: Record<string, any>) => {
+      executeTemplate: async (id: string, params: Record<string, unknown>) => {
         set({ loading: true, error: null })
         try {
           const result = await api.executeTemplate(id, params)

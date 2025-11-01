@@ -23,7 +23,7 @@
  * ```
  */
 
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -107,6 +107,14 @@ export function PasswordShareDialog({
     }
   }, [request])
 
+  const handleClose = useCallback(() => {
+    if (dialogState === 'approving') {
+      return
+    }
+
+    onDeny()
+  }, [dialogState, onDeny])
+
   // Auto-dismiss after success
   useEffect(() => {
     if (dialogState === 'success') {
@@ -116,7 +124,8 @@ export function PasswordShareDialog({
 
       return () => clearTimeout(timer)
     }
-  }, [dialogState])
+    return undefined
+  }, [dialogState, handleClose])
 
   // Get connection names
   const requestedConnections = useMemo(() => {
@@ -176,18 +185,6 @@ export function PasswordShareDialog({
   const handleDeny = () => {
     onDeny()
     handleClose()
-  }
-
-  /**
-   * Handle dialog close
-   */
-  const handleClose = () => {
-    if (dialogState === 'approving') {
-      // Don't allow closing while in progress
-      return
-    }
-
-    onDeny() // Clean up request
   }
 
   // Don't render if no request

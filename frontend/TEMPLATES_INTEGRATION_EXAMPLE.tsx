@@ -12,7 +12,7 @@ import { createBrowserRouter } from 'react-router-dom'
 import { TemplatesPage } from './pages/TemplatesPage'
 import { SchedulesPage } from './pages/SchedulesPage'
 
-const router = createBrowserRouter([
+export const exampleRouter = createBrowserRouter([
   {
     path: '/',
     element: <Layout />,

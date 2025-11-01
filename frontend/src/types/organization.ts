@@ -93,6 +93,12 @@ export interface Organization {
   member_count?: number
 }
 
+type OrganizationJson = Omit<Organization, 'created_at' | 'updated_at' | 'deleted_at'> & {
+  created_at: string | Date
+  updated_at: string | Date
+  deleted_at?: string | Date | null
+}
+
 /**
  * Basic user information for organization members
  */
@@ -136,6 +142,10 @@ export interface OrganizationMember {
   user?: UserInfo
 }
 
+type OrganizationMemberJson = Omit<OrganizationMember, 'joined_at'> & {
+  joined_at: string | Date
+}
+
 /**
  * Organization invitation entity
  */
@@ -171,6 +181,13 @@ export interface OrganizationInvitation {
   organization?: Organization
 }
 
+type OrganizationInvitationJson = Omit<OrganizationInvitation, 'expires_at' | 'accepted_at' | 'created_at' | 'organization'> & {
+  expires_at: string | Date
+  accepted_at?: string | Date | null
+  created_at: string | Date
+  organization?: OrganizationJson
+}
+
 /**
  * Audit log entry for tracking organization activities
  */
@@ -204,6 +221,10 @@ export interface AuditLog {
 
   /** When the action occurred */
   created_at: Date
+}
+
+type AuditLogJson = Omit<AuditLog, 'created_at'> & {
+  created_at: string | Date
 }
 
 // ============================================================================
@@ -694,7 +715,7 @@ export function getRoleColor(role: OrganizationRole): string {
 /**
  * Parse JSON date strings to Date objects for Organization
  */
-export function parseOrganizationDates(org: any): Organization {
+export function parseOrganizationDates(org: OrganizationJson): Organization {
   return {
     ...org,
     created_at: new Date(org.created_at),
@@ -706,7 +727,7 @@ export function parseOrganizationDates(org: any): Organization {
 /**
  * Parse JSON date strings for OrganizationMember
  */
-export function parseMemberDates(member: any): OrganizationMember {
+export function parseMemberDates(member: OrganizationMemberJson): OrganizationMember {
   return {
     ...member,
     joined_at: new Date(member.joined_at),
@@ -717,7 +738,7 @@ export function parseMemberDates(member: any): OrganizationMember {
  * Parse JSON date strings for OrganizationInvitation
  */
 export function parseInvitationDates(
-  invitation: any
+  invitation: OrganizationInvitationJson
 ): OrganizationInvitation {
   return {
     ...invitation,
@@ -735,7 +756,7 @@ export function parseInvitationDates(
 /**
  * Parse JSON date strings for AuditLog
  */
-export function parseAuditLogDates(log: any): AuditLog {
+export function parseAuditLogDates(log: AuditLogJson): AuditLog {
   return {
     ...log,
     created_at: new Date(log.created_at),

@@ -11,7 +11,6 @@ import {
   Loader2,
   AlertCircle,
   Eye,
-  Table,
   Key
 } from 'lucide-react'
 import { QueryEditableMetadata } from '@/store/query-store'
@@ -77,14 +76,6 @@ export function ForeignKeyCard({
     }
   }, [fieldKey, metadata])
 
-  const handleToggle = useCallback(async () => {
-    onToggle(fieldKey)
-    
-    if (!isExpanded && !foreignKeyData && foreignKeyInfo) {
-      await loadForeignKeyData()
-    }
-  }, [fieldKey, isExpanded, foreignKeyData, foreignKeyInfo, onToggle])
-
   const loadForeignKeyData = useCallback(async () => {
     if (!foreignKeyInfo || isLoading) return
 
@@ -141,10 +132,11 @@ export function ForeignKeyCard({
         throw new Error(response.message || 'Query execution failed')
       }
 
-      const relatedRows = (response.data.rows || []).map((row: any[]) => {
+      const relatedRows = (response.data.rows || []).map((row: unknown): ForeignKeyRecord => {
+        const cells = Array.isArray(row) ? row : ([] as unknown[])
         const record: ForeignKeyRecord = {}
         response.data.columns.forEach((col: string, index: number) => {
-          record[col] = row[index]
+          record[col] = cells[index] as CellValue
         })
         return record
       })
@@ -187,7 +179,15 @@ export function ForeignKeyCard({
     } finally {
       setIsLoading(false)
     }
-  }, [foreignKeyInfo, connections, isLoading, fieldKey, onLoadData, value])
+  }, [foreignKeyInfo, connections, connectionId, isLoading, fieldKey, onLoadData, value])
+
+  const handleToggle = useCallback(async () => {
+    onToggle(fieldKey)
+
+    if (!isExpanded && !foreignKeyData && foreignKeyInfo) {
+      await loadForeignKeyData()
+    }
+  }, [fieldKey, foreignKeyData, foreignKeyInfo, isExpanded, loadForeignKeyData, onToggle])
 
   // Don't render if no foreign key info
   if (!foreignKeyInfo) return null

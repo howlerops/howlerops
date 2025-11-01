@@ -104,7 +104,7 @@ export class WorkerClient {
     this.config.onError(error);
 
     // Reject all pending messages
-    for (const [_id, pending] of this.pendingMessages.entries()) { // eslint-disable-line @typescript-eslint/no-unused-vars
+    for (const pending of this.pendingMessages.values()) {
       clearTimeout(pending.timeout);
       pending.reject(error);
     }
@@ -330,7 +330,7 @@ export class WorkerClient {
   terminate(): void {
     if (this.worker) {
       // Clear pending messages
-      for (const [_id, pending] of this.pendingMessages.entries()) { // eslint-disable-line @typescript-eslint/no-unused-vars
+      for (const pending of this.pendingMessages.values()) {
         clearTimeout(pending.timeout);
         pending.reject(new Error('Worker terminated'));
       }

@@ -84,7 +84,6 @@ export function ModeSwitcher({ mode, toggleMode, className }: ModeSwitcherProps)
   useEffect(() => {
     if (prevModeRef.current !== mode) {
       prevModeRef.current = mode
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsOpen(false)
     }
   }, [mode])

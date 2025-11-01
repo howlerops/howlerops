@@ -1,3 +1,4 @@
 export { FeatureTooltip } from "./FeatureTooltip"
 export { FeatureAnnouncement } from "./FeatureAnnouncement"
-export { ContextualHelp, contextualHelpSuggestions } from "./ContextualHelp"
+export { ContextualHelp } from "./ContextualHelp"
+export { contextualHelpSuggestions } from "./contextual-help-suggestions"

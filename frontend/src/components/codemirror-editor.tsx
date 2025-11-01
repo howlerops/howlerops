@@ -178,11 +178,6 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorRef, CodeMirrorEditor
 
       viewRef.current = view
 
-      // Update schema state
-      if (connections.length > 0 || schemas.size > 0) {
-        updateEditorSchema(view, connections, schemas, mode)
-      }
-
       // Call onMount callback
       if (onMountRef.current) {
         onMountRef.current(view)
@@ -192,7 +187,7 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorRef, CodeMirrorEditor
         view.destroy()
         viewRef.current = null
       }
-    }, [columnLoader, theme, readOnly, placeholder])
+    }, [aiEnabled, aiLanguage, columnLoader, theme, readOnly, placeholder])
 
     // Update value when prop changes
     useEffect(() => {

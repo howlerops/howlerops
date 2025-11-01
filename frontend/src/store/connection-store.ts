@@ -436,7 +436,7 @@ export const useConnectionStore = create<ConnectionState>()(
       {
         name: 'connection-store',
         partialize: (state) => ({
-          connections: state.connections.map(({ sessionId, isConnected, lastUsed, password, ...rest }) => { // eslint-disable-line @typescript-eslint/no-unused-vars
+          connections: state.connections.map(({ sessionId: _sessionId, isConnected: _isConnected, lastUsed: _lastUsed, password: _password, ...rest }) => {
             // Strip sensitive credentials and connection state
             const { sshTunnel, ...safeRest } = rest
             return {

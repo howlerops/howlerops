@@ -321,8 +321,11 @@ export class StreamingQueryClient extends EventEmitter {
         lastError = error as Error;
 
         // Don't retry on abort
-        if ((error as any).name === 'AbortError') {
-          throw error;
+        if (typeof error === 'object' && error !== null && 'name' in error) {
+          const abortName = (error as { name?: string }).name;
+          if (abortName === 'AbortError') {
+            throw error;
+          }
         }
       }
 

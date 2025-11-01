@@ -128,7 +128,7 @@ export function ConnectionSchemaViewer({ connectionId, onClose }: ConnectionSche
     if (connectionId) {
       loadSchema()
     }
-  }, [connectionId])
+  }, [connectionId, loadSchema])
 
   const toggleSchema = (schemaId: string) => {
     setCollapsedSchemas(prev => {

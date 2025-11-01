@@ -31,36 +31,36 @@ export function InvitationBanner() {
 
   // Check if banner was dismissed and fetch invitations on mount
   useEffect(() => {
-    checkDismissalStatus()
-    loadInvitations()
-  }, [])
+    const checkDismissalStatus = () => {
+      const dismissedAt = localStorage.getItem(DISMISSAL_KEY)
 
-  const checkDismissalStatus = () => {
-    const dismissedAt = localStorage.getItem(DISMISSAL_KEY)
+      if (dismissedAt) {
+        const dismissedTime = parseInt(dismissedAt, 10)
+        const now = Date.now()
 
-    if (dismissedAt) {
-      const dismissedTime = parseInt(dismissedAt, 10)
-      const now = Date.now()
-
-      // Check if 24 hours have passed since dismissal
-      if (now - dismissedTime < DISMISSAL_DURATION) {
-        setIsDismissed(true)
-      } else {
-        // Dismissal expired, clear it
-        localStorage.removeItem(DISMISSAL_KEY)
+        // Check if 24 hours have passed since dismissal
+        if (now - dismissedTime < DISMISSAL_DURATION) {
+          setIsDismissed(true)
+        } else {
+          // Dismissal expired, clear it
+          localStorage.removeItem(DISMISSAL_KEY)
+        }
       }
     }
-  }
 
-  const loadInvitations = async () => {
-    try {
-      await fetchPendingInvitations()
-    } catch (err) {
-      console.error('Failed to fetch pending invitations:', err)
-    } finally {
-      setLoading(false)
+    const loadInvitations = async () => {
+      try {
+        await fetchPendingInvitations()
+      } catch (err) {
+        console.error('Failed to fetch pending invitations:', err)
+      } finally {
+        setLoading(false)
+      }
     }
-  }
+
+    checkDismissalStatus()
+    loadInvitations()
+  }, [fetchPendingInvitations])
 
   const handleDismiss = () => {
     localStorage.setItem(DISMISSAL_KEY, Date.now().toString())

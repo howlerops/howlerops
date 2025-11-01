@@ -25,7 +25,7 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Calendar, Info } from 'lucide-react'
-import type { QueryTemplate, CreateScheduleInput } from '@/types/templates'
+import type { QueryTemplate, CreateScheduleInput, TemplateParameterValue } from '@/types/templates'
 import { useTemplatesStore } from '@/store/templates-store'
 import { CronBuilder } from './CronBuilder'
 // Using simple pre/code for SQL display - can be upgraded to CodeMirror if needed
@@ -126,10 +126,24 @@ export function ScheduleCreator({ open, onClose, template: initialTemplate }: Sc
     })
   }
 
-  const updateParameter = (name: string, value: any) => {
+  const updateParameter = (
+    name: string,
+    rawValue: string,
+    type: QueryTemplate['parameters'][number]['type']
+  ) => {
+    let parsedValue: TemplateParameterValue = rawValue
+
+    if (type === 'number') {
+      parsedValue = rawValue === '' ? null : Number(rawValue)
+    } else if (type === 'boolean') {
+      parsedValue = rawValue === 'true'
+    } else if (type === 'date' && rawValue === '') {
+      parsedValue = null
+    }
+
     setFormData((prev) => ({
       ...prev,
-      parameters: { ...prev.parameters, [name]: value },
+      parameters: { ...prev.parameters, [name]: parsedValue },
     }))
     setErrors((prev) => {
       const newErrors = { ...prev }
@@ -234,9 +248,13 @@ export function ScheduleCreator({ open, onClose, template: initialTemplate }: Sc
                       <Input
                         id={`param_${param.name}`}
                         type={param.type === 'number' ? 'number' : param.type === 'date' ? 'date' : 'text'}
-                        value={formData.parameters[param.name] || ''}
-                        onChange={(e) => updateParameter(param.name, e.target.value)}
-                        placeholder={param.default ? String(param.default) : undefined}
+                        value={
+                          formData.parameters[param.name] === null || formData.parameters[param.name] === undefined
+                            ? ''
+                            : String(formData.parameters[param.name])
+                        }
+                        onChange={(e) => updateParameter(param.name, e.target.value, param.type)}
+                        placeholder={param.default !== undefined ? String(param.default) : undefined}
                         className={errors[`param_${param.name}`] ? 'border-red-500' : ''}
                       />
                       {errors[`param_${param.name}`] && (

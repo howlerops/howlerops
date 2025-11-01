@@ -40,7 +40,6 @@ export function MultiDBDiagnostics({
   // Auto-expand if there are issues
   useEffect(() => {
     if (connections.length > 0 && connectedCount === 0) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setExpanded(true)
     }
     if (connections.length > 1 && totalSchemas === 0) {
@@ -298,4 +297,3 @@ function HealthCheckItem({
     </div>
   )
 }
-

@@ -19,10 +19,12 @@ export interface QueryTemplate {
   usage_count: number
 }
 
+export type TemplateParameterValue = string | number | boolean | null
+
 export interface TemplateParameter {
   name: string
   type: 'string' | 'number' | 'boolean' | 'date'
-  default?: any
+  default?: TemplateParameterValue
   required: boolean
   description?: string
   validation?: {
@@ -38,7 +40,7 @@ export interface QuerySchedule {
   template_id: string
   name: string
   frequency: string // cron expression
-  parameters: Record<string, any>
+  parameters: Record<string, TemplateParameterValue>
   last_run_at?: string
   next_run_at?: string
   status: 'active' | 'paused' | 'failed'
@@ -58,12 +60,12 @@ export interface ScheduleExecution {
   duration_ms: number
   rows_returned?: number
   error_message?: string
-  result_preview?: any[]
+  result_preview?: Record<string, unknown>[]
 }
 
 export interface QueryResult {
   columns: string[]
-  rows: any[]
+  rows: Record<string, unknown>[]
   rowCount: number
   executionTime: number
 }
@@ -93,7 +95,7 @@ export interface CreateScheduleInput {
   template_id: string
   name: string
   frequency: string
-  parameters: Record<string, any>
+  parameters: Record<string, TemplateParameterValue>
   notification_email?: string
   result_storage?: 'none' | 's3' | 'database'
 }

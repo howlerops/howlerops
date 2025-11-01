@@ -55,14 +55,6 @@ export function ForeignKeyResolver({
     }
   }, [fieldKey, metadata])
 
-  const handleToggle = useCallback(() => {
-    onToggle(fieldKey)
-
-    if (!isExpanded && !foreignKeyData && foreignKeyInfo) {
-      loadForeignKeyData()
-    }
-  }, [fieldKey, isExpanded, foreignKeyData, foreignKeyInfo, onToggle])
-
   const loadForeignKeyData = useCallback(async () => {
     if (!foreignKeyInfo || !connectionId || isLoading) return
 
@@ -92,10 +84,11 @@ export function ForeignKeyResolver({
       setForeignKeyData({
         tableName: foreignKeyInfo.tableName,
         columnName: foreignKeyInfo.columnName,
-        relatedRows: (response.data.rows || []).map((row: any[]) => {
+        relatedRows: (response.data.rows || []).map((row: unknown): Record<string, CellValue> => {
+          const cells = Array.isArray(row) ? row : ([] as unknown[])
           const record: Record<string, CellValue> = {}
           response.data.columns.forEach((col: string, index: number) => {
-            record[col] = row[index]
+            record[col] = cells[index] as CellValue
           })
           return record
         }),
@@ -115,6 +108,14 @@ export function ForeignKeyResolver({
       setIsLoading(false)
     }
   }, [foreignKeyInfo, connectionId, isLoading, fieldKey, onLoadData, value])
+
+  const handleToggle = useCallback(() => {
+    onToggle(fieldKey)
+
+    if (!isExpanded && !foreignKeyData && foreignKeyInfo) {
+      loadForeignKeyData()
+    }
+  }, [fieldKey, foreignKeyData, foreignKeyInfo, isExpanded, loadForeignKeyData, onToggle])
 
   // Don't render if no foreign key info
   if (!foreignKeyInfo) {
@@ -196,68 +197,6 @@ export function ForeignKeyResolver({
           )}
         </div>
       )}
-    </div>
-  )
-}
-
-/**
- * Hook to manage foreign key data loading and caching
- */
-export { useForeignKeyResolver } from '@/hooks/use-foreign-key-resolver'
-
-/**
- * Component to display foreign key relationships in a table
- */
-interface ForeignKeyTableProps {
-  foreignKeyData: ForeignKeyData
-  onRowClick?: (row: Record<string, CellValue>) => void
-}
-
-export function ForeignKeyTable({ foreignKeyData, onRowClick }: ForeignKeyTableProps) {
-  if (!foreignKeyData.relatedRows.length) {
-    return (
-      <div className="text-sm text-muted-foreground p-2">
-        No related records found
-      </div>
-    )
-  }
-
-  const columns = Object.keys(foreignKeyData.relatedRows[0])
-
-  return (
-    <div className="space-y-2">
-      <div className="text-sm font-medium">
-        {foreignKeyData.tableName} ({foreignKeyData.relatedRows.length} records)
-      </div>
-      
-      <div className="overflow-x-auto">
-        <table className="w-full text-xs border-collapse">
-          <thead>
-            <tr className="border-b bg-muted/50">
-              {columns.map(column => (
-                <th key={column} className="text-left p-1 font-medium">
-                  {column}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {foreignKeyData.relatedRows.map((row, index) => (
-              <tr 
-                key={index} 
-                className="border-b hover:bg-muted/30 cursor-pointer"
-                onClick={() => onRowClick?.(row)}
-              >
-                {columns.map(column => (
-                  <td key={column} className="p-1">
-                    {String(row[column] ?? '')}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
     </div>
   )
 }

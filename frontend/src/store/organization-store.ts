@@ -21,10 +21,6 @@ import type {
   UpdateMemberRoleInput,
   OrganizationRole,
   AuditLogQueryParams,
-  parseOrganizationDates,
-  parseMemberDates,
-  parseInvitationDates,
-  parseAuditLogDates,
 } from '@/types/organization'
 
 // Import date parsers
@@ -246,11 +242,11 @@ export const useOrganizationStore = create<OrganizationStore>()(
           )
 
           try {
-            const response = await authFetch<{ organizations: any[] }>(
+            const response = await authFetch<{ organizations: Organization[] }>(
               '/api/organizations'
             )
 
-            const organizations = response.organizations.map(parseOrgDates)
+            const organizations = (response.organizations ?? []).map(parseOrgDates)
 
             set(
               {
@@ -306,7 +302,7 @@ export const useOrganizationStore = create<OrganizationStore>()(
           )
 
           try {
-            const response = await authFetch<{ organization: any }>(
+            const response = await authFetch<{ organization: Organization }>(
               '/api/organizations',
               {
                 method: 'POST',
@@ -381,7 +377,7 @@ export const useOrganizationStore = create<OrganizationStore>()(
           )
 
           try {
-            const response = await authFetch<{ organization: any }>(
+            const response = await authFetch<{ organization: Organization }>(
               `/api/organizations/${id}`,
               {
                 method: 'PUT',
@@ -506,11 +502,11 @@ export const useOrganizationStore = create<OrganizationStore>()(
           )
 
           try {
-            const response = await authFetch<{ members: any[] }>(
+            const response = await authFetch<{ members: OrganizationMember[] }>(
               `/api/organizations/${orgId}/members`
             )
 
-            const members = response.members.map(parseMbrDates)
+            const members = (response.members ?? []).map(parseMbrDates)
 
             // Update cache if this is the current org
             const updates: Partial<OrganizationState> = {
@@ -676,7 +672,7 @@ export const useOrganizationStore = create<OrganizationStore>()(
           )
 
           try {
-            const response = await authFetch<{ invitation: any }>(
+            const response = await authFetch<{ invitation: OrganizationInvitation }>(
               `/api/organizations/${orgId}/invitations`,
               {
                 method: 'POST',
@@ -735,11 +731,11 @@ export const useOrganizationStore = create<OrganizationStore>()(
           )
 
           try {
-            const response = await authFetch<{ invitations: any[] }>(
+            const response = await authFetch<{ invitations: OrganizationInvitation[] }>(
               `/api/organizations/${orgId}/invitations`
             )
 
-            const invitations = response.invitations.map(parseInvDates)
+            const invitations = (response.invitations ?? []).map(parseInvDates)
 
             // Update cache if this is the current org
             const updates: Partial<OrganizationState> = {
@@ -780,11 +776,11 @@ export const useOrganizationStore = create<OrganizationStore>()(
           )
 
           try {
-            const response = await authFetch<{ invitations: any[] }>(
+            const response = await authFetch<{ invitations: OrganizationInvitation[] }>(
               '/api/invitations/pending'
             )
 
-            const invitations = response.invitations.map(parseInvDates)
+            const invitations = (response.invitations ?? []).map(parseInvDates)
 
             set(
               {
@@ -993,9 +989,9 @@ export const useOrganizationStore = create<OrganizationStore>()(
               query ? `?${query}` : ''
             }`
 
-            const response = await authFetch<{ logs: any[] }>(endpoint)
+            const response = await authFetch<{ logs: AuditLog[] }>(endpoint)
 
-            return response.logs.map(parseLogDates)
+            return (response.logs ?? []).map(parseLogDates)
           } catch (error) {
             const errorMessage =
               error instanceof AuthApiError

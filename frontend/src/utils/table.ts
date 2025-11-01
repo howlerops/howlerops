@@ -147,7 +147,7 @@ export const exportData = (
   columns: TableColumn[],
   options: ExportOptions
 ): void => {
-  const { format, filename = 'data', selectedOnly: _selectedOnly = false, includeHeaders = true } = options; // eslint-disable-line @typescript-eslint/no-unused-vars
+  const { format, filename = 'data', selectedOnly: _selectedOnly = false, includeHeaders = true } = options;
 
   let content = '';
   const headers = columns.map(col => col.header);

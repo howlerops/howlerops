@@ -603,7 +603,11 @@ export const useAIQueryAgentStore = create<AIQueryAgentState>()(
 }
 ))
 
-if (typeof window !== 'undefined') {
+const hasWailsRuntime =
+  typeof window !== 'undefined' &&
+  typeof (window as { runtime?: { EventsOnMultiple?: unknown } }).runtime?.EventsOnMultiple === 'function'
+
+if (hasWailsRuntime) {
   EventsOn('ai:query-agent:stream', (payload: unknown) => {
     useAIQueryAgentStore.getState().receiveEvent((payload ?? {}) as StreamPayload)
   })

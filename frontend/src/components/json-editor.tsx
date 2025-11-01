@@ -10,14 +10,14 @@ import {
   Check, 
   X, 
   AlertCircle,
-  Copy,
-  Eye,
-  EyeOff
+  Copy
 } from 'lucide-react'
 import { JsonToken, getTokenClass } from '@/lib/json-formatter'
 import { SearchMatch, highlightMatches } from '@/lib/json-search'
 import { CellValue } from '@/types/table'
 import { ForeignKeyResolver } from './foreign-key-resolver'
+import { formatValue, getValueClass } from './json-editor-utils'
+import type { QueryEditableMetadata } from '@/store/query-store'
 
 interface JsonEditorProps {
   tokens: JsonToken[]
@@ -33,7 +33,7 @@ interface JsonEditorProps {
   onUpdateField: (key: string, value: CellValue) => void
   onToggleKeyExpansion: (key: string) => void
   onCopyJson: () => void
-  metadata?: any
+  metadata?: QueryEditableMetadata | null
   connectionId?: string
 }
 
@@ -172,7 +172,7 @@ export function JsonEditor({
 
   // Render individual field
   const renderField = useCallback((node: JsonNode) => {
-    const { key, value, level, isExpanded, isEditing, validationError } = node
+    const { key, value, level, isExpanded, isEditing: nodeEditing, validationError } = node
     
     return (
       <div key={key} className="json-field" style={{ marginLeft: `${level * 20}px` }}>
@@ -197,7 +197,7 @@ export function JsonEditor({
           <span className="text-blue-600 font-medium">{key}:</span>
           
           {/* Value */}
-          {isEditing ? (
+          {nodeEditing ? (
             <div className="flex items-center gap-2 flex-1">
               <Input
                 ref={editInputRef}
@@ -230,7 +230,7 @@ export function JsonEditor({
               </span>
               
               {/* Edit button */}
-              {isEditing && (
+              {nodeEditing && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -265,7 +265,7 @@ export function JsonEditor({
           />
       </div>
     )
-  }, [isEditing, onToggleKeyExpansion, handleStartEdit, handleSaveEdit, handleCancelEdit, editValue, metadata, connectionId])
+  }, [onToggleKeyExpansion, handleStartEdit, handleSaveEdit, handleCancelEdit, editValue, metadata, connectionId])
 
   return (
     <div className="json-editor">
@@ -310,86 +310,4 @@ export function JsonEditor({
       </ScrollArea>
     </div>
   )
-}
-
-/**
- * Get CSS class for value based on type
- */
-function getValueClass(value: CellValue): string {
-  if (value === null) return 'text-gray-500'
-  if (typeof value === 'boolean') return 'text-orange-600'
-  if (typeof value === 'number') return 'text-purple-600'
-  if (typeof value === 'string') return 'text-green-600'
-  if (typeof value === 'object') return 'text-gray-700'
-  return 'text-gray-900'
-}
-
-/**
- * Format value for display
- */
-function formatValue(value: CellValue): string {
-  if (value === null) return 'null'
-  if (value === undefined) return 'undefined'
-  if (typeof value === 'boolean') return value.toString()
-  if (typeof value === 'number') return value.toString()
-  if (typeof value === 'string') return `"${value}"`
-  if (typeof value === 'object') {
-    try {
-      return JSON.stringify(value)
-    } catch {
-      return '[Object]'
-    }
-  }
-  return String(value)
-}
-
-/**
- * Hook for managing JSON editor state
- */
-export function useJsonEditor() {
-  const [isEditing, setIsEditing] = useState(false)
-  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set())
-  const [collapsedKeys, setCollapsedKeys] = useState<Set<string>>(new Set())
-
-  const toggleEdit = useCallback(() => {
-    setIsEditing(prev => !prev)
-  }, [])
-
-  const toggleKeyExpansion = useCallback((key: string) => {
-    setExpandedKeys(prev => {
-      const newSet = new Set(prev)
-      if (newSet.has(key)) {
-        newSet.delete(key)
-        setCollapsedKeys(prevCollapsed => new Set(prevCollapsed).add(key))
-      } else {
-        newSet.add(key)
-        setCollapsedKeys(prevCollapsed => {
-          const newCollapsed = new Set(prevCollapsed)
-          newCollapsed.delete(key)
-          return newCollapsed
-        })
-      }
-      return newSet
-    })
-  }, [])
-
-  const expandAllKeys = useCallback(() => {
-    setExpandedKeys(new Set(['*']))
-    setCollapsedKeys(new Set())
-  }, [])
-
-  const collapseAllKeys = useCallback(() => {
-    setExpandedKeys(new Set())
-    setCollapsedKeys(new Set(['*']))
-  }, [])
-
-  return {
-    isEditing,
-    expandedKeys,
-    collapsedKeys,
-    toggleEdit,
-    toggleKeyExpansion,
-    expandAllKeys,
-    collapseAllKeys
-  }
 }
