@@ -30,10 +30,4 @@ jobs:
 
       - name: Go unit tests (backend module)
         working-directory: backend-go
-        run: go test ./internal/config \
-                       ./internal/services \
-                       ./internal/middleware \
-                       ./internal/server \
-                       ./internal/rag \
-                       ./internal/ai \
-                       ./cmd/migrate-vector-db
+        run: go test ./internal/config ./internal/services ./internal/middleware ./internal/server ./internal/rag ./internal/ai ./cmd/migrate-vector-db
