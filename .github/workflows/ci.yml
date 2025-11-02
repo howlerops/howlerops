@@ -51,7 +51,7 @@ concurrency:
 
 env:
   GO_VERSION: '1.24'
-  GOLANGCI_LINT_VERSION: 'v1.61'
+  GOLANGCI_LINT_VERSION: 'v1.62'
   # CGO is required for SQLite driver (mattn/go-sqlite3)
   CGO_ENABLED: 1
 
@@ -230,11 +230,7 @@ jobs:
 
           # Cache golangci-lint analysis results for faster runs
           only-new-issues: false
-
-          # Skip build cache (use Go setup-go cache instead)
           skip-cache: false
-          skip-pkg-cache: false
-          skip-build-cache: false
 
       - name: Check code formatting
         working-directory: ./backend-go
