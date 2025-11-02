@@ -2,9 +2,10 @@ package rag
 
 import (
 	"context"
+	"time"
+
 	"github.com/sirupsen/logrus"
 	internalrag "github.com/sql-studio/backend-go/internal/rag"
-	"time"
 )
 
 type (

@@ -73,7 +73,8 @@
       "Bash(bun run typecheck)",
       "Bash(npm run lint)",
       "Bash(npm run lint -- src/hooks/use-feature-gate.ts)",
-      "Bash(echo \"Exit code: $?\")"
+      "Bash(echo \"Exit code: $?\")",
+      "Bash(gcloud run services list --project=howlerops-prod --format=\"table(SERVICE,URL)\")"
     ],
     "deny": [],
     "ask": []

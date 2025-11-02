@@ -8,10 +8,12 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/sirupsen/logrus"
+
 	// "google.golang.org/grpc"
 	// "google.golang.org/grpc/credentials/insecure"
 
 	"github.com/sql-studio/backend-go/internal/ai"
+	"github.com/sql-studio/backend-go/internal/auth"
 	"github.com/sql-studio/backend-go/internal/config"
 	"github.com/sql-studio/backend-go/internal/middleware"
 	"github.com/sql-studio/backend-go/internal/services"
@@ -42,6 +44,16 @@ func NewHTTPServer(cfg *config.Config, logger *logrus.Logger, svc *services.Serv
 			}
 		}),
 	)
+
+	// Register Auth HTTP routes (public - no auth middleware)
+	if svc.Auth != nil {
+		logger.Info("Registering Auth HTTP routes")
+		authHTTPHandler := auth.NewHandler(svc.Auth, logger)
+		authHTTPHandler.RegisterRoutes(mainRouter)
+		logger.Info("Auth HTTP routes registered successfully")
+	} else {
+		logger.Warn("Auth service is nil, skipping Auth route registration")
+	}
 
 	// Register AI HTTP routes
 	if svc.AI != nil {
