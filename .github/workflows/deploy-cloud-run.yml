@@ -11,14 +11,12 @@ name: Deploy to Cloud Run
 
 on:
   # Production: Deploy when creating release tags
-  push:
-    tags:
-      - 'v*.*.*'
-
   # Staging: Deploy on push to main
   push:
     branches:
       - main
+    tags:
+      - 'v*.*.*'
     paths:
       - 'backend-go/**'
       - '.github/workflows/deploy-cloud-run.yml'
