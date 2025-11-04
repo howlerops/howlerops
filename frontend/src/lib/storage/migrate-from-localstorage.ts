@@ -57,7 +57,7 @@ async function migrateConnections(userId: string): Promise<number> {
           port: conn.port || 5432,
           database: conn.database,
           username: conn.username || '',
-          ssl_mode: conn.sslMode || 'disable',
+          ssl_mode: conn.sslMode || 'prefer',  // Default to 'prefer' for better security
           parameters: conn.parameters,
           environment_tags: conn.environments || [],
           last_used_at: conn.lastUsed ? new Date(conn.lastUsed) : new Date(),

@@ -92,7 +92,7 @@ function convertToGrpcConnectionConfig(data: unknown): ConnectionConfig {
     database: dataObj.database || '',
     username: dataObj.username || '',
     password: dataObj.password || '',
-    sslMode: dataObj.ssl_mode || 'disable',
+    sslMode: dataObj.ssl_mode || 'prefer',  // Default to 'prefer' for better security
     connectionTimeout: dataObj.connection_timeout || 30,
     idleTimeout: dataObj.idle_timeout || 300,
     maxConnections: dataObj.max_connections || 10,

@@ -174,7 +174,7 @@ export class WailsApiClient {
         database: request.database || '',
         username: request.username || '',
         password: request.password || '',
-        sslMode: request.ssl_mode || 'disable',
+        sslMode: request.ssl_mode || 'prefer',  // Default to 'prefer' for better security
         connectionTimeout: request.connection_timeout || 30,
         parameters
       })
@@ -218,7 +218,7 @@ export class WailsApiClient {
         database: request.database || '',
         username: request.username || '',
         password: request.password || '',
-        sslMode: request.ssl_mode || 'disable',
+        sslMode: request.ssl_mode || 'prefer',  // Default to 'prefer' for better security
         connectionTimeout: request.connection_timeout || 30,
         parameters: request.parameters || {}
       })
@@ -258,7 +258,7 @@ export class WailsApiClient {
         database: connectionData.database || '',
         username: connectionData.username || '',
         password: connectionData.password || '',
-        sslMode: connectionData.ssl_mode || 'disable',
+        sslMode: connectionData.ssl_mode || 'prefer',  // Default to 'prefer' for better security
         connectionTimeout: connectionData.connection_timeout || 30,
         parameters: connectionData.parameters || {}
       })

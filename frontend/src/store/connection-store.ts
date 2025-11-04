@@ -275,6 +275,7 @@ export const useConnectionStore = create<ConnectionState>()(
               database: connection.database,
               username: connection.username ?? '',
               password: credentials?.password ?? '',
+              ssl_mode: connection.sslMode ?? 'prefer',  // Pass SSL mode
               parameters: aliasParameters,
             })
 
@@ -293,6 +294,7 @@ export const useConnectionStore = create<ConnectionState>()(
                 database: connection.database,
                 username: connection.username ?? '',
                 password: credentials?.password ?? '',
+                ssl_mode: connection.sslMode ?? 'prefer',  // Pass SSL mode
                 parameters: aliasParameters,
               })
             } catch (saveError) {

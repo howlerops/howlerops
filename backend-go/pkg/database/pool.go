@@ -139,10 +139,17 @@ func (p *ConnectionPool) buildDSN() (string, error) {
 	}
 }
 
+// stripProtocol removes http:// or https:// prefix from host
+func stripProtocol(host string) string {
+	host = strings.TrimPrefix(host, "https://")
+	host = strings.TrimPrefix(host, "http://")
+	return host
+}
+
 // buildPostgresDSN builds PostgreSQL DSN
 func (p *ConnectionPool) buildPostgresDSN() string {
 	dsn := fmt.Sprintf("host=%s port=%d dbname=%s user=%s password=%s",
-		p.config.Host, p.config.Port, p.config.Database, p.config.Username, p.config.Password)
+		stripProtocol(p.config.Host), p.config.Port, p.config.Database, p.config.Username, p.config.Password)
 
 	if p.config.SSLMode != "" {
 		dsn += fmt.Sprintf(" sslmode=%s", p.config.SSLMode)
