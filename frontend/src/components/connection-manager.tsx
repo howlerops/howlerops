@@ -299,6 +299,7 @@ export function ConnectionManager() {
     try {
       const result = await wailsEndpoints.connections.test({
         ...connectionData,
+        ssl_mode: connectionData.sslMode,  // Convert camelCase to snake_case for Wails API
         connection_timeout: 30,
       })
 

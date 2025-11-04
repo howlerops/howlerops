@@ -827,7 +827,19 @@ func (a *App) TestConnection(req ConnectionRequest) error {
 		config.ConnectionTimeout = 10 * time.Second
 	}
 
-	return a.databaseService.TestConnection(config)
+	err := a.databaseService.TestConnection(config)
+	if err != nil {
+		a.logger.WithFields(logrus.Fields{
+			"type":     req.Type,
+			"host":     req.Host,
+			"port":     req.Port,
+			"database": req.Database,
+			"sslmode":  req.SSLMode,
+		}).WithError(err).Error("Database connection test failed")
+	} else {
+		a.logger.WithField("type", req.Type).Info("Database connection test successful")
+	}
+	return err
 }
 
 // ListConnections returns all active connections
