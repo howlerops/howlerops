@@ -36,7 +36,6 @@ export function ConnectionSchemaViewer({ connectionId, onClose }: ConnectionSche
   const [schema, setSchema] = useState<SchemaNode[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [collapsedSchemas, setCollapsedSchemas] = useState<Set<string>>(new Set())
   const [showVisualizer, setShowVisualizer] = useState(false)
 
   const connection = connections.find(conn => conn.id === connectionId)
@@ -130,18 +129,6 @@ export function ConnectionSchemaViewer({ connectionId, onClose }: ConnectionSche
     }
   }, [connectionId, loadSchema])
 
-  const toggleSchema = (schemaId: string) => {
-    setCollapsedSchemas(prev => {
-      const newSet = new Set(prev)
-      if (newSet.has(schemaId)) {
-        newSet.delete(schemaId)
-      } else {
-        newSet.add(schemaId)
-      }
-      return newSet
-    })
-  }
-
   if (!connectionId || !connection) {
     return null
   }
@@ -210,9 +197,8 @@ export function ConnectionSchemaViewer({ connectionId, onClose }: ConnectionSche
               </div>
             ) : schema.length > 0 ? (
               <SchemaTree 
+                key={connectionId || 'connection-schema-tree'}
                 nodes={schema} 
-                collapsedSchemas={collapsedSchemas}
-                onToggleSchema={toggleSchema}
               />
             ) : (
               <div className="flex items-center justify-center h-32 text-muted-foreground">

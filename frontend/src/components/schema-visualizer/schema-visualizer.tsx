@@ -31,9 +31,12 @@ import {
   Minimize2,
   Layers,
   Database,
+  FolderMinus,
+  FolderPlus,
 } from 'lucide-react'
 
 import { TableNode } from './table-node'
+import { SchemaSummaryNode } from './schema-summary-node'
 import { CustomEdge } from './custom-edge'
 import { RelationshipInspector } from './relationship-inspector'
 import { SchemaErrorBoundary } from './schema-error-boundary'
@@ -45,7 +48,6 @@ import {
   SchemaConfig,
   LayoutAlgorithm,
   LayoutOptions,
-  FilterOptions,
   SchemaVisualizerNode,
   SchemaVisualizerEdge,
   EdgeConfig,
@@ -66,6 +68,7 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
   // Memoize nodeTypes and edgeTypes to prevent unnecessary re-renders
   const nodeTypes = useMemo(() => ({
     table: TableNode,
+    schemaSummary: SchemaSummaryNode,
   }), [])
 
   const edgeTypes = useMemo(() => ({
@@ -81,6 +84,10 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
   const [layoutAlgorithm, setLayoutAlgorithm] = useState<LayoutAlgorithm>('hierarchical')
   const [isFullscreen, setIsFullscreen] = useState(true)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [collapsedSchemas, setCollapsedSchemas] = useState<Set<string>>(new Set())
+  const [focusNeighborsOnly, setFocusNeighborsOnly] = useState(false)
+  const [detailMode, setDetailMode] = useState<'auto' | 'full' | 'compact'>('auto')
+  const [viewportZoom, setViewportZoom] = useState(1)
 
   // Interactive state
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null)
@@ -176,55 +183,210 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
     initializeSchema()
   }, [schema, setNodes, setEdges])
 
-  // Filter options
-  const _filterOptions: FilterOptions = useMemo(() => ({  
-    searchTerm: debouncedSearchTerm,
-    selectedSchemas,
-    showForeignKeys,
-    showPrimaryKeys,
-  }), [debouncedSearchTerm, selectedSchemas, showForeignKeys, showPrimaryKeys])
+  const tableSchemaLookup = useMemo(() => {
+    if (!schemaConfig) return new Map<string, string>()
+    const map = new Map<string, string>()
+    schemaConfig.tables.forEach((table) => {
+      map.set(table.id, table.schema)
+    })
+    return map
+  }, [schemaConfig])
 
-  // Apply filters and interactive states
-  const filteredNodes = useMemo(() => {
-    return nodes.filter((node) => {
-      const tableData = node.data as { name: string; schema: string; columns: Array<{ name: string }> }
+  const adjacencyMap = useMemo(() => {
+    if (!schemaConfig) return new Map<string, Set<string>>()
+    const map = new Map<string, Set<string>>()
+    schemaConfig.edges.forEach((edge) => {
+      if (!map.has(edge.source)) map.set(edge.source, new Set())
+      if (!map.has(edge.target)) map.set(edge.target, new Set())
+      map.get(edge.source)!.add(edge.target)
+      map.get(edge.target)!.add(edge.source)
+    })
+    return map
+  }, [schemaConfig])
 
-      // Search filter (using debounced term)
-      if (debouncedSearchTerm) {
-        const searchLower = debouncedSearchTerm.toLowerCase()
-        const matchesTable = tableData.name.toLowerCase().includes(searchLower)
-        const matchesColumn = tableData.columns.some((col) =>
-          col.name.toLowerCase().includes(searchLower)
-        )
-        if (!matchesTable && !matchesColumn) return false
+  const neighborWhitelist = useMemo(() => {
+    if (!focusNeighborsOnly || !selectedTableId) return null
+    const neighbors = new Set<string>([selectedTableId])
+    adjacencyMap.get(selectedTableId)?.forEach((neighbor) => neighbors.add(neighbor))
+    return neighbors
+  }, [focusNeighborsOnly, selectedTableId, adjacencyMap])
+
+  useEffect(() => {
+    if (!selectedTableId) return
+    const schemaName = tableSchemaLookup.get(selectedTableId)
+    if (schemaName && collapsedSchemas.has(schemaName)) {
+      setSelectedTableId(null)
+    }
+  }, [collapsedSchemas, selectedTableId, tableSchemaLookup])
+
+  const baseFilteredNodes = useMemo(() => {
+    return nodes
+      .filter((node) => {
+        if (node.type !== 'table') return true
+        const tableData = node.data as { name: string; schema: string; columns: Array<{ name: string }> }
+
+        if (selectedSchemas.length > 0 && !selectedSchemas.includes(tableData.schema)) {
+          return false
+        }
+
+        if (neighborWhitelist && !neighborWhitelist.has(node.id)) {
+          return false
+        }
+
+        if (debouncedSearchTerm) {
+          const searchLower = debouncedSearchTerm.toLowerCase()
+          const matchesTable = tableData.name.toLowerCase().includes(searchLower)
+          const matchesColumn = tableData.columns.some((col) =>
+            col.name.toLowerCase().includes(searchLower)
+          )
+          if (!matchesTable && !matchesColumn) return false
+        }
+
+        return true
+      })
+      .map((node) => {
+        if (node.type !== 'table') {
+          return node
+        }
+
+        const isFocused = selectedTableId === node.id
+        const isDimmed =
+          selectedTableId !== null &&
+          selectedTableId !== node.id &&
+          (focusNeighborsOnly ? !!neighborWhitelist : true)
+
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            isFocused,
+            isDimmed,
+          },
+        }
+      })
+  }, [nodes, debouncedSearchTerm, selectedSchemas, selectedTableId, neighborWhitelist])
+
+  const computedDetailLevel = useMemo<'full' | 'compact'>(() => {
+    if (detailMode === 'full' || detailMode === 'compact') {
+      return detailMode
+    }
+
+    const totalTables = schemaConfig?.tables.length ?? 0
+    if (totalTables > 140) {
+      return 'compact'
+    }
+
+    if (totalTables > 90 && viewportZoom < 1) {
+      return 'compact'
+    }
+
+    return viewportZoom < 0.8 ? 'compact' : 'full'
+  }, [detailMode, viewportZoom, schemaConfig])
+
+  const expandSchema = useCallback((schemaName: string) => {
+    setCollapsedSchemas((prev) => {
+      if (!prev.has(schemaName)) return prev
+      const next = new Set(prev)
+      next.delete(schemaName)
+      return next
+    })
+  }, [])
+
+  const toggleSchemaCollapse = useCallback((schemaName: string) => {
+    setCollapsedSchemas((prev) => {
+      const next = new Set(prev)
+      if (next.has(schemaName)) {
+        next.delete(schemaName)
+      } else {
+        next.add(schemaName)
+      }
+      return next
+    })
+  }, [])
+
+  const {
+    displayNodes,
+    collapsedNodeMap,
+    compactNodeIds,
+  } = useMemo(() => {
+    const collapsedMap = new Map<string, string>()
+    const nodesOut: Node[] = []
+    const summaryMeta = new Map<string, { nodes: Node[] }>()
+    const compactSet = new Set<string>()
+
+    baseFilteredNodes.forEach((node) => {
+      if (node.type !== 'table') {
+        nodesOut.push(node)
+        return
       }
 
-      // Schema filter
-      if (selectedSchemas.length > 0 && !selectedSchemas.includes(tableData.schema)) {
-        return false
-      }
-
-      return true
-    }).map((node) => {
-      // Apply focus mode styling
-      const isFocused = selectedTableId === node.id
-      const isDimmed = selectedTableId !== null && selectedTableId !== node.id
-
-      return {
+      const schemaName = (node.data as TableConfig).schema
+      const updatedNode: Node = {
         ...node,
         data: {
           ...node.data,
-          isFocused,
-          isDimmed,
+          detailLevel: computedDetailLevel,
+          showPrimaryKeys,
         },
       }
-    })
-  }, [nodes, debouncedSearchTerm, selectedSchemas, selectedTableId])
 
-  // Create filtered nodes Set for O(1) lookup
-  const filteredNodeIds = useMemo(() => {
-    return new Set(filteredNodes.map(n => n.id))
-  }, [filteredNodes])
+      if (computedDetailLevel === 'compact') {
+        compactSet.add(node.id)
+      }
+
+      if (schemaName && collapsedSchemas.has(schemaName)) {
+        let summary = summaryMeta.get(schemaName)
+        if (!summary) {
+          summary = { nodes: [] }
+          summaryMeta.set(schemaName, summary)
+        }
+        summary.nodes.push(updatedNode)
+        collapsedMap.set(node.id, `schema-summary-${schemaName}`)
+      } else {
+        nodesOut.push(updatedNode)
+      }
+    })
+
+    summaryMeta.forEach((summary, schemaName) => {
+      if (summary.nodes.length === 0) return
+      const centroid = summary.nodes.reduce(
+        (acc, node) => {
+          acc.x += node.position.x
+          acc.y += node.position.y
+          return acc
+        },
+        { x: 0, y: 0 }
+      )
+      centroid.x /= summary.nodes.length
+      centroid.y /= summary.nodes.length
+
+      nodesOut.push({
+        id: `schema-summary-${schemaName}`,
+        type: 'schemaSummary',
+        position: centroid,
+        data: {
+          schema: schemaName,
+          color: schemaConfig?.schemaColors[schemaName] || schemaConfig?.schemaColors.DEFAULT,
+          tableCount: summary.nodes.length,
+          onExpand: expandSchema,
+        },
+      })
+    })
+
+    return {
+      displayNodes: nodesOut,
+      collapsedNodeMap: collapsedMap,
+      compactNodeIds: compactSet,
+    }
+  }, [baseFilteredNodes, collapsedSchemas, computedDetailLevel, showPrimaryKeys, schemaConfig, expandSchema])
+
+  const visibleNodeIds = useMemo(() => {
+    return new Set(displayNodes.map((node) => node.id))
+  }, [displayNodes])
+
+  const visibleTableCount = useMemo(() => {
+    return displayNodes.filter((node) => node.type === 'table').length
+  }, [displayNodes])
 
   // Debounced edge hover handler
   const debouncedHoveredEdgeId = useDebounce(hoveredEdgeId, 50)
@@ -237,22 +399,48 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
   const filteredEdges = useMemo(() => {
     if (!showForeignKeys) return []
 
-    // Use Set for O(1) lookup instead of O(n) includes()
-    return edges.filter((edge) => {
-      return filteredNodeIds.has(edge.source) && filteredNodeIds.has(edge.target)
-    }).map((edge) => {
-      // Determine if this edge should be highlighted or dimmed
-      const isConnectedToSelectedTable = selectedTableId !== null && (
-        edge.source === selectedTableId || edge.target === selectedTableId
-      )
-      const isHighlighted = debouncedHoveredEdgeId === edge.id || isConnectedToSelectedTable
-      const isDimmed = selectedTableId !== null && !isConnectedToSelectedTable
+    const aggregate = new Map<string, Edge>()
+    const selectedSummaryId = selectedTableId ? collapsedNodeMap.get(selectedTableId) : null
 
-      // Disable animations for large schemas (performance optimization)
+    edges.forEach((edge) => {
+      const isSourceCompact = compactNodeIds.has(edge.source)
+      const isTargetCompact = compactNodeIds.has(edge.target)
+      const mappedSource = collapsedNodeMap.get(edge.source) ?? edge.source
+      const mappedTarget = collapsedNodeMap.get(edge.target) ?? edge.target
+
+      if (mappedSource === mappedTarget) {
+        return
+      }
+
+      if (!visibleNodeIds.has(mappedSource) || !visibleNodeIds.has(mappedTarget)) {
+        return
+      }
+
+      const aggregateKey =
+        mappedSource.startsWith('schema-summary-') || mappedTarget.startsWith('schema-summary-')
+          ? `${mappedSource}->${mappedTarget}`
+          : edge.id
+
+      const isConnectedToSelectedTable =
+        selectedTableId !== null &&
+        (edge.source === selectedTableId ||
+          edge.target === selectedTableId ||
+          (selectedSummaryId &&
+            (mappedSource === selectedSummaryId || mappedTarget === selectedSummaryId)))
+
+      const isHighlighted = debouncedHoveredEdgeId === aggregateKey || isConnectedToSelectedTable
+      const isDimmed = selectedTableId !== null && !isConnectedToSelectedTable
       const shouldAnimate = !shouldDisableAnimations && edge.animated
 
-      return {
+      const baseEdge: Edge = {
         ...edge,
+        id: aggregateKey,
+        source: mappedSource,
+        target: mappedTarget,
+        sourceHandle:
+          isSourceCompact || collapsedNodeMap.has(edge.source) ? undefined : edge.sourceHandle,
+        targetHandle:
+          isTargetCompact || collapsedNodeMap.has(edge.target) ? undefined : edge.targetHandle,
         animated: shouldAnimate,
         data: {
           ...edge.data,
@@ -261,8 +449,47 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
           isDimmed,
         },
       }
+
+      const isAggregateEdge = aggregateKey !== edge.id
+      if (isAggregateEdge) {
+        const existing = aggregate.get(aggregateKey)
+        if (existing) {
+          const currentCount = existing.data?.aggregateCount || 1
+          aggregate.set(aggregateKey, {
+            ...existing,
+            label: `${currentCount + 1} relations`,
+            data: {
+              ...existing.data,
+              aggregateCount: currentCount + 1,
+            },
+          })
+        } else {
+          aggregate.set(aggregateKey, {
+            ...baseEdge,
+            label: '1 relation',
+            data: {
+              ...baseEdge.data,
+              aggregateCount: 1,
+            },
+          })
+        }
+      } else {
+        aggregate.set(aggregateKey, baseEdge)
+      }
     })
-  }, [edges, filteredNodeIds, showForeignKeys, selectedTableId, debouncedHoveredEdgeId, handleEdgeHover, shouldDisableAnimations])
+
+    return Array.from(aggregate.values())
+  }, [
+    edges,
+    showForeignKeys,
+    collapsedNodeMap,
+    visibleNodeIds,
+    compactNodeIds,
+    selectedTableId,
+    debouncedHoveredEdgeId,
+    handleEdgeHover,
+    shouldDisableAnimations,
+  ])
 
   // Layout functions
   const applyLayout = useCallback((algorithm: LayoutAlgorithm) => {
@@ -274,13 +501,13 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
     }
     
     const { nodes: layoutedNodes } = LayoutEngine.applyLayout(
-      filteredNodes as SchemaVisualizerNode[],
+      displayNodes as SchemaVisualizerNode[],
       filteredEdges as SchemaVisualizerEdge[],
       layoutOptions
     )
     
     setNodes(layoutedNodes)
-  }, [schemaConfig, filteredNodes, filteredEdges, setNodes])
+  }, [schemaConfig, displayNodes, filteredEdges, setNodes])
 
   // Export functions
   const exportConfig = useCallback(() => {
@@ -331,6 +558,9 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
   const handleNodeClick = useCallback(
     (event: React.MouseEvent, node: Node) => {
       event.stopPropagation()
+       if (node.type !== 'table') {
+         return
+       }
       // Toggle focus: if already selected, deselect; otherwise select
       setSelectedTableId((prevId) => (prevId === node.id ? null : node.id))
     },
@@ -346,7 +576,7 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
 
       // Find the edge configuration data
       const edgeData = edge.data?.data as EdgeConfig | undefined
-      if (!edgeData) return
+      if (!edgeData || edge.data?.aggregateCount) return
 
       // Find source and target tables
       const sourceTable = schemaConfig.tables.find((t) => t.id === edge.source)
@@ -369,6 +599,10 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
   const handlePaneClick = useCallback(() => {
     setSelectedTableId(null)
     setSelectedEdge(null)
+  }, [])
+
+  const handleViewportChange = useCallback((_: any, viewport: { zoom: number }) => {
+    setViewportZoom(viewport.zoom)
   }, [])
 
   // Keyboard support for focus mode
@@ -423,13 +657,13 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
                   ⚠️ <strong>Critical:</strong> Very large schema ({schemaConfig?.tables.length} tables).
                   Browser visualization not recommended above 200 tables.
                   Consider using a dedicated database client tool (DBeaver, DataGrip) or export to documentation.
-                  Currently showing {filteredNodes.length} table{filteredNodes.length !== 1 ? 's' : ''}.
+                  Currently showing {visibleTableCount} table{visibleTableCount !== 1 ? 's' : ''}.
                 </>
               ) : (
                 <>
                   ⚠️ Large schema detected ({schemaConfig?.tables.length} tables).
                   Performance may be degraded. Use filters to reduce complexity.
-                  Currently showing {filteredNodes.length} table{filteredNodes.length !== 1 ? 's' : ''}.
+                  Currently showing {visibleTableCount} table{visibleTableCount !== 1 ? 's' : ''}.
                   {shouldDisableAnimations && ' Edge animations disabled for better performance.'}
                 </>
               )}
@@ -442,9 +676,9 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
           <div className="flex items-center space-x-4">
             <h2 className="text-xl font-semibold">Schema Visualizer</h2>
             <Badge variant="secondary">
-              {filteredNodes.length} table{filteredNodes.length !== 1 ? 's' : ''}
+              {visibleTableCount} table{visibleTableCount !== 1 ? 's' : ''}
             </Badge>
-            {schemaConfig && schemaConfig.tables.length !== filteredNodes.length && (
+            {schemaConfig && schemaConfig.tables.length !== visibleTableCount && (
               <Badge variant="outline">
                 {schemaConfig.tables.length} total
               </Badge>
@@ -496,22 +730,37 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
                 <Label>Schemas</Label>
                 <div className="space-y-2 max-h-32 overflow-y-auto">
                   {Object.keys(schemaConfig.schemaColors).map((schemaName) => (
-                    <div key={schemaName} className="flex items-center space-x-2">
-                      <Switch
-                        checked={selectedSchemas.includes(schemaName)}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setSelectedSchemas([...selectedSchemas, schemaName])
-                          } else {
-                            setSelectedSchemas(selectedSchemas.filter(s => s !== schemaName))
-                          }
-                        }}
-                      />
-                      <div
-                        className="w-3 h-3 rounded-full"
-                        style={{ backgroundColor: schemaConfig.schemaColors[schemaName] }}
-                      />
-                      <span className="text-sm">{schemaName}</span>
+                    <div key={schemaName} className="flex items-center justify-between space-x-2">
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          checked={selectedSchemas.includes(schemaName)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedSchemas([...selectedSchemas, schemaName])
+                            } else {
+                              setSelectedSchemas(selectedSchemas.filter(s => s !== schemaName))
+                            }
+                          }}
+                        />
+                        <div
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: schemaConfig.schemaColors[schemaName] }}
+                        />
+                        <span className="text-sm">{schemaName}</span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => toggleSchemaCollapse(schemaName)}
+                        title={collapsedSchemas.has(schemaName) ? 'Expand schema' : 'Collapse schema'}
+                      >
+                        {collapsedSchemas.has(schemaName) ? (
+                          <FolderPlus className="h-4 w-4" />
+                        ) : (
+                          <FolderMinus className="h-4 w-4" />
+                        )}
+                      </Button>
                     </div>
                   ))}
                 </div>
@@ -537,7 +786,36 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
                       onCheckedChange={setShowPrimaryKeys}
                     />
                   </div>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="focus-mode" className="text-sm">Focus neighbors</Label>
+                    <Switch
+                      id="focus-mode"
+                      disabled={!selectedTableId}
+                      checked={focusNeighborsOnly}
+                      onCheckedChange={setFocusNeighborsOnly}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Select a table, then enable focus mode to show only directly related tables.
+                  </p>
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Detail Density</Label>
+                <Select value={detailMode} onValueChange={(value: 'auto' | 'full' | 'compact') => setDetailMode(value)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="auto">Auto (zoom aware)</SelectItem>
+                    <SelectItem value="full">Full detail</SelectItem>
+                    <SelectItem value="compact">Compact cards</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Compact mode removes column lists for tighter layouts. Auto switches to compact when zoomed out or on very large schemas.
+                </p>
               </div>
 
               {/* Layout Options */}
@@ -584,7 +862,7 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
           {/* Main Visualization Area */}
           <div className="flex-1">
             <ReactFlow
-              nodes={filteredNodes}
+              nodes={displayNodes}
               edges={filteredEdges}
               onNodesChange={onNodesChange}
               onEdgesChange={onEdgesChange}
@@ -592,6 +870,7 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
               onNodeClick={handleNodeClick}
               onEdgeClick={handleEdgeClick}
               onPaneClick={handlePaneClick}
+              onMove={handleViewportChange}
               nodeTypes={nodeTypes}
               edgeTypes={edgeTypes}
               onlyRenderVisibleElements={true}

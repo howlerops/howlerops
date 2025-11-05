@@ -10,10 +10,25 @@ interface TableNodeData extends TableConfig {
   isSelected?: boolean
   isFocused?: boolean
   isDimmed?: boolean
+  detailLevel?: 'full' | 'compact'
+  showPrimaryKeys?: boolean
 }
 
 function TableNodeComponent({ data, selected }: NodeProps<TableNodeData>) {
-  const { name, schema, columns, schemaColor, isHighlighted, isSelected, isFocused, isDimmed } = data
+  const {
+    name,
+    schema,
+    columns,
+    schemaColor,
+    isHighlighted,
+    isSelected,
+    isFocused,
+    isDimmed,
+    detailLevel = 'full',
+    showPrimaryKeys = true,
+  } = data
+
+  const isCompact = detailLevel === 'compact'
 
   // Calculate header height (px-3 py-2 = 8px top + 8px bottom + text height ~20px = ~36px)
   const headerHeight = 36
@@ -47,34 +62,43 @@ function TableNodeComponent({ data, selected }: NodeProps<TableNodeData>) {
       </div>
 
       {/* Columns */}
-      <div className="p-2 space-y-1">
-        {columns.map((column: ColumnConfig) => (
-          <div
-            key={column.id}
-            className="flex items-center justify-between text-xs"
-          >
-            <div className="flex items-center space-x-1 flex-1 min-w-0">
-              {/* Primary Key Indicator */}
-              {column.isPrimaryKey && (
-                <Key className="h-3 w-3 text-accent-foreground flex-shrink-0" />
-              )}
+      {!isCompact ? (
+        <div className="p-2 space-y-1">
+          {columns.map((column: ColumnConfig) => (
+            <div
+              key={column.id}
+              className="flex items-center justify-between text-xs"
+            >
+              <div className="flex items-center space-x-1 flex-1 min-w-0">
+                {/* Primary Key Indicator */}
+                {showPrimaryKeys && column.isPrimaryKey && (
+                  <Key className="h-3 w-3 text-accent-foreground flex-shrink-0" />
+                )}
 
-              {/* Foreign Key Indicator */}
-              {column.isForeignKey && (
-                <Link className="h-3 w-3 text-primary flex-shrink-0" />
-              )}
+                {/* Foreign Key Indicator */}
+                {column.isForeignKey && (
+                  <Link className="h-3 w-3 text-primary flex-shrink-0" />
+                )}
 
-              {/* Column Name */}
-              <span className="font-medium truncate">{column.name}</span>
+                {/* Column Name */}
+                <span className="font-medium truncate">{column.name}</span>
+              </div>
+
+              {/* Column Type */}
+              <span className="text-muted-foreground text-xs ml-2 flex-shrink-0">
+                {column.type}
+              </span>
             </div>
-
-            {/* Column Type */}
-            <span className="text-muted-foreground text-xs ml-2 flex-shrink-0">
-              {column.type}
-            </span>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <div className="p-3 space-y-1 text-xs text-muted-foreground">
+          <p className="font-medium text-foreground">{columns.length} columns</p>
+          <p className="text-muted-foreground">
+            Zoom in or switch to detailed mode to view column definitions.
+          </p>
+        </div>
+      )}
 
       {/* Table Footer */}
       <div className="px-3 py-1 bg-muted/30 rounded-b-md text-xs text-muted-foreground">
@@ -82,7 +106,7 @@ function TableNodeComponent({ data, selected }: NodeProps<TableNodeData>) {
       </div>
 
       {/* Handles positioned absolutely relative to node */}
-      {columns.map((column: ColumnConfig, index: number) => {
+      {!isCompact && columns.map((column: ColumnConfig, index: number) => {
         const topPosition = headerHeight + columnsPaddingTop + (index * rowHeight) + (rowHeight / 2)
 
         return (
@@ -109,4 +133,3 @@ function TableNodeComponent({ data, selected }: NodeProps<TableNodeData>) {
 }
 
 export const TableNode = React.memo(TableNodeComponent)
-

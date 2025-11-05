@@ -42,9 +42,9 @@ export interface EdgeConfig {
 
 export interface SchemaVisualizerNode {
   id: string
-  type: 'table'
+  type: 'table' | 'schemaSummary'
   position: { x: number; y: number }
-  data: TableConfig
+  data: TableConfig | SchemaSummaryNodeData
 }
 
 export interface SchemaVisualizerEdge {
@@ -76,4 +76,11 @@ export interface FilterOptions {
   selectedSchemas: string[]
   showForeignKeys: boolean
   showPrimaryKeys: boolean
+}
+
+export interface SchemaSummaryNodeData {
+  schema: string
+  color?: string
+  tableCount: number
+  onExpand: (schema: string) => void
 }

@@ -33,11 +33,9 @@ import { cn } from "@/lib/utils"
 interface SchemaTreeProps {
   nodes: SchemaNode[]
   level?: number
-  collapsedSchemas?: Set<string>
-  onToggleSchema?: (schemaId: string) => void
 }
 
-export function SchemaTree({ nodes, level = 0, collapsedSchemas = new Set(), onToggleSchema }: SchemaTreeProps) {
+export function SchemaTree({ nodes, level = 0 }: SchemaTreeProps) {
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(
     new Set(nodes.filter(node => node.expanded).map(node => node.id))
   )
@@ -73,7 +71,6 @@ export function SchemaTree({ nodes, level = 0, collapsedSchemas = new Set(), onT
       {nodes.map((node) => {
         const isExpanded = expandedNodes.has(node.id)
         const hasChildren = node.children && node.children.length > 0
-        const isSchemaCollapsed = node.type === 'schema' && collapsedSchemas.has(node.id)
 
         return (
           <div key={node.id}>
@@ -81,17 +78,12 @@ export function SchemaTree({ nodes, level = 0, collapsedSchemas = new Set(), onT
               variant="ghost"
               size="sm"
               className={cn(
-                "w-full justify-start h-8 px-2",
-                `pl-${2 + level * 4}`
+                "w-full justify-start h-8 px-2"
               )}
+              style={{ paddingLeft: `${8 + level * 16}px` }}
               onClick={() => {
-                // Always toggle expansion for nodes with children
                 if (hasChildren) {
                   toggleNode(node.id)
-                }
-                // Additionally call schema toggle callback if provided
-                if (node.type === 'schema' && onToggleSchema) {
-                  onToggleSchema(node.id)
                 }
               }}
             >
@@ -116,12 +108,10 @@ export function SchemaTree({ nodes, level = 0, collapsedSchemas = new Set(), onT
               )}
             </Button>
 
-            {hasChildren && isExpanded && !isSchemaCollapsed && (
+            {hasChildren && isExpanded && (
               <SchemaTree 
                 nodes={node.children!} 
                 level={level + 1}
-                collapsedSchemas={collapsedSchemas}
-                onToggleSchema={onToggleSchema}
               />
             )}
           </div>
@@ -148,7 +138,6 @@ export function Sidebar() {
   const { schema, loading, error, refreshSchema } = useSchemaIntrospection()
   const [connectingId, setConnectingId] = useState<string | null>(null)
   const [showVisualizer, setShowVisualizer] = useState(false)
-  const [collapsedSchemas, setCollapsedSchemas] = useState<Set<string>>(new Set())
   const [showEnvironmentManager, setShowEnvironmentManager] = useState(false)
   
   // New state for connection actions
@@ -173,18 +162,6 @@ export function Sidebar() {
     } finally {
       setConnectingId(null)
     }
-  }
-
-  const toggleSchema = (schemaId: string) => {
-    setCollapsedSchemas(prev => {
-      const newSet = new Set(prev)
-      if (newSet.has(schemaId)) {
-        newSet.delete(schemaId)
-      } else {
-        newSet.add(schemaId)
-      }
-      return newSet
-    })
   }
 
   const handleAddToQueryTab = (connectionId: string) => {
@@ -443,9 +420,8 @@ export function Sidebar() {
                 ) : activeConnection ? (
                   schema.length > 0 ? (
                     <SchemaTree 
+                      key={activeConnection?.sessionId || 'schema-tree'} 
                       nodes={schema} 
-                      collapsedSchemas={collapsedSchemas}
-                      onToggleSchema={toggleSchema}
                     />
                   ) : (
                     <div className="text-xs text-muted-foreground text-center py-4">

@@ -1,6 +1,16 @@
 // import { Node, Edge, Position } from 'reactflow'
 import dagre from '@dagrejs/dagre'
-import { SchemaVisualizerNode, SchemaVisualizerEdge, LayoutOptions } from '@/types/schema-visualizer'
+import {
+  SchemaVisualizerNode,
+  SchemaVisualizerEdge,
+  LayoutOptions,
+  SchemaSummaryNodeData,
+  TableConfig,
+} from '@/types/schema-visualizer'
+
+const hasColumns = (data: TableConfig | SchemaSummaryNodeData): data is TableConfig => {
+  return Array.isArray((data as TableConfig).columns)
+}
 
 export class LayoutEngine {
   static applyLayout(
@@ -57,11 +67,11 @@ export class LayoutEngine {
 
     // Add nodes to the graph with size information
     nodes.forEach(node => {
-      const tableData = node.data
-      // Calculate node dimensions based on content
-      const columnCount = tableData.columns?.length || 1
-      const nodeHeight = 40 + (columnCount * 24) + 30 // header + columns + footer
-      const nodeWidth = 250 // fixed width for consistency
+      const nodeData = node.data as TableConfig | SchemaSummaryNodeData
+      const isTableNode = hasColumns(nodeData)
+      const columnCount = isTableNode ? nodeData.columns.length : 1
+      const nodeHeight = isTableNode ? 40 + (columnCount * 24) + 30 : 140
+      const nodeWidth = isTableNode ? 250 : 220
 
       dagreGraph.setNode(node.id, {
         width: nodeWidth,

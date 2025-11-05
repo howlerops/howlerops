@@ -12,22 +12,6 @@ interface ForeignKeyInfo {
   updateRule: string
 }
 
-interface ColumnMetadata {
-  name: string
-  dataType: string
-  nullable: boolean
-  defaultValue?: string
-  primaryKey: boolean
-  unique: boolean
-  indexed: boolean
-  comment?: string
-  ordinalPosition: number
-  characterMaximumLength?: number
-  numericPrecision?: number
-  numericScale?: number
-  metadata?: unknown
-}
-
 export class SchemaConfigBuilder {
   static async fromSchemaNodes(schemaNodes: SchemaNode[]): Promise<SchemaConfig> {
     const tables: TableConfig[] = []
@@ -47,16 +31,31 @@ export class SchemaConfigBuilder {
           if (tableNode.type === 'table' && tableNode.children) {
             const columns: ColumnConfig[] = tableNode.children
               .filter((col) => col.type === 'column')
-              .map((col) => ({
-                id: col.id,
-                name: col.name.split(' ')[0], // Remove type info for display
-                type: (col.metadata as any)?.dataType || 'unknown',
-                description: (col.metadata as any)?.description,
-                isPrimaryKey: col.name.includes('PK'),
-                isForeignKey: col.name.includes('FK'),
-                isNullable: (col.metadata as any)?.isNullable,
-                defaultValue: (col.metadata as any)?.defaultValue,
-              }))
+              .map((col) => {
+                const columnMetadata = (col.metadata || {}) as Record<string, any>
+                const columnName = (columnMetadata.name || col.name.split(':')[0]).trim()
+                const columnType = columnMetadata.dataType || columnMetadata.data_type || 'unknown'
+                const isPrimaryKey = columnMetadata.isPrimaryKey ?? columnMetadata.primaryKey ?? col.name.includes('PK')
+                let isForeignKey = col.name.includes('FK')
+                if (typeof columnMetadata.isForeignKey === 'boolean') {
+                  isForeignKey = columnMetadata.isForeignKey
+                } else if (columnMetadata.foreignKey !== undefined) {
+                  isForeignKey = true
+                }
+                const isNullable = columnMetadata.isNullable ?? columnMetadata.nullable
+                const defaultValue = columnMetadata.columnDefault ?? columnMetadata.defaultValue
+
+                return {
+                  id: col.id,
+                  name: columnName,
+                  type: columnType,
+                  description: columnMetadata.comment,
+                  isPrimaryKey,
+                  isForeignKey,
+                  isNullable,
+                  defaultValue,
+                }
+              })
 
             const tableConfig: TableConfig = {
               id: tableNode.id,
@@ -67,18 +66,6 @@ export class SchemaConfigBuilder {
             }
 
             tables.push(tableConfig)
-
-            // Extract foreign key relationships from column metadata
-            tableNode.children.forEach((col) => {
-              const columnMetadata = col.metadata as ColumnMetadata
-              if (columnMetadata?.primaryKey) {
-                // Mark primary key columns
-                const columnIndex = columns.findIndex(c => c.id === col.id)
-                if (columnIndex !== -1) {
-                  columns[columnIndex].isPrimaryKey = true
-                }
-              }
-            })
           }
         })
       }
@@ -317,7 +304,7 @@ export class SchemaConfigBuilder {
         for (const col of tableNode.children) {
           if (col.type !== 'column') continue
 
-          const columnMetadata = col.metadata as ColumnMetadata & { 
+          const columnMetadata = (col.metadata || {}) as Record<string, any> & {
             foreignKey?: {
               name: string
               referencedTable: string
@@ -326,21 +313,20 @@ export class SchemaConfigBuilder {
             }
           }
 
-          if (columnMetadata?.foreignKey) {
+          if (columnMetadata.foreignKey) {
             const fk = columnMetadata.foreignKey
             const sourceTable = tableMap.get(tableNode.id)
             if (!sourceTable) continue
 
-            // Find target table
             const targetSchema = fk.referencedSchema || schemaNode.name
             const targetTable = tables.find(t => 
               t.name === fk.referencedTable && t.schema === targetSchema
             )
             if (!targetTable) continue
 
-            // Determine relationship type
-            const sourceColumn = sourceTable.columns.find(c => c.id === col.id)
-            const targetColumn = targetTable.columns.find(c => c.name === fk.referencedColumns[0] || 'id')
+            const sourceColumn = sourceTable.columns.find(c => c.id === col.id || c.name === (columnMetadata.name || col.name.split(':')[0]))
+            const targetColumnName = fk.referencedColumns[0] || 'id'
+            const targetColumn = targetTable.columns.find(c => c.name === targetColumnName)
             
             let relationType: 'hasOne' | 'hasMany' | 'belongsTo' = 'belongsTo'
             if (sourceColumn?.isPrimaryKey && targetColumn?.isPrimaryKey) {
@@ -349,20 +335,18 @@ export class SchemaConfigBuilder {
               relationType = 'hasMany'
             }
 
-            // Create edge configuration
             const edgeConfig: EdgeConfig = {
               id: `${tableNode.id}_${col.id}_${fk.name}`,
               source: tableNode.id,
-              sourceKey: col.name.split(' ')[0],
+              sourceKey: sourceColumn?.name || columnMetadata.name || col.name.split(':')[0],
               target: targetTable.id,
-              targetKey: fk.referencedColumns[0] || 'id',
+              targetKey: targetColumnName,
               relation: relationType,
               label: fk.name,
             }
 
             edges.push(edgeConfig)
 
-            // Mark the source column as foreign key
             if (sourceColumn) {
               sourceColumn.isForeignKey = true
             }

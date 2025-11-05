@@ -34,6 +34,31 @@ interface RawTableInfo {
 interface RawColumnInfo {
   name: string
   dataType?: string
+  data_type?: string
+  characterMaximumLength?: number
+  character_maximum_length?: number
+  numericPrecision?: number
+  numeric_precision?: number
+  numericScale?: number
+  numeric_scale?: number
+  isNullable?: string
+  nullable?: boolean
+  columnDefault?: string | null
+  defaultValue?: string | null
+  default_value?: string | null
+  isPrimaryKey?: boolean
+  primaryKey?: boolean
+  primary_key?: boolean
+  isForeignKey?: boolean
+  foreignKey?: boolean
+  foreign_key?: boolean
+  metadata?: Record<string, unknown>
+  [key: string]: unknown
+}
+
+interface NormalizedColumnInfo {
+  name: string
+  dataType?: string
   characterMaximumLength?: number
   numericPrecision?: number
   numericScale?: number
@@ -41,7 +66,38 @@ interface RawColumnInfo {
   columnDefault?: string | null
   isPrimaryKey?: boolean
   isForeignKey?: boolean
-  [key: string]: unknown
+  metadata?: Record<string, unknown>
+}
+
+interface RawForeignKeyInfo {
+  name?: string
+  columns?: string[]
+  columnName?: string
+  referencedTable?: string
+  referenced_table?: string
+  referencedTableName?: string
+  referencedSchema?: string
+  referenced_schema?: string
+  referencedSchemaName?: string
+  referencedColumns?: string[]
+  referenced_columns?: string[]
+  referencedColumnName?: string
+  onDelete?: string
+  on_delete?: string
+  deleteRule?: string
+  onUpdate?: string
+  on_update?: string
+  updateRule?: string
+}
+
+interface NormalizedForeignKeyInfo {
+  name: string
+  columnName: string
+  referencedTableName: string
+  referencedSchemaName: string
+  referencedColumnName: string
+  deleteRule?: string
+  updateRule?: string
 }
 
 interface SchemaStoreState {
@@ -68,18 +124,98 @@ interface SchemaStoreState {
 
 const CACHE_DURATION_MS = 24 * 60 * 60 * 1000 // 24 hours
 
+const normalizeColumnInfo = (
+  column: RawColumnInfo,
+  options?: {
+    foreignKey?: NormalizedForeignKeyInfo
+  }
+): NormalizedColumnInfo => {
+  const dataType = column.dataType ?? column.data_type
+  const characterMaximumLength = column.characterMaximumLength ?? column.character_maximum_length
+  const numericPrecision = column.numericPrecision ?? column.numeric_precision
+  const numericScale = column.numericScale ?? column.numeric_scale
+
+  let isNullable: string | undefined = column.isNullable
+  if (!isNullable && typeof column.nullable === 'boolean') {
+    isNullable = column.nullable ? 'YES' : 'NO'
+  }
+
+  const columnDefault = column.columnDefault ?? column.defaultValue ?? column.default_value ?? null
+  const isPrimaryKey = column.isPrimaryKey ?? column.primaryKey ?? column.primary_key ?? false
+  const isForeignKey =
+    options?.foreignKey !== undefined
+      ? true
+      : column.isForeignKey ?? column.foreignKey ?? column.foreign_key ?? false
+
+  const metadata: Record<string, unknown> = {
+    ...column,
+    dataType,
+    characterMaximumLength,
+    numericPrecision,
+    numericScale,
+    isNullable,
+    columnDefault,
+    isPrimaryKey,
+    isForeignKey,
+  }
+
+  if (options?.foreignKey) {
+    metadata.foreignKey = {
+      name: options.foreignKey.name,
+      referencedTable: options.foreignKey.referencedTableName,
+      referencedSchema: options.foreignKey.referencedSchemaName,
+      referencedColumns: [options.foreignKey.referencedColumnName],
+    }
+  }
+
+  return {
+    name: column.name,
+    dataType,
+    characterMaximumLength,
+    numericPrecision,
+    numericScale,
+    isNullable,
+    columnDefault,
+    isPrimaryKey,
+    isForeignKey,
+    metadata,
+  }
+}
+
+const normalizeForeignKeys = (
+  foreignKeys: RawForeignKeyInfo[] | undefined,
+  fallbackSchema: string,
+  tableName: string
+): NormalizedForeignKeyInfo[] => {
+  if (!foreignKeys || foreignKeys.length === 0) {
+    return []
+  }
+
+  const normalized: NormalizedForeignKeyInfo[] = []
+
+  for (const fk of foreignKeys) {
+    const columnName = fk.columnName || fk.columns?.[0]
+    const referencedTableName = fk.referencedTableName || fk.referencedTable || fk.referenced_table
+    if (!columnName || !referencedTableName) {
+      continue
+    }
+
+    normalized.push({
+      name: fk.name || `${tableName}_${columnName}_fk`,
+      columnName,
+      referencedTableName,
+      referencedSchemaName: fk.referencedSchemaName || fk.referencedSchema || fk.referenced_schema || fallbackSchema,
+      referencedColumnName: fk.referencedColumnName || fk.referencedColumns?.[0] || fk.referenced_columns?.[0] || 'id',
+      deleteRule: fk.deleteRule || fk.onDelete || fk.on_delete || 'NO ACTION',
+      updateRule: fk.updateRule || fk.onUpdate || fk.on_update || 'NO ACTION',
+    })
+  }
+
+  return normalized
+}
+
 // Helper to format column names
-const formatColumnName = (column: {
-  name: string
-  dataType?: string
-  characterMaximumLength?: number
-  numericPrecision?: number
-  numericScale?: number
-  isNullable?: string
-  columnDefault?: string | null
-  isPrimaryKey?: boolean
-  isForeignKey?: boolean
-}): string => {
+const formatColumnName = (column: NormalizedColumnInfo): string => {
   let formattedName = column.name
 
   if (column.dataType) {
@@ -199,12 +335,38 @@ export const useSchemaStore = create<SchemaStoreState>()(
                       )
 
                       if (columnsResponse.success && columnsResponse.data) {
-                        tableNode.children = columnsResponse.data.map((columnInfo: RawColumnInfo, columnIndex: number) => ({
-                          id: `${tableId}.${columnInfo.name}.${columnIndex}`,
-                          name: formatColumnName(columnInfo),
-                          type: 'column' as const,
-                          metadata: columnInfo
-                        }))
+                        const normalizedForeignKeys = normalizeForeignKeys(
+                          columnsResponse.foreignKeys as RawForeignKeyInfo[] | undefined,
+                          schemaInfo.name,
+                          tableInfo.name
+                        )
+
+                        const foreignKeyByColumn = new Map<string, NormalizedForeignKeyInfo>()
+                        normalizedForeignKeys.forEach(fk => {
+                          if (!foreignKeyByColumn.has(fk.columnName)) {
+                            foreignKeyByColumn.set(fk.columnName, fk)
+                          }
+                        })
+
+                        tableNode.children = columnsResponse.data.map((columnInfo: RawColumnInfo, columnIndex: number) => {
+                          const normalizedColumn = normalizeColumnInfo(columnInfo, {
+                            foreignKey: foreignKeyByColumn.get(columnInfo.name)
+                          })
+
+                          return {
+                            id: `${tableId}.${columnInfo.name}.${columnIndex}`,
+                            name: formatColumnName(normalizedColumn),
+                            type: 'column' as const,
+                            metadata: normalizedColumn.metadata ?? normalizedColumn
+                          }
+                        })
+
+                        if (normalizedForeignKeys.length > 0) {
+                          tableNode.metadata = {
+                            ...(tableNode.metadata || {}),
+                            foreignKeys: normalizedForeignKeys
+                          }
+                        }
                       }
                     } catch (err) {
                       console.error(`Failed to fetch columns for ${tableInfo.name}:`, err)
