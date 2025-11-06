@@ -174,7 +174,7 @@ export function UpgradeModal({
   trigger = 'manual',
   recommendedTier = 'individual',
 }: UpgradeModalProps) {
-  const { _currentTier } = useTierStore()
+  useTierStore()
   const { markShown, dismiss } = useUpgradePromptStore()
   const [selectedPlan, setSelectedPlan] = useState<'individual' | 'team'>(recommendedTier)
 

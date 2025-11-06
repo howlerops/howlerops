@@ -224,7 +224,6 @@ export function ValueComparisonTable({
  * Simplified comparison for smaller spaces
  */
 export function CompactComparisonCard({
-  _currentTier,
   targetTier,
   features,
   className,

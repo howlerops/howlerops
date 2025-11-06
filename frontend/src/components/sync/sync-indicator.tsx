@@ -36,7 +36,6 @@ import { cn } from '@/lib/utils'
  */
 export function SyncIndicator() {
   const {
-    _status,
     isSyncing,
     lastSyncAt,
     syncEnabled,
@@ -131,14 +130,6 @@ export function SyncIndicator() {
     return 'Not synced'
   }
 
-  const _getStatusColor = () => {
-    if (!syncEnabled || !isOnline) return 'secondary'
-    if (hasError) return 'destructive'
-    if (hasConflicts) return 'warning'
-    if (isSyncing) return 'default'
-    return 'success'
-  }
-
   return (
     <div className="flex items-center gap-2">
       {/* Status Icon */}
@@ -170,7 +161,7 @@ export function SyncIndicator() {
  * Compact sync indicator (for space-constrained areas)
  */
 export function SyncIndicatorCompact() {
-  const { _status, isSyncing, syncEnabled, hasConflicts, hasError } = useSyncStatus()
+  const { isSyncing, syncEnabled, hasConflicts, hasError } = useSyncStatus()
   const [isOnline] = useState(navigator.onLine)
 
   const getIcon = () => {
@@ -194,7 +185,7 @@ export function SyncIndicatorCompact() {
  */
 function SyncSettingsDialog() {
   const { syncEnabled, lastSyncAt, progress } = useSyncStatus()
-  const { enableSync, disableSync, _updateConfig } = useSyncActions()
+  const { enableSync, disableSync } = useSyncActions()
   const [open, setOpen] = useState(false)
 
   return (

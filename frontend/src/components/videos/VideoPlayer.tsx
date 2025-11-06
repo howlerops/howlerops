@@ -36,7 +36,7 @@ interface TranscriptItem {
 export function VideoPlayer({
   videoId,
   src,
-  _title,
+  title,
   transcript = [],
   onComplete,
 }: VideoPlayerProps) {
@@ -172,6 +172,9 @@ export function VideoPlayer({
 
   return (
     <div className="space-y-4">
+      {title && (
+        <h2 className="text-lg font-semibold">{title}</h2>
+      )}
       {/* Video Container */}
       <div className="relative bg-black rounded-lg overflow-hidden aspect-video">
         <video

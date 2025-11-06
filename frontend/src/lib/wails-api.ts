@@ -344,7 +344,7 @@ export class WailsApiClient {
       }
 
       // Load defaults from preferences
-      const { PreferenceRepository, _PreferenceCategory } = await import('@/lib/storage/repositories/preference-repository')
+      const { PreferenceRepository } = await import('@/lib/storage/repositories/preference-repository')
       const pref = new PreferenceRepository()
       const timeoutPref = await pref.getUserPreference('local-user', 'queryTimeoutSeconds')
       const limitPref = await pref.getUserPreference('local-user', 'defaultResultLimit')

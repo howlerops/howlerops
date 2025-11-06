@@ -94,7 +94,7 @@ export function UsageStats({
   compact = false,
   className,
 }: UsageStatsProps) {
-  const { _checkLimit, getLimits, currentTier } = useTierStore()
+  const { getLimits, currentTier } = useTierStore()
   const { connections } = useConnectionStore()
   const { showUpgradeModal, UpgradeModalComponent } = useUpgradeModal()
 

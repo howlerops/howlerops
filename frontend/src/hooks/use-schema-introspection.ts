@@ -2,94 +2,8 @@ import { useEffect, useState, useCallback } from 'react'
 import { useConnectionStore } from '@/store/connection-store'
 import { useSchemaStore, type SchemaNode } from '@/store/schema-store'
 
-interface SyntheticViewColumn {
-  name: string
-  type?: string
-  [key: string]: unknown
-}
-
-interface SyntheticViewDefinition {
-  name: string
-  columns?: SyntheticViewColumn[]
-  [key: string]: unknown
-}
-
-const normaliseSyntheticColumn = (column: unknown): SyntheticViewColumn | null => {
-  if (!column || typeof column !== 'object') {
-    return null
-  }
-
-  const candidate = column as Record<string, unknown>
-  const name = typeof candidate.name === 'string' ? candidate.name : undefined
-  if (!name) {
-    return null
-  }
-
-  const type = typeof candidate.type === 'string' ? candidate.type : undefined
-
-  return {
-    ...candidate,
-    name,
-    ...(type ? { type } : {}),
-  }
-}
-
-const _normaliseSyntheticView = (view: unknown): SyntheticViewDefinition | null => {
-  if (!view || typeof view !== 'object') {
-    return null
-  }
-
-  const candidate = view as Record<string, unknown>
-  const name = typeof candidate.name === 'string' ? candidate.name : undefined
-  if (!name) {
-    return null
-  }
-
-  let columns: SyntheticViewColumn[] | undefined
-  if (Array.isArray(candidate.columns)) {
-    columns = candidate.columns
-      .map(normaliseSyntheticColumn)
-      .filter((column): column is SyntheticViewColumn => column !== null)
-  }
-
-  return {
-    ...candidate,
-    name,
-    ...(columns ? { columns } : {}),
-  }
-}
-
 // Re-export SchemaNode from the centralized store
 export type { SchemaNode } from '@/store/schema-store'
-
-// Deprecated: Old SchemaCache - replaced by centralized useSchemaStore
-// Keeping for backward compatibility during migration
-class _SchemaCache {
-  private static instance: SchemaCache
-
-  static getInstance(): SchemaCache {
-    if (!SchemaCache.instance) {
-      SchemaCache.instance = new SchemaCache()
-    }
-    return SchemaCache.instance
-  }
-
-  get(_key: string): SchemaNode[] | null {
-    return null // Deprecated - use useSchemaStore instead
-  }
-
-  set(_key: string, _data: SchemaNode[]) {
-    // Deprecated - use useSchemaStore instead
-  }
-
-  clear(_key?: string) {
-    // Deprecated - use useSchemaStore instead
-  }
-
-  clearExpired() {
-    // Deprecated - use useSchemaStore instead
-  }
-}
 
 /**
  * Simplified hook for schema introspection using centralized store
@@ -102,7 +16,6 @@ export function useSchemaIntrospection() {
   const isLoading = useSchemaStore((state) => state.isLoading)
   const getError = useSchemaStore((state) => state.getError)
   const invalidate = useSchemaStore((state) => state.invalidate)
-  const _invalidateAll = useSchemaStore((state) => state._invalidateAll)
 
   const [schema, setSchema] = useState<SchemaNode[]>([])
   const [loading, setLoading] = useState(false)

@@ -74,7 +74,7 @@ function isPreferredTime(config: ReminderConfig): boolean {
  */
 function isActiveUser(config: ReminderConfig): boolean {
   const promptStore = useUpgradePromptStore.getState()
-  const { _totalQueries, firstLaunch } = promptStore
+  const { firstLaunch } = promptStore
 
   // Check session queries
   const sessionQueries = sessionStorage.getItem('session-query-count')

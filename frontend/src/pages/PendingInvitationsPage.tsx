@@ -13,7 +13,7 @@
  * - Auto-refresh after actions
  */
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useOrganizationInvitations } from '@/store/organization-store'
@@ -54,7 +54,7 @@ export function PendingInvitationsPage() {
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({})
   const [error, setError] = useState<string | null>(null)
 
-  const loadInvitations = React.useCallback(async () => {
+  const loadInvitations = useCallback(async () => {
     setError(null)
     try {
       await fetchPendingInvitations()

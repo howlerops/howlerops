@@ -44,7 +44,6 @@ export function QueryProgressIndicator({
     canCancel,
     executeQuery,
     cancelQuery,
-    _getCombinedResult,  
     getStats,
   } = useRealtimeQuery({
     connectionName,

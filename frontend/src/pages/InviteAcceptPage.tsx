@@ -12,7 +12,7 @@
  * - Redirects to signup if not authenticated
  */
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/store/auth-store'
@@ -75,7 +75,7 @@ export function InviteAcceptPage() {
   const [accepting, setAccepting] = useState(false)
   const [declining, setDeclining] = useState(false)
 
-  const fetchInvitationDetails = React.useCallback(async () => {
+  const fetchInvitationDetails = useCallback(async () => {
     if (!token) return
 
     setLoading(true)

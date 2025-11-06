@@ -370,9 +370,9 @@ export function TwoFactorStatus() {
             <div className="space-y-4">
               <div className="text-sm text-muted-foreground">
                 <p>Two-factor authentication is currently enabled.</p>
-                {status.backup_codes_count > 0 && (
+                {(status?.backup_codes_count ?? 0) > 0 && (
                   <p className="mt-2">
-                    You have {status.backup_codes_count} backup codes remaining.
+                    You have {status?.backup_codes_count} backup codes remaining.
                   </p>
                 )}
               </div>

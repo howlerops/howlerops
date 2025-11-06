@@ -1,9 +1,11 @@
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
+import { Badge } from "@/components/ui/badge"
+import { Switch } from "@/components/ui/switch"
 import {
   Dialog,
   DialogContent,
@@ -30,7 +32,7 @@ import { PemKeyUpload } from "@/components/pem-key-upload"
 import { useConnectionStore, DatabaseTypeString, SSHTunnelConfig, VPCConfig } from "@/store/connection-store"
 import { DatabaseConnection } from "@/store/connection-store"
 import { SSHAuthMethod } from "@/generated/database"
-import { Database, Plus, Trash2, Play, Square, Loader2, ChevronDown, ChevronRight, Lock, Server, Cloud, Pencil } from "lucide-react"
+import { Database, Plus, Trash2, Play, Square, Loader2, ChevronDown, ChevronRight, Lock, Server, Cloud, Pencil, X, Tag } from "lucide-react"
 import { wailsEndpoints } from "@/lib/wails-api"
 
 interface ConnectionFormData {
@@ -42,6 +44,7 @@ interface ConnectionFormData {
   username: string
   password: string
   sslMode: string
+  environments: string[]
 
   // SSH Tunnel
   useTunnel: boolean
@@ -74,7 +77,7 @@ interface ConnectionFormData {
   clickhouseNativeProtocol: boolean
 }
 
-const defaultFormData: ConnectionFormData = {
+const createDefaultFormData = (): ConnectionFormData => ({
   name: '',
   type: 'postgresql',
   host: 'localhost',
@@ -83,6 +86,7 @@ const defaultFormData: ConnectionFormData = {
   username: '',
   password: '',
   sslMode: 'prefer',
+  environments: [],
 
   // SSH Tunnel defaults
   useTunnel: false,
@@ -113,7 +117,7 @@ const defaultFormData: ConnectionFormData = {
   elasticScheme: 'https',
   elasticApiKey: '',
   clickhouseNativeProtocol: false,
-}
+})
 
 const DATABASE_TYPE_OPTIONS = [
   { value: 'postgresql', label: 'PostgreSQL' },
@@ -137,16 +141,115 @@ export function ConnectionManager() {
     connectToDatabase,
     disconnectFromDatabase,
     isConnecting,
+    availableEnvironments,
+    refreshAvailableEnvironments,
+    activeEnvironmentFilter,
+    setEnvironmentFilter,
   } = useConnectionStore()
 
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingConnectionId, setEditingConnectionId] = useState<string | null>(null)
-  const [formData, setFormData] = useState<ConnectionFormData>(defaultFormData)
+  const [formData, setFormData] = useState<ConnectionFormData>(createDefaultFormData())
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [isTestingConnection, setIsTestingConnection] = useState(false)
   const [isSshSectionOpen, setIsSshSectionOpen] = useState(false)
   const [isVpcSectionOpen, setIsVpcSectionOpen] = useState(false)
   const [isAdvancedSshOpen, setIsAdvancedSshOpen] = useState(false)
+  const [newEnvironment, setNewEnvironment] = useState('')
+  const [groupByEnvironment, setGroupByEnvironment] = useState(false)
+  const ALL_ENV_OPTION = '__all__'
+  const UNASSIGNED_LABEL = 'No Environment'
+
+  useEffect(() => {
+    refreshAvailableEnvironments()
+  }, [refreshAvailableEnvironments])
+
+  const environmentOptions = useMemo(() => {
+    const envSet = new Set<string>(availableEnvironments)
+    formData.environments.forEach((env) => envSet.add(env))
+    return Array.from(envSet).sort((a, b) => a.localeCompare(b))
+  }, [availableEnvironments, formData.environments])
+
+  const filteredConnections = useMemo(() => {
+    if (!activeEnvironmentFilter) {
+      return connections
+    }
+
+    return connections.filter((conn) => {
+      if (!conn.environments || conn.environments.length === 0) {
+        return false
+      }
+      return conn.environments.includes(activeEnvironmentFilter)
+    })
+  }, [connections, activeEnvironmentFilter])
+
+  const groupedConnections = useMemo(() => {
+    if (!groupByEnvironment) {
+      return []
+    }
+
+    const envOrder = new Map<string, number>()
+    availableEnvironments.forEach((env, idx) => envOrder.set(env, idx))
+
+    const groupMap = new Map<string, DatabaseConnection[]>()
+
+    filteredConnections.forEach((conn) => {
+      const connEnvs = conn.environments && conn.environments.length > 0 ? conn.environments : [UNASSIGNED_LABEL]
+      connEnvs.forEach((env) => {
+        const key = env === UNASSIGNED_LABEL ? UNASSIGNED_LABEL : env
+        if (!groupMap.has(key)) {
+          groupMap.set(key, [])
+        }
+        groupMap.get(key)?.push(conn)
+      })
+    })
+
+    return Array.from(groupMap.entries())
+      .map(([key, items]) => ({
+        key,
+        label: key === UNASSIGNED_LABEL ? UNASSIGNED_LABEL : key,
+        connections: items,
+      }))
+      .sort((a, b) => {
+        if (a.key === UNASSIGNED_LABEL) return 1
+        if (b.key === UNASSIGNED_LABEL) return -1
+        const orderA = envOrder.get(a.key) ?? Number.MAX_SAFE_INTEGER
+        const orderB = envOrder.get(b.key) ?? Number.MAX_SAFE_INTEGER
+        if (orderA === orderB) {
+          return a.label.localeCompare(b.label)
+        }
+        return orderA - orderB
+      })
+  }, [filteredConnections, groupByEnvironment, availableEnvironments])
+
+  const handleEnvironmentToggle = (env: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      environments: prev.environments.includes(env)
+        ? prev.environments.filter((e) => e !== env)
+        : [...prev.environments, env],
+    }))
+  }
+
+  const handleAddEnvironment = () => {
+    const trimmed = newEnvironment.trim()
+    if (!trimmed) return
+
+    setFormData((prev) => ({
+      ...prev,
+      environments: prev.environments.includes(trimmed)
+        ? prev.environments
+        : [...prev.environments, trimmed],
+    }))
+    setNewEnvironment('')
+  }
+
+  const handleRemoveEnvironment = (env: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      environments: prev.environments.filter((e) => e !== env),
+    }))
+  }
 
   const populateFormFromConnection = (connection: DatabaseConnection) => {
     setFormData({
@@ -158,6 +261,7 @@ export function ConnectionManager() {
       username: connection.username || '',
       password: connection.password || '',
       sslMode: connection.sslMode || 'prefer',
+      environments: connection.environments || [],
 
       // SSH Tunnel
       useTunnel: connection.useTunnel || false,
@@ -199,6 +303,117 @@ export function ConnectionManager() {
     }
   }
 
+  const renderConnectionCard = (connection: DatabaseConnection) => (
+    <Card key={connection.id}>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium flex items-center">
+          <Database className="h-4 w-4 mr-2" />
+          {connection.name}
+        </CardTitle>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handleEditConnection(connection)}
+            title="Edit connection"
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={async () => {
+              if (connection.isConnected) {
+                await disconnectFromDatabase(connection.id)
+              }
+              removeConnection(connection.id)
+            }}
+            title="Delete connection"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="text-xs text-muted-foreground space-y-1">
+          <div className="flex items-center gap-1">
+            <span className="font-medium">Type:</span> {connection.type}
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="font-medium">Database:</span> {connection.database || 'N/A'}
+          </div>
+          {connection.host && (
+            <div className="flex items-center gap-1">
+              <Server className="h-3 w-3" />
+              <span>{connection.host}:{connection.port}</span>
+            </div>
+          )}
+          {connection.username && (
+            <div className="flex items-center gap-1">
+              <span className="font-medium">User:</span> {connection.username}
+            </div>
+          )}
+          {connection.useTunnel && (
+            <div className="flex items-center gap-1 text-primary">
+              <Lock className="h-3 w-3" />
+              <span>SSH Tunnel</span>
+            </div>
+          )}
+          {connection.useVpc && (
+            <div className="flex items-center gap-1 text-primary">
+              <Cloud className="h-3 w-3" />
+              <span>VPC</span>
+            </div>
+          )}
+        </div>
+
+        <div className="mt-3">
+          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+            <Tag className="h-3 w-3" />
+            <span>Environment</span>
+          </div>
+          {connection.environments && connection.environments.length > 0 ? (
+            <div className="mt-1 flex flex-wrap gap-2">
+              {connection.environments.map((env) => (
+                <Badge key={`${connection.id}-${env}`} variant="secondary" className="text-xs">
+                  {env}
+                </Badge>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-1 text-xs text-muted-foreground italic">Not assigned</p>
+          )}
+        </div>
+
+        <div className="mt-4 flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <div
+              className={`h-2 w-2 rounded-full ${
+                connection.isConnected ? 'bg-primary' : 'bg-muted-foreground'
+              }`}
+            />
+            <span className="text-xs">
+              {connection.isConnected ? 'Connected' : 'Disconnected'}
+            </span>
+          </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleConnect(connection)}
+            disabled={isConnecting}
+          >
+            {connection.isConnected ? (
+              <Square className="h-4 w-4" />
+            ) : (
+              <Play className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  )
+
   const handleEditConnection = (connection: DatabaseConnection) => {
     setEditingConnectionId(connection.id)
     populateFormFromConnection(connection)
@@ -208,11 +423,12 @@ export function ConnectionManager() {
   const handleCloseDialog = () => {
     setIsDialogOpen(false)
     setEditingConnectionId(null)
-    setFormData(defaultFormData)
+    setFormData(createDefaultFormData())
     setSubmitError(null)
     setIsSshSectionOpen(false)
     setIsVpcSectionOpen(false)
     setIsAdvancedSshOpen(false)
+    setNewEnvironment('')
   }
 
   const buildConnectionPayload = () => {
@@ -281,6 +497,7 @@ export function ConnectionManager() {
       username: formData.type === 'sqlite' ? '' : formData.username,
       password: formData.type === 'sqlite' ? '' : formData.password,
       sslMode: formData.sslMode,
+      environments: formData.environments,
       useTunnel: formData.useTunnel,
       sshTunnel,
       useVpc: formData.useVpc,
@@ -311,16 +528,18 @@ export function ConnectionManager() {
 
       if (editingConnectionId) {
         // Update existing connection
-        updateConnection(editingConnectionId, connectionData)
+        await updateConnection(editingConnectionId, connectionData)
         connectionId = editingConnectionId
       } else {
         // Add new connection
-        addConnection(connectionData)
+        await addConnection(connectionData)
         // Get the ID of the newly added connection (it's the last one added)
         const state = useConnectionStore.getState()
         const newConnection = state.connections[state.connections.length - 1]
         connectionId = newConnection.id
       }
+
+      refreshAvailableEnvironments()
 
       handleCloseDialog()
 
@@ -384,22 +603,59 @@ export function ConnectionManager() {
     return ['postgresql', 'mysql', 'mariadb', 'tidb', 'clickhouse'].includes(type)
   }
 
+  const renderEmptyState = (message: string) => (
+    <Card className="col-span-full">
+      <CardContent className="flex flex-col items-center justify-center py-12 text-center space-y-4">
+        <Database className="h-12 w-12 text-muted-foreground" />
+        <div>
+          <CardTitle className="mb-2">No connections</CardTitle>
+          <CardDescription>{message}</CardDescription>
+        </div>
+        {connections.length === 0 ? (
+          <Button onClick={() => setIsDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Connection
+          </Button>
+        ) : activeEnvironmentFilter ? (
+          <Button variant="outline" onClick={() => setEnvironmentFilter(null)}>
+            Clear Environment Filter
+          </Button>
+        ) : (
+          <Button onClick={() => setIsDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Connection
+          </Button>
+        )}
+      </CardContent>
+    </Card>
+  )
+
   return (
     <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold">Database Connections</h1>
-          <p className="text-muted-foreground">Manage your database connections</p>
-        </div>
+      <div className="flex flex-col gap-4 mb-6">
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">Database Connections</h1>
+            <p className="text-muted-foreground">Manage your database connections</p>
+          </div>
 
-        <Dialog open={isDialogOpen} onOpenChange={(open) => !open && handleCloseDialog()}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Connection
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+          <Dialog
+            open={isDialogOpen}
+            onOpenChange={(open) => {
+              if (open) {
+                setIsDialogOpen(true)
+              } else {
+                handleCloseDialog()
+              }
+            }}
+          >
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Connection
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
             <form onSubmit={handleSubmit}>
               <DialogHeader>
                 <DialogTitle>{editingConnectionId ? 'Edit Connection' : 'Add New Connection'}</DialogTitle>
@@ -439,6 +695,80 @@ export function ConnectionManager() {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+
+                {/* Environments */}
+                <div className="grid grid-cols-4 items-start gap-4">
+                  <Label className="text-right pt-2">
+                    Environments
+                  </Label>
+                  <div className="col-span-3 space-y-2">
+                    {environmentOptions.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {environmentOptions.map((env) => {
+                          const isSelected = formData.environments.includes(env)
+                          return (
+                            <Button
+                              key={env}
+                              type="button"
+                              variant={isSelected ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => handleEnvironmentToggle(env)}
+                              className={isSelected ? undefined : "text-muted-foreground"}
+                            >
+                              {env}
+                            </Button>
+                          )
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        No environments yet. Create one below.
+                      </p>
+                    )}
+
+                    <div className="flex gap-2">
+                      <Input
+                        id="new-environment"
+                        placeholder="e.g., production, staging"
+                        value={newEnvironment}
+                        onChange={(e) => setNewEnvironment(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            handleAddEnvironment()
+                          }
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        onClick={handleAddEnvironment}
+                        disabled={!newEnvironment.trim()}
+                        variant="secondary"
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        Add
+                      </Button>
+                    </div>
+
+                    {formData.environments.length > 0 && (
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        {formData.environments.map((env) => (
+                          <Badge key={env} variant="secondary" className="flex items-center gap-1">
+                            {env}
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveEnvironment(env)}
+                              className="rounded-full p-0.5 hover:bg-muted"
+                              aria-label={`Remove ${env}`}
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Host and Port */}
@@ -928,120 +1258,86 @@ export function ConnectionManager() {
                 </div>
               </DialogFooter>
             </form>
-          </DialogContent>
-        </Dialog>
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Environment Filter
+            </span>
+            <Select
+              value={activeEnvironmentFilter ?? ALL_ENV_OPTION}
+              onValueChange={(value) => setEnvironmentFilter(value === ALL_ENV_OPTION ? null : value)}
+            >
+              <SelectTrigger className="w-[220px]">
+                <SelectValue placeholder="All environments" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL_ENV_OPTION}>All environments</SelectItem>
+                {availableEnvironments.map((env) => (
+                  <SelectItem key={env} value={env}>
+                    {env}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Switch
+              id="group-by-environment"
+              checked={groupByEnvironment}
+              onCheckedChange={(checked) => setGroupByEnvironment(!!checked)}
+            />
+            <Label htmlFor="group-by-environment" className="text-sm">
+              Group by environment
+            </Label>
+          </div>
+        </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {connections.map((connection) => (
-          <Card key={connection.id}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium flex items-center">
-                <Database className="h-4 w-4 mr-2" />
-                {connection.name}
-              </CardTitle>
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleEditConnection(connection)}
-                  title="Edit connection"
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={async () => {
-                    if (connection.isConnected) {
-                      await disconnectFromDatabase(connection.id)
-                    }
-                    removeConnection(connection.id)
-                  }}
-                  title="Delete connection"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-xs text-muted-foreground space-y-1">
-                <div className="flex items-center gap-1">
-                  <span className="font-medium">Type:</span> {connection.type}
+      {groupByEnvironment ? (
+        groupedConnections.length > 0 ? (
+          <div className="space-y-6">
+            {groupedConnections.map((group) => (
+              <div key={group.key} className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Tag className="h-4 w-4 text-muted-foreground" />
+                    <h3 className="text-sm font-semibold">{group.label}</h3>
+                  </div>
+                  <Badge variant="outline" className="text-xs">
+                    {group.connections.length} {group.connections.length === 1 ? 'connection' : 'connections'}
+                  </Badge>
                 </div>
-                <div className="flex items-center gap-1">
-                  <span className="font-medium">Database:</span> {connection.database || 'N/A'}
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {group.connections.map((connection) => renderConnectionCard(connection))}
                 </div>
-                {connection.host && (
-                  <div className="flex items-center gap-1">
-                    <Server className="h-3 w-3" />
-                    <span>{connection.host}:{connection.port}</span>
-                  </div>
-                )}
-                {connection.username && (
-                  <div className="flex items-center gap-1">
-                    <span className="font-medium">User:</span> {connection.username}
-                  </div>
-                )}
-                {connection.useTunnel && (
-                  <div className="flex items-center gap-1 text-primary">
-                    <Lock className="h-3 w-3" />
-                    <span>SSH Tunnel</span>
-                  </div>
-                )}
-                {connection.useVpc && (
-                  <div className="flex items-center gap-1 text-primary">
-                    <Cloud className="h-3 w-3" />
-                    <span>VPC</span>
-                  </div>
-                )}
               </div>
-
-              <div className="mt-4 flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <div
-                    className={`h-2 w-2 rounded-full ${
-                      connection.isConnected ? 'bg-primary' : 'bg-muted-foreground'
-                    }`}
-                  />
-                  <span className="text-xs">
-                    {connection.isConnected ? 'Connected' : 'Disconnected'}
-                  </span>
-                </div>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleConnect(connection)}
-                  disabled={isConnecting}
-                >
-                  {connection.isConnected ? (
-                    <Square className="h-4 w-4" />
-                  ) : (
-                    <Play className="h-4 w-4" />
-                  )}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-
-        {connections.length === 0 && (
-          <Card className="col-span-full">
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <Database className="h-12 w-12 text-muted-foreground mb-4" />
-              <CardTitle className="mb-2">No connections configured</CardTitle>
-              <CardDescription className="mb-4">
-                Add your first database connection to get started
-              </CardDescription>
-              <Button onClick={() => setIsDialogOpen(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Connection
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {renderEmptyState(
+              activeEnvironmentFilter
+                ? 'No connections match this environment filter.'
+                : 'Add your first database connection to get started.'
+            )}
+          </div>
+        )
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {filteredConnections.length > 0
+            ? filteredConnections.map((connection) => renderConnectionCard(connection))
+            : renderEmptyState(
+                connections.length === 0
+                  ? 'Add your first database connection to get started.'
+                  : 'No connections match this environment filter.'
+              )}
+        </div>
+      )}
     </div>
   )
 }

@@ -335,7 +335,6 @@ export class IndexedDBClient {
         const offset = options?.offset ?? 0
         let skipped = 0
         let count = 0
-        let _lastKey: IDBValidKey | undefined
 
         const request = source.openCursor(
           options?.range,
@@ -364,7 +363,6 @@ export class IndexedDBClient {
 
           // Collect result
           items.push(cursor.value)
-          lastKey = cursor.key
           count++
 
           // Check if we have enough results
@@ -461,9 +459,8 @@ export class IndexedDBClient {
     const transaction = db.transaction(storeName, 'readwrite')
     const store = transaction.objectStore(storeName)
 
-    return new Promise<IDBValidKey[]>((resolve, reject) => {
-      const keys: IDBValidKey[] = []
-      const _completed = 0
+      return new Promise<IDBValidKey[]>((resolve, reject) => {
+        const keys: IDBValidKey[] = []
 
       transaction.onerror = () => {
         reject(
@@ -483,7 +480,6 @@ export class IndexedDBClient {
 
         request.onsuccess = () => {
           keys.push(request.result)
-          completed++
         }
 
         request.onerror = () => {

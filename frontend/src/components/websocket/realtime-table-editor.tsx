@@ -75,7 +75,6 @@ export function RealtimeTableEditor({
     optimisticState,
     editCell,
     insertRow,
-    _updateRow,  
     deleteRow,
     getTableData,
     getRow,
@@ -92,7 +91,7 @@ export function RealtimeTableEditor({
     },
   });
 
-  const { _activeConflicts, hasConflicts } = useConflictResolution();  
+  const { hasConflicts } = useConflictResolution();  
 
   // Local state
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);

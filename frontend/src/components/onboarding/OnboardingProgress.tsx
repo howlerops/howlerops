@@ -12,7 +12,6 @@ interface OnboardingProgressProps {
 }
 
 export function OnboardingProgress({
-  _currentStep,
   completedSteps,
   onContinue,
   onDismiss,

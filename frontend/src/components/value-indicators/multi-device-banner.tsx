@@ -39,7 +39,7 @@ export interface MultiDeviceBannerProps {
  * ```
  */
 export function MultiDeviceBanner({ position = 'top', className }: MultiDeviceBannerProps) {
-  const { _currentTier, hasFeature } = useTierStore()
+  const { hasFeature } = useTierStore()
   const { isNewDevice, shouldShowPrompt, dismiss } = useUpgradePromptStore()
   const { showUpgradeModal, UpgradeModalComponent } = useUpgradeModal()
   const [isVisible, setIsVisible] = useState(false)

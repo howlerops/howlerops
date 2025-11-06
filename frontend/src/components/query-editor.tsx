@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback, useMemo, forwardRef, useImper
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   DropdownMenu,
@@ -71,8 +72,9 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
     connections,
     connectToDatabase,
     isConnecting,
-    getFilteredConnections,
     activeEnvironmentFilter,
+    availableEnvironments,
+    setEnvironmentFilter,
     setActiveConnection: setGlobalActiveConnection,
   } = useConnectionStore()
   const {
@@ -114,6 +116,7 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
   const [aiSheetTab, setAISheetTab] = useState<'assistant' | 'memories'>('assistant')
   const [renameSessionId, setRenameSessionId] = useState<string | null>(null)
   const [renameTitle, setRenameTitle] = useState('')
+  const [openConnectionPopover, setOpenConnectionPopover] = useState<string | null>(null)
   
   // Visual Query Builder state
   const [isVisualMode, setIsVisualMode] = useState(false)
@@ -177,10 +180,22 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
     }
   }))
 
-  const filteredConnections = useMemo(
-    () => getFilteredConnections(),
-    [getFilteredConnections]
-  )
+  const environmentFilteredConnections = useMemo(() => {
+    if (!activeEnvironmentFilter) {
+      return connections
+    }
+    return connections.filter((conn) => conn.environments?.includes(activeEnvironmentFilter))
+  }, [connections, activeEnvironmentFilter])
+
+  const environmentOptions = useMemo(() => {
+    const envSet = new Set(availableEnvironments)
+    if (activeEnvironmentFilter) {
+      envSet.add(activeEnvironmentFilter)
+    }
+    return Array.from(envSet).sort((a, b) => a.localeCompare(b))
+  }, [availableEnvironments, activeEnvironmentFilter])
+
+  const hasEnvironmentFilters = environmentOptions.length > 0
 
   const editorConnections = useMemo(() => {
     if (mode === 'multi') {
@@ -231,11 +246,11 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
   )
 
   const aiTabConnections = useMemo(() => {
-    if (filteredConnections.length > 0) {
-      return filteredConnections
+    if (environmentFilteredConnections.length > 0) {
+      return environmentFilteredConnections
     }
     return connections
-  }, [filteredConnections, connections])
+  }, [environmentFilteredConnections, connections])
 
   const activeTab = tabs.find(tab => tab.id === activeTabId)
 
@@ -685,7 +700,7 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
 
     // In multi-DB mode, select all filtered connections
     if (mode === 'multi') {
-      const allFilteredIds = getFilteredConnections().map(c => c.id)
+      const allFilteredIds = environmentFilteredConnections.map(c => c.id)
       updateTab(tabId, {
         selectedConnectionIds: allFilteredIds,
         connectionId: undefined, // No single connection in multi-mode
@@ -696,7 +711,7 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
     if (activeConnection && mode === 'single') {
       setGlobalActiveConnection(activeConnection)
     }
-  }, [mode, createTab, activeConnection, getFilteredConnections, updateTab, setActiveTab, setGlobalActiveConnection])
+  }, [mode, createTab, activeConnection, environmentFilteredConnections, updateTab, setActiveTab, setGlobalActiveConnection])
 
   const handleCreateAiTab = useCallback(() => {
     const sessionId = createAgentSession({
@@ -804,35 +819,43 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
     }
   }, [activeTabId, tabs, aiConfig.provider, aiConfig.selectedModel, createAgentSession, ensureAgentSession, setActiveAgentSession, updateTab])
 
-  const handleTabConnectionChange = async (tabId: string, connectionId: string) => {
-    // Clear any previous connection errors
-    setLastConnectionError(null)
-    
-    // Update the tab's connection ID
-    updateTab(tabId, { connectionId, selectedConnectionIds: [connectionId] })
-    
-    const connection = connections.find(conn => conn.id === connectionId)
-    if (!connection) {
-      setGlobalActiveConnection(null)
-      return
-    }
+  const handleTabConnectionChange = useCallback(
+    async (tabId: string, connectionId: string) => {
+      setLastConnectionError(null)
+      updateTab(tabId, { connectionId, selectedConnectionIds: [connectionId] })
 
-    if (!connection.isConnected) {
-      try {
-        await connectToDatabase(connectionId)
-      } catch (error) {
-        console.error('Failed to connect to database:', error)
-        const errorMessage = error instanceof Error ? error.message : 'Failed to connect to database'
-        setLastConnectionError(errorMessage)
+      const connection = connections.find(conn => conn.id === connectionId)
+      if (!connection) {
+        setGlobalActiveConnection(null)
         return
       }
-    }
 
-    const updatedConnection = useConnectionStore.getState().connections.find(conn => conn.id === connectionId)
-    if (updatedConnection && updatedConnection.isConnected) {
-      setGlobalActiveConnection(updatedConnection)
-    }
-  }
+      if (!connection.isConnected) {
+        try {
+          await connectToDatabase(connectionId)
+        } catch (error) {
+          console.error('Failed to connect to database:', error)
+          const errorMessage = error instanceof Error ? error.message : 'Failed to connect to database'
+          setLastConnectionError(errorMessage)
+          return
+        }
+      }
+
+      const updatedConnection = useConnectionStore.getState().connections.find(conn => conn.id === connectionId)
+      if (updatedConnection && updatedConnection.isConnected) {
+        setGlobalActiveConnection(updatedConnection)
+      }
+    },
+    [connections, connectToDatabase, setGlobalActiveConnection, updateTab]
+  )
+  
+  const handleConnectionDropdownChange = useCallback(
+    (tabId: string, value: string) => {
+      handleTabConnectionChange(tabId, value)
+      setOpenConnectionPopover(null)
+    },
+    [handleTabConnectionChange]
+  )
   
   const handleMultiDBConnectionsChange = (tabId: string, connectionIds: string[]) => {
     updateTab(tabId, { selectedConnectionIds: connectionIds })
@@ -846,9 +869,17 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
       if (tab.selectedConnectionIds && tab.selectedConnectionIds.length > 0) {
         return tab.selectedConnectionIds
       }
-      return getFilteredConnections().map(c => c.id)
+      return environmentFilteredConnections.map(c => c.id)
     }
   }
+
+  const getConnectionLabelForTab = useCallback((tab: QueryTab) => {
+    if (!tab.connectionId) {
+      return 'Select DB'
+    }
+    const connection = connections.find((conn) => conn.id === tab.connectionId)
+    return connection?.name || 'Select DB'
+  }, [connections])
 
   const handleCloseTab = (tabId: string, e: SyntheticEvent) => {
     e.stopPropagation()
@@ -875,7 +906,7 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
       let schemasMap = undefined
 
       if (mode === 'multi') {
-        connections = getFilteredConnections()
+        connections = environmentFilteredConnections
         schemasMap = multiDBSchemas
       } else if (activeConnection && schema) {
         // In single DB mode, also provide schema context for better AI generation
@@ -916,7 +947,7 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
       let schemasMap = undefined
 
       if (mode === 'multi') {
-        connections = getFilteredConnections()
+        connections = environmentFilteredConnections
         schemasMap = multiDBSchemas
       } else if (activeConnection && schema) {
         connections = [activeConnection]
@@ -1100,7 +1131,7 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
 
               <Badge variant="secondary" className="gap-1.5 font-medium">
                 <Users className="h-3 w-3" />
-                {getFilteredConnections().filter(c => c.isConnected).length}/{getFilteredConnections().length} Connected
+                {environmentFilteredConnections.filter(c => c.isConnected).length}/{environmentFilteredConnections.length} Connected
               </Badge>
             </div>
           </div>
@@ -1194,55 +1225,102 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
                       </span>
                     </TabsTrigger>
                     
-                    {/* Connection Selector - Conditional based on mode */}
-                    {mode === 'single' ? (
-                      // Single-DB Mode: Show dropdown
-                      <div className="px-2">
-                        <Select
-                          value={tab.connectionId || ''}
-                          onValueChange={(value) => handleTabConnectionChange(tab.id, value)}
-                          disabled={isConnecting}
-                        >
-                          <SelectTrigger
-                            className={cn(
-                              "h-6 w-32 text-xs",
-                              !tab.connectionId && "border-accent text-accent-foreground bg-accent/10"
-                            )}
-                            title={!tab.connectionId ? "No database selected - select one to execute queries" : undefined}
+                    {/* Connection Selector & Environment Filter */}
+                    <div className="px-2">
+                      {mode === 'single' ? (
+                        <>
+                          <Popover
+                            open={openConnectionPopover === tab.id}
+                            onOpenChange={(open) => setOpenConnectionPopover(open ? tab.id : null)}
                           >
-                            <SelectValue placeholder={isConnecting ? "Connecting..." : "⚠️ Select DB"} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {!tab.connectionId && (
-                              <div className="px-2 py-1.5 text-xs text-accent-foreground bg-accent/10 border-b flex items-center gap-2">
-                                <AlertCircle className="h-3 w-3" />
-                                <span>Please select a connection</span>
-                              </div>
-                            )}
-                            {connections.map((conn) => (
-                              <SelectItem key={conn.id} value={conn.id}>
-                                <div className="flex items-center gap-2">
-                                  <Database className="h-3 w-3" />
-                                  <span className="flex-1">{conn.name}</span>
-                                  {conn.isConnected ? (
-                                    <span className="text-xs text-green-500 font-bold" title="Connected">●</span>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className={cn(
+                                  "h-7 w-36 justify-between",
+                                  !tab.connectionId && "border-accent text-accent-foreground bg-accent/10"
+                                )}
+                                onClick={(e) => e.stopPropagation()}
+                                disabled={isConnecting}
+                              >
+                                <span className="truncate text-xs">{getConnectionLabelForTab(tab)}</span>
+                                <ChevronDown className="h-3 w-3 opacity-70" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-64 space-y-3" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
+                              {hasEnvironmentFilters && (
+                                <div className="space-y-2">
+                                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Environment</p>
+                                  <div className="flex flex-wrap gap-2">
+                                    <Button
+                                      type="button"
+                                      variant={!activeEnvironmentFilter ? "secondary" : "ghost"}
+                                      size="sm"
+                                      className="h-6 px-2 text-xs"
+                                      onClick={() => void setEnvironmentFilter(null)}
+                                    >
+                                      All
+                                    </Button>
+                                    {environmentOptions.map((env) => (
+                                      <Button
+                                        key={env}
+                                        type="button"
+                                        variant={activeEnvironmentFilter === env ? "secondary" : "ghost"}
+                                        size="sm"
+                                        className="h-6 px-2 text-xs"
+                                        onClick={() => void setEnvironmentFilter(env)}
+                                      >
+                                        {env}
+                                      </Button>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              <div className="space-y-2">
+                                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Connections</p>
+                                <div className="max-h-60 space-y-1 overflow-y-auto pr-1">
+                                  {environmentFilteredConnections.length === 0 ? (
+                                    <div className="text-xs text-muted-foreground py-6 text-center border rounded-md">
+                                      No connections in this environment
+                                    </div>
                                   ) : (
-                                    <span className="text-xs text-muted-foreground" title="Not connected">○</span>
+                                    environmentFilteredConnections.map((conn) => (
+                                      <button
+                                        key={conn.id}
+                                        type="button"
+                                        className={cn(
+                                          "w-full rounded-md border px-2 py-2 text-left text-sm hover:bg-accent",
+                                          tab.connectionId === conn.id && "border-primary bg-accent/40"
+                                        )}
+                                        onClick={() => handleConnectionDropdownChange(tab.id, conn.id)}
+                                      >
+                                        <div className="flex items-center justify-between">
+                                          <div className="flex items-center gap-2">
+                                            <Database className="h-3.5 w-3.5" />
+                                            <span className="truncate">{conn.name}</span>
+                                          </div>
+                                          {conn.isConnected ? (
+                                            <span className="text-xs text-green-500 font-semibold">●</span>
+                                          ) : (
+                                            <span className="text-xs text-muted-foreground">○</span>
+                                          )}
+                                        </div>
+                                      </button>
+                                    ))
                                   )}
                                 </div>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        {lastConnectionError && (
-                          <div className="text-xs text-destructive mt-1 max-w-32 truncate" title={lastConnectionError}>
-                            {lastConnectionError}
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      // Multi-DB Mode: Show connection badge with click to open selector
-                      <div className="px-2">
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                          {lastConnectionError && (
+                            <div className="text-xs text-destructive mt-1 max-w-32 truncate" title={lastConnectionError}>
+                              {lastConnectionError}
+                            </div>
+                          )}
+                        </>
+                      ) : (
                         <Button
                           variant="outline"
                           size="sm"
@@ -1252,16 +1330,16 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
                             setShowConnectionSelector(true)
                           }}
                           className="h-6 px-2 text-xs bg-accent/10 border-accent hover:bg-accent/20"
+                          disabled={environmentFilteredConnections.length === 0}
                         >
                           <Network className="h-3 w-3 mr-1 text-accent-foreground" />
                           {(() => {
                             const activeConnections = getActiveConnectionsForTab(tab)
-                            const filteredConns = getFilteredConnections()
-                            return `${activeConnections.length}/${filteredConns.length} DBs`
+                            return `${activeConnections.length}/${environmentFilteredConnections.length} DBs`
                           })()}
                         </Button>
-                      </div>
-                    )}
+                      )}
+                    </div>
 
                     {/* Close Button */}
                     {tabs.length > 1 && (
@@ -1392,7 +1470,7 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
                           <Network className="h-3 w-3 mr-1" />
                           {(() => {
                             const count = activeTab ? getActiveConnectionsForTab(activeTab).length : 0
-                            const total = getFilteredConnections().length
+                            const total = environmentFilteredConnections.length
                             return `${count}/${total} DBs`
                           })()}
                         </Button>
@@ -1500,7 +1578,7 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
                         <label className="text-sm font-medium">Available Databases & Tables:</label>
                         <AISchemaDisplay
                           mode={mode}
-                          connections={mode === 'multi' ? getFilteredConnections() : (activeConnection ? [activeConnection] : [])}
+                          connections={mode === 'multi' ? environmentFilteredConnections : (activeConnection ? [activeConnection] : [])}
                           schemasMap={mode === 'multi' ? multiDBSchemas : (activeConnection && schema ? new Map([[activeConnection.id, schema]]) : new Map())}
                           onTableClick={(connName, tableName, schemaName) => {
                             const tablePath = mode === 'multi'
@@ -1885,7 +1963,7 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
           onClose={() => setShowConnectionSelector(false)}
           selectedConnectionIds={getActiveConnectionsForTab(activeTab)}
           onSelectionChange={(connectionIds) => handleMultiDBConnectionsChange(activeTab.id, connectionIds)}
-          filteredConnections={getFilteredConnections()}
+          filteredConnections={environmentFilteredConnections}
         />
       )}
 

@@ -111,6 +111,10 @@ async function migrateQueryHistory(userId: string): Promise<number> {
     })
 
     for (const tab of uniqueQueries.values()) {
+      if (!tab.content) {
+        continue
+      }
+
       try {
         await repo.create({
           user_id: userId,

@@ -11,6 +11,7 @@ import {
   ReactFlowProvider,
   Node,
   Edge,
+  OnMove,
 } from 'reactflow'
 import 'reactflow/dist/style.css'
 
@@ -264,7 +265,7 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
           },
         }
       })
-  }, [nodes, debouncedSearchTerm, selectedSchemas, selectedTableId, neighborWhitelist])
+  }, [nodes, debouncedSearchTerm, selectedSchemas, selectedTableId, neighborWhitelist, focusNeighborsOnly])
 
   const computedDetailLevel = useMemo<'full' | 'compact'>(() => {
     if (detailMode === 'full' || detailMode === 'compact') {
@@ -601,7 +602,7 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
     setSelectedEdge(null)
   }, [])
 
-  const handleViewportChange = useCallback((_: any, viewport: { zoom: number }) => {
+  const handleViewportChange = useCallback<OnMove>((_event, viewport) => {
     setViewportZoom(viewport.zoom)
   }, [])
 

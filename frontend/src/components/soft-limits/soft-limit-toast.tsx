@@ -110,8 +110,6 @@ export interface SoftLimitToastProps {
  */
 export function showSoftLimitToast({
   limitType,
-  _usage,
-  _softLimit,
   onUpgrade,
   title: customTitle,
   description: customDescription,

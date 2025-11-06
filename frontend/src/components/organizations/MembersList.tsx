@@ -273,7 +273,6 @@ export function MembersListMobile({
   members,
   currentUserId,
   currentUserRole,
-  _onRoleChange,
   onRemoveMember,
   onInviteClick,
   loading = false,

@@ -162,7 +162,7 @@ export function useFeatureGate(
         window.gtag('event', 'upgrade_prompt_shown', {
           feature,
           current_tier: currentTier,
-          required_tier: requiredTier,
+          required_tier: requiredTier ?? 'unknown',
           trigger: trigger || feature,
         })
       }

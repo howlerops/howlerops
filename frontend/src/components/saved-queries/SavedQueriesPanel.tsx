@@ -94,7 +94,6 @@ export function SavedQueriesPanel({
     sortDirection,
     setSearchText,
     setSelectedFolder,
-    _setSelectedTags,
     toggleTag,
     setShowFavoritesOnly,
     setSortBy,

@@ -45,7 +45,6 @@ export function ConnectionStatusIndicator({
     formatDuration,
     isHealthy,
     isDegraded,
-    _isUnhealthy,  
     hasIssues,
   } = useConnectionStatus();
 

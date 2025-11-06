@@ -37,7 +37,6 @@ export function OptimisticUpdateIndicator({
   const {
     optimisticState,
     getPendingUpdates,
-    _getUpdate,  
     rollbackUpdate,
     clearAllUpdates,
     getStats,
