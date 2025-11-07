@@ -27,7 +27,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useQueryStore, type QueryTab } from "@/store/query-store"
-import { useConnectionStore } from "@/store/connection-store"
+import { useConnectionStore, type DatabaseConnection } from "@/store/connection-store"
 import { useTheme } from "@/hooks/use-theme"
 import { useAIConfig, useAIGeneration, useAIStore } from "@/store/ai-store"
 import { useAIQueryAgentStore } from "@/store/ai-query-agent-store"
@@ -54,6 +54,7 @@ import { SelectDatabasePrompt } from "@/components/select-database-prompt"
 import { SaveQueryDialog } from "@/components/saved-queries/SaveQueryDialog"
 import { SavedQueriesPanel } from "@/components/saved-queries/SavedQueriesPanel"
 import { useAuthStore } from "@/store/auth-store"
+import { toast } from "@/hooks/use-toast"
 
 
 export interface QueryEditorProps {
@@ -105,6 +106,8 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
 
   const editorRef = useRef<CodeMirrorEditorRef>(null)
   const [editorContent, setEditorContent] = useState("")
+  const editorContentRef = useRef(editorContent)
+  const pendingTabUpdateRef = useRef<number | null>(null)
   const [naturalLanguagePrompt, setNaturalLanguagePrompt] = useState("")
   const [showAIDialog, setShowAIDialog] = useState(false)
   const [showSavedQueries, setShowSavedQueries] = useState(false)
@@ -135,6 +138,10 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
   const startMemorySession = useAIMemoryStore(state => state.startNewSession)
   const renameMemorySession = useAIMemoryStore(state => state.renameSession)
   const clearAllMemorySessions = useAIMemoryStore(state => state.clearAll)
+
+  const [connectionDatabases, setConnectionDatabases] = useState<Record<string, string[]>>({})
+  const [connectionDbLoading, setConnectionDbLoading] = useState<Record<string, boolean>>({})
+  const [connectionDbSwitching, setConnectionDbSwitching] = useState<Record<string, boolean>>({})
   const memorySessions = useMemo(() =>
     Object.values(memorySessionsMap).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)),
     [memorySessionsMap]
@@ -186,6 +193,40 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
     }
     return connections.filter((conn) => conn.environments?.includes(activeEnvironmentFilter))
   }, [connections, activeEnvironmentFilter])
+
+  const connectionMap = useMemo(() => {
+    const map = new Map<string, DatabaseConnection>()
+    connections.forEach((conn) => map.set(conn.id, conn))
+    return map
+  }, [connections])
+
+  const ensureConnectionDatabases = useCallback(async (connectionId: string) => {
+    if (!connectionId) {
+      return
+    }
+    if (connectionDatabases[connectionId] || connectionDbLoading[connectionId]) {
+      return
+    }
+
+    const connection = connectionMap.get(connectionId)
+    if (!connection || !connection.sessionId || !connection.isConnected) {
+      return
+    }
+
+    setConnectionDbLoading((prev) => ({ ...prev, [connectionId]: true }))
+    try {
+      const dbs = await useConnectionStore.getState().fetchDatabases(connectionId)
+      setConnectionDatabases((prev) => ({ ...prev, [connectionId]: dbs }))
+    } catch (error) {
+      toast({
+        title: 'Unable to load databases',
+        description: error instanceof Error ? error.message : 'Unknown error occurred',
+        variant: 'destructive',
+      })
+    } finally {
+      setConnectionDbLoading((prev) => ({ ...prev, [connectionId]: false }))
+    }
+  }, [connectionDatabases, connectionDbLoading, connectionMap])
 
   const environmentOptions = useMemo(() => {
     const envSet = new Set(availableEnvironments)
@@ -254,12 +295,147 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
 
   const activeTab = tabs.find(tab => tab.id === activeTabId)
 
+  const handleConnectionDatabaseChange = useCallback(async (connectionId: string, database: string) => {
+    if (!connectionId || !database) {
+      return
+    }
+    const connection = connectionMap.get(connectionId)
+    if (!connection || connection.database === database) {
+      return
+    }
+
+    setConnectionDbSwitching((prev) => ({ ...prev, [connectionId]: true }))
+    try {
+      await useConnectionStore.getState().switchDatabase(connectionId, database)
+      toast({
+        title: 'Database switched',
+        description: `${connection.name || 'Connection'} is now using ${database}.`,
+      })
+    } catch (error) {
+      toast({
+        title: 'Failed to switch database',
+        description: error instanceof Error ? error.message : 'Unable to switch database',
+        variant: 'destructive',
+      })
+    } finally {
+      setConnectionDbSwitching((prev) => ({ ...prev, [connectionId]: false }))
+    }
+  }, [connectionMap])
+
+  const activeDatabaseSelector = useMemo(() => {
+    if (mode !== 'single') {
+      return null
+    }
+    if (!activeTab?.connectionId) {
+      return null
+    }
+
+    const connection = connectionMap.get(activeTab.connectionId)
+    if (!connection?.isConnected) {
+      return null
+    }
+
+    const databases = connectionDatabases[activeTab.connectionId]
+    const loading = connectionDbLoading[activeTab.connectionId]
+    const switching = connectionDbSwitching[activeTab.connectionId]
+
+    if (!databases) {
+      if (loading) {
+        return <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+      }
+      return null
+    }
+
+    if (databases.length <= 1) {
+      return null
+    }
+
+    return (
+      <div className="flex items-center gap-2">
+        <Select
+          value={connection.database}
+          onValueChange={(value) => handleConnectionDatabaseChange(connection.id, value)}
+          disabled={loading || switching}
+        >
+          <SelectTrigger className="h-8 w-44 text-xs">
+            <SelectValue placeholder={loading ? 'Loading databases…' : 'Select database'} />
+          </SelectTrigger>
+          <SelectContent>
+            {databases.map((dbName) => (
+              <SelectItem key={dbName} value={dbName}>
+                <span className="text-xs">{dbName}</span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {(loading || switching) && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+      </div>
+    )
+  }, [
+    activeTab?.connectionId,
+    connectionDatabases,
+    connectionDbLoading,
+    connectionDbSwitching,
+    connectionMap,
+    handleConnectionDatabaseChange,
+    mode,
+  ])
+
+  useEffect(() => {
+    if (mode !== 'single') {
+      return
+    }
+    if (!activeTab?.connectionId) {
+      return
+    }
+    void ensureConnectionDatabases(activeTab.connectionId)
+  }, [activeTab?.connectionId, ensureConnectionDatabases, mode])
+
+  const flushTabUpdate = useCallback((tabId: string, value: string) => {
+    if (!tabId) return
+    const snapshot = useQueryStore.getState().tabs.find(tab => tab.id === tabId)
+    const baselineContent = snapshot?.content ?? ''
+    updateTab(tabId, {
+      content: value,
+      isDirty: value !== baselineContent,
+    })
+  }, [updateTab])
+
+  const scheduleTabUpdate = useCallback((tabId: string, value: string) => {
+    if (!tabId) return
+
+    if (typeof window === 'undefined') {
+      flushTabUpdate(tabId, value)
+      return
+    }
+
+    if (pendingTabUpdateRef.current) {
+      window.clearTimeout(pendingTabUpdateRef.current)
+    }
+
+    pendingTabUpdateRef.current = window.setTimeout(() => {
+      flushTabUpdate(tabId, value)
+      pendingTabUpdateRef.current = null
+    }, 140)
+  }, [flushTabUpdate])
+
   // Restore editor content when active tab changes or on mount
   useEffect(() => {
     if (activeTab?.content !== undefined) {
       setEditorContent(activeTab.content)
     }
   }, [activeTab?.id, activeTab?.content])
+
+  useEffect(() => {
+    const tabIdAtRegistration = activeTab?.id
+    return () => {
+      if (pendingTabUpdateRef.current && tabIdAtRegistration) {
+        window.clearTimeout(pendingTabUpdateRef.current)
+        flushTabUpdate(tabIdAtRegistration, editorContentRef.current)
+        pendingTabUpdateRef.current = null
+      }
+    }
+  }, [activeTab?.id, flushTabUpdate])
 
   // Remove automatic tab creation - let users create tabs manually
 
@@ -287,7 +463,6 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
   // - Ctrl/Cmd+Shift+D: toggle diagnostics
   // - Ctrl/Cmd+Shift+L: open Saved Queries library
   // - Ctrl/Cmd+Shift+S: open Save Query dialog
-  const editorContentRef = useRef(editorContent)
   useEffect(() => { editorContentRef.current = editorContent }, [editorContent])
 
   useEffect(() => {
@@ -542,15 +717,13 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
     }
   }, [isVisualMode])
 
-  const handleEditorChange = (value: string) => {
-    if (activeTab) {
-      setEditorContent(value)
-      updateTab(activeTab.id, {
-        content: value,
-        isDirty: value !== activeTab.content
-      })
+  const handleEditorChange = useCallback((value: string) => {
+    setEditorContent(value)
+
+    if (activeTab?.id) {
+      scheduleTabUpdate(activeTab.id, value)
     }
-    
+
     // Check if SQL has changed from visual mode
     if (isVisualMode && visualQueryIR) {
       const generatedSQL = generateSQLFromIR(visualQueryIR, 'postgres') // TODO: Get dialect from connection
@@ -558,7 +731,7 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
         // Keep visual builder results in sync with SQL editor
       }
     }
-  }
+  }, [activeTab?.id, isVisualMode, scheduleTabUpdate, visualQueryIR])
 
   const handleDatabaseSelected = useCallback(async (connectionId: string) => {
     if (!activeTab || !pendingQuery) return
@@ -615,14 +788,17 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
 
     if (currentEditorValue !== editorContent) {
       setEditorContent(currentEditorValue)
-      updateTab(activeTab.id, {
-        content: currentEditorValue,
-        isDirty: currentEditorValue !== activeTab.content,
-      })
     }
 
+    if (pendingTabUpdateRef.current) {
+      window.clearTimeout(pendingTabUpdateRef.current)
+      pendingTabUpdateRef.current = null
+    }
+
+    flushTabUpdate(activeTab.id, currentEditorValue)
+
     await executeQuery(activeTab.id, queryToExecute)
-  }, [activeTab, editorContent, executeQuery, updateTab])
+  }, [activeTab, editorContent, executeQuery, flushTabUpdate])
 
   // Keyboard shortcut for executing query (Ctrl/Cmd+Enter)
   useEffect(() => {
@@ -856,6 +1032,16 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
     },
     [handleTabConnectionChange]
   )
+
+  const handleConnectionPopoverToggle = useCallback((tabId: string, open: boolean) => {
+    setOpenConnectionPopover(open ? tabId : null)
+    if (open) {
+      const targetTab = tabs.find((tab) => tab.id === tabId)
+      if (targetTab?.connectionId) {
+        void ensureConnectionDatabases(targetTab.connectionId)
+      }
+    }
+  }, [ensureConnectionDatabases, tabs])
   
   const handleMultiDBConnectionsChange = (tabId: string, connectionIds: string[]) => {
     updateTab(tabId, { selectedConnectionIds: connectionIds })
@@ -1231,7 +1417,7 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
                         <>
                           <Popover
                             open={openConnectionPopover === tab.id}
-                            onOpenChange={(open) => setOpenConnectionPopover(open ? tab.id : null)}
+                            onOpenChange={(open) => handleConnectionPopoverToggle(tab.id, open)}
                           >
                             <PopoverTrigger asChild>
                               <Button
@@ -1441,25 +1627,28 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
 
                       {/* Connection controls per mode */}
                       {mode === 'single' ? (
-                        <Select
-                          value={activeTab?.connectionId || ''}
-                          onValueChange={(value) => activeTab && handleTabConnectionChange(activeTab.id, value)}
-                          disabled={isConnecting}
-                        >
-                          <SelectTrigger className="h-8 w-44 text-xs" title={!activeTab?.connectionId ? 'Select a database' : undefined}>
-                            <SelectValue placeholder={isConnecting ? 'Connecting…' : 'Select database'} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {connections.map((conn) => (
-                              <SelectItem key={conn.id} value={conn.id}>
-                                <div className="flex items-center gap-2 text-xs">
-                                  <Database className="h-3 w-3" />
-                                  <span className="flex-1">{conn.name}</span>
-                                </div>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <div className="flex items-center gap-2">
+                          <Select
+                            value={activeTab?.connectionId || ''}
+                            onValueChange={(value) => activeTab && handleTabConnectionChange(activeTab.id, value)}
+                            disabled={isConnecting}
+                          >
+                            <SelectTrigger className="h-8 w-44 text-xs" title={!activeTab?.connectionId ? 'Select a database' : undefined}>
+                              <SelectValue placeholder={isConnecting ? 'Connecting…' : 'Select database'} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {connections.map((conn) => (
+                                <SelectItem key={conn.id} value={conn.id}>
+                                  <div className="flex items-center gap-2 text-xs">
+                                    <Database className="h-3 w-3" />
+                                    <span className="flex-1">{conn.name}</span>
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {activeDatabaseSelector}
+                        </div>
                       ) : (
                         <Button
                           variant="outline"

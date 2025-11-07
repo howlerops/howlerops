@@ -54,11 +54,16 @@ const VirtualRow = memo(React.forwardRef<HTMLTableRowElement, {
       {rowData.getVisibleCells().map((cell: unknown) => {
         const cellData = cell as { id: string; column: { getSize: () => number; columnDef: { cell: unknown; meta?: { sticky?: 'left' | 'right' } } }; getContext: () => object };
         const sticky = cellData.column.columnDef.meta?.sticky;
+        const columnSize = cellData.column.getSize();
         return (
           <td
             key={cellData.id}
             className={`px-3 py-2 text-sm ${sticky ? `sticky ${sticky === 'right' ? 'right-0' : 'left-0'} bg-background z-10 shadow-sm` : ''}`}
-            style={{ width: cellData.column.getSize() }}
+            style={{
+              width: columnSize,
+              minWidth: columnSize,
+              maxWidth: columnSize,
+            }}
           >
             {flexRender(cellData.column.columnDef.cell as ((props: object) => React.ReactNode) | React.ReactNode, cellData.getContext())}
           </td>
@@ -295,21 +300,18 @@ export const EditableTable: React.FC<EditableTableProps> = ({
 
   const { rows } = table.getRowModel();
 
-  // Official TanStack virtualization pattern
-  const enableVirtualRows = virtualScrolling && rows.length > 100;
   const rowCount = rows.length;
+  const shouldVirtualize = virtualScrolling && rowCount > 0;
 
-  // Use official TanStack pattern
   const virtualizer = useVirtualizer({
-    count: enableVirtualRows ? rowCount : 0,
+    count: shouldVirtualize ? rowCount : 0,
     getScrollElement: () => tableContainerRef.current,
     estimateSize: () => estimateSize,
-    overscan: 5,
+    overscan: 12,
+    measureElement: (element) => element?.getBoundingClientRect().height ?? estimateSize,
   });
 
-  // Check if virtualizer is working properly
-  const virtualizerWorking = enableVirtualRows && tableContainerRef.current && 
-    tableContainerRef.current.offsetHeight > 0;
+  const virtualizerWorking = shouldVirtualize && Boolean(tableContainerRef.current);
 
   // Optimized keyboard navigation with virtualization support
   const {
@@ -453,7 +455,7 @@ export const EditableTable: React.FC<EditableTableProps> = ({
             height: typeof height === 'number' ? `${height}px` : height || '400px',
           }}
         >
-          <table className="w-full border-collapse table-fixed" style={{ tableLayout: 'fixed' }}>
+          <table className="w-full border-collapse table-auto">
             {/* Header */}
             <thead className="sticky top-0 z-10 bg-background border-b border-border">
               {table.getHeaderGroups().map(headerGroup => (

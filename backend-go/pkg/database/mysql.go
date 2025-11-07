@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -286,6 +287,7 @@ func (m *MySQLDatabase) computeEditableMetadata(ctx context.Context, query strin
 	}
 
 	editableColumns := make([]EditableColumn, 0, len(columns))
+	editableCount := 0
 	for _, col := range columns {
 		columnMeta := EditableColumn{
 			Name:       col,
@@ -297,8 +299,27 @@ func (m *MySQLDatabase) computeEditableMetadata(ctx context.Context, query strin
 		if colInfo, exists := columnMap[strings.ToLower(col)]; exists {
 			columnMeta.Name = colInfo.Name
 			columnMeta.DataType = colInfo.DataType
-			columnMeta.Editable = true
 			columnMeta.PrimaryKey = colInfo.PrimaryKey
+			if !colInfo.PrimaryKey {
+				columnMeta.Editable = true
+				editableCount++
+			}
+			if colInfo.DefaultValue != nil {
+				columnMeta.HasDefault = true
+				columnMeta.DefaultVal = *colInfo.DefaultValue
+				columnMeta.DefaultExp = *colInfo.DefaultValue
+				if strings.Contains(strings.ToLower(*colInfo.DefaultValue), "auto_increment") {
+					columnMeta.AutoNumber = true
+				}
+			}
+			dataTypeLower := strings.ToLower(colInfo.DataType)
+			if strings.Contains(dataTypeLower, "timestamp") || strings.Contains(dataTypeLower, "datetime") {
+				columnMeta.TimeZone = strings.Contains(dataTypeLower, "timestamp")
+			}
+			if colInfo.NumericPrecision != nil {
+				precision := *colInfo.NumericPrecision
+				columnMeta.Precision = &precision
+			}
 		}
 
 		// Add foreign key information if available
@@ -314,8 +335,78 @@ func (m *MySQLDatabase) computeEditableMetadata(ctx context.Context, query strin
 	metadata.Columns = editableColumns
 	metadata.Pending = false
 	metadata.Reason = ""
+	metadata.Capabilities = &MutationCapabilities{
+		CanInsert: true,
+		CanUpdate: editableCount > 0,
+		CanDelete: len(primaryKeys) > 0,
+	}
 
 	return metadata, true, nil
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if strings.TrimSpace(v) != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+type selectBinding struct {
+	actual string
+	result string
+}
+
+func buildSelectBindings(metadata *EditableQueryMetadata, columns []string) []selectBinding {
+	if metadata == nil {
+		return nil
+	}
+
+	columnLookup := make(map[string]EditableColumn, len(metadata.Columns)*2)
+	for _, col := range metadata.Columns {
+		if col.ResultName != "" {
+			columnLookup[strings.ToLower(col.ResultName)] = col
+		}
+		if col.Name != "" {
+			columnLookup[strings.ToLower(col.Name)] = col
+		}
+	}
+
+	added := make(map[string]struct{})
+	bindings := make([]selectBinding, 0, len(columns))
+
+	for _, name := range columns {
+		lower := strings.ToLower(name)
+		if colMeta, ok := columnLookup[lower]; ok && colMeta.Name != "" {
+			if _, exists := added[colMeta.Name]; exists {
+				continue
+			}
+			added[colMeta.Name] = struct{}{}
+			bindings = append(bindings, selectBinding{
+				actual: colMeta.Name,
+				result: firstNonEmpty(colMeta.ResultName, name, colMeta.Name),
+			})
+		}
+	}
+
+	if len(bindings) == 0 {
+		for _, col := range metadata.Columns {
+			if col.Name == "" {
+				continue
+			}
+			if _, exists := added[col.Name]; exists {
+				continue
+			}
+			added[col.Name] = struct{}{}
+			bindings = append(bindings, selectBinding{
+				actual: col.Name,
+				result: firstNonEmpty(col.ResultName, col.Name),
+			})
+		}
+	}
+
+	return bindings
 }
 
 func (m *MySQLDatabase) ensureTableStructure(ctx context.Context, schema, table string, allowFetch bool) (*TableStructure, bool, error) {
@@ -801,6 +892,66 @@ func (m *MySQLDatabase) getTableForeignKeys(ctx context.Context, db *sql.DB, sch
 	return foreignKeys, rows.Err()
 }
 
+func normalizeMySQLValue(value interface{}) interface{} {
+	if b, ok := value.([]byte); ok {
+		return string(b)
+	}
+	return value
+}
+
+// ListDatabases returns the list of available databases in MySQL
+func (m *MySQLDatabase) ListDatabases(ctx context.Context) ([]string, error) {
+	db, err := m.pool.Get(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := db.QueryContext(ctx, "SHOW DATABASES")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var databases []string
+	for rows.Next() {
+		var dbName string
+		if err := rows.Scan(&dbName); err != nil {
+			return nil, err
+		}
+		databases = append(databases, dbName)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return databases, nil
+}
+
+// SwitchDatabase switches the active database using the USE statement
+func (m *MySQLDatabase) SwitchDatabase(ctx context.Context, databaseName string) error {
+	db, err := m.pool.Get(ctx)
+	if err != nil {
+		return err
+	}
+
+	if strings.TrimSpace(databaseName) == "" {
+		return fmt.Errorf("database name cannot be empty")
+	}
+
+	stmt := fmt.Sprintf("USE %s", m.QuoteIdentifier(databaseName))
+	if _, err := db.ExecContext(ctx, stmt); err != nil {
+		return err
+	}
+
+	m.config.Database = databaseName
+	if m.structureCache != nil {
+		m.structureCache.clear()
+	}
+
+	return nil
+}
+
 // BeginTransaction starts a new transaction
 func (m *MySQLDatabase) BeginTransaction(ctx context.Context) (Transaction, error) {
 	db, err := m.pool.Get(ctx)
@@ -816,9 +967,420 @@ func (m *MySQLDatabase) BeginTransaction(ctx context.Context) (Transaction, erro
 	return &MySQLTransaction{tx: tx}, nil
 }
 
-// UpdateRow is currently not supported for MySQL
+// UpdateRow applies changes to a row identified by its primary key
 func (m *MySQLDatabase) UpdateRow(ctx context.Context, params UpdateRowParams) error {
-	return errors.New("row editing is not yet supported for MySQL connections")
+	if len(params.Columns) == 0 {
+		return errors.New("result column metadata is required for updates")
+	}
+
+	metadata, metaErr := m.ComputeEditableMetadata(ctx, params.OriginalQuery, params.Columns)
+	if metaErr != nil && (metadata == nil || metadata.Reason == "") {
+		return metaErr
+	}
+	if metadata == nil || !metadata.Enabled {
+		reason := "query is not editable"
+		if metadata != nil && metadata.Reason != "" {
+			reason = metadata.Reason
+		} else if metaErr != nil {
+			reason = metaErr.Error()
+		}
+		return errors.New(reason)
+	}
+
+	schema := metadata.Schema
+	if schema == "" {
+		schema = params.Schema
+	}
+	table := metadata.Table
+	if table == "" {
+		table = params.Table
+	}
+	if table == "" {
+		return errors.New("target table not specified")
+	}
+
+	if len(metadata.PrimaryKeys) == 0 {
+		return errors.New("table does not have a primary key")
+	}
+
+	pkValues := make(map[string]interface{})
+	for _, pk := range metadata.PrimaryKeys {
+		found := false
+		for key, value := range params.PrimaryKey {
+			if strings.EqualFold(key, pk) {
+				pkValues[pk] = value
+				found = true
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("missing primary key value for column %s", pk)
+		}
+	}
+
+	columnLookup := make(map[string]EditableColumn)
+	for _, col := range metadata.Columns {
+		if col.ResultName != "" {
+			columnLookup[strings.ToLower(col.ResultName)] = col
+		}
+		if col.Name != "" {
+			columnLookup[strings.ToLower(col.Name)] = col
+		}
+	}
+
+	valueKeys := make([]string, 0, len(params.Values))
+	for key := range params.Values {
+		valueKeys = append(valueKeys, key)
+	}
+	sort.Slice(valueKeys, func(i, j int) bool {
+		return strings.ToLower(valueKeys[i]) < strings.ToLower(valueKeys[j])
+	})
+
+	setClauses := make([]string, 0, len(valueKeys))
+	args := make([]interface{}, 0, len(valueKeys)+len(pkValues))
+	for _, key := range valueKeys {
+		colMeta, ok := columnLookup[strings.ToLower(key)]
+		if !ok || !colMeta.Editable || colMeta.PrimaryKey || colMeta.Name == "" {
+			continue
+		}
+		setClauses = append(setClauses, fmt.Sprintf("%s = ?", m.QuoteIdentifier(colMeta.Name)))
+		args = append(args, params.Values[key])
+	}
+
+	if len(setClauses) == 0 {
+		return errors.New("no editable columns provided for update")
+	}
+
+	pkNames := make([]string, len(metadata.PrimaryKeys))
+	copy(pkNames, metadata.PrimaryKeys)
+	sort.Slice(pkNames, func(i, j int) bool {
+		return strings.ToLower(pkNames[i]) < strings.ToLower(pkNames[j])
+	})
+
+	whereClauses := make([]string, 0, len(pkNames))
+	for _, pk := range pkNames {
+		whereClauses = append(whereClauses, fmt.Sprintf("%s = ?", m.QuoteIdentifier(pk)))
+		args = append(args, pkValues[pk])
+	}
+
+	tableIdentifier := m.QuoteIdentifier(table)
+	if schema != "" {
+		tableIdentifier = fmt.Sprintf("%s.%s", m.QuoteIdentifier(schema), tableIdentifier)
+	}
+
+	updateSQL := fmt.Sprintf("UPDATE %s SET %s WHERE %s",
+		tableIdentifier,
+		strings.Join(setClauses, ", "),
+		strings.Join(whereClauses, " AND "),
+	)
+
+	db, err := m.pool.Get(ctx)
+	if err != nil {
+		return err
+	}
+
+	result, err := db.ExecContext(ctx, updateSQL, args...)
+	if err != nil {
+		return err
+	}
+
+	if rows, err := result.RowsAffected(); err == nil && rows == 0 {
+		return errors.New("no rows were updated; data may have changed or no modifications detected")
+	}
+
+	return nil
+}
+
+// InsertRow inserts a new row and returns the persisted values
+func (m *MySQLDatabase) InsertRow(ctx context.Context, params InsertRowParams) (map[string]interface{}, error) {
+	if len(params.Values) == 0 {
+		return nil, errors.New("no column values provided for insert")
+	}
+
+	metadata, metaErr := m.ComputeEditableMetadata(ctx, params.OriginalQuery, params.Columns)
+	if metaErr != nil && (metadata == nil || metadata.Reason == "") {
+		return nil, metaErr
+	}
+	if metadata == nil || !metadata.Enabled {
+		reason := "query is not editable"
+		if metadata != nil && metadata.Reason != "" {
+			reason = metadata.Reason
+		} else if metaErr != nil {
+			reason = metaErr.Error()
+		}
+		return nil, errors.New(reason)
+	}
+
+	schema := metadata.Schema
+	if schema == "" {
+		schema = params.Schema
+	}
+	table := metadata.Table
+	if table == "" {
+		table = params.Table
+	}
+	if table == "" {
+		return nil, errors.New("target table not specified")
+	}
+
+	columnLookup := make(map[string]EditableColumn, len(metadata.Columns)*2)
+	for _, col := range metadata.Columns {
+		if col.ResultName != "" {
+			columnLookup[strings.ToLower(col.ResultName)] = col
+		}
+		if col.Name != "" {
+			columnLookup[strings.ToLower(col.Name)] = col
+		}
+	}
+
+	type columnBinding struct {
+		actual string
+		result string
+		value  interface{}
+	}
+
+	valueLookup := make(map[string]interface{})
+	bindings := make([]columnBinding, 0, len(params.Values))
+	for key, val := range params.Values {
+		lowerKey := strings.ToLower(key)
+		valueLookup[lowerKey] = val
+
+		colMeta, ok := columnLookup[lowerKey]
+		if !ok || colMeta.Name == "" {
+			return nil, fmt.Errorf("column %s is not editable in this result set", key)
+		}
+
+		bindings = append(bindings, columnBinding{
+			actual: colMeta.Name,
+			result: firstNonEmpty(colMeta.ResultName, colMeta.Name),
+			value:  val,
+		})
+
+		if colMeta.Name != "" {
+			valueLookup[strings.ToLower(colMeta.Name)] = val
+		}
+		if colMeta.ResultName != "" {
+			valueLookup[strings.ToLower(colMeta.ResultName)] = val
+		}
+	}
+
+	if len(bindings) == 0 {
+		return nil, errors.New("no valid columns provided for insert")
+	}
+
+	tableIdentifier := m.QuoteIdentifier(table)
+	if schema != "" {
+		tableIdentifier = fmt.Sprintf("%s.%s", m.QuoteIdentifier(schema), tableIdentifier)
+	}
+
+	insertColumns := make([]string, len(bindings))
+	args := make([]interface{}, len(bindings))
+	for i, binding := range bindings {
+		insertColumns[i] = m.QuoteIdentifier(binding.actual)
+		args[i] = binding.value
+	}
+
+	valuePlaceholders := strings.Repeat("?,", len(bindings))
+	valuePlaceholders = strings.TrimSuffix(valuePlaceholders, ",")
+
+	insertSQL := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)",
+		tableIdentifier,
+		strings.Join(insertColumns, ", "),
+		valuePlaceholders,
+	)
+
+	db, err := m.pool.Get(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := db.ExecContext(ctx, insertSQL, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	pkValues := make(map[string]interface{})
+	pkNames := make([]string, len(metadata.PrimaryKeys))
+	copy(pkNames, metadata.PrimaryKeys)
+	sort.Slice(pkNames, func(i, j int) bool {
+		return strings.ToLower(pkNames[i]) < strings.ToLower(pkNames[j])
+	})
+
+	for _, pk := range pkNames {
+		lower := strings.ToLower(pk)
+		if val, ok := valueLookup[lower]; ok {
+			pkValues[pk] = val
+			continue
+		}
+		if len(pkNames) == 1 {
+			if lastID, err := result.LastInsertId(); err == nil {
+				pkValues[pk] = lastID
+				continue
+			}
+		}
+		return nil, fmt.Errorf("missing primary key value for column %s", pk)
+	}
+
+	selectColumns := buildSelectBindings(metadata, params.Columns)
+	if len(selectColumns) == 0 {
+		fallback := make(map[string]interface{})
+		for _, binding := range bindings {
+			fallback[binding.result] = binding.value
+		}
+		for pk, val := range pkValues {
+			if _, ok := fallback[pk]; !ok {
+				fallback[pk] = val
+			}
+		}
+		return fallback, nil
+	}
+	actualColumns := make([]string, 0, len(selectColumns))
+	for _, binding := range selectColumns {
+		actualColumns = append(actualColumns, m.QuoteIdentifier(binding.actual))
+	}
+	if len(actualColumns) == 0 {
+		actualColumns = []string{"*"}
+	}
+
+	whereClauses := make([]string, 0, len(pkValues))
+	whereArgs := make([]interface{}, 0, len(pkValues))
+	for _, pk := range pkNames {
+		whereClauses = append(whereClauses, fmt.Sprintf("%s = ?", m.QuoteIdentifier(pk)))
+		whereArgs = append(whereArgs, pkValues[pk])
+	}
+
+	selectSQL := fmt.Sprintf("SELECT %s FROM %s WHERE %s",
+		strings.Join(actualColumns, ", "),
+		tableIdentifier,
+		strings.Join(whereClauses, " AND "),
+	)
+
+	row := db.QueryRowContext(ctx, selectSQL, whereArgs...)
+
+	valueHolders := make([]interface{}, len(selectColumns))
+	scanArgs := make([]interface{}, len(selectColumns))
+	for i := range valueHolders {
+		scanArgs[i] = &valueHolders[i]
+	}
+
+	if err := row.Scan(scanArgs...); err != nil {
+		// Fall back to the provided values if select failed
+		fallback := make(map[string]interface{})
+		for _, binding := range bindings {
+			fallback[binding.result] = binding.value
+		}
+		for pk, val := range pkValues {
+			fallback[pk] = val
+		}
+		return fallback, nil
+	}
+
+	resultRow := make(map[string]interface{}, len(selectColumns))
+	for idx, binding := range selectColumns {
+		resultKey := binding.result
+		if resultKey == "" {
+			resultKey = binding.actual
+		}
+		resultRow[resultKey] = normalizeMySQLValue(valueHolders[idx])
+	}
+	for pk, val := range pkValues {
+		if _, ok := resultRow[pk]; !ok {
+			resultRow[pk] = val
+		}
+	}
+
+	return resultRow, nil
+}
+
+// DeleteRow removes a row identified by its primary key
+func (m *MySQLDatabase) DeleteRow(ctx context.Context, params DeleteRowParams) error {
+	if len(params.PrimaryKey) == 0 {
+		return errors.New("primary key values are required for delete")
+	}
+
+	metadata, metaErr := m.ComputeEditableMetadata(ctx, params.OriginalQuery, params.Columns)
+	if metaErr != nil && (metadata == nil || metadata.Reason == "") {
+		return metaErr
+	}
+	if metadata == nil || !metadata.Enabled {
+		reason := "query is not editable"
+		if metadata != nil && metadata.Reason != "" {
+			reason = metadata.Reason
+		} else if metaErr != nil {
+			reason = metaErr.Error()
+		}
+		return errors.New(reason)
+	}
+
+	schema := metadata.Schema
+	if schema == "" {
+		schema = params.Schema
+	}
+	table := metadata.Table
+	if table == "" {
+		table = params.Table
+	}
+	if table == "" {
+		return errors.New("target table not specified")
+	}
+
+	if len(metadata.PrimaryKeys) == 0 {
+		return errors.New("table does not have a primary key")
+	}
+
+	pkValues := make(map[string]interface{})
+	for _, pk := range metadata.PrimaryKeys {
+		found := false
+		for key, value := range params.PrimaryKey {
+			if strings.EqualFold(key, pk) {
+				pkValues[pk] = value
+				found = true
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("missing primary key value for column %s", pk)
+		}
+	}
+
+	pkNames := make([]string, len(metadata.PrimaryKeys))
+	copy(pkNames, metadata.PrimaryKeys)
+	sort.Slice(pkNames, func(i, j int) bool {
+		return strings.ToLower(pkNames[i]) < strings.ToLower(pkNames[j])
+	})
+
+	whereClauses := make([]string, 0, len(pkNames))
+	args := make([]interface{}, 0, len(pkNames))
+	for _, pk := range pkNames {
+		whereClauses = append(whereClauses, fmt.Sprintf("%s = ?", m.QuoteIdentifier(pk)))
+		args = append(args, pkValues[pk])
+	}
+
+	tableIdentifier := m.QuoteIdentifier(table)
+	if schema != "" {
+		tableIdentifier = fmt.Sprintf("%s.%s", m.QuoteIdentifier(schema), tableIdentifier)
+	}
+
+	deleteSQL := fmt.Sprintf("DELETE FROM %s WHERE %s",
+		tableIdentifier,
+		strings.Join(whereClauses, " AND "),
+	)
+
+	db, err := m.pool.Get(ctx)
+	if err != nil {
+		return err
+	}
+
+	result, err := db.ExecContext(ctx, deleteSQL, args...)
+	if err != nil {
+		return err
+	}
+
+	if rows, err := result.RowsAffected(); err == nil && rows == 0 {
+		return errors.New("no rows were deleted; data may have changed or the row no longer exists")
+	}
+
+	return nil
 }
 
 // GetDatabaseType returns the database type

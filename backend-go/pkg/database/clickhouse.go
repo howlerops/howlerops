@@ -464,6 +464,16 @@ func (c *ClickHouseDatabase) UpdateRow(ctx context.Context, params UpdateRowPara
 	return fmt.Errorf("direct row updates are not supported in ClickHouse (use ALTER TABLE UPDATE)")
 }
 
+// InsertRow is not supported for ClickHouse
+func (c *ClickHouseDatabase) InsertRow(ctx context.Context, params InsertRowParams) (map[string]interface{}, error) {
+	return nil, fmt.Errorf("direct row inserts via editor are not supported in ClickHouse (use INSERT statements)")
+}
+
+// DeleteRow is not supported for ClickHouse
+func (c *ClickHouseDatabase) DeleteRow(ctx context.Context, params DeleteRowParams) error {
+	return fmt.Errorf("direct row deletes are not supported in ClickHouse (use ALTER TABLE DELETE)")
+}
+
 // ComputeEditableMetadata returns metadata indicating ClickHouse tables are not directly editable
 func (c *ClickHouseDatabase) ComputeEditableMetadata(ctx context.Context, query string, columns []string) (*EditableQueryMetadata, error) {
 	metadata := &EditableQueryMetadata{
@@ -471,6 +481,16 @@ func (c *ClickHouseDatabase) ComputeEditableMetadata(ctx context.Context, query 
 		Reason:  "ClickHouse tables are immutable and not directly editable",
 	}
 	return metadata, nil
+}
+
+// ListDatabases returns an error as quick switching is not supported
+func (c *ClickHouseDatabase) ListDatabases(ctx context.Context) ([]string, error) {
+	return nil, ErrDatabaseSwitchNotSupported
+}
+
+// SwitchDatabase is not supported for ClickHouse via this interface
+func (c *ClickHouseDatabase) SwitchDatabase(ctx context.Context, databaseName string) error {
+	return ErrDatabaseSwitchNotSupported
 }
 
 // GetDatabaseType returns the database type

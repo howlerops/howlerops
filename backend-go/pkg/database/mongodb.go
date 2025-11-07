@@ -737,6 +737,12 @@ func (m *MongoDBDatabase) ExplainQuery(ctx context.Context, query string, args .
 func (m *MongoDBDatabase) ComputeEditableMetadata(ctx context.Context, query string, columns []string) (*EditableQueryMetadata, error) {
 	metadata := newEditableMetadata(columns)
 	metadata.Reason = "MongoDB collections are not directly editable via SQL interface (use native MongoDB operations)"
+	metadata.Capabilities = &MutationCapabilities{
+		CanInsert: false,
+		CanUpdate: false,
+		CanDelete: false,
+		Reason:    metadata.Reason,
+	}
 	return metadata, nil
 }
 
@@ -764,6 +770,16 @@ func (m *MongoDBDatabase) GetSchemas(ctx context.Context) ([]string, error) {
 	}
 
 	return filtered, nil
+}
+
+// ListDatabases returns the available MongoDB databases
+func (m *MongoDBDatabase) ListDatabases(ctx context.Context) ([]string, error) {
+	return m.GetSchemas(ctx)
+}
+
+// SwitchDatabase is not supported via the SQL interface
+func (m *MongoDBDatabase) SwitchDatabase(ctx context.Context, databaseName string) error {
+	return ErrDatabaseSwitchNotSupported
 }
 
 // GetTables returns list of collections in a database
@@ -1081,6 +1097,16 @@ func (m *MongoDBDatabase) BeginTransaction(ctx context.Context) (Transaction, er
 // UpdateRow is not supported for MongoDB via SQL interface
 func (m *MongoDBDatabase) UpdateRow(ctx context.Context, params UpdateRowParams) error {
 	return fmt.Errorf("direct row updates are not supported in MongoDB via SQL interface (use native MongoDB update operations)")
+}
+
+// InsertRow is not supported for MongoDB via SQL interface
+func (m *MongoDBDatabase) InsertRow(ctx context.Context, params InsertRowParams) (map[string]interface{}, error) {
+	return nil, fmt.Errorf("direct row inserts are not supported in MongoDB via SQL interface (use native MongoDB insert operations)")
+}
+
+// DeleteRow is not supported for MongoDB via SQL interface
+func (m *MongoDBDatabase) DeleteRow(ctx context.Context, params DeleteRowParams) error {
+	return fmt.Errorf("direct row deletes are not supported in MongoDB via SQL interface (use native MongoDB delete operations)")
 }
 
 // GetDatabaseType returns the database type

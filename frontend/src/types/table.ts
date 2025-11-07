@@ -5,29 +5,40 @@ export type CellValue = string | number | boolean | null | undefined;
 
 export interface TableRow {
   __rowId?: string;
-  [key: string]: CellValue;
+  __isNewRow?: boolean;
+  [key: string]: CellValue | boolean | undefined;
 }
 
 export interface TableColumn {
   id?: string;
   accessorKey?: string;
   header: string;
-  type: 'text' | 'number' | 'boolean' | 'date' | 'select';
+  type: 'text' | 'number' | 'boolean' | 'date' | 'datetime' | 'select';
   width?: number;
   minWidth?: number;
   maxWidth?: number;
+  preferredWidth?: number;
   sortable?: boolean;
   filterable?: boolean;
   editable?: boolean;
   required?: boolean;
   options?: string[]; // For select type
   sticky?: 'left' | 'right'; // For sticky columns
+  longText?: boolean;
+  wrapContent?: boolean;
+  clipContent?: boolean;
+  monospace?: boolean;
   validation?: {
     pattern?: RegExp;
     min?: number;
     max?: number;
     message?: string;
   };
+  hasDefault?: boolean;
+  defaultLabel?: string;
+  defaultValue?: unknown;
+  autoNumber?: boolean;
+  isPrimaryKey?: boolean;
 }
 
 export interface EditableTableProps {

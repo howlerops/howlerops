@@ -286,6 +286,19 @@ func (s *SQLiteDatabase) computeEditableMetadata(ctx context.Context, query stri
 			columnMeta.DataType = colInfo.DataType
 			columnMeta.Editable = true
 			columnMeta.PrimaryKey = colInfo.PrimaryKey
+			if colInfo.DefaultValue != nil {
+				columnMeta.HasDefault = true
+				columnMeta.DefaultVal = *colInfo.DefaultValue
+				columnMeta.DefaultExp = *colInfo.DefaultValue
+			}
+			dataTypeLower := strings.ToLower(colInfo.DataType)
+			if strings.Contains(dataTypeLower, "timestamp") || strings.Contains(dataTypeLower, "datetime") {
+				columnMeta.TimeZone = true
+			}
+			if colInfo.NumericPrecision != nil {
+				precision := *colInfo.NumericPrecision
+				columnMeta.Precision = &precision
+			}
 		}
 
 		// Add foreign key information if available
@@ -301,6 +314,12 @@ func (s *SQLiteDatabase) computeEditableMetadata(ctx context.Context, query stri
 	metadata.Columns = editableColumns
 	metadata.Pending = false
 	metadata.Reason = ""
+	metadata.Capabilities = &MutationCapabilities{
+		CanInsert: false,
+		CanUpdate: false,
+		CanDelete: false,
+		Reason:    "Row editing is not yet supported for SQLite connections",
+	}
 
 	return metadata, true, nil
 }
@@ -756,9 +775,35 @@ func (s *SQLiteDatabase) BeginTransaction(ctx context.Context) (Transaction, err
 	return &SQLiteTransaction{tx: tx}, nil
 }
 
+// ListDatabases returns the current SQLite database (file path)
+func (s *SQLiteDatabase) ListDatabases(ctx context.Context) ([]string, error) {
+	if strings.TrimSpace(s.config.Database) == "" {
+		return []string{}, nil
+	}
+	return []string{s.config.Database}, nil
+}
+
+// SwitchDatabase requires reconnecting with a new SQLite file
+func (s *SQLiteDatabase) SwitchDatabase(ctx context.Context, databaseName string) error {
+	if strings.TrimSpace(databaseName) == "" {
+		return fmt.Errorf("database name cannot be empty")
+	}
+	return ErrDatabaseSwitchRequiresReconnect
+}
+
 // UpdateRow is currently not supported for SQLite
 func (s *SQLiteDatabase) UpdateRow(ctx context.Context, params UpdateRowParams) error {
 	return errors.New("row editing is not yet supported for SQLite connections")
+}
+
+// InsertRow is currently not supported for SQLite
+func (s *SQLiteDatabase) InsertRow(ctx context.Context, params InsertRowParams) (map[string]interface{}, error) {
+	return nil, errors.New("row insertion is not yet supported for SQLite connections")
+}
+
+// DeleteRow is currently not supported for SQLite
+func (s *SQLiteDatabase) DeleteRow(ctx context.Context, params DeleteRowParams) error {
+	return errors.New("row deletion is not yet supported for SQLite connections")
 }
 
 // GetDatabaseType returns the database type

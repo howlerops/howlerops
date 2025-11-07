@@ -115,6 +115,61 @@ type QueryRowUpdateResponse struct {
 	Message string `json:"message,omitempty"`
 }
 
+// QueryRowInsertRequest represents an inline insert request
+type QueryRowInsertRequest struct {
+	ConnectionID string                 `json:"connectionId"`
+	Query        string                 `json:"query"`
+	Columns      []string               `json:"columns"`
+	Schema       string                 `json:"schema,omitempty"`
+	Table        string                 `json:"table,omitempty"`
+	Values       map[string]interface{} `json:"values"`
+}
+
+// QueryRowInsertResponse represents the inserted row payload
+type QueryRowInsertResponse struct {
+	Success bool                   `json:"success"`
+	Message string                 `json:"message,omitempty"`
+	Row     map[string]interface{} `json:"row,omitempty"`
+}
+
+// QueryRowDeleteRequest represents a delete request (one or more rows)
+type QueryRowDeleteRequest struct {
+	ConnectionID string                   `json:"connectionId"`
+	Query        string                   `json:"query"`
+	Columns      []string                 `json:"columns"`
+	Schema       string                   `json:"schema,omitempty"`
+	Table        string                   `json:"table,omitempty"`
+	PrimaryKeys  []map[string]interface{} `json:"primaryKeys"`
+}
+
+// QueryRowDeleteResponse represents delete results
+type QueryRowDeleteResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message,omitempty"`
+	Deleted int    `json:"deleted"`
+}
+
+// ListDatabasesResponse represents available databases for a connection
+type ListDatabasesResponse struct {
+	Success   bool     `json:"success"`
+	Message   string   `json:"message,omitempty"`
+	Databases []string `json:"databases,omitempty"`
+}
+
+// SwitchDatabaseRequest represents a request to switch the active database
+type SwitchDatabaseRequest struct {
+	ConnectionID string `json:"connectionId"`
+	Database     string `json:"database"`
+}
+
+// SwitchDatabaseResponse represents the outcome of a database switch
+type SwitchDatabaseResponse struct {
+	Success     bool   `json:"success"`
+	Message     string `json:"message,omitempty"`
+	Database    string `json:"database,omitempty"`
+	Reconnected bool   `json:"reconnected"`
+}
+
 // ConnectionInfo represents connection information
 type ConnectionInfo struct {
 	ID        string `json:"id"`
@@ -218,13 +273,14 @@ type MultiQueryRequest struct {
 
 // MultiQueryResponse represents a multi-database query response
 type MultiQueryResponse struct {
-	Columns         []string        `json:"columns"`
-	Rows            [][]interface{} `json:"rows"`
-	RowCount        int64           `json:"rowCount"`
-	Duration        string          `json:"duration"`
-	ConnectionsUsed []string        `json:"connectionsUsed"`
-	Strategy        string          `json:"strategy"`
-	Error           string          `json:"error,omitempty"`
+	Columns         []string                           `json:"columns"`
+	Rows            [][]interface{}                    `json:"rows"`
+	RowCount        int64                              `json:"rowCount"`
+	Duration        string                             `json:"duration"`
+	ConnectionsUsed []string                           `json:"connectionsUsed"`
+	Strategy        string                             `json:"strategy"`
+	Error           string                             `json:"error,omitempty"`
+	Editable        *services.EditableMetadataResponse `json:"editable,omitempty"`
 }
 
 // ValidationResult represents validation result for a multi-query
@@ -853,6 +909,39 @@ func (a *App) RemoveConnection(connectionID string) error {
 	return a.databaseService.RemoveConnection(connectionID)
 }
 
+// ListConnectionDatabases returns the databases available for a connection
+func (a *App) ListConnectionDatabases(connectionID string) (*ListDatabasesResponse, error) {
+	databases, err := a.databaseService.ListDatabases(connectionID)
+	if err != nil {
+		return &ListDatabasesResponse{
+			Success: false,
+			Message: err.Error(),
+		}, nil
+	}
+
+	return &ListDatabasesResponse{
+		Success:   true,
+		Databases: databases,
+	}, nil
+}
+
+// SwitchConnectionDatabase switches the active database for a connection
+func (a *App) SwitchConnectionDatabase(req SwitchDatabaseRequest) (*SwitchDatabaseResponse, error) {
+	result, err := a.databaseService.SwitchDatabase(req.ConnectionID, req.Database)
+	if err != nil {
+		return &SwitchDatabaseResponse{
+			Success: false,
+			Message: err.Error(),
+		}, nil
+	}
+
+	return &SwitchDatabaseResponse{
+		Success:     true,
+		Database:    result.Database,
+		Reconnected: result.Reconnected,
+	}, nil
+}
+
 // ExecuteQuery executes a SQL query
 func (a *App) ExecuteQuery(req QueryRequest) (*QueryResponse, error) {
 	a.logger.WithFields(logrus.Fields{
@@ -973,6 +1062,74 @@ func (a *App) UpdateQueryRow(req QueryRowUpdateRequest) (*QueryRowUpdateResponse
 
 	return &QueryRowUpdateResponse{
 		Success: true,
+	}, nil
+}
+
+// InsertQueryRow inserts a new row via editable metadata guarantees
+func (a *App) InsertQueryRow(req QueryRowInsertRequest) (*QueryRowInsertResponse, error) {
+	if req.ConnectionID == "" {
+		return &QueryRowInsertResponse{Success: false, Message: "connectionId is required"}, nil
+	}
+	if len(req.Values) == 0 {
+		return &QueryRowInsertResponse{Success: false, Message: "no column values provided"}, nil
+	}
+
+	params := database.InsertRowParams{
+		Schema:        req.Schema,
+		Table:         req.Table,
+		Values:        req.Values,
+		OriginalQuery: req.Query,
+		Columns:       req.Columns,
+	}
+
+	row, err := a.databaseService.InsertRow(req.ConnectionID, params)
+	if err != nil {
+		a.logger.WithError(err).Error("Row insert failed")
+		return &QueryRowInsertResponse{
+			Success: false,
+			Message: err.Error(),
+		}, nil
+	}
+
+	return &QueryRowInsertResponse{
+		Success: true,
+		Row:     row,
+	}, nil
+}
+
+// DeleteQueryRows deletes one or more rows via editable metadata guarantees
+func (a *App) DeleteQueryRows(req QueryRowDeleteRequest) (*QueryRowDeleteResponse, error) {
+	if req.ConnectionID == "" {
+		return &QueryRowDeleteResponse{Success: false, Message: "connectionId is required"}, nil
+	}
+	if len(req.PrimaryKeys) == 0 {
+		return &QueryRowDeleteResponse{Success: false, Message: "no primary keys provided"}, nil
+	}
+
+	deleted := 0
+	for _, pk := range req.PrimaryKeys {
+		params := database.DeleteRowParams{
+			Schema:        req.Schema,
+			Table:         req.Table,
+			PrimaryKey:    pk,
+			OriginalQuery: req.Query,
+			Columns:       req.Columns,
+		}
+
+		if err := a.databaseService.DeleteRow(req.ConnectionID, params); err != nil {
+			a.logger.WithError(err).Error("Row delete failed")
+			return &QueryRowDeleteResponse{
+				Success: false,
+				Message: err.Error(),
+				Deleted: deleted,
+			}, nil
+		}
+		deleted++
+	}
+
+	return &QueryRowDeleteResponse{
+		Success: true,
+		Deleted: deleted,
 	}, nil
 }
 
@@ -4008,6 +4165,7 @@ func (a *App) ExecuteMultiDatabaseQuery(req MultiQueryRequest) (*MultiQueryRespo
 		ConnectionsUsed: result.ConnectionsUsed,
 		Strategy:        result.Strategy,
 		Error:           result.Error,
+		Editable:        result.Editable,
 	}, nil
 }
 

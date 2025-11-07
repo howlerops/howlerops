@@ -88,8 +88,12 @@ type stubDatabaseManager struct {
 	testConnectionFn        func(ctx context.Context, config database.ConnectionConfig) error
 	listConnectionsFn       func() []string
 	removeConnectionFn      func(connectionID string) error
+	listDatabasesFn         func(ctx context.Context, connectionID string) ([]string, error)
 	getConnectionFn         func(connectionID string) (database.Database, error)
 	updateRowFn             func(ctx context.Context, connectionID string, params database.UpdateRowParams) error
+	insertRowFn             func(ctx context.Context, connectionID string, params database.InsertRowParams) (map[string]interface{}, error)
+	deleteRowFn             func(ctx context.Context, connectionID string, params database.DeleteRowParams) error
+	switchDatabaseFn        func(ctx context.Context, connectionID string, databaseName string) (database.ConnectionConfig, bool, error)
 	getConnectionHealthFn   func(ctx context.Context, connectionID string) (*database.HealthStatus, error)
 	getConnectionStatsFn    func() map[string]database.PoolStats
 	healthCheckAllFn        func(ctx context.Context) map[string]*database.HealthStatus
@@ -140,6 +144,13 @@ func (s *stubDatabaseManager) RemoveConnection(connectionID string) error {
 	return nil
 }
 
+func (s *stubDatabaseManager) ListDatabases(ctx context.Context, connectionID string) ([]string, error) {
+	if s.listDatabasesFn != nil {
+		return s.listDatabasesFn(ctx, connectionID)
+	}
+	return []string{}, nil
+}
+
 func (s *stubDatabaseManager) GetConnection(connectionID string) (database.Database, error) {
 	if s.getConnectionFn != nil {
 		return s.getConnectionFn(connectionID)
@@ -152,6 +163,27 @@ func (s *stubDatabaseManager) UpdateRow(ctx context.Context, connectionID string
 		return s.updateRowFn(ctx, connectionID, params)
 	}
 	return nil
+}
+
+func (s *stubDatabaseManager) InsertRow(ctx context.Context, connectionID string, params database.InsertRowParams) (map[string]interface{}, error) {
+	if s.insertRowFn != nil {
+		return s.insertRowFn(ctx, connectionID, params)
+	}
+	return map[string]interface{}{}, nil
+}
+
+func (s *stubDatabaseManager) DeleteRow(ctx context.Context, connectionID string, params database.DeleteRowParams) error {
+	if s.deleteRowFn != nil {
+		return s.deleteRowFn(ctx, connectionID, params)
+	}
+	return nil
+}
+
+func (s *stubDatabaseManager) SwitchDatabase(ctx context.Context, connectionID string, databaseName string) (database.ConnectionConfig, bool, error) {
+	if s.switchDatabaseFn != nil {
+		return s.switchDatabaseFn(ctx, connectionID, databaseName)
+	}
+	return database.ConnectionConfig{Database: databaseName}, false, nil
 }
 
 func (s *stubDatabaseManager) GetConnectionHealth(ctx context.Context, connectionID string) (*database.HealthStatus, error) {
@@ -258,6 +290,9 @@ type fakeDatabase struct {
 	beginTransactionCalled bool
 	beginTransactionErr    error
 	beginTransaction       database.Transaction
+	insertRowResult        map[string]interface{}
+	insertRowErr           error
+	deleteRowErr           error
 }
 
 func (f *fakeDatabase) Connect(ctx context.Context, config database.ConnectionConfig) error {
@@ -314,6 +349,22 @@ func (f *fakeDatabase) BeginTransaction(ctx context.Context) (database.Transacti
 }
 
 func (f *fakeDatabase) UpdateRow(ctx context.Context, params database.UpdateRowParams) error {
+	return nil
+}
+
+func (f *fakeDatabase) InsertRow(ctx context.Context, params database.InsertRowParams) (map[string]interface{}, error) {
+	return f.insertRowResult, f.insertRowErr
+}
+
+func (f *fakeDatabase) DeleteRow(ctx context.Context, params database.DeleteRowParams) error {
+	return f.deleteRowErr
+}
+
+func (f *fakeDatabase) ListDatabases(ctx context.Context) ([]string, error) {
+	return []string{"testdb"}, nil
+}
+
+func (f *fakeDatabase) SwitchDatabase(ctx context.Context, databaseName string) error {
 	return nil
 }
 

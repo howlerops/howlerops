@@ -355,6 +355,22 @@ func populateEditableMetadataFromStructure(metadata *EditableQueryMetadata, colu
 			columnMeta.Name = colInfo.Name
 			columnMeta.DataType = colInfo.DataType
 			columnMeta.PrimaryKey = colInfo.PrimaryKey
+			if colInfo.DefaultValue != nil {
+				columnMeta.HasDefault = true
+				columnMeta.DefaultVal = *colInfo.DefaultValue
+				columnMeta.DefaultExp = *colInfo.DefaultValue
+				lowerDefault := strings.ToLower(*colInfo.DefaultValue)
+				if strings.HasPrefix(lowerDefault, "nextval(") || strings.Contains(lowerDefault, "identity") {
+					columnMeta.AutoNumber = true
+				}
+			}
+			if strings.Contains(strings.ToLower(colInfo.DataType), "with time zone") {
+				columnMeta.TimeZone = true
+			}
+			if colInfo.NumericPrecision != nil {
+				precision := *colInfo.NumericPrecision
+				columnMeta.Precision = &precision
+			}
 			if !colInfo.PrimaryKey {
 				columnMeta.Editable = true
 				editableCount++
@@ -377,6 +393,11 @@ func populateEditableMetadataFromStructure(metadata *EditableQueryMetadata, colu
 	metadata.Reason = ""
 	metadata.PrimaryKeys = primaryKeys
 	metadata.Columns = editableColumns
+	metadata.Capabilities = &MutationCapabilities{
+		CanInsert: true,
+		CanUpdate: editableCount > 0,
+		CanDelete: len(primaryKeys) > 0,
+	}
 
 	return nil
 }
@@ -440,6 +461,13 @@ func (p *PostgresDatabase) getCurrentSchema(ctx context.Context) (string, error)
 	}
 
 	return schema, nil
+}
+
+func normalizeDriverValue(value interface{}) interface{} {
+	if b, ok := value.([]byte); ok {
+		return string(b)
+	}
+	return value
 }
 
 // executeNonSelect handles INSERT, UPDATE, DELETE, DDL queries
@@ -593,6 +621,241 @@ func (p *PostgresDatabase) UpdateRow(ctx context.Context, params UpdateRowParams
 	return nil
 }
 
+// InsertRow inserts a new row and returns the persisted values (including defaults)
+func (p *PostgresDatabase) InsertRow(ctx context.Context, params InsertRowParams) (map[string]interface{}, error) {
+	if len(params.Values) == 0 {
+		return nil, errors.New("no column values provided for insert")
+	}
+
+	metadata, metaErr := p.ComputeEditableMetadata(ctx, params.OriginalQuery, params.Columns)
+	if metaErr != nil && (metadata == nil || metadata.Reason == "") {
+		return nil, metaErr
+	}
+	if metadata == nil || !metadata.Enabled {
+		reason := "query is not editable"
+		if metadata != nil && metadata.Reason != "" {
+			reason = metadata.Reason
+		} else if metaErr != nil {
+			reason = metaErr.Error()
+		}
+		return nil, errors.New(reason)
+	}
+
+	schema := metadata.Schema
+	if schema == "" {
+		schema = params.Schema
+	}
+	table := metadata.Table
+	if table == "" {
+		table = params.Table
+	}
+	if table == "" {
+		return nil, errors.New("target table not specified")
+	}
+
+	columnLookup := make(map[string]EditableColumn, len(metadata.Columns)*2)
+	for _, col := range metadata.Columns {
+		if col.ResultName != "" {
+			columnLookup[strings.ToLower(col.ResultName)] = col
+		}
+		if col.Name != "" {
+			columnLookup[strings.ToLower(col.Name)] = col
+		}
+	}
+
+	valueKeys := make([]string, 0, len(params.Values))
+	for key := range params.Values {
+		valueKeys = append(valueKeys, key)
+	}
+	sort.Slice(valueKeys, func(i, j int) bool {
+		return strings.ToLower(valueKeys[i]) < strings.ToLower(valueKeys[j])
+	})
+
+	insertColumns := make([]string, 0, len(valueKeys))
+	args := make([]interface{}, 0, len(valueKeys))
+	argIndex := 1
+
+	for _, key := range valueKeys {
+		colMeta, ok := columnLookup[strings.ToLower(key)]
+		if !ok || colMeta.Name == "" {
+			return nil, fmt.Errorf("column %s is not editable in this result set", key)
+		}
+		insertColumns = append(insertColumns, fmt.Sprintf("%s", p.QuoteIdentifier(colMeta.Name)))
+		args = append(args, params.Values[key])
+		argIndex++
+	}
+
+	if len(insertColumns) == 0 {
+		return nil, errors.New("no valid columns provided for insert")
+	}
+
+	tableIdentifier := p.QuoteIdentifier(table)
+	if schema != "" {
+		tableIdentifier = fmt.Sprintf("%s.%s", p.QuoteIdentifier(schema), tableIdentifier)
+	}
+
+	returningKeys := make([]string, 0, len(params.Columns))
+	if len(params.Columns) == 0 {
+		for _, col := range metadata.Columns {
+			if col.ResultName != "" {
+				returningKeys = append(returningKeys, col.ResultName)
+			} else if col.Name != "" {
+				returningKeys = append(returningKeys, col.Name)
+			}
+		}
+	} else {
+		returningKeys = append(returningKeys, params.Columns...)
+	}
+
+	returningColumns := make([]string, 0, len(returningKeys))
+	for _, key := range returningKeys {
+		if colMeta, ok := columnLookup[strings.ToLower(key)]; ok && colMeta.Name != "" {
+			returningColumns = append(returningColumns, p.QuoteIdentifier(colMeta.Name))
+		} else {
+			returningColumns = append(returningColumns, p.QuoteIdentifier(key))
+		}
+	}
+	if len(returningColumns) == 0 {
+		returningColumns = []string{"*"}
+	}
+
+	valuesPlaceholders := make([]string, len(insertColumns))
+	for i := range insertColumns {
+		valuesPlaceholders[i] = fmt.Sprintf("$%d", i+1)
+	}
+
+	insertSQL := fmt.Sprintf(
+		"INSERT INTO %s (%s) VALUES (%s) RETURNING %s",
+		tableIdentifier,
+		strings.Join(insertColumns, ", "),
+		strings.Join(valuesPlaceholders, ", "),
+		strings.Join(returningColumns, ", "),
+	)
+
+	db, err := p.pool.Get(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	row := db.QueryRowContext(ctx, insertSQL, args...)
+	resultValues := make([]interface{}, len(returningColumns))
+	scanArgs := make([]interface{}, len(returningColumns))
+	for i := range resultValues {
+		scanArgs[i] = &resultValues[i]
+	}
+
+	if err := row.Scan(scanArgs...); err != nil {
+		return nil, err
+	}
+
+	result := make(map[string]interface{}, len(returningColumns))
+	for idx, key := range returningKeys {
+		if idx >= len(resultValues) {
+			break
+		}
+		result[key] = normalizeDriverValue(resultValues[idx])
+	}
+	// In case returningColumns fallback to *, ensure map not empty
+	if len(result) == 0 {
+		for idx, val := range resultValues {
+			colName := fmt.Sprintf("column_%d", idx+1)
+			result[colName] = normalizeDriverValue(val)
+		}
+	}
+
+	return result, nil
+}
+
+// DeleteRow removes a row identified by the provided primary key values
+func (p *PostgresDatabase) DeleteRow(ctx context.Context, params DeleteRowParams) error {
+	if len(params.PrimaryKey) == 0 {
+		return errors.New("primary key values are required for delete")
+	}
+
+	metadata, metaErr := p.ComputeEditableMetadata(ctx, params.OriginalQuery, params.Columns)
+	if metaErr != nil && (metadata == nil || metadata.Reason == "") {
+		return metaErr
+	}
+	if metadata == nil || !metadata.Enabled {
+		reason := "query is not editable"
+		if metadata != nil && metadata.Reason != "" {
+			reason = metadata.Reason
+		} else if metaErr != nil {
+			reason = metaErr.Error()
+		}
+		return errors.New(reason)
+	}
+
+	schema := metadata.Schema
+	if schema == "" {
+		schema = params.Schema
+	}
+	table := metadata.Table
+	if table == "" {
+		table = params.Table
+	}
+	if table == "" {
+		return errors.New("target table not specified")
+	}
+
+	if len(metadata.PrimaryKeys) == 0 {
+		return errors.New("table does not have a primary key")
+	}
+
+	pkValues := make(map[string]interface{})
+	for _, pk := range metadata.PrimaryKeys {
+		found := false
+		for key, value := range params.PrimaryKey {
+			if strings.EqualFold(key, pk) {
+				pkValues[pk] = value
+				found = true
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("missing primary key value for column %s", pk)
+		}
+	}
+
+	pkNames := make([]string, len(metadata.PrimaryKeys))
+	copy(pkNames, metadata.PrimaryKeys)
+	sort.Slice(pkNames, func(i, j int) bool {
+		return strings.ToLower(pkNames[i]) < strings.ToLower(pkNames[j])
+	})
+
+	whereClauses := make([]string, 0, len(pkNames))
+	args := make([]interface{}, 0, len(pkNames))
+	argIndex := 1
+	for _, pk := range pkNames {
+		whereClauses = append(whereClauses, fmt.Sprintf("%s = $%d", p.QuoteIdentifier(pk), argIndex))
+		args = append(args, pkValues[pk])
+		argIndex++
+	}
+
+	tableIdentifier := p.QuoteIdentifier(table)
+	if schema != "" {
+		tableIdentifier = fmt.Sprintf("%s.%s", p.QuoteIdentifier(schema), tableIdentifier)
+	}
+
+	deleteSQL := fmt.Sprintf("DELETE FROM %s WHERE %s", tableIdentifier, strings.Join(whereClauses, " AND "))
+
+	db, err := p.pool.Get(ctx)
+	if err != nil {
+		return err
+	}
+
+	result, err := db.ExecContext(ctx, deleteSQL, args...)
+	if err != nil {
+		return err
+	}
+
+	if rows, err := result.RowsAffected(); err == nil && rows == 0 {
+		return errors.New("no rows were deleted; data may have changed or the row no longer exists")
+	}
+
+	return nil
+}
+
 // ExecuteStream executes a query and streams results in batches
 func (p *PostgresDatabase) ExecuteStream(ctx context.Context, query string, batchSize int, callback func([][]interface{}) error, args ...interface{}) error {
 	db, err := p.pool.Get(ctx)
@@ -667,6 +930,50 @@ func (p *PostgresDatabase) ExplainQuery(ctx context.Context, query string, args 
 	}
 
 	return plan, nil
+}
+
+// ListDatabases returns all non-template databases
+func (p *PostgresDatabase) ListDatabases(ctx context.Context) ([]string, error) {
+	db, err := p.pool.Get(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	query := `
+		SELECT datname
+		FROM pg_database
+		WHERE datallowconn = TRUE
+		AND datistemplate = FALSE
+		ORDER BY datname`
+
+	rows, err := db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var databases []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		databases = append(databases, name)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return databases, nil
+}
+
+// SwitchDatabase requires a reconnect for PostgreSQL connections
+func (p *PostgresDatabase) SwitchDatabase(ctx context.Context, databaseName string) error {
+	if strings.TrimSpace(databaseName) == "" {
+		return fmt.Errorf("database name cannot be empty")
+	}
+	return ErrDatabaseSwitchRequiresReconnect
 }
 
 // GetSchemas returns list of schemas in the database

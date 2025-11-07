@@ -5,6 +5,24 @@ import { validateCellValue, parseCellValue } from '../../utils/table';
 
 const EMPTY_OPTIONS: string[] = [];
 
+const toDateInputValue = (raw: unknown): string => {
+  if (!raw) return '';
+  const date = new Date(String(raw));
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+  return date.toISOString().slice(0, 10);
+};
+
+const toDateTimeInputValue = (raw: unknown): string => {
+  if (!raw) return '';
+  const date = new Date(String(raw));
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+  return date.toISOString().slice(0, 16);
+};
+
 export const CellEditor: React.FC<CellEditorProps> = ({
   value,
   type,
@@ -18,9 +36,17 @@ export const CellEditor: React.FC<CellEditorProps> = ({
   className,
 }) => {
   const editorOptions = options ?? EMPTY_OPTIONS;
-  const [localValue, setLocalValue] = useState<string>(
-    value?.toString() ?? ''
-  );
+  const deriveInitialValue = useCallback(() => {
+    if (type === 'date') {
+      return toDateInputValue(value);
+    }
+    if (type === 'datetime') {
+      return toDateTimeInputValue(value);
+    }
+    return value?.toString() ?? '';
+  }, [type, value]);
+
+  const [localValue, setLocalValue] = useState<string>(deriveInitialValue);
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(null);
   const hasFocusedRef = useRef(false);
   const onChangeRef = useRef(onChange);
@@ -29,6 +55,10 @@ export const CellEditor: React.FC<CellEditorProps> = ({
   useEffect(() => {
     onChangeRef.current = onChange;
   }, [onChange]);
+
+  useEffect(() => {
+    setLocalValue(deriveInitialValue());
+  }, [deriveInitialValue]);
 
   // Focus the input when the editor is mounted
   useEffect(() => {
@@ -178,6 +208,18 @@ export const CellEditor: React.FC<CellEditorProps> = ({
           <input
             ref={inputRef as React.RefObject<HTMLInputElement>}
             type="date"
+            value={localValue}
+            onChange={handleChange}
+            onKeyDown={handleKeyDown}
+            onBlur={handleBlur}
+            className={cn(baseClassName, 'font-mono')}
+          />
+        );
+      case 'datetime':
+        return (
+          <input
+            ref={inputRef as React.RefObject<HTMLInputElement>}
+            type="datetime-local"
             value={localValue}
             onChange={handleChange}
             onKeyDown={handleKeyDown}

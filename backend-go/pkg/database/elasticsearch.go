@@ -507,6 +507,12 @@ func (es *ElasticsearchDatabase) ExplainQuery(ctx context.Context, query string,
 func (es *ElasticsearchDatabase) ComputeEditableMetadata(ctx context.Context, query string, columns []string) (*EditableQueryMetadata, error) {
 	metadata := newEditableMetadata(columns)
 	metadata.Reason = "Elasticsearch indices are not directly editable"
+	metadata.Capabilities = &MutationCapabilities{
+		CanInsert: false,
+		CanUpdate: false,
+		CanDelete: false,
+		Reason:    metadata.Reason,
+	}
 	return metadata, nil
 }
 
@@ -693,6 +699,26 @@ func (es *ElasticsearchDatabase) BeginTransaction(ctx context.Context) (Transact
 // UpdateRow is not supported for Elasticsearch
 func (es *ElasticsearchDatabase) UpdateRow(ctx context.Context, params UpdateRowParams) error {
 	return fmt.Errorf("direct row updates are not supported in Elasticsearch (use Update API)")
+}
+
+// InsertRow is not supported for Elasticsearch
+func (es *ElasticsearchDatabase) InsertRow(ctx context.Context, params InsertRowParams) (map[string]interface{}, error) {
+	return nil, fmt.Errorf("direct row inserts are not supported in Elasticsearch via SQL interface (use Index API)")
+}
+
+// DeleteRow is not supported for Elasticsearch
+func (es *ElasticsearchDatabase) DeleteRow(ctx context.Context, params DeleteRowParams) error {
+	return fmt.Errorf("direct row deletes are not supported in Elasticsearch via SQL interface (use Delete API)")
+}
+
+// ListDatabases returns an error as Elasticsearch does not support database switching
+func (es *ElasticsearchDatabase) ListDatabases(ctx context.Context) ([]string, error) {
+	return nil, ErrDatabaseSwitchNotSupported
+}
+
+// SwitchDatabase is not supported for Elasticsearch
+func (es *ElasticsearchDatabase) SwitchDatabase(ctx context.Context, databaseName string) error {
+	return ErrDatabaseSwitchNotSupported
 }
 
 // GetDatabaseType returns the database type

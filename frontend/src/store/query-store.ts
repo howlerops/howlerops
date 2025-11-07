@@ -31,6 +31,12 @@ export interface QueryEditableColumn {
     column: string
     schema?: string
   }
+  hasDefault?: boolean
+  defaultValue?: unknown
+  defaultExpression?: string
+  autoNumber?: boolean
+  timeZone?: boolean
+  precision?: number
 }
 
 export interface QueryEditableMetadata {
@@ -43,10 +49,17 @@ export interface QueryEditableMetadata {
   pending?: boolean
   jobId?: string
   job_id?: string
+  capabilities?: {
+    canInsert: boolean
+    canUpdate: boolean
+    canDelete: boolean
+    reason?: string
+  }
 }
 
 export interface QueryResultRow extends Record<string, unknown> {
   __rowId: string
+  __isNewRow?: boolean
 }
 
 export interface QueryResult {
@@ -134,6 +147,16 @@ function transformEditableColumn(raw: unknown): QueryEditableColumn {
         : '',
     editable: Boolean(column.editable),
     primaryKey: Boolean(column.primaryKey ?? column.primary_key),
+    hasDefault: Boolean(column.hasDefault ?? column.has_default),
+    defaultValue: column.defaultValue ?? column.default_value,
+    defaultExpression: typeof column.defaultExpression === 'string'
+      ? column.defaultExpression
+      : typeof column.default_expression === 'string'
+        ? column.default_expression
+        : undefined,
+    autoNumber: Boolean(column.autoNumber ?? column.auto_number),
+    timeZone: Boolean(column.timeZone ?? column.time_zone),
+    precision: typeof column.precision === 'number' ? column.precision : undefined,
   }
 }
 
@@ -171,6 +194,20 @@ function transformEditableMetadata(raw: unknown): QueryEditableMetadata | null {
   }
   if (!metadata.job_id && metadata.jobId) {
     metadata.job_id = metadata.jobId
+  }
+
+  const rawCapabilities = metadataRaw.capabilities as Record<string, unknown> | undefined
+  const capabilitySource = typeof rawCapabilities === 'object' && rawCapabilities !== null ? rawCapabilities : undefined
+  if (capabilitySource) {
+    const canInsertValue = (capabilitySource as Record<string, unknown>).canInsert ?? (capabilitySource as Record<string, unknown>).can_insert
+    const canUpdateValue = (capabilitySource as Record<string, unknown>).canUpdate ?? (capabilitySource as Record<string, unknown>).can_update
+    const canDeleteValue = (capabilitySource as Record<string, unknown>).canDelete ?? (capabilitySource as Record<string, unknown>).can_delete
+    metadata.capabilities = {
+      canInsert: Boolean(canInsertValue),
+      canUpdate: Boolean(canUpdateValue),
+      canDelete: Boolean(canDeleteValue),
+      reason: typeof capabilitySource.reason === 'string' ? capabilitySource.reason : undefined,
+    }
   }
 
   return metadata

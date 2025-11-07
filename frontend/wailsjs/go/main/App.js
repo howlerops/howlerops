@@ -50,6 +50,10 @@ export function DeletePassword(arg1) {
   return window['go']['main']['App']['DeletePassword'](arg1);
 }
 
+export function DeleteQueryRows(arg1) {
+  return window['go']['main']['App']['DeleteQueryRows'](arg1);
+}
+
 export function DeleteSyntheticView(arg1) {
   return window['go']['main']['App']['DeleteSyntheticView'](arg1);
 }
@@ -246,12 +250,20 @@ export function ImportKeyboardBindings(arg1) {
   return window['go']['main']['App']['ImportKeyboardBindings'](arg1);
 }
 
+export function InsertQueryRow(arg1) {
+  return window['go']['main']['App']['InsertQueryRow'](arg1);
+}
+
 export function InvalidateAllSchemas() {
   return window['go']['main']['App']['InvalidateAllSchemas']();
 }
 
 export function InvalidateSchemaCache(arg1) {
   return window['go']['main']['App']['InvalidateSchemaCache'](arg1);
+}
+
+export function ListConnectionDatabases(arg1) {
+  return window['go']['main']['App']['ListConnectionDatabases'](arg1);
 }
 
 export function ListConnections() {
@@ -360,6 +372,10 @@ export function StreamAIQueryAgent(arg1) {
 
 export function SuggestVisualization(arg1) {
   return window['go']['main']['App']['SuggestVisualization'](arg1);
+}
+
+export function SwitchConnectionDatabase(arg1) {
+  return window['go']['main']['App']['SwitchConnectionDatabase'](arg1);
 }
 
 export function TestAIProvider(arg1) {

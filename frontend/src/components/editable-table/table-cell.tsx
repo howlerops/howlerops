@@ -1,9 +1,11 @@
-import React, { memo, useCallback, useRef, useEffect } from 'react';
+import React, { memo, useCallback, useRef, useEffect, useState } from 'react';
 import { AlertCircle, Eye } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { CellValue, TableColumn, CellEditState, TableRow } from '../../types/table';
 import { formatCellValue } from '../../utils/table';
 import { CellEditor } from './cell-editor';
+import { Button } from '../ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 
 interface TableCellProps {
   value: CellValue;
@@ -44,6 +46,7 @@ export const TableCell = memo<TableCellProps>(({
 }) => {
   const cellRef = useRef<HTMLDivElement>(null);
   const doubleClickTimeoutRef = useRef<number | null>(null);
+  const [showValueDialog, setShowValueDialog] = useState(false);
 
   const handleDoubleClick = useCallback(() => {
     if (!column.editable) return;
@@ -114,6 +117,14 @@ export const TableCell = memo<TableCellProps>(({
 
     const formattedValue = formatCellValue(value, column.type);
 
+    if (!isEditing && value === undefined && column.hasDefault) {
+      return (
+        <span className="text-xs italic text-muted-foreground">
+          {column.defaultLabel || '[default]'}
+        </span>
+      );
+    }
+
     // Special rendering for different types
     switch (column.type) {
       case 'boolean':
@@ -136,6 +147,7 @@ export const TableCell = memo<TableCellProps>(({
         );
 
       case 'date':
+      case 'datetime':
         return (
           <div className="font-mono text-gray-600">
             {formattedValue}
@@ -152,11 +164,38 @@ export const TableCell = memo<TableCellProps>(({
         );
 
       default:
-        return (
-          <div className="truncate" title={formattedValue}>
-            {formattedValue}
-          </div>
-        );
+        {
+          const shouldWrap = column.wrapContent ?? column.longText ?? false;
+          const shouldTruncate = column.clipContent !== false && !shouldWrap;
+          const textClassName = cn(
+            'w-full',
+            column.monospace && 'font-mono tabular-nums',
+            shouldWrap ? 'whitespace-pre-wrap break-words' : 'whitespace-nowrap',
+            shouldTruncate ? 'truncate' : 'break-words'
+          );
+
+          return (
+            <div className="flex w-full items-center gap-1">
+              <div className={textClassName} title={shouldTruncate ? formattedValue : undefined}>
+                {formattedValue}
+              </div>
+              {column.longText && !isEditing && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 shrink-0 text-muted-foreground"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setShowValueDialog(true);
+                  }}
+                >
+                  <Eye className="h-3.5 w-3.5" />
+                </Button>
+              )}
+            </div>
+          );
+        }
     }
   };
 
@@ -173,73 +212,87 @@ export const TableCell = memo<TableCellProps>(({
   };
 
   return (
-    <div
-      ref={cellRef}
-      className={cn(
-        'relative group h-full w-full flex items-center px-3 py-2 text-sm',
-        'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-inset',
-        'cursor-pointer select-none',
-        {
-          'bg-primary/10 border-primary': isSelected,
-          'bg-accent/10 border-accent': isDirty && !isInvalid,
-          'bg-muted': isEditing,
-          'cursor-not-allowed opacity-60': !column.editable,
-          'hover:bg-muted/50': column.editable && !isEditing && !isSelected,
-          // Invalid cell styling - red border takes precedence
-          'border-2 border-destructive bg-destructive/5': isInvalid,
-          'hover:bg-destructive/10': isInvalid && column.editable && !isEditing,
-        }
-      )}
-      onClick={handleSingleClick}
-      onDoubleClick={handleDoubleClick}
-      onKeyDown={handleKeyDown}
-      tabIndex={column.editable ? 0 : -1}
-      role="gridcell"
-      aria-selected={isSelected}
-      aria-label={`${column.header}: ${formatCellValue(value, column.type)}`}
-    >
-      {renderCellContent()}
-      {renderValidationError()}
+    <>
+      <div
+        ref={cellRef}
+        className={cn(
+          'relative group h-full w-full flex items-center px-3 py-2 text-sm',
+          'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-inset',
+          'cursor-pointer select-none',
+          {
+            'bg-primary/10 border-primary': isSelected,
+            'bg-accent/10 border-accent': isDirty && !isInvalid,
+            'bg-muted': isEditing,
+            'cursor-not-allowed opacity-60': !column.editable,
+            'hover:bg-muted/50': column.editable && !isEditing && !isSelected,
+            // Invalid cell styling - red border takes precedence
+            'border-2 border-destructive bg-destructive/5': isInvalid,
+            'hover:bg-destructive/10': isInvalid && column.editable && !isEditing,
+          }
+        )}
+        onClick={handleSingleClick}
+        onDoubleClick={handleDoubleClick}
+        onKeyDown={handleKeyDown}
+        tabIndex={column.editable ? 0 : -1}
+        role="gridcell"
+        aria-selected={isSelected}
+        aria-label={`${column.header}: ${formatCellValue(value, column.type)}`}
+      >
+        {renderCellContent()}
+        {renderValidationError()}
 
-      {/* Error indicator */}
-      {isInvalid && !isEditing && (
-        <div className="absolute top-1 right-1">
-          <AlertCircle className="h-3 w-3 text-destructive" />
-        </div>
-      )}
+        {/* Error indicator */}
+        {isInvalid && !isEditing && (
+          <div className="absolute top-1 right-1">
+            <AlertCircle className="h-3 w-3 text-destructive" />
+          </div>
+        )}
 
-      {/* Dirty indicator */}
-      {isDirty && !isEditing && !isInvalid && (
-        <div className="absolute top-1 right-1 w-2 h-2 bg-accent rounded-full" />
-      )}
+        {/* Dirty indicator */}
+        {isDirty && !isEditing && !isInvalid && (
+          <div className="absolute top-1 right-1 w-2 h-2 bg-accent rounded-full" />
+        )}
 
-      {/* Required field indicator */}
-      {column.required && (
-        <div className="absolute top-1 left-1 text-destructive text-xs">*</div>
-      )}
+        {/* Required field indicator */}
+        {column.required && (
+          <div className="absolute top-1 left-1 text-destructive text-xs">*</div>
+        )}
 
-      {/* JSON inspector trigger */}
-      {onInspectRow && !isEditing && (
-        <button
-          type="button"
-          onClick={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            onInspectRow(rowId, rowData);
-          }}
-          className={cn(
-            'absolute bottom-1 right-1 flex h-6 w-6 items-center justify-center rounded-full',
-            'bg-background/80 text-muted-foreground shadow-sm',
-            'opacity-0 transition-opacity duration-150',
-            'group-hover:opacity-100 focus-visible:opacity-100'
-          )}
-          tabIndex={-1}
-          aria-label="Open row JSON"
-        >
-          <Eye className="h-3.5 w-3.5" />
-        </button>
+        {/* JSON inspector trigger */}
+        {onInspectRow && !isEditing && (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onInspectRow(rowId, rowData);
+            }}
+            className={cn(
+              'absolute bottom-1 right-1 flex h-6 w-6 items-center justify-center rounded-full',
+              'bg-background/80 text-muted-foreground shadow-sm',
+              'opacity-0 transition-opacity duration-150',
+              'group-hover:opacity-100 focus-visible:opacity-100'
+            )}
+            tabIndex={-1}
+            aria-label="Open row JSON"
+          >
+            <Eye className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
+      {column.longText && !isEditing && (
+        <Dialog open={showValueDialog} onOpenChange={setShowValueDialog}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>{column.header}</DialogTitle>
+            </DialogHeader>
+            <div className="max-h-[60vh] overflow-auto whitespace-pre-wrap text-sm font-mono text-foreground/90">
+              {formatCellValue(value, column.type) || '∅'}
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
-    </div>
+    </>
   );
 });
 

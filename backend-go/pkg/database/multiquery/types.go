@@ -140,24 +140,39 @@ type TableInfo struct {
 
 // EditableQueryMetadata represents metadata for editable queries
 type EditableQueryMetadata struct {
-	Enabled     bool
-	Reason      string
-	Schema      string
-	Table       string
-	PrimaryKeys []string
-	Columns     []EditableColumn
-	Pending     bool
-	JobID       string
+	Enabled      bool
+	Reason       string
+	Schema       string
+	Table        string
+	PrimaryKeys  []string
+	Columns      []EditableColumn
+	Pending      bool
+	JobID        string
+	Capabilities *MutationCapabilities
 }
 
 // EditableColumn represents an editable column
 type EditableColumn struct {
-	Name       string
-	ResultName string
-	DataType   string
-	Editable   bool
-	PrimaryKey bool
-	ForeignKey *ForeignKeyRef
+	Name              string
+	ResultName        string
+	DataType          string
+	Editable          bool
+	PrimaryKey        bool
+	ForeignKey        *ForeignKeyRef
+	HasDefault        bool
+	DefaultValue      interface{}
+	DefaultExpression string
+	AutoNumber        bool
+	TimeZone          bool
+	Precision         *int
+}
+
+// MutationCapabilities describes which row-level operations are supported.
+type MutationCapabilities struct {
+	CanInsert bool
+	CanUpdate bool
+	CanDelete bool
+	Reason    string
 }
 
 // ForeignKeyRef represents foreign key information

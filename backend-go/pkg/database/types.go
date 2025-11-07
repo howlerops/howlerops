@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"time"
 )
 
@@ -19,6 +20,13 @@ const (
 	ClickHouse    DatabaseType = "clickhouse"
 	MongoDB       DatabaseType = "mongodb"
 	TiDB          DatabaseType = "tidb"
+)
+
+var (
+	// ErrDatabaseSwitchNotSupported indicates that a connector does not support runtime database switching.
+	ErrDatabaseSwitchNotSupported = errors.New("database switching is not supported for this connection")
+	// ErrDatabaseSwitchRequiresReconnect indicates that the connector must reconnect to switch databases.
+	ErrDatabaseSwitchRequiresReconnect = errors.New("database switching requires a new connection")
 )
 
 // SSHAuthMethod represents the SSH authentication method
@@ -201,6 +209,12 @@ type Database interface {
 
 	// Data modification helpers
 	UpdateRow(ctx context.Context, params UpdateRowParams) error
+	InsertRow(ctx context.Context, params InsertRowParams) (map[string]interface{}, error)
+	DeleteRow(ctx context.Context, params DeleteRowParams) error
+
+	// Database selection helpers
+	ListDatabases(ctx context.Context) ([]string, error)
+	SwitchDatabase(ctx context.Context, databaseName string) error
 
 	// Utility methods
 	GetDatabaseType() DatabaseType
@@ -256,6 +270,12 @@ type EditableColumn struct {
 	Editable   bool           `json:"editable"`
 	PrimaryKey bool           `json:"primary_key"`
 	ForeignKey *ForeignKeyRef `json:"foreign_key,omitempty"`
+	HasDefault bool           `json:"has_default,omitempty"`
+	DefaultVal interface{}    `json:"default_value,omitempty"`
+	DefaultExp string         `json:"default_expression,omitempty"`
+	AutoNumber bool           `json:"auto_number,omitempty"`
+	TimeZone   bool           `json:"time_zone,omitempty"`
+	Precision  *int           `json:"precision,omitempty"`
 }
 
 // ForeignKeyRef represents a foreign key reference for a column
@@ -267,14 +287,23 @@ type ForeignKeyRef struct {
 
 // EditableQueryMetadata captures whether a query result set supports direct editing
 type EditableQueryMetadata struct {
-	Enabled     bool             `json:"enabled"`
-	Reason      string           `json:"reason,omitempty"`
-	Schema      string           `json:"schema,omitempty"`
-	Table       string           `json:"table,omitempty"`
-	PrimaryKeys []string         `json:"primary_keys,omitempty"`
-	Columns     []EditableColumn `json:"columns,omitempty"`
-	Pending     bool             `json:"pending,omitempty"`
-	JobID       string           `json:"job_id,omitempty"`
+	Enabled      bool                  `json:"enabled"`
+	Reason       string                `json:"reason,omitempty"`
+	Schema       string                `json:"schema,omitempty"`
+	Table        string                `json:"table,omitempty"`
+	PrimaryKeys  []string              `json:"primary_keys,omitempty"`
+	Columns      []EditableColumn      `json:"columns,omitempty"`
+	Pending      bool                  `json:"pending,omitempty"`
+	JobID        string                `json:"job_id,omitempty"`
+	Capabilities *MutationCapabilities `json:"capabilities,omitempty"`
+}
+
+// MutationCapabilities describes which row-level operations are supported.
+type MutationCapabilities struct {
+	CanInsert bool   `json:"can_insert"`
+	CanUpdate bool   `json:"can_update"`
+	CanDelete bool   `json:"can_delete"`
+	Reason    string `json:"reason,omitempty"`
 }
 
 // UpdateRowParams describes the data required to persist edits back to the source table
@@ -283,6 +312,24 @@ type UpdateRowParams struct {
 	Table         string                 `json:"table"`
 	PrimaryKey    map[string]interface{} `json:"primary_key"`
 	Values        map[string]interface{} `json:"values"`
+	OriginalQuery string                 `json:"original_query"`
+	Columns       []string               `json:"columns"`
+}
+
+// InsertRowParams describes the data required to insert a new row.
+type InsertRowParams struct {
+	Schema        string                 `json:"schema"`
+	Table         string                 `json:"table"`
+	Values        map[string]interface{} `json:"values"`
+	OriginalQuery string                 `json:"original_query"`
+	Columns       []string               `json:"columns"`
+}
+
+// DeleteRowParams describes the data required to delete an existing row.
+type DeleteRowParams struct {
+	Schema        string                 `json:"schema"`
+	Table         string                 `json:"table"`
+	PrimaryKey    map[string]interface{} `json:"primary_key"`
 	OriginalQuery string                 `json:"original_query"`
 	Columns       []string               `json:"columns"`
 }

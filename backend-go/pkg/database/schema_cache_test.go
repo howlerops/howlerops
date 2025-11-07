@@ -80,6 +80,18 @@ func (m *mockDatabase) BeginTransaction(ctx context.Context) (Transaction, error
 func (m *mockDatabase) UpdateRow(ctx context.Context, params UpdateRowParams) error {
 	return nil
 }
+func (m *mockDatabase) InsertRow(ctx context.Context, params InsertRowParams) (map[string]interface{}, error) {
+	return map[string]interface{}{}, nil
+}
+func (m *mockDatabase) DeleteRow(ctx context.Context, params DeleteRowParams) error {
+	return nil
+}
+func (m *mockDatabase) ListDatabases(ctx context.Context) ([]string, error) {
+	return m.schemas, nil
+}
+func (m *mockDatabase) SwitchDatabase(ctx context.Context, databaseName string) error {
+	return nil
+}
 func (m *mockDatabase) GetDatabaseType() DatabaseType {
 	return PostgreSQL
 }

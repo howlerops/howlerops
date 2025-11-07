@@ -59,7 +59,8 @@ export const validateCellValue = (
       }
       break;
 
-    case 'date': {
+    case 'date':
+    case 'datetime': {
       const dateValue = new Date(String(value));
       if (isNaN(dateValue.getTime())) {
         return { isValid: false, error: 'Must be a valid date' };
@@ -85,6 +86,10 @@ export const formatCellValue = (value: CellValue, type: TableColumn['type']): st
       const date = new Date(String(value));
       return isNaN(date.getTime()) ? String(value) : date.toLocaleDateString();
     }
+    case 'datetime': {
+      const date = new Date(String(value));
+      return isNaN(date.getTime()) ? String(value) : date.toLocaleString();
+    }
     default:
       return String(value);
   }
@@ -103,6 +108,10 @@ export const parseCellValue = (value: string, type: TableColumn['type']): CellVa
     case 'boolean':
       return value.toLowerCase() === 'true' || value === '1' || value.toLowerCase() === 'yes';
     case 'date': {
+      const date = new Date(value);
+      return isNaN(date.getTime()) ? value : date.toISOString();
+    }
+    case 'datetime': {
       const date = new Date(value);
       return isNaN(date.getTime()) ? value : date.toISOString();
     }
@@ -229,17 +238,40 @@ export const getColumnWidth = (
     return column.width;
   }
 
-  // Calculate width based on content
-  const headerWidth = column.header.length * 8 + 40; // Approximate width
-  const maxContentWidth = Math.max(
-    ...data.slice(0, 100).map(row => {
-      const value = column.accessorKey ? formatCellValue(row[column.accessorKey], column.type) : '';
-      return value.length * 8 + 20;
-    })
+  const resolvedMin = column.minWidth ?? (
+    column.type === 'boolean' ? 110 :
+    column.type === 'number' ? 140 :
+    minWidth
   );
 
-  const calculatedWidth = Math.max(headerWidth, maxContentWidth);
-  return Math.min(Math.max(calculatedWidth, column.minWidth || minWidth), column.maxWidth || maxWidth);
+  const resolvedMax = Math.max(
+    resolvedMin,
+    column.maxWidth ?? (
+      column.longText ? 700 :
+      column.type === 'number' ? 280 :
+      maxWidth
+    )
+  );
+
+  const headerWidth = column.header.length * 8 + 48;
+  const samples = data.slice(0, 200);
+  const charWidth = column.monospace ? 8.5 : 7;
+
+  let longest = 0;
+  if (samples.length > 0 && column.accessorKey) {
+    for (const row of samples) {
+      const formatted = formatCellValue(row[column.accessorKey], column.type);
+      longest = Math.max(longest, formatted.length);
+    }
+  }
+
+  const contentWidth = Math.max(
+    column.preferredWidth ?? 0,
+    longest > 0 ? longest * charWidth + 32 : 0
+  );
+
+  const calculatedWidth = Math.max(headerWidth, contentWidth, resolvedMin);
+  return Math.min(calculatedWidth, resolvedMax);
 };
 
 export const generateTableId = (): string => {

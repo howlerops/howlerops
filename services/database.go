@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -20,8 +21,12 @@ type DatabaseManager interface {
 	TestConnection(ctx context.Context, config database.ConnectionConfig) error
 	ListConnections() []string
 	RemoveConnection(connectionID string) error
+	ListDatabases(ctx context.Context, connectionID string) ([]string, error)
 	GetConnection(connectionID string) (database.Database, error)
 	UpdateRow(ctx context.Context, connectionID string, params database.UpdateRowParams) error
+	InsertRow(ctx context.Context, connectionID string, params database.InsertRowParams) (map[string]interface{}, error)
+	DeleteRow(ctx context.Context, connectionID string, params database.DeleteRowParams) error
+	SwitchDatabase(ctx context.Context, connectionID string, databaseName string) (database.ConnectionConfig, bool, error)
 	GetConnectionHealth(ctx context.Context, connectionID string) (*database.HealthStatus, error)
 	GetConnectionStats() map[string]database.PoolStats
 	HealthCheckAll(ctx context.Context) map[string]*database.HealthStatus
@@ -84,6 +89,13 @@ type StreamUpdate struct {
 	Data     [][]interface{} `json:"data,omitempty"`
 	Error    string          `json:"error,omitempty"`
 	Total    int64           `json:"total,omitempty"`
+}
+
+// SwitchDatabaseResult represents the outcome of a database switch operation
+type SwitchDatabaseResult struct {
+	ConnectionID string `json:"connectionId"`
+	Database     string `json:"database"`
+	Reconnected  bool   `json:"reconnected"`
 }
 
 // NewDatabaseService creates a new database service for Wails
@@ -200,6 +212,14 @@ func (s *DatabaseService) ListConnections() []string {
 	return s.manager.ListConnections()
 }
 
+// ListDatabases returns databases available for the specified connection
+func (s *DatabaseService) ListDatabases(connectionID string) ([]string, error) {
+	ctx, cancel := context.WithTimeout(s.ctx, 15*time.Second)
+	defer cancel()
+
+	return s.manager.ListDatabases(ctx, connectionID)
+}
+
 // RemoveConnection removes a database connection
 func (s *DatabaseService) RemoveConnection(connectionID string) error {
 	err := s.manager.RemoveConnection(connectionID)
@@ -214,6 +234,46 @@ func (s *DatabaseService) RemoveConnection(connectionID string) error {
 
 	s.logger.WithField("connection_id", connectionID).Info("Database connection removed")
 	return nil
+}
+
+// SwitchDatabase switches the active database for an existing connection
+func (s *DatabaseService) SwitchDatabase(connectionID, databaseName string) (*SwitchDatabaseResult, error) {
+	if strings.TrimSpace(connectionID) == "" {
+		return nil, fmt.Errorf("connectionId is required")
+	}
+	if strings.TrimSpace(databaseName) == "" {
+		return nil, fmt.Errorf("database name is required")
+	}
+
+	ctx, cancel := context.WithTimeout(s.ctx, 30*time.Second)
+	defer cancel()
+
+	cfg, reconnected, err := s.manager.SwitchDatabase(ctx, connectionID, databaseName)
+	if err != nil {
+		return nil, err
+	}
+
+	// Invalidate cached schema information
+	s.manager.InvalidateSchemaCache(connectionID)
+	s.clearMetadataJobsForConnection(connectionID)
+
+	s.emitEvent("connection:databaseSwitched", map[string]interface{}{
+		"id":          connectionID,
+		"database":    cfg.Database,
+		"reconnected": reconnected,
+	})
+
+	s.logger.WithFields(logrus.Fields{
+		"connection_id": connectionID,
+		"database":      cfg.Database,
+		"reconnected":   reconnected,
+	}).Info("Connection database switched")
+
+	return &SwitchDatabaseResult{
+		ConnectionID: connectionID,
+		Database:     cfg.Database,
+		Reconnected:  reconnected,
+	}, nil
 }
 
 // ExecuteQuery executes a SQL query
@@ -297,6 +357,16 @@ func (s *DatabaseService) startEditableMetadataJob(connectionID string, db datab
 	go s.computeEditableMetadataJob(jobID, connectionID, db, query, columnCopy)
 
 	return jobID
+}
+
+func (s *DatabaseService) clearMetadataJobsForConnection(connectionID string) {
+	s.metadataMu.Lock()
+	for id, job := range s.metadataJobs {
+		if job.ConnectionID == connectionID {
+			delete(s.metadataJobs, id)
+		}
+	}
+	s.metadataMu.Unlock()
 }
 
 func (s *DatabaseService) computeEditableMetadataJob(jobID, connectionID string, db database.Database, query string, columns []string) {
@@ -429,6 +499,49 @@ func (s *DatabaseService) UpdateRow(connectionID string, params database.UpdateR
 		"schema":        params.Schema,
 		"table":         params.Table,
 	}).Info("Row updated successfully")
+
+	return nil
+}
+
+// InsertRow persists a new row into the target table
+func (s *DatabaseService) InsertRow(connectionID string, params database.InsertRowParams) (map[string]interface{}, error) {
+	result, err := s.manager.InsertRow(s.ctx, connectionID, params)
+	if err != nil {
+		s.logger.WithFields(logrus.Fields{
+			"connection_id": connectionID,
+			"schema":        params.Schema,
+			"table":         params.Table,
+			"error":         err,
+		}).Error("Failed to insert row")
+		return nil, err
+	}
+
+	s.logger.WithFields(logrus.Fields{
+		"connection_id": connectionID,
+		"schema":        params.Schema,
+		"table":         params.Table,
+	}).Info("Row inserted successfully")
+
+	return result, nil
+}
+
+// DeleteRow removes a row identified by its primary key
+func (s *DatabaseService) DeleteRow(connectionID string, params database.DeleteRowParams) error {
+	if err := s.manager.DeleteRow(s.ctx, connectionID, params); err != nil {
+		s.logger.WithFields(logrus.Fields{
+			"connection_id": connectionID,
+			"schema":        params.Schema,
+			"table":         params.Table,
+			"error":         err,
+		}).Error("Failed to delete row")
+		return err
+	}
+
+	s.logger.WithFields(logrus.Fields{
+		"connection_id": connectionID,
+		"schema":        params.Schema,
+		"table":         params.Table,
+	}).Info("Row deleted successfully")
 
 	return nil
 }
@@ -718,24 +831,31 @@ type CombinedSchemaResponse struct {
 
 // EditableMetadataResponse represents editable metadata for queries
 type EditableMetadataResponse struct {
-	Enabled     bool                     `json:"enabled"`
-	Reason      string                   `json:"reason,omitempty"`
-	Schema      string                   `json:"schema,omitempty"`
-	Table       string                   `json:"table,omitempty"`
-	PrimaryKeys []string                 `json:"primaryKeys"`
-	Columns     []EditableColumnResponse `json:"columns"`
-	Pending     bool                     `json:"pending"`
-	JobID       string                   `json:"jobId,omitempty"`
+	Enabled      bool                           `json:"enabled"`
+	Reason       string                         `json:"reason,omitempty"`
+	Schema       string                         `json:"schema,omitempty"`
+	Table        string                         `json:"table,omitempty"`
+	PrimaryKeys  []string                       `json:"primaryKeys"`
+	Columns      []EditableColumnResponse       `json:"columns"`
+	Pending      bool                           `json:"pending"`
+	JobID        string                         `json:"jobId,omitempty"`
+	Capabilities *database.MutationCapabilities `json:"capabilities,omitempty"`
 }
 
 // EditableColumnResponse represents an editable column
 type EditableColumnResponse struct {
-	Name       string              `json:"name"`
-	ResultName string              `json:"resultName"`
-	DataType   string              `json:"dataType"`
-	Editable   bool                `json:"editable"`
-	PrimaryKey bool                `json:"primaryKey"`
-	ForeignKey *ForeignKeyResponse `json:"foreignKey,omitempty"`
+	Name              string              `json:"name"`
+	ResultName        string              `json:"resultName"`
+	DataType          string              `json:"dataType"`
+	Editable          bool                `json:"editable"`
+	PrimaryKey        bool                `json:"primaryKey"`
+	ForeignKey        *ForeignKeyResponse `json:"foreignKey,omitempty"`
+	HasDefault        bool                `json:"hasDefault,omitempty"`
+	DefaultValue      interface{}         `json:"defaultValue,omitempty"`
+	DefaultExpression string              `json:"defaultExpression,omitempty"`
+	AutoNumber        bool                `json:"autoNumber,omitempty"`
+	TimeZone          bool                `json:"timeZone,omitempty"`
+	Precision         *int                `json:"precision,omitempty"`
 }
 
 // ForeignKeyResponse represents foreign key information
@@ -793,15 +913,30 @@ func (s *DatabaseService) ExecuteMultiDatabaseQuery(query string, options *multi
 			JobID:       result.Editable.JobID,
 		}
 
+		if result.Editable.Capabilities != nil {
+			response.Editable.Capabilities = &database.MutationCapabilities{
+				CanInsert: result.Editable.Capabilities.CanInsert,
+				CanUpdate: result.Editable.Capabilities.CanUpdate,
+				CanDelete: result.Editable.Capabilities.CanDelete,
+				Reason:    result.Editable.Capabilities.Reason,
+			}
+		}
+
 		// Convert columns
 		response.Editable.Columns = make([]EditableColumnResponse, len(result.Editable.Columns))
 		for i, col := range result.Editable.Columns {
 			response.Editable.Columns[i] = EditableColumnResponse{
-				Name:       col.Name,
-				ResultName: col.ResultName,
-				DataType:   col.DataType,
-				Editable:   col.Editable,
-				PrimaryKey: col.PrimaryKey,
+				Name:              col.Name,
+				ResultName:        col.ResultName,
+				DataType:          col.DataType,
+				Editable:          col.Editable,
+				PrimaryKey:        col.PrimaryKey,
+				HasDefault:        col.HasDefault,
+				DefaultValue:      col.DefaultValue,
+				DefaultExpression: col.DefaultExpression,
+				AutoNumber:        col.AutoNumber,
+				TimeZone:          col.TimeZone,
+				Precision:         col.Precision,
 			}
 
 			// Convert foreign key if present

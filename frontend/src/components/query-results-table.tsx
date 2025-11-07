@@ -1,32 +1,18 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
-import { Database, Clock, Save, AlertCircle, Download, Search, Inbox, Loader2, CheckCircle2, Trash2 } from 'lucide-react'
+import { Database, Clock, Save, AlertCircle, Download, Search, Inbox, Loader2, CheckCircle2, Trash2, Plus } from 'lucide-react'
 
 import { EditableTable } from './editable-table/editable-table'
 import { JsonRowViewerSidebar } from './json-row-viewer-sidebar'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
 import { TableColumn, ExportOptions, TableRow } from '../types/table'
-import { QueryEditableMetadata, QueryResultRow, useQueryStore } from '../store/query-store'
+import { QueryEditableMetadata, QueryResultRow, useQueryStore, type QueryEditableColumn } from '../store/query-store'
+import { useConnectionStore } from '../store/connection-store'
 import { wailsEndpoints } from '../lib/wails-api'
 import type { CellValue, EditableTableContext } from '../types/table'
 import { toast } from '../hooks/use-toast'
-import { useConnectionStore, type DatabaseConnection } from '../store/connection-store'
-
-type IdentifierQuoteStyle = 'double' | 'backtick' | 'square'
-
-const getIdentifierQuoteStyle = (type?: DatabaseConnection['type']): IdentifierQuoteStyle => {
-  switch (type) {
-    case 'mysql':
-    case 'mariadb':
-    case 'tidb':
-      return 'backtick'
-    case 'mssql':
-      return 'square'
-    default:
-      return 'double'
-  }
-}
 
 interface QueryResultsTableProps {
   resultId: string
@@ -58,6 +44,13 @@ interface ToolbarProps {
   onJumpToFirstError?: () => void
   canDeleteRows?: boolean
   onDeleteSelected?: () => void
+  canInsertRows?: boolean
+  onAddRow?: () => void
+  databases?: string[]
+  currentDatabase?: string
+  onSelectDatabase?: (database: string) => void
+  databaseLoading?: boolean
+  databaseSwitching?: boolean
 }
 
 const inferColumnType = (dataType?: string): TableColumn['type'] => {
@@ -70,15 +63,99 @@ const inferColumnType = (dataType?: string): TableColumn['type'] => {
   if (normalized.includes('bool')) {
     return 'boolean'
   }
-  if (normalized.includes('date') || normalized.includes('time')) {
+  if (normalized.includes('timestamp') || normalized.includes('time')) {
+    return 'datetime'
+  }
+  if (normalized.includes('date')) {
     return 'date'
   }
 
   return 'text'
 }
 
-const formatTimestamp = (value: Date) => {
-  return value.toLocaleTimeString()
+type EditableColumnMeta = QueryEditableMetadata['columns'] extends Array<infer C> ? C : never
+
+interface ColumnDisplayTraits {
+  minWidth: number
+  maxWidth?: number
+  preferredWidth?: number
+  longText: boolean
+  wrapContent: boolean
+  clipContent: boolean
+  monospace: boolean
+}
+
+const deriveColumnDisplayTraits = (
+  columnName: string,
+  metaColumn: EditableColumnMeta | undefined,
+  columnType: TableColumn['type']
+): ColumnDisplayTraits => {
+  const normalizedName = columnName.toLowerCase()
+  const dataType = metaColumn?.dataType?.toLowerCase() ?? ''
+  const precision = typeof metaColumn?.precision === 'number' ? metaColumn.precision : undefined
+
+  const isUUIDLike =
+    dataType.includes('uuid') ||
+    normalizedName.endsWith('_uuid') ||
+    normalizedName.endsWith('_guid') ||
+    ((normalizedName === 'id' || normalizedName.endsWith('_id')) && (precision ?? 0) >= 24)
+
+  const isJsonLike = dataType.includes('json')
+  const isTextLike = dataType.includes('text') || dataType.includes('clob') || dataType.includes('xml')
+  const isBinaryLike = dataType.includes('blob') || dataType.includes('binary')
+  const isLongCharacter = typeof precision === 'number' && precision >= 512
+  const isNumeric = columnType === 'number'
+  const isTemporal = columnType === 'datetime' || columnType === 'date'
+  const isBoolean = columnType === 'boolean'
+
+  const longText = isJsonLike || isTextLike || isBinaryLike || isLongCharacter
+  const wrapContent = isUUIDLike
+  const monospace = isUUIDLike || isTemporal || isNumeric
+
+  const minWidth = longText
+    ? 220
+    : isUUIDLike
+      ? 240
+      : isTemporal
+        ? 200
+        : isNumeric
+          ? 150
+          : isBoolean
+            ? 110
+            : 120
+
+  const maxWidth = longText
+    ? 620
+    : isUUIDLike
+      ? 460
+      : undefined
+
+  const preferredWidth = longText
+    ? 520
+    : isUUIDLike
+      ? 320
+      : isTemporal
+        ? 280
+        : undefined
+
+  return {
+    minWidth,
+    maxWidth,
+    preferredWidth,
+    longText,
+    wrapContent,
+    clipContent: !wrapContent,
+    monospace,
+  }
+}
+
+const formatTimestamp = (value: Date) => value.toLocaleString()
+
+const createRowId = (): string => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`
 }
 
 const serialiseCsvValue = (value: unknown): string => {
@@ -204,7 +281,11 @@ const ExportButton = ({ context, onExport }: { context: EditableTableContext; on
 
 const QueryResultsToolbar = ({
   context,
+  rowCount: _rowCount,
+  columnCount: _columnCount,
+  executionTimeMs: _executionTimeMs,
   executedAt,
+  dirtyCount,
   canSave,
   saving,
   onSave,
@@ -214,13 +295,20 @@ const QueryResultsToolbar = ({
   onJumpToFirstError,
   canDeleteRows,
   onDeleteSelected,
+  canInsertRows,
+  onAddRow,
+  databases,
+  currentDatabase,
+  onSelectDatabase,
+  databaseLoading,
+  databaseSwitching,
 }: ToolbarProps) => {
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     context.actions.updateGlobalFilter(event.target.value)
   }
 
   const invalidCellsCount = context.state.invalidCells.size
-  const dirtyCount = context.state.dirtyRows.size
+  const dirtyRowCount = dirtyCount ?? context.state.dirtyRows.size
   const hasValidationErrors = invalidCellsCount > 0
   const canSaveWithValidation = canSave && !hasValidationErrors
   const selectedCount = context.state.selectedRows.length
@@ -236,24 +324,49 @@ const QueryResultsToolbar = ({
       )}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="relative w-full max-w-xs">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={context.state.globalFilter}
-            onChange={handleSearchChange}
-            placeholder="Search…"
-            className="h-9 w-full pl-9"
-          />
+        <div className="flex flex-1 items-center gap-3 min-w-[220px]">
+          {onSelectDatabase && databases && databases.length > 1 && (
+            <div className="flex items-center gap-2">
+              <Select
+                value={currentDatabase ?? ''}
+                onValueChange={onSelectDatabase}
+                disabled={databaseLoading || databaseSwitching}
+              >
+                <SelectTrigger className="h-9 w-48 text-sm">
+                  <SelectValue placeholder={databaseLoading ? 'Loading databases…' : 'Select database'} />
+                </SelectTrigger>
+                <SelectContent>
+                  {databases.map((dbName) => (
+                    <SelectItem key={dbName} value={dbName}>
+                      {dbName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {(databaseLoading || databaseSwitching) && (
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              )}
+            </div>
+          )}
+          <div className="relative w-full max-w-xs">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={context.state.globalFilter}
+              onChange={handleSearchChange}
+              placeholder="Search…"
+              className="h-9 w-full pl-9"
+            />
+          </div>
         </div>
 
         <div className="flex items-center gap-3">
           <span className="text-xs text-muted-foreground">{formatTimestamp(executedAt)}</span>
 
           {/* Unsaved changes indicator */}
-          {dirtyCount > 0 && (
+          {dirtyRowCount > 0 && (
             <div className="flex items-center gap-1 px-2 py-1 bg-accent/10 border border-accent rounded text-xs">
               <span className="text-accent-foreground">
-                {dirtyCount} unsaved{dirtyCount === 1 ? '' : ''}
+                {dirtyRowCount} unsaved{dirtyRowCount === 1 ? '' : ''}
               </span>
             </div>
           )}
@@ -276,6 +389,19 @@ const QueryResultsToolbar = ({
             </div>
           )}
 
+          {/* Add row */}
+          {canInsertRows && onAddRow && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onAddRow}
+              className="gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Add Row
+            </Button>
+          )}
+
           {/* Delete selected rows */}
           {canDeleteRows && selectedCount > 0 && onDeleteSelected && (
             <Button
@@ -295,7 +421,7 @@ const QueryResultsToolbar = ({
           {metadata?.enabled && (
             <>
               {/* Discard Changes Button */}
-              {dirtyCount > 0 && onDiscardChanges && (
+              {dirtyRowCount > 0 && onDiscardChanges && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -333,13 +459,6 @@ const QueryResultsToolbar = ({
       </div>
     </div>
   )
-}
-
-const createOriginalMap = (rows: QueryResultRow[]): Record<string, QueryResultRow> => {
-  return rows.reduce<Record<string, QueryResultRow>>((acc, row) => {
-    acc[row.__rowId!] = { ...row }
-    return acc
-  }, {})
 }
 
 const buildPrimaryKeyMap = (
@@ -382,6 +501,18 @@ const buildColumnsLookup = (metadata?: QueryEditableMetadata | null) => {
   return lookup
 }
 
+const buildMetadataLookup = (metadata?: QueryEditableMetadata | null) => {
+  const map = new Map<string, QueryEditableColumn>()
+  metadata?.columns?.forEach((column) => {
+    const key = (column.resultName ?? column.name ?? '').toLowerCase()
+    if (!key) {
+      return
+    }
+    map.set(key, column)
+  })
+  return map
+}
+
 export const QueryResultsTable = ({
   resultId,
   columns = [],
@@ -409,57 +540,184 @@ export const QueryResultsTable = ({
   const [pendingDeleteIds, setPendingDeleteIds] = useState<string[]>([])
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
-
-  const connectionType = useConnectionStore(
+  const fetchDatabases = useConnectionStore((state) => state.fetchDatabases)
+  const switchConnectionDatabase = useConnectionStore((state) => state.switchDatabase)
+  const activeDatabase = useConnectionStore(
     useCallback((state) => {
       if (connectionId) {
         const connection = state.connections.find((conn) => conn.id === connectionId)
         if (connection) {
-          return connection.type
+          return connection.database
         }
       }
-      return state.activeConnection?.type
+      return state.activeConnection?.database
     }, [connectionId])
   )
-
-  const identifierQuoteStyle = useMemo(
-    () => getIdentifierQuoteStyle(connectionType),
-    [connectionType]
-  )
-
-  const quoteIdentifier = useCallback(
-    (identifier: string) => {
-      const value = String(identifier)
-      switch (identifierQuoteStyle) {
-        case 'backtick':
-          return `\`${value.replace(/`/g, '``')}\``
-        case 'square':
-          return `[${value.replace(/]/g, ']]')}]`
-        default:
-          return `"${value.replace(/"/g, '""')}"`
-      }
-    },
-    [identifierQuoteStyle]
-  )
+  const [databaseList, setDatabaseList] = useState<string[]>([])
+  const [databaseLoading, setDatabaseLoading] = useState(false)
+  const [databaseSelectorEnabled, setDatabaseSelectorEnabled] = useState(false)
+  const [isSwitchingDatabase, setIsSwitchingDatabase] = useState(false)
 
   const updateResultRows = useQueryStore((state) => state.updateResultRows)
   const columnsLookup = useMemo(() => buildColumnsLookup(metadata), [metadata])
+  const metadataLookup = useMemo(() => buildMetadataLookup(metadata), [metadata])
+  const firstEditableColumnId = useMemo(() => {
+    for (const columnName of columnNames) {
+      const metaColumn = metadataLookup.get(columnName.toLowerCase())
+      if (metaColumn?.editable) {
+        return columnName
+      }
+    }
+    return columnNames[0]
+  }, [columnNames, metadataLookup])
   const tableContextRef = useRef<EditableTableContext | null>(null)
+  const canInsertRows = useMemo(() => {
+    if (!metadata?.enabled || !metadata.table) {
+      return false
+    }
+    return Boolean(metadata.capabilities?.canInsert)
+  }, [metadata])
   const canDeleteRows = useMemo(() => {
-    return Boolean(metadata?.enabled && metadata?.table && metadata?.primaryKeys?.length)
+    if (!metadata?.enabled || !metadata?.table || !metadata?.primaryKeys?.length) {
+      return false
+    }
+    return Boolean(metadata.capabilities?.canDelete)
   }, [metadata])
 
   useEffect(() => {
     setDirtyRowIds([])
     tableContextRef.current?.actions.clearDirtyRows?.()
     tableContextRef.current?.actions.resetTable?.()
-  }, [rows, resultId])
+  }, [resultId])
+
+  useEffect(() => {
+    if (!connectionId) {
+      setDatabaseList([])
+      setDatabaseSelectorEnabled(false)
+      return
+    }
+
+    let cancelled = false
+    setDatabaseLoading(true)
+
+    fetchDatabases(connectionId)
+      .then((databases) => {
+        if (cancelled) {
+          return
+        }
+        setDatabaseList(databases)
+        setDatabaseSelectorEnabled(databases.length > 1)
+      })
+      .catch((error) => {
+        if (cancelled) {
+          return
+        }
+        setDatabaseList([])
+        setDatabaseSelectorEnabled(false)
+        if (error instanceof Error && !error.message.toLowerCase().includes('not supported')) {
+          console.warn('Failed to load databases for connection', error)
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setDatabaseLoading(false)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [connectionId, fetchDatabases])
 
   const resolveCurrentRows = useCallback((): QueryResultRow[] => {
     const contextRows = tableContextRef.current?.data as QueryResultRow[] | undefined
     const source = contextRows ?? rows
     return source.map((row) => ({ ...row }))
   }, [rows])
+
+  const handleAddRow = useCallback(() => {
+    if (!canInsertRows) {
+      return
+    }
+
+    const newRowId = createRowId()
+    const emptyRow: QueryResultRow = {
+      __rowId: newRowId,
+      __isNewRow: true,
+    }
+
+    columnNames.forEach((columnName) => {
+      const key = columnName.toLowerCase()
+      const metaColumn = metadataLookup.get(key)
+      if (metaColumn?.defaultValue !== undefined) {
+        emptyRow[columnName] = metaColumn.defaultValue as CellValue
+      } else {
+        emptyRow[columnName] = undefined
+      }
+    })
+
+    const nextRows = [...rows, emptyRow]
+    updateResultRows(resultId, nextRows, originalRows)
+    setDirtyRowIds((prev) => [...new Set([...prev, newRowId])])
+
+    const targetColumn = firstEditableColumnId || columnNames[0]
+    if (targetColumn && tableContextRef.current?.actions?.startEditing) {
+      requestAnimationFrame(() => {
+        tableContextRef.current?.actions.startEditing(newRowId, targetColumn, emptyRow[targetColumn] as CellValue)
+      })
+    }
+  }, [
+    canInsertRows,
+    columnNames,
+    metadataLookup,
+    rows,
+    originalRows,
+    resultId,
+    updateResultRows,
+    firstEditableColumnId,
+  ])
+
+  const handleDatabaseSelection = useCallback(async (nextDatabase: string) => {
+    if (!connectionId || !nextDatabase || nextDatabase === (activeDatabase ?? '')) {
+      return
+    }
+
+    setIsSwitchingDatabase(true)
+    try {
+      await switchConnectionDatabase(connectionId, nextDatabase)
+      setDirtyRowIds([])
+      setPendingDeleteIds([])
+      tableContextRef.current?.actions.clearDirtyRows?.()
+      tableContextRef.current?.actions.clearInvalidCells?.()
+      tableContextRef.current?.actions.resetTable?.()
+      updateResultRows(resultId, [], {})
+      setJsonViewerOpen(false)
+      setSelectedRowId(null)
+      setSelectedRowData(null)
+
+      toast({
+        title: 'Database switched',
+        description: `Active database is now ${nextDatabase}.`,
+        variant: 'default'
+      })
+    } catch (error) {
+      toast({
+        title: 'Failed to switch database',
+        description: error instanceof Error ? error.message : 'Unable to switch database',
+        variant: 'destructive'
+      })
+    } finally {
+      setIsSwitchingDatabase(false)
+    }
+  }, [
+    connectionId,
+    activeDatabase,
+    switchConnectionDatabase,
+    setDirtyRowIds,
+    setPendingDeleteIds,
+    updateResultRows,
+    resultId
+  ])
 
   const handleSave = useCallback(async () => {
     const currentRows = resolveCurrentRows()
@@ -479,7 +737,6 @@ export const QueryResultsTable = ({
       return
     }
 
-    // Validate all cells before saving
     if (tableContextRef.current) {
       const isValid = tableContextRef.current.actions.validateAllCells()
       if (!isValid) {
@@ -496,11 +753,53 @@ export const QueryResultsTable = ({
     setSaving(true)
 
     try {
-      for (const rowId of dirtyRowIds) {
-        const currentRow = currentRows.find((row) => row.__rowId === rowId)
-        const originalRow = originalRows[rowId]
+      const updatedRows = [...currentRows]
+      const newOriginalRows: Record<string, QueryResultRow> = { ...originalRows }
 
-        if (!currentRow || !originalRow) {
+      for (const rowId of dirtyRowIds) {
+        const rowIndex = updatedRows.findIndex((row) => row.__rowId === rowId)
+        if (rowIndex === -1) {
+          continue
+        }
+
+        const currentRow = updatedRows[rowIndex]
+        const originalRow = originalRows[rowId]
+        const isNewRow = currentRow.__isNewRow || !originalRow
+
+        if (isNewRow) {
+          const insertValues: Record<string, unknown> = {}
+          columnNames.forEach((columnName) => {
+            const value = currentRow[columnName]
+            if (value !== undefined) {
+              insertValues[columnName] = value
+            }
+          })
+
+          const response = await wailsEndpoints.queries.insertRow({
+            connectionId,
+            query,
+            columns: columnNames,
+            schema: metadata?.schema,
+            table: metadata?.table,
+            values: insertValues,
+          })
+
+          if (!response.success) {
+            throw new Error(response.message || 'Failed to insert row')
+          }
+
+          const returnedValues = response.row || {}
+          const persistedRow: QueryResultRow = { ...currentRow, __isNewRow: false }
+          columnNames.forEach((columnName) => {
+            if (returnedValues[columnName] !== undefined) {
+              persistedRow[columnName] = returnedValues[columnName]
+            }
+          })
+
+          updatedRows[rowIndex] = persistedRow
+          const snapshot = { ...persistedRow }
+          delete snapshot.__isNewRow
+          newOriginalRows[rowId] = snapshot
           continue
         }
 
@@ -545,10 +844,13 @@ export const QueryResultsTable = ({
         if (!response.success) {
           throw new Error(response.message || 'Failed to save changes')
         }
+
+        const snapshot = { ...currentRow }
+        delete snapshot.__isNewRow
+        newOriginalRows[rowId] = snapshot
       }
 
-      const newOriginalRows = createOriginalMap(currentRows)
-      updateResultRows(resultId, currentRows, newOriginalRows)
+      updateResultRows(resultId, updatedRows, newOriginalRows)
       setDirtyRowIds([])
       tableContextRef.current?.actions.clearDirtyRows()
       tableContextRef.current?.actions.clearInvalidCells()
@@ -580,47 +882,6 @@ export const QueryResultsTable = ({
     rows,
     updateResultRows,
   ])
-
-  const getMetaForColumn = useCallback((columnName: string) => {
-    const lower = columnName.toLowerCase()
-    return metadata?.columns?.find((col) => {
-      const candidates = [col.name, col.resultName].filter(Boolean) as string[]
-      return candidates.some((candidate) => candidate.toLowerCase() === lower)
-    })
-  }, [metadata])
-
-  const formatValueForColumn = useCallback((columnName: string, value: unknown): string => {
-    const meta = getMetaForColumn(columnName)
-    const dataType = meta?.dataType?.toLowerCase() ?? ''
-
-    if (value === null || value === undefined) {
-      return 'NULL'
-    }
-
-    if (typeof value === 'number') {
-      return Number.isFinite(value) ? String(value) : `'${String(value).replace(/'/g, "''")}'`
-    }
-
-    if (typeof value === 'boolean') {
-      return value ? 'TRUE' : 'FALSE'
-    }
-
-    if (dataType.includes('bool')) {
-      const normalized = String(value).toLowerCase()
-      if (['true', 't', '1', 'yes'].includes(normalized)) return 'TRUE'
-      if (['false', 'f', '0', 'no'].includes(normalized)) return 'FALSE'
-    }
-
-    if (dataType.match(/int|numeric|decimal|float|double|real|serial|money/)) {
-      const numeric = Number(value)
-      if (!Number.isNaN(numeric)) {
-        return String(numeric)
-      }
-    }
-
-    const stringValue = value instanceof Date ? value.toISOString() : String(value)
-    return `'${stringValue.replace(/'/g, "''")}'`
-  }, [getMetaForColumn])
 
   const handleRequestDelete = useCallback(() => {
     const selected = tableContextRef.current?.state.selectedRows ?? []
@@ -657,41 +918,33 @@ export const QueryResultsTable = ({
         throw new Error('No matching rows found to delete.')
       }
 
-      const whereClauses: string[] = []
+      const primaryKeysPayload: Record<string, unknown>[] = []
 
       rowsToDelete.forEach((row) => {
-        const primaryKey = buildPrimaryKeyMap(row, metadata, columnsLookup)
+        const originalRow = originalRows[row.__rowId]
+        if (!originalRow) {
+          return
+        }
+        const primaryKey = buildPrimaryKeyMap(originalRow, metadata, columnsLookup)
         if (!primaryKey) {
           throw new Error('Unable to determine primary key for one of the selected rows.')
         }
-
-        const clauseParts = Object.entries(primaryKey).map(([pkColumn, pkValue]) => {
-          const columnIdentifier = quoteIdentifier(pkColumn)
-          if (pkValue === null || pkValue === undefined) {
-            return `${columnIdentifier} IS NULL`
-          }
-          const valueLiteral = formatValueForColumn(pkColumn, pkValue)
-          return `${columnIdentifier} = ${valueLiteral}`
-        })
-
-        if (clauseParts.length > 0) {
-          whereClauses.push(`(${clauseParts.join(' AND ')})`)
-        }
+        primaryKeysPayload.push(primaryKey)
       })
 
-      if (!whereClauses.length) {
-        throw new Error('Unable to build a deletion condition for the selected rows.')
-      }
+      if (primaryKeysPayload.length > 0) {
+        const response = await wailsEndpoints.queries.deleteRows({
+          connectionId,
+          query,
+          columns: columnNames,
+          schema: metadata?.schema,
+          table: metadata?.table,
+          primaryKeys: primaryKeysPayload,
+        })
 
-      const tableIdentifier = metadata.schema
-        ? `${quoteIdentifier(metadata.schema)}.${quoteIdentifier(metadata.table)}`
-        : quoteIdentifier(metadata.table)
-
-      const deleteStatement = `DELETE FROM ${tableIdentifier} WHERE ${whereClauses.join(' OR ')};`
-
-      const response = await wailsEndpoints.queries.execute(connectionId, deleteStatement)
-      if (!response.success) {
-        throw new Error(response.message || 'Failed to delete selected rows.')
+        if (!response.success) {
+          throw new Error(response.message || 'Failed to delete selected rows.')
+        }
       }
 
       const remainingRows = currentRows.filter(row => !pendingDeleteIds.includes(row.__rowId))
@@ -731,12 +984,12 @@ export const QueryResultsTable = ({
   }, [
     canDeleteRows,
     columnsLookup,
+    columnNames,
     connectionId,
-    formatValueForColumn,
     metadata,
     originalRows,
     pendingDeleteIds,
-    quoteIdentifier,
+    query,
     resolveCurrentRows,
     resultId,
     selectedRowId,
@@ -767,23 +1020,33 @@ export const QueryResultsTable = ({
 
   const tableColumns: TableColumn[] = useMemo(() => {
     return columnNames.map<TableColumn>((columnName) => {
-      const metaColumn = metadata?.columns?.find((col) => {
-        const candidate = (col.resultName ?? col.name)?.toLowerCase()
-        return candidate ? candidate === columnName.toLowerCase() : false
-      })
+      const metaColumn = metadataLookup.get(columnName.toLowerCase())
+      const columnType = inferColumnType(metaColumn?.dataType)
+      const traits = deriveColumnDisplayTraits(columnName, metaColumn, columnType)
 
       return {
         id: columnName,
         accessorKey: columnName,
         header: columnName,
-        type: inferColumnType(metaColumn?.dataType),
+        type: columnType,
         editable: Boolean(metadata?.enabled && metaColumn?.editable),
         sortable: true,
         filterable: true,
-        minWidth: 120,
+        minWidth: traits.minWidth,
+        maxWidth: traits.maxWidth,
+        preferredWidth: traits.preferredWidth,
+        longText: traits.longText,
+        wrapContent: traits.wrapContent,
+        clipContent: traits.clipContent,
+        monospace: traits.monospace,
+        hasDefault: Boolean(metaColumn?.hasDefault),
+        defaultLabel: metaColumn?.defaultExpression || '[default]',
+        defaultValue: metaColumn?.defaultValue,
+        autoNumber: Boolean(metaColumn?.autoNumber),
+        isPrimaryKey: Boolean(metaColumn?.primaryKey),
       }
     })
-  }, [columnNames, metadata])
+  }, [columnNames, metadataLookup, metadata?.enabled])
 
   // const handleExportCsv = useCallback(() => {
   //   const currentRows = resolveCurrentRows()
@@ -1090,11 +1353,20 @@ export const QueryResultsTable = ({
         onJumpToFirstError={handleJumpToFirstError}
         canDeleteRows={canDeleteRows}
         onDeleteSelected={canDeleteRows ? handleRequestDelete : undefined}
+        canInsertRows={canInsertRows}
+        onAddRow={canInsertRows ? handleAddRow : undefined}
+        databases={databaseSelectorEnabled ? databaseList : undefined}
+        currentDatabase={activeDatabase}
+        onSelectDatabase={databaseSelectorEnabled ? handleDatabaseSelection : undefined}
+        databaseLoading={databaseLoading}
+        databaseSwitching={isSwitchingDatabase}
       />
     )
   }, [rowCount, columnNames.length, executionTimeMs, executedAt, dirtyRowIds.length,
       canSave, saving, handleSave, handleExport, metadata,
-      handleDiscardChanges, handleJumpToFirstError, canDeleteRows, handleRequestDelete])
+      handleDiscardChanges, handleJumpToFirstError, canDeleteRows, handleRequestDelete,
+      canInsertRows, handleAddRow, databaseSelectorEnabled, databaseList,
+      activeDatabase, handleDatabaseSelection, databaseLoading, isSwitchingDatabase])
 
   const safeAffectedRows = Number.isFinite(affectedRows) ? affectedRows : 0
   const hasTabularResults = columnNames.length > 0 && rows.length > 0

@@ -3,20 +3,22 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { 
-  ChevronRight, 
-  ChevronDown, 
-  Edit3, 
-  Check, 
-  X, 
+import {
+  ChevronRight,
+  ChevronDown,
+  Edit3,
+  Check,
+  X,
   AlertCircle,
-  Copy
+  Copy,
+  Eye
 } from 'lucide-react'
 import { JsonToken, getTokenClass } from '@/lib/json-formatter'
 import { SearchMatch, highlightMatches } from '@/lib/json-search'
 import { CellValue } from '@/types/table'
 import { ForeignKeyResolver } from './foreign-key-resolver'
 import { formatValue, getValueClass } from './json-editor-utils'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import type { QueryEditableMetadata } from '@/store/query-store'
 
 interface JsonEditorProps {
@@ -66,6 +68,7 @@ export function JsonEditor({
   const [editingField, setEditingField] = useState<string | null>(null)
   const [editValue, setEditValue] = useState<string>('')
   const editInputRef = useRef<HTMLInputElement>(null)
+  const [previewField, setPreviewField] = useState<{ key: string; value: string } | null>(null)
 
   // Parse JSON data into hierarchical structure
   const jsonNodes = useMemo((): JsonNode[] => {
@@ -227,6 +230,20 @@ export function JsonEditor({
               <span className={getValueClass(value)}>
                 {formatValue(value)}
               </span>
+              {typeof value === 'string' && (value.length > 120 || value.includes('\n')) && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 shrink-0 text-muted-foreground"
+                  onClick={(event) => {
+                    event.preventDefault()
+                    event.stopPropagation()
+                    setPreviewField({ key, value })
+                  }}
+                >
+                  <Eye className="h-3.5 w-3.5" />
+                </Button>
+              )}
               
               {/* Edit button */}
               {nodeEditing && (
@@ -267,46 +284,78 @@ export function JsonEditor({
   }, [onToggleKeyExpansion, handleStartEdit, handleSaveEdit, handleCancelEdit, editValue, metadata, connectionId])
 
   return (
-    <div className="json-editor">
-      {/* Toolbar */}
-      <div className="flex items-center justify-between p-2 border-b">
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onCopyJson}
-            className="h-7"
-          >
-            <Copy className="h-3 w-3 mr-1" />
-            Copy JSON
-          </Button>
+    <>
+      <div className="json-editor">
+        {/* Toolbar */}
+        <div className="flex items-center justify-between p-2 border-b">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onCopyJson}
+              className="h-7"
+            >
+              <Copy className="h-3 w-3 mr-1" />
+              Copy JSON
+            </Button>
+          </div>
+          
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            {searchMatches.length > 0 && (
+              <span>
+                {currentMatchIndex + 1} of {searchMatches.length} matches
+              </span>
+            )}
+          </div>
         </div>
-        
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          {searchMatches.length > 0 && (
-            <span>
-              {currentMatchIndex + 1} of {searchMatches.length} matches
-            </span>
-          )}
-        </div>
-      </div>
 
-      {/* JSON Content */}
-      <ScrollArea className="h-full">
-        <div className="p-4 space-y-1">
-          {isEditing ? (
-            // Tree view for editing
-            <div className="space-y-1">
-              {jsonNodes.map(renderField)}
+        {/* JSON Content */}
+        <ScrollArea className="h-full">
+          <div className="p-4 space-y-1">
+            {isEditing ? (
+              // Tree view for editing
+              <div className="space-y-1">
+                {jsonNodes.map(renderField)}
+              </div>
+            ) : (
+              // Syntax highlighted view
+              <div className="json-content">
+                {renderTokens()}
+              </div>
+            )}
+          </div>
+        </ScrollArea>
+      </div>
+      <Dialog open={Boolean(previewField)} onOpenChange={(open) => {
+        if (!open) {
+          setPreviewField(null)
+        }
+      }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{previewField?.key ?? 'Value'}</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-3">
+            <div className="flex justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (!previewField) return
+                  navigator.clipboard.writeText(previewField.value).catch(() => undefined)
+                }}
+                className="h-8"
+              >
+                <Copy className="h-3 w-3 mr-1" />
+                Copy
+              </Button>
             </div>
-          ) : (
-            // Syntax highlighted view
-            <div className="json-content">
-              {renderTokens()}
+            <div className="max-h-[60vh] overflow-auto whitespace-pre-wrap font-mono text-sm text-muted-foreground">
+              {previewField?.value ?? ''}
             </div>
-          )}
-        </div>
-      </ScrollArea>
-    </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }

@@ -84,6 +84,8 @@ interface ConnectionState {
   setAutoConnect: (enabled: boolean) => void
   connectToDatabase: (connectionId: string) => Promise<void>
   disconnectFromDatabase: (connectionId: string) => Promise<void>
+  fetchDatabases: (connectionId: string) => Promise<string[]>
+  switchDatabase: (connectionId: string, database: string) => Promise<void>
   setEnvironmentFilter: (env: string | null) => void
   getFilteredConnections: () => DatabaseConnection[]
   addEnvironmentToConnection: (connId: string, env: string) => void
@@ -350,6 +352,59 @@ export const useConnectionStore = create<ConnectionState>()(
             ),
             activeConnection:
               currentState.activeConnection?.id === connectionId ? null : currentState.activeConnection,
+          }))
+        },
+
+        fetchDatabases: async (connectionId) => {
+          const state = get()
+          const connection = state.connections.find((conn) => conn.id === connectionId || conn.sessionId === connectionId)
+
+          if (!connection) {
+            // If we don't know about this connection but it might be a live session ID, try once.
+            const response = await wailsEndpoints.connections.listDatabases(connectionId)
+            if (!response.success) {
+              throw new Error(response.message || 'Unable to fetch databases for this connection.')
+            }
+            return response.databases ?? []
+          }
+
+          if (!connection.sessionId) {
+            // Not connected yet; nothing to return.
+            return []
+          }
+
+          const response = await wailsEndpoints.connections.listDatabases(connection.sessionId)
+          if (!response.success) {
+            throw new Error(response.message || 'Unable to fetch databases for this connection.')
+          }
+          return response.databases ?? []
+        },
+
+        switchDatabase: async (connectionId, database) => {
+          const state = get()
+          const connection = state.connections.find((conn) => conn.id === connectionId || conn.sessionId === connectionId)
+          if (!connection) {
+            throw new Error('Connection not found')
+          }
+
+          const managerId = connection.sessionId
+          if (!managerId) {
+            throw new Error('Connection is not active')
+          }
+
+          const response = await wailsEndpoints.connections.switchDatabase(managerId, database)
+          if (!response.success) {
+            throw new Error(response.message || 'Failed to switch database.')
+          }
+
+          set((currentState) => ({
+            connections: currentState.connections.map((conn) =>
+              conn.id === connection.id ? { ...conn, database } : conn
+            ),
+            activeConnection:
+              currentState.activeConnection?.id === connection.id
+                ? { ...currentState.activeConnection, database }
+                : currentState.activeConnection,
           }))
         },
 

@@ -30,6 +30,8 @@ export function DeleteFile(arg1:string):Promise<void>;
 
 export function DeletePassword(arg1:string):Promise<void>;
 
+export function DeleteQueryRows(arg1:main.QueryRowDeleteRequest):Promise<main.QueryRowDeleteResponse>;
+
 export function DeleteSyntheticView(arg1:string):Promise<void>;
 
 export function ExecuteMultiDatabaseQuery(arg1:main.MultiQueryRequest):Promise<main.MultiQueryResponse>;
@@ -128,9 +130,13 @@ export function HealthCheckAll():Promise<Record<string, main.HealthStatus>>;
 
 export function ImportKeyboardBindings(arg1:Record<string, services.KeyboardAction>):Promise<void>;
 
+export function InsertQueryRow(arg1:main.QueryRowInsertRequest):Promise<main.QueryRowInsertResponse>;
+
 export function InvalidateAllSchemas():Promise<void>;
 
 export function InvalidateSchemaCache(arg1:string):Promise<void>;
+
+export function ListConnectionDatabases(arg1:string):Promise<main.ListDatabasesResponse>;
 
 export function ListConnections():Promise<Array<string>>;
 
@@ -185,6 +191,8 @@ export function StorePassword(arg1:string,arg2:string):Promise<void>;
 export function StreamAIQueryAgent(arg1:main.AIQueryAgentRequest):Promise<main.AIQueryAgentResponse>;
 
 export function SuggestVisualization(arg1:main.ResultData):Promise<main.VizSuggestion>;
+
+export function SwitchConnectionDatabase(arg1:main.SwitchDatabaseRequest):Promise<main.SwitchDatabaseResponse>;
 
 export function TestAIProvider(arg1:main.ProviderConfig):Promise<main.ProviderStatus>;
 

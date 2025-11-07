@@ -447,7 +447,7 @@ export class WailsApiClient {
             affectedRows: 0
           },
           warnings: [],
-          editable: null,
+          editable: result.editable || null,
           connectionsUsed: result.connectionsUsed || []
         },
         success,
@@ -490,6 +490,91 @@ export class WailsApiClient {
       return {
         success: false,
         message: error instanceof Error ? error.message : 'Failed to save changes'
+      }
+    }
+  }
+
+  async insertQueryRow(payload: unknown) {
+    try {
+      const requestPayload = payload as {
+        connectionId: string
+        query: string
+        columns: string[]
+        schema?: string
+        table?: string
+        values: Record<string, unknown>
+      }
+      const response = await App.InsertQueryRow(requestPayload)
+      return {
+        success: response.success,
+        message: response.message,
+        row: response.row
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to insert row'
+      }
+    }
+  }
+
+  async deleteQueryRows(payload: unknown) {
+    try {
+      const requestPayload = payload as {
+        connectionId: string
+        query: string
+        columns: string[]
+        schema?: string
+        table?: string
+        primaryKeys: Record<string, unknown>[]
+      }
+
+      const response = await App.DeleteQueryRows(requestPayload)
+      return {
+        success: response.success,
+        message: response.message,
+        deleted: response.deleted
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to delete rows'
+      }
+    }
+  }
+
+  async listConnectionDatabases(connectionId: string) {
+    try {
+      const response = await App.ListConnectionDatabases(connectionId)
+      return {
+        success: response.success,
+        message: response.message,
+        databases: response.databases ?? []
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to list databases',
+        databases: [] as string[]
+      }
+    }
+  }
+
+  async switchConnectionDatabase(payload: { connectionId: string; database: string }) {
+    try {
+      const response = await App.SwitchConnectionDatabase(payload)
+      return {
+        success: response.success,
+        message: response.message,
+        database: response.database,
+        reconnected: Boolean(response.reconnected)
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to switch database',
+        database: payload.database,
+        reconnected: false
       }
     }
   }
@@ -545,6 +630,12 @@ export const wailsEndpoints = {
 
     remove: async (connectionId: string) => {
       return wailsApiClient.removeConnection(connectionId)
+    },
+    listDatabases: async (connectionId: string) => {
+      return wailsApiClient.listConnectionDatabases(connectionId)
+    },
+    switchDatabase: async (connectionId: string, database: string) => {
+      return wailsApiClient.switchConnectionDatabase({ connectionId, database })
     }
   },
 
@@ -558,6 +649,12 @@ export const wailsEndpoints = {
     },
     updateRow: async (payload: unknown) => {
       return wailsApiClient.updateQueryRow(payload)
+    },
+    insertRow: async (payload: unknown) => {
+      return wailsApiClient.insertQueryRow(payload)
+    },
+    deleteRows: async (payload: unknown) => {
+      return wailsApiClient.deleteQueryRows(payload)
     }
   },
 

@@ -238,42 +238,6 @@ func TestMySQLDatabase_GetDataTypeMappings(t *testing.T) {
 	}
 }
 
-func TestMySQLDatabase_UpdateRow(t *testing.T) {
-	config := database.ConnectionConfig{
-		Type:     database.MySQL,
-		Host:     "localhost",
-		Port:     3306,
-		Database: "testdb",
-		Username: "user",
-		Password: "password",
-	}
-
-	logger := newTestLogger()
-	db, err := database.NewMySQLDatabase(config, logger)
-
-	if err == nil && db != nil {
-		defer db.Disconnect()
-
-		ctx := context.Background()
-		params := database.UpdateRowParams{
-			Schema: "testdb",
-			Table:  "users",
-			PrimaryKey: map[string]interface{}{
-				"id": 1,
-			},
-			Values: map[string]interface{}{
-				"name": "John Doe",
-			},
-		}
-
-		err := db.UpdateRow(ctx, params)
-
-		// UpdateRow is not yet supported for MySQL
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "not yet supported")
-	}
-}
-
 // TestMySQLDatabase_Execute tests query execution behavior
 // Note: These tests would require a mock database connection
 func TestMySQLDatabase_Execute_QueryType(t *testing.T) {

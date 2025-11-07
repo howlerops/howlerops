@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -44,15 +45,31 @@ func (a *databaseAdapter) Execute(ctx context.Context, query string, args ...int
 			JobID:       result.Editable.JobID,
 		}
 
+		// Convert capabilities if present
+		if result.Editable.Capabilities != nil {
+			multiqueryResult.Editable.Capabilities = &multiquery.MutationCapabilities{
+				CanInsert: result.Editable.Capabilities.CanInsert,
+				CanUpdate: result.Editable.Capabilities.CanUpdate,
+				CanDelete: result.Editable.Capabilities.CanDelete,
+				Reason:    result.Editable.Capabilities.Reason,
+			}
+		}
+
 		// Convert columns
 		multiqueryResult.Editable.Columns = make([]multiquery.EditableColumn, len(result.Editable.Columns))
 		for i, col := range result.Editable.Columns {
 			multiqueryResult.Editable.Columns[i] = multiquery.EditableColumn{
-				Name:       col.Name,
-				ResultName: col.ResultName,
-				DataType:   col.DataType,
-				Editable:   col.Editable,
-				PrimaryKey: col.PrimaryKey,
+				Name:              col.Name,
+				ResultName:        col.ResultName,
+				DataType:          col.DataType,
+				Editable:          col.Editable,
+				PrimaryKey:        col.PrimaryKey,
+				HasDefault:        col.HasDefault,
+				DefaultValue:      col.DefaultVal,
+				DefaultExpression: col.DefaultExp,
+				AutoNumber:        col.AutoNumber,
+				TimeZone:          col.TimeZone,
+				Precision:         col.Precision,
 			}
 
 			// Convert foreign key if present
@@ -71,34 +88,37 @@ func (a *databaseAdapter) Execute(ctx context.Context, query string, args ...int
 
 // Manager manages multiple database connections
 type Manager struct {
-	connections      map[string]Database
-	connectionNames  map[string]string // name -> sessionId mapping for multi-DB queries
-	mu               sync.RWMutex
-	logger           *logrus.Logger
-	multiQueryParser *multiquery.QueryParser
-	multiQueryExec   *multiquery.Executor
-	multiQueryConfig *multiquery.Config
-	schemaCache      *SchemaCache // Smart schema caching with change detection
+	connections       map[string]Database
+	connectionNames   map[string]string // name -> sessionId mapping for multi-DB queries
+	connectionConfigs map[string]ConnectionConfig
+	mu                sync.RWMutex
+	logger            *logrus.Logger
+	multiQueryParser  *multiquery.QueryParser
+	multiQueryExec    *multiquery.Executor
+	multiQueryConfig  *multiquery.Config
+	schemaCache       *SchemaCache // Smart schema caching with change detection
 }
 
 // NewManager creates a new database manager
 func NewManager(logger *logrus.Logger) *Manager {
 	return &Manager{
-		connections:     make(map[string]Database),
-		connectionNames: make(map[string]string),
-		logger:          logger,
-		schemaCache:     NewSchemaCache(logger),
+		connections:       make(map[string]Database),
+		connectionNames:   make(map[string]string),
+		connectionConfigs: make(map[string]ConnectionConfig),
+		logger:            logger,
+		schemaCache:       NewSchemaCache(logger),
 	}
 }
 
 // NewManagerWithConfig creates a new database manager with multi-query support
 func NewManagerWithConfig(logger *logrus.Logger, mqConfig *multiquery.Config) *Manager {
 	m := &Manager{
-		connections:      make(map[string]Database),
-		connectionNames:  make(map[string]string),
-		logger:           logger,
-		schemaCache:      NewSchemaCache(logger),
-		multiQueryConfig: mqConfig,
+		connections:       make(map[string]Database),
+		connectionNames:   make(map[string]string),
+		connectionConfigs: make(map[string]ConnectionConfig),
+		logger:            logger,
+		schemaCache:       NewSchemaCache(logger),
+		multiQueryConfig:  mqConfig,
 	}
 
 	// Initialize multi-query components if enabled
@@ -166,6 +186,7 @@ func (m *Manager) CreateConnection(ctx context.Context, config ConnectionConfig)
 
 	// Store the database instance
 	m.connections[connectionID] = db
+	m.connectionConfigs[connectionID] = config
 
 	// Store name-to-sessionId mapping for multi-DB queries
 	for alias := range aliasTargets {
@@ -268,6 +289,7 @@ func (m *Manager) RemoveConnection(connectionID string) error {
 
 	// Remove from connections map
 	delete(m.connections, connectionID)
+	delete(m.connectionConfigs, connectionID)
 
 	// Remove from connectionNames map (find and delete the reverse mapping)
 	for name, sessID := range m.connectionNames {
@@ -282,6 +304,104 @@ func (m *Manager) RemoveConnection(connectionID string) error {
 	}).Info("Database connection removed")
 
 	return nil
+}
+
+func (m *Manager) updateDatabaseAliasLocked(connectionID, oldDB, newDB string) {
+	oldKey := strings.TrimSpace(oldDB)
+	newKey := strings.TrimSpace(newDB)
+
+	if oldKey != "" && oldKey != newKey {
+		if current, ok := m.connectionNames[oldKey]; ok && current == connectionID {
+			delete(m.connectionNames, oldKey)
+		}
+	}
+	if newKey != "" {
+		m.connectionNames[newKey] = connectionID
+	}
+}
+
+// ListDatabases returns the databases available for a connection
+func (m *Manager) ListDatabases(ctx context.Context, connectionID string) ([]string, error) {
+	db, err := m.GetConnection(connectionID)
+	if err != nil {
+		return nil, err
+	}
+
+	return db.ListDatabases(ctx)
+}
+
+// SwitchDatabase switches the active database for a connection. Returns the updated config and whether a reconnect occurred.
+func (m *Manager) SwitchDatabase(ctx context.Context, connectionID, databaseName string) (ConnectionConfig, bool, error) {
+	var empty ConnectionConfig
+
+	m.mu.RLock()
+	db, exists := m.connections[connectionID]
+	cfg, hasCfg := m.connectionConfigs[connectionID]
+	m.mu.RUnlock()
+
+	if !exists || !hasCfg {
+		return empty, false, fmt.Errorf("connection not found: %s", connectionID)
+	}
+
+	if strings.EqualFold(strings.TrimSpace(cfg.Database), strings.TrimSpace(databaseName)) {
+		return cfg, false, nil
+	}
+
+	if err := db.SwitchDatabase(ctx, databaseName); err != nil {
+		if errors.Is(err, ErrDatabaseSwitchRequiresReconnect) {
+			return m.switchDatabaseWithReconnect(ctx, connectionID, cfg, databaseName)
+		}
+		return empty, false, err
+	}
+
+	oldCfg := cfg
+	cfg.Database = databaseName
+
+	m.mu.Lock()
+	m.connectionConfigs[connectionID] = cfg
+	m.updateDatabaseAliasLocked(connectionID, oldCfg.Database, cfg.Database)
+	m.mu.Unlock()
+
+	if m.schemaCache != nil {
+		m.schemaCache.InvalidateCache(connectionID)
+	}
+
+	return cfg, false, nil
+}
+
+func (m *Manager) switchDatabaseWithReconnect(ctx context.Context, connectionID string, cfg ConnectionConfig, databaseName string) (ConnectionConfig, bool, error) {
+	var empty ConnectionConfig
+
+	oldCfg := cfg
+	cfg.Database = databaseName
+
+	newDB, err := m.createDatabaseInstance(cfg)
+	if err != nil {
+		return empty, false, fmt.Errorf("failed to create database instance: %w", err)
+	}
+
+	if err := newDB.Connect(ctx, cfg); err != nil {
+		return empty, false, fmt.Errorf("failed to connect to database: %w", err)
+	}
+
+	m.mu.Lock()
+	oldDB := m.connections[connectionID]
+	m.connections[connectionID] = newDB
+	m.connectionConfigs[connectionID] = cfg
+	m.updateDatabaseAliasLocked(connectionID, oldCfg.Database, cfg.Database)
+	m.mu.Unlock()
+
+	if oldDB != nil {
+		if err := oldDB.Disconnect(); err != nil {
+			m.logger.WithError(err).Warn("Failed to disconnect previous database connection during switch")
+		}
+	}
+
+	if m.schemaCache != nil {
+		m.schemaCache.InvalidateCache(connectionID)
+	}
+
+	return cfg, true, nil
 }
 
 // TestConnection tests a database connection configuration
@@ -347,6 +467,26 @@ func (m *Manager) UpdateRow(ctx context.Context, connectionID string, params Upd
 	}
 
 	return db.UpdateRow(ctx, params)
+}
+
+// InsertRow inserts a new row for the specified connection
+func (m *Manager) InsertRow(ctx context.Context, connectionID string, params InsertRowParams) (map[string]interface{}, error) {
+	db, err := m.GetConnection(connectionID)
+	if err != nil {
+		return nil, err
+	}
+
+	return db.InsertRow(ctx, params)
+}
+
+// DeleteRow removes an existing row for the specified connection
+func (m *Manager) DeleteRow(ctx context.Context, connectionID string, params DeleteRowParams) error {
+	db, err := m.GetConnection(connectionID)
+	if err != nil {
+		return err
+	}
+
+	return db.DeleteRow(ctx, params)
 }
 
 // Close closes all database connections

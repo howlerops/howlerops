@@ -23,6 +23,12 @@ export namespace database {
 	    editable: boolean;
 	    primary_key: boolean;
 	    foreign_key?: ForeignKeyRef;
+	    has_default?: boolean;
+	    default_value?: any;
+	    default_expression?: string;
+	    auto_number?: boolean;
+	    time_zone?: boolean;
+	    precision?: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new EditableColumn(source);
@@ -36,6 +42,12 @@ export namespace database {
 	        this.editable = source["editable"];
 	        this.primary_key = source["primary_key"];
 	        this.foreign_key = this.convertValues(source["foreign_key"], ForeignKeyRef);
+	        this.has_default = source["has_default"];
+	        this.default_value = source["default_value"];
+	        this.default_expression = source["default_expression"];
+	        this.auto_number = source["auto_number"];
+	        this.time_zone = source["time_zone"];
+	        this.precision = source["precision"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -56,6 +68,24 @@ export namespace database {
 		    return a;
 		}
 	}
+	export class MutationCapabilities {
+	    can_insert: boolean;
+	    can_update: boolean;
+	    can_delete: boolean;
+	    reason?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new MutationCapabilities(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.can_insert = source["can_insert"];
+	        this.can_update = source["can_update"];
+	        this.can_delete = source["can_delete"];
+	        this.reason = source["reason"];
+	    }
+	}
 	export class EditableQueryMetadata {
 	    enabled: boolean;
 	    reason?: string;
@@ -65,6 +95,7 @@ export namespace database {
 	    columns?: EditableColumn[];
 	    pending?: boolean;
 	    job_id?: string;
+	    capabilities?: MutationCapabilities;
 	
 	    static createFrom(source: any = {}) {
 	        return new EditableQueryMetadata(source);
@@ -80,6 +111,7 @@ export namespace database {
 	        this.columns = this.convertValues(source["columns"], EditableColumn);
 	        this.pending = source["pending"];
 	        this.job_id = source["job_id"];
+	        this.capabilities = this.convertValues(source["capabilities"], MutationCapabilities);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -100,6 +132,7 @@ export namespace database {
 		    return a;
 		}
 	}
+	
 
 }
 
@@ -996,6 +1029,22 @@ export namespace main {
 	        this.metadata = source["metadata"];
 	    }
 	}
+	export class ListDatabasesResponse {
+	    success: boolean;
+	    message?: string;
+	    databases?: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new ListDatabasesResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.success = source["success"];
+	        this.message = source["message"];
+	        this.databases = source["databases"];
+	    }
+	}
 	export class MultiQueryRequest {
 	    query: string;
 	    limit?: number;
@@ -1024,6 +1073,7 @@ export namespace main {
 	    connectionsUsed: string[];
 	    strategy: string;
 	    error?: string;
+	    editable?: services.EditableMetadataResponse;
 	
 	    static createFrom(source: any = {}) {
 	        return new MultiQueryResponse(source);
@@ -1038,7 +1088,26 @@ export namespace main {
 	        this.connectionsUsed = source["connectionsUsed"];
 	        this.strategy = source["strategy"];
 	        this.error = source["error"];
+	        this.editable = this.convertValues(source["editable"], services.EditableMetadataResponse);
 	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 	export class NLQueryRequest {
 	    prompt: string;
@@ -1220,6 +1289,82 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class QueryRowDeleteRequest {
+	    connectionId: string;
+	    query: string;
+	    columns: string[];
+	    schema?: string;
+	    table?: string;
+	    primaryKeys: any[];
+	
+	    static createFrom(source: any = {}) {
+	        return new QueryRowDeleteRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.connectionId = source["connectionId"];
+	        this.query = source["query"];
+	        this.columns = source["columns"];
+	        this.schema = source["schema"];
+	        this.table = source["table"];
+	        this.primaryKeys = source["primaryKeys"];
+	    }
+	}
+	export class QueryRowDeleteResponse {
+	    success: boolean;
+	    message?: string;
+	    deleted: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new QueryRowDeleteResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.success = source["success"];
+	        this.message = source["message"];
+	        this.deleted = source["deleted"];
+	    }
+	}
+	export class QueryRowInsertRequest {
+	    connectionId: string;
+	    query: string;
+	    columns: string[];
+	    schema?: string;
+	    table?: string;
+	    values: Record<string, any>;
+	
+	    static createFrom(source: any = {}) {
+	        return new QueryRowInsertRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.connectionId = source["connectionId"];
+	        this.query = source["query"];
+	        this.columns = source["columns"];
+	        this.schema = source["schema"];
+	        this.table = source["table"];
+	        this.values = source["values"];
+	    }
+	}
+	export class QueryRowInsertResponse {
+	    success: boolean;
+	    message?: string;
+	    row?: Record<string, any>;
+	
+	    static createFrom(source: any = {}) {
+	        return new QueryRowInsertResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.success = source["success"];
+	        this.message = source["message"];
+	        this.row = source["row"];
+	    }
+	}
 	export class QueryRowUpdateRequest {
 	    connectionId: string;
 	    query: string;
@@ -1298,6 +1443,38 @@ export namespace main {
 	}
 	
 	
+	export class SwitchDatabaseRequest {
+	    connectionId: string;
+	    database: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SwitchDatabaseRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.connectionId = source["connectionId"];
+	        this.database = source["database"];
+	    }
+	}
+	export class SwitchDatabaseResponse {
+	    success: boolean;
+	    message?: string;
+	    database?: string;
+	    reconnected: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new SwitchDatabaseResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.success = source["success"];
+	        this.message = source["message"];
+	        this.database = source["database"];
+	        this.reconnected = source["reconnected"];
+	    }
+	}
 	export class SyntheticViewSummary {
 	    id: string;
 	    name: string;
@@ -1406,6 +1583,120 @@ export namespace main {
 
 export namespace services {
 	
+	export class ForeignKeyResponse {
+	    table: string;
+	    column: string;
+	    schema?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ForeignKeyResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.table = source["table"];
+	        this.column = source["column"];
+	        this.schema = source["schema"];
+	    }
+	}
+	export class EditableColumnResponse {
+	    name: string;
+	    resultName: string;
+	    dataType: string;
+	    editable: boolean;
+	    primaryKey: boolean;
+	    foreignKey?: ForeignKeyResponse;
+	    hasDefault?: boolean;
+	    defaultValue?: any;
+	    defaultExpression?: string;
+	    autoNumber?: boolean;
+	    timeZone?: boolean;
+	    precision?: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new EditableColumnResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.resultName = source["resultName"];
+	        this.dataType = source["dataType"];
+	        this.editable = source["editable"];
+	        this.primaryKey = source["primaryKey"];
+	        this.foreignKey = this.convertValues(source["foreignKey"], ForeignKeyResponse);
+	        this.hasDefault = source["hasDefault"];
+	        this.defaultValue = source["defaultValue"];
+	        this.defaultExpression = source["defaultExpression"];
+	        this.autoNumber = source["autoNumber"];
+	        this.timeZone = source["timeZone"];
+	        this.precision = source["precision"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class EditableMetadataResponse {
+	    enabled: boolean;
+	    reason?: string;
+	    schema?: string;
+	    table?: string;
+	    primaryKeys: string[];
+	    columns: EditableColumnResponse[];
+	    pending: boolean;
+	    jobId?: string;
+	    capabilities?: database.MutationCapabilities;
+	
+	    static createFrom(source: any = {}) {
+	        return new EditableMetadataResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.enabled = source["enabled"];
+	        this.reason = source["reason"];
+	        this.schema = source["schema"];
+	        this.table = source["table"];
+	        this.primaryKeys = source["primaryKeys"];
+	        this.columns = this.convertValues(source["columns"], EditableColumnResponse);
+	        this.pending = source["pending"];
+	        this.jobId = source["jobId"];
+	        this.capabilities = this.convertValues(source["capabilities"], database.MutationCapabilities);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class FileInfo {
 	    name: string;
 	    path: string;
@@ -1430,6 +1721,7 @@ export namespace services {
 	        this.permissions = source["permissions"];
 	    }
 	}
+	
 	export class KeyboardAction {
 	    key: string;
 	    description: string;
