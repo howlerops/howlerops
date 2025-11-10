@@ -2,34 +2,31 @@ import { useState, useEffect, useCallback, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { createPortal } from "react-dom"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { useConnectionStore, type DatabaseConnection } from "@/store/connection-store"
 import { useQueryStore } from "@/store/query-store"
-import { useSchemaIntrospection, SchemaNode } from "@/hooks/use-schema-introspection"
 import { SchemaVisualizerWrapper } from "@/components/schema-visualizer/schema-visualizer"
 import { ConnectionSchemaViewer } from "@/components/connection-schema-viewer"
 import { EnvironmentManager } from "@/components/environment-manager"
+import type { SchemaNode } from "@/hooks/use-schema-introspection"
 import {
   Database,
   Table,
   Plus,
   ChevronDown,
   ChevronRight,
-  Folder,
-  FolderOpen,
-  Columns,
-  Key,
-  RefreshCw,
-  AlertCircle,
   Loader2,
   Network,
   Filter,
   Tag,
   PanelLeftClose,
   PanelRightOpen,
+  Folder,
+  FolderOpen,
+  Columns,
+  Key,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toast } from "@/hooks/use-toast"
@@ -81,9 +78,7 @@ export function SchemaTree({ nodes, level = 0 }: SchemaTreeProps) {
             <Button
               variant="ghost"
               size="sm"
-              className={cn(
-                "w-full justify-start h-8 px-2"
-              )}
+              className="w-full justify-start h-8 px-2"
               style={{ paddingLeft: `${8 + level * 16}px` }}
               onClick={() => {
                 if (hasChildren) {
@@ -146,9 +141,7 @@ export function Sidebar({ onToggle, isCollapsed = false }: SidebarProps) {
     switchDatabase,
   } = useConnectionStore()
   const { tabs, activeTabId, updateTab } = useQueryStore()
-  const { schema, loading, error, refreshSchema } = useSchemaIntrospection()
   const [connectingId, setConnectingId] = useState<string | null>(null)
-  const [showVisualizer, setShowVisualizer] = useState(false)
   const [showEnvironmentManager, setShowEnvironmentManager] = useState(false)
   const [connectionDbState, setConnectionDbState] = useState<Record<string, {
     options: string[]
@@ -603,78 +596,8 @@ export function Sidebar({ onToggle, isCollapsed = false }: SidebarProps) {
           </div>
         </div>
 
-        {/* Schema Explorer */}
-        <div className="flex-1 p-4 overflow-hidden">
-          <Card className="h-full flex flex-col">
-            <CardHeader className="pb-2 flex flex-row items-center justify-between shrink-0">
-              <CardTitle className="text-sm">Schema Explorer</CardTitle>
-              <div className="flex items-center gap-1">
-                {activeConnection && schema.length > 0 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowVisualizer(true)}
-                    className="h-6 w-6 p-0"
-                    title="Schema Visualizer"
-                  >
-                    <Network className="h-3 w-3" />
-                  </Button>
-                )}
-                {activeConnection && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={refreshSchema}
-                    disabled={loading}
-                    className="h-6 w-6 p-0"
-                    title="Refresh Schema"
-                  >
-                    <RefreshCw className={cn("h-3 w-3", loading && "animate-spin")} />
-                  </Button>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent className="pt-0 flex-1 overflow-hidden">
-              <div className="h-full overflow-y-auto">
-                {error ? (
-                  <div className="text-xs text-destructive text-center py-4 flex items-center justify-center">
-                    <AlertCircle className="h-3 w-3 mr-1" />
-                    {error}
-                  </div>
-                ) : loading ? (
-                  <div className="text-xs text-muted-foreground text-center py-4">
-                    Loading schema...
-                  </div>
-                ) : activeConnection ? (
-                  schema.length > 0 ? (
-                    <SchemaTree 
-                      key={activeConnection?.sessionId || 'schema-tree'} 
-                      nodes={schema} 
-                    />
-                  ) : (
-                    <div className="text-xs text-muted-foreground text-center py-4">
-                      No schemas found
-                    </div>
-                  )
-                ) : (
-                  <div className="text-xs text-muted-foreground text-center py-4">
-                    Choose a database to explore schema
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <div className="flex-1" />
       </div>
-      
-      {/* Schema Visualizer Modal */}
-      {showVisualizer && createPortal(
-        <SchemaVisualizerWrapper 
-          schema={schema} 
-          onClose={() => setShowVisualizer(false)} 
-        />,
-        document.body
-      )}
       
       {/* Connection Schema Viewer Modal */}
       {schemaViewConnectionId && (
