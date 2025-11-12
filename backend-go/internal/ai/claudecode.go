@@ -57,7 +57,7 @@ func NewClaudeCodeProvider(config *ClaudeCodeConfig) (*ClaudeCodeProvider, error
 }
 
 // GenerateSQL generates SQL from natural language using Claude Code
-func (p *ClaudeCodeProvider) GenerateSQL(ctx context.Context, prompt string, schema string, options ...GenerateOption) (*SQLResponse, error) {
+func (p *ClaudeCodeProvider) GenerateSQL(_ context.Context, prompt, schema string, options ...GenerateOption) (*SQLResponse, error) {
 	opts := &GenerateOptions{
 		Model:       p.config.Model,
 		MaxTokens:   p.config.MaxTokens,
@@ -111,7 +111,7 @@ func (p *ClaudeCodeProvider) GenerateSQL(ctx context.Context, prompt string, sch
 }
 
 // FixSQL fixes SQL based on error message using Claude Code
-func (p *ClaudeCodeProvider) FixSQL(ctx context.Context, query string, errorMsg string, schema string, options ...GenerateOption) (*SQLResponse, error) {
+func (p *ClaudeCodeProvider) FixSQL(_ context.Context, query, errorMsg, schema string, options ...GenerateOption) (*SQLResponse, error) {
 	opts := &GenerateOptions{
 		Model:       p.config.Model,
 		MaxTokens:   p.config.MaxTokens,
@@ -165,7 +165,7 @@ func (p *ClaudeCodeProvider) FixSQL(ctx context.Context, query string, errorMsg 
 }
 
 // Chat handles generic conversational interactions using Claude Code
-func (p *ClaudeCodeProvider) Chat(ctx context.Context, prompt string, options ...GenerateOption) (*ChatResponse, error) {
+func (p *ClaudeCodeProvider) Chat(_ context.Context, prompt string, options ...GenerateOption) (*ChatResponse, error) {
 	opts := &GenerateOptions{
 		Model:       p.config.Model,
 		MaxTokens:   p.config.MaxTokens,
@@ -225,18 +225,19 @@ func (p *ClaudeCodeProvider) Chat(ctx context.Context, prompt string, options ..
 }
 
 // GetHealth returns the health status of the Claude Code provider
-func (p *ClaudeCodeProvider) GetHealth(ctx context.Context) (*HealthStatus, error) {
+func (p *ClaudeCodeProvider) GetHealth(_ context.Context) (*HealthStatus, error) {
 	startTime := time.Now()
 
 	// First check if the claude binary exists
-	if _, err := exec.LookPath(p.config.ClaudePath); err != nil {
+	_, lookupErr := exec.LookPath(p.config.ClaudePath)
+	if lookupErr != nil {
 		return &HealthStatus{
 			Provider:     ProviderClaudeCode,
 			Status:       "unhealthy",
 			Message:      fmt.Sprintf("Claude CLI not found at path '%s'. Please install Claude CLI or update the path.", p.config.ClaudePath),
 			LastChecked:  time.Now(),
 			ResponseTime: time.Since(startTime),
-		}, nil
+		}, lookupErr
 	}
 
 	// For now, if the binary exists, we assume it's healthy
@@ -252,7 +253,7 @@ func (p *ClaudeCodeProvider) GetHealth(ctx context.Context) (*HealthStatus, erro
 }
 
 // ListModels returns available models for Claude Code
-func (p *ClaudeCodeProvider) ListModels(ctx context.Context) ([]ModelInfo, error) {
+func (p *ClaudeCodeProvider) ListModels(_ context.Context) ([]ModelInfo, error) {
 	// Claude Code models available through the CLI
 	models := []ModelInfo{
 		{
@@ -280,7 +281,7 @@ func (p *ClaudeCodeProvider) Close() error {
 }
 
 // buildSQLPrompt builds a prompt for SQL generation
-func (p *ClaudeCodeProvider) buildSQLPrompt(prompt string, schema string) string {
+func (p *ClaudeCodeProvider) buildSQLPrompt(prompt, schema string) string {
 	var sb strings.Builder
 
 	sb.WriteString("Generate a SQL query for the following request.\n\n")
@@ -307,7 +308,7 @@ func (p *ClaudeCodeProvider) buildSQLPrompt(prompt string, schema string) string
 }
 
 // buildFixPrompt builds a prompt for SQL fixing
-func (p *ClaudeCodeProvider) buildFixPrompt(query string, errorMsg string, schema string) string {
+func (p *ClaudeCodeProvider) buildFixPrompt(query, errorMsg, schema string) string {
 	var sb strings.Builder
 
 	sb.WriteString("Fix the following SQL query based on the error message.\n\n")

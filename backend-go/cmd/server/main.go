@@ -44,176 +44,30 @@ func main() {
 	logStartupInfo(cfg, appLogger)
 
 	// Check for updates and validate environment
-	if !cfg.IsProduction() {
-		go checkForUpdates(appLogger)
-	}
-	if validateErr := validateEnvironment(cfg, appLogger); validateErr != nil {
-		appLogger.WithError(validateErr).Fatal("Environment validation failed")
-	}
+	performStartupChecks(cfg, appLogger)
 
 	// Initialize database and services
 	tursoClient := initializeDatabase(cfg, appLogger)
 	svc, authMiddleware, dbManager := initializeServices(cfg, tursoClient, appLogger)
 
-	// Create gRPC server
-	grpcServer, err := server.NewGRPCServer(cfg, appLogger, svc)
-	if err != nil {
-		appLogger.WithError(err).Fatal("Failed to create gRPC server")
-	}
-
-	// Create HTTP gateway server
-	httpServer, err := server.NewHTTPServer(cfg, appLogger, svc, authMiddleware)
-	if err != nil {
-		appLogger.WithError(err).Fatal("Failed to create HTTP server")
-	}
-
-	// Create metrics server
-	var metricsServer *http.Server
-	if cfg.Metrics.Enabled {
-		metricsServer = &http.Server{
-			Addr:    cfg.GetMetricsAddress(),
-			Handler: promhttp.Handler(),
-		}
-		setupMetrics()
-	}
-
-	// Create WebSocket server for real-time updates
-	wsServer, err := server.NewWebSocketServer(cfg, appLogger, svc)
-	if err != nil {
-		appLogger.WithError(err).Fatal("Failed to create WebSocket server")
-	}
+	// Create all servers
+	servers := createServers(cfg, appLogger, svc, authMiddleware)
 
 	// Set up graceful shutdown
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Handle shutdown signals
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+	// Start all servers
+	wg := startAllServers(ctx, servers, svc, appLogger)
 
-	var wg sync.WaitGroup
-
-	// Start gRPC server
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		appLogger.Info("Starting gRPC server")
-		if err := grpcServer.Start(); err != nil {
-			appLogger.WithError(err).Error("gRPC server failed")
-		}
-	}()
-
-	// Start HTTP gateway server
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		appLogger.Info("Starting HTTP gateway server")
-		if startErr := httpServer.Start(); startErr != nil && !errors.Is(startErr, http.ErrServerClosed) {
-			appLogger.WithError(startErr).Error("HTTP server failed")
-		}
-	}()
-
-	// Start metrics server
-	if metricsServer != nil {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			appLogger.WithField("address", cfg.GetMetricsAddress()).Info("Starting metrics server")
-			if err := metricsServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-				appLogger.WithError(err).Error("Metrics server failed")
-			}
-		}()
-	}
-
-	// Start WebSocket server
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		appLogger.Info("Starting WebSocket server")
-		if err := wsServer.Start(); err != nil {
-			appLogger.WithError(err).Error("WebSocket server failed")
-		}
-	}()
-
-	// Start background tasks
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		runBackgroundTasks(ctx, svc, appLogger)
-	}()
-
-	appLogger.Info("All servers started successfully")
-	appLogger.WithFields(logrus.Fields{
-		"http_url":    fmt.Sprintf("http://localhost:%d", cfg.Server.HTTPPort),
-		"grpc_url":    fmt.Sprintf("localhost:%d", cfg.Server.GRPCPort),
-		"metrics_url": fmt.Sprintf("http://localhost:%d/metrics", cfg.Metrics.Port),
-		"health_url":  fmt.Sprintf("http://localhost:%d/health", cfg.Server.HTTPPort),
-		"ws_url":      "ws://localhost:8081/ws",
-	}).Info("Server URLs")
+	// Log server URLs
+	logServerURLs(cfg, appLogger)
 
 	// Wait for shutdown signal
-	<-sigChan
-	appLogger.Info("Shutdown signal received, starting graceful shutdown...")
+	waitForShutdownSignal(appLogger)
 
-	// Create shutdown context with timeout
-	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), cfg.Server.ShutdownTimeout)
-	defer shutdownCancel()
-
-	// Stop all servers gracefully
-	var shutdownWg sync.WaitGroup
-
-	// Stop gRPC server
-	shutdownWg.Add(1)
-	go func() {
-		defer shutdownWg.Done()
-		if err := grpcServer.Stop(shutdownCtx); err != nil {
-			appLogger.WithError(err).Error("Failed to stop gRPC server gracefully")
-		}
-	}()
-
-	// Stop HTTP server
-	shutdownWg.Add(1)
-	go func() {
-		defer shutdownWg.Done()
-		if err := httpServer.Stop(shutdownCtx); err != nil {
-			appLogger.WithError(err).Error("Failed to stop HTTP server gracefully")
-		}
-	}()
-
-	// Stop metrics server
-	if metricsServer != nil {
-		shutdownWg.Add(1)
-		go func() {
-			defer shutdownWg.Done()
-			if err := metricsServer.Shutdown(shutdownCtx); err != nil {
-				appLogger.WithError(err).Error("Failed to stop metrics server gracefully")
-			}
-		}()
-	}
-
-	// Stop WebSocket server
-	shutdownWg.Add(1)
-	go func() {
-		defer shutdownWg.Done()
-		if err := wsServer.Stop(shutdownCtx); err != nil {
-			appLogger.WithError(err).Error("Failed to stop WebSocket server gracefully")
-		}
-	}()
-
-	// Stop background tasks
-	cancel()
-
-	// Wait for all servers to stop
-	shutdownWg.Wait()
-
-	// Close database connections
-	if err := tursoClient.Close(); err != nil {
-		appLogger.WithError(err).Error("Failed to close Turso database connection")
-	}
-
-	if err := dbManager.Close(); err != nil {
-		appLogger.WithError(err).Error("Failed to close database manager connections")
-	}
+	// Perform graceful shutdown
+	performGracefulShutdown(ctx, cancel, cfg, servers, tursoClient, dbManager, appLogger)
 
 	// Wait for background tasks to finish
 	wg.Wait()
@@ -296,34 +150,50 @@ func setupMetrics() {
 
 // validateEnvironment validates the environment configuration
 func validateEnvironment(cfg *config.Config, logger *logrus.Logger) error {
-	if cfg.IsProduction() {
-		// Production-specific validations
-		if cfg.Auth.JWTSecret == "change-me-in-production" {
-			return fmt.Errorf("JWT secret must be changed in production")
-		}
+	if !cfg.IsProduction() {
+		return nil
+	}
 
-		if cfg.Turso.URL == "" {
-			return fmt.Errorf("Turso URL must be configured in production")
-		}
+	// Production-specific validations
+	if err := validateProductionSecurity(cfg); err != nil {
+		return err
+	}
 
-		if cfg.Turso.AuthToken == "" {
-			return fmt.Errorf("Turso auth token must be configured in production")
-		}
+	logProductionWarnings(cfg, logger)
 
-		if !cfg.Server.TLSEnabled {
-			logger.Warn("TLS is disabled in production environment")
-		}
+	return nil
+}
 
-		if cfg.Log.Level == "debug" || cfg.Log.Level == "trace" {
-			logger.Warn("Debug/trace logging is enabled in production")
-		}
+// validateProductionSecurity validates security requirements for production
+func validateProductionSecurity(cfg *config.Config) error {
+	if cfg.Auth.JWTSecret == "change-me-in-production" {
+		return fmt.Errorf("JWT secret must be changed in production")
+	}
 
-		if cfg.Email.APIKey == "" {
-			logger.Warn("Email API key not configured - using mock email service")
-		}
+	if cfg.Turso.URL == "" {
+		return fmt.Errorf("Turso URL must be configured in production")
+	}
+
+	if cfg.Turso.AuthToken == "" {
+		return fmt.Errorf("Turso auth token must be configured in production")
 	}
 
 	return nil
+}
+
+// logProductionWarnings logs warnings for production configuration issues
+func logProductionWarnings(cfg *config.Config, logger *logrus.Logger) {
+	if !cfg.Server.TLSEnabled {
+		logger.Warn("TLS is disabled in production environment")
+	}
+
+	if cfg.Log.Level == "debug" || cfg.Log.Level == "trace" {
+		logger.Warn("Debug/trace logging is enabled in production")
+	}
+
+	if cfg.Email.APIKey == "" {
+		logger.Warn("Email API key not configured - using mock email service")
+	}
 }
 
 // setupVersion sets version information in the version package
@@ -561,5 +431,210 @@ func checkForUpdates(logger *logrus.Logger) {
 		}).Info("New version available! Run 'sqlstudio update' to upgrade")
 	} else {
 		logger.Debug("No updates available")
+	}
+}
+
+// serverCollection holds all server instances
+type serverCollection struct {
+	grpc      *server.GRPCServer
+	http      *server.HTTPServer
+	websocket *server.WebSocketServer
+	metrics   *http.Server
+}
+
+// performStartupChecks performs initial environment checks
+func performStartupChecks(cfg *config.Config, logger *logrus.Logger) {
+	if !cfg.IsProduction() {
+		go checkForUpdates(logger)
+	}
+	if validateErr := validateEnvironment(cfg, logger); validateErr != nil {
+		logger.WithError(validateErr).Fatal("Environment validation failed")
+	}
+}
+
+// createServers creates all server instances
+func createServers(cfg *config.Config, logger *logrus.Logger, svc *services.Services, authMiddleware *middleware.AuthMiddleware) *serverCollection {
+	// Create gRPC server
+	grpcServer, err := server.NewGRPCServer(cfg, logger, svc)
+	if err != nil {
+		logger.WithError(err).Fatal("Failed to create gRPC server")
+	}
+
+	// Create HTTP gateway server
+	httpServer, err := server.NewHTTPServer(cfg, logger, svc, authMiddleware)
+	if err != nil {
+		logger.WithError(err).Fatal("Failed to create HTTP server")
+	}
+
+	// Create metrics server
+	var metricsServer *http.Server
+	if cfg.Metrics.Enabled {
+		metricsServer = &http.Server{
+			Addr:    cfg.GetMetricsAddress(),
+			Handler: promhttp.Handler(),
+		}
+		setupMetrics()
+	}
+
+	// Create WebSocket server for real-time updates
+	wsServer, err := server.NewWebSocketServer(cfg, logger, svc)
+	if err != nil {
+		logger.WithError(err).Fatal("Failed to create WebSocket server")
+	}
+
+	return &serverCollection{
+		grpc:      grpcServer,
+		http:      httpServer,
+		websocket: wsServer,
+		metrics:   metricsServer,
+	}
+}
+
+// startAllServers starts all servers in goroutines
+func startAllServers(ctx context.Context, servers *serverCollection, svc *services.Services, logger *logrus.Logger) *sync.WaitGroup {
+	var wg sync.WaitGroup
+
+	// Start gRPC server
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		logger.Info("Starting gRPC server")
+		if err := servers.grpc.Start(); err != nil {
+			logger.WithError(err).Error("gRPC server failed")
+		}
+	}()
+
+	// Start HTTP gateway server
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		logger.Info("Starting HTTP gateway server")
+		if startErr := servers.http.Start(); startErr != nil && !errors.Is(startErr, http.ErrServerClosed) {
+			logger.WithError(startErr).Error("HTTP server failed")
+		}
+	}()
+
+	// Start metrics server
+	if servers.metrics != nil {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			logger.WithField("address", servers.metrics.Addr).Info("Starting metrics server")
+			if err := servers.metrics.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				logger.WithError(err).Error("Metrics server failed")
+			}
+		}()
+	}
+
+	// Start WebSocket server
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		logger.Info("Starting WebSocket server")
+		if err := servers.websocket.Start(); err != nil {
+			logger.WithError(err).Error("WebSocket server failed")
+		}
+	}()
+
+	// Start background tasks
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		runBackgroundTasks(ctx, svc, logger)
+	}()
+
+	return &wg
+}
+
+// logServerURLs logs all server URLs
+func logServerURLs(cfg *config.Config, logger *logrus.Logger) {
+	logger.Info("All servers started successfully")
+	logger.WithFields(logrus.Fields{
+		"http_url":    fmt.Sprintf("http://localhost:%d", cfg.Server.HTTPPort),
+		"grpc_url":    fmt.Sprintf("localhost:%d", cfg.Server.GRPCPort),
+		"metrics_url": fmt.Sprintf("http://localhost:%d/metrics", cfg.Metrics.Port),
+		"health_url":  fmt.Sprintf("http://localhost:%d/health", cfg.Server.HTTPPort),
+		"ws_url":      "ws://localhost:8081/ws",
+	}).Info("Server URLs")
+}
+
+// waitForShutdownSignal waits for OS shutdown signal
+func waitForShutdownSignal(logger *logrus.Logger) {
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+	<-sigChan
+	logger.Info("Shutdown signal received, starting graceful shutdown...")
+}
+
+// performGracefulShutdown performs graceful shutdown of all services
+func performGracefulShutdown(_ context.Context, cancel context.CancelFunc, cfg *config.Config, servers *serverCollection, tursoClient *sql.DB, dbManager *database.Manager, logger *logrus.Logger) {
+	// Create shutdown context with timeout
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), cfg.Server.ShutdownTimeout)
+	defer shutdownCancel()
+
+	// Stop all servers gracefully
+	stopAllServers(shutdownCtx, servers, logger)
+
+	// Stop background tasks
+	cancel()
+
+	// Close database connections
+	closeConnections(tursoClient, dbManager, logger)
+}
+
+// stopAllServers stops all servers gracefully
+func stopAllServers(ctx context.Context, servers *serverCollection, logger *logrus.Logger) {
+	var shutdownWg sync.WaitGroup
+
+	// Stop gRPC server
+	shutdownWg.Add(1)
+	go func() {
+		defer shutdownWg.Done()
+		if err := servers.grpc.Stop(ctx); err != nil {
+			logger.WithError(err).Error("Failed to stop gRPC server gracefully")
+		}
+	}()
+
+	// Stop HTTP server
+	shutdownWg.Add(1)
+	go func() {
+		defer shutdownWg.Done()
+		if err := servers.http.Stop(ctx); err != nil {
+			logger.WithError(err).Error("Failed to stop HTTP server gracefully")
+		}
+	}()
+
+	// Stop metrics server
+	if servers.metrics != nil {
+		shutdownWg.Add(1)
+		go func() {
+			defer shutdownWg.Done()
+			if err := servers.metrics.Shutdown(ctx); err != nil {
+				logger.WithError(err).Error("Failed to stop metrics server gracefully")
+			}
+		}()
+	}
+
+	// Stop WebSocket server
+	shutdownWg.Add(1)
+	go func() {
+		defer shutdownWg.Done()
+		if err := servers.websocket.Stop(ctx); err != nil {
+			logger.WithError(err).Error("Failed to stop WebSocket server gracefully")
+		}
+	}()
+
+	// Wait for all servers to stop
+	shutdownWg.Wait()
+}
+
+// closeConnections closes all database connections
+func closeConnections(tursoClient *sql.DB, dbManager *database.Manager, logger *logrus.Logger) {
+	if err := tursoClient.Close(); err != nil {
+		logger.WithError(err).Error("Failed to close Turso database connection")
+	}
+
+	if err := dbManager.Close(); err != nil {
+		logger.WithError(err).Error("Failed to close database manager connections")
 	}
 }

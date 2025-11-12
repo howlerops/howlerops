@@ -190,7 +190,7 @@ func (p *anthropicProvider) HealthCheck(ctx context.Context) (*HealthStatus, err
 
 	return &HealthStatus{
 		Provider:     ProviderAnthropic,
-		Status:       "healthy",
+		Status:       healthyStatus,
 		Message:      "Service is operational",
 		LastChecked:  time.Now(),
 		ResponseTime: responseTime,
@@ -198,9 +198,9 @@ func (p *anthropicProvider) HealthCheck(ctx context.Context) (*HealthStatus, err
 }
 
 // GetModels returns available models from Anthropic
-func (p *anthropicProvider) GetModels(ctx context.Context) ([]ModelInfo, error) {
+func (p *anthropicProvider) GetModels(_ context.Context) ([]ModelInfo, error) {
 	// Anthropic doesn't have a models endpoint, so we return the configured models
-	var models []ModelInfo
+	models := make([]ModelInfo, 0, len(p.config.Models))
 	for _, modelID := range p.config.Models {
 		var description string
 		var maxTokens int
@@ -241,7 +241,7 @@ func (p *anthropicProvider) GetProviderType() Provider {
 // IsAvailable checks if the provider is available
 func (p *anthropicProvider) IsAvailable(ctx context.Context) bool {
 	health, err := p.HealthCheck(ctx)
-	return err == nil && health.Status == "healthy"
+	return err == nil && health.Status == healthyStatus
 }
 
 // UpdateConfig updates the provider configuration
@@ -496,15 +496,35 @@ func (p *anthropicProvider) parseResponse(response *anthropicResponse, req *SQLR
 
 // extractSQL attempts to extract SQL from unstructured text
 func (p *anthropicProvider) extractSQL(content string) string {
-	// Look for SQL code blocks
+	// Try different extraction methods in order of priority
+	if sql := p.extractFromSQLCodeBlock(content); sql != "" {
+		return sql
+	}
+
+	if sql := p.extractFromGenericCodeBlock(content); sql != "" {
+		return sql
+	}
+
+	if sql := p.extractFromJSON(content); sql != "" {
+		return sql
+	}
+
+	return p.extractFromLines(content)
+}
+
+// extractFromSQLCodeBlock extracts SQL from ```sql code blocks
+func (p *anthropicProvider) extractFromSQLCodeBlock(content string) string {
 	if start := strings.Index(content, "```sql"); start != -1 {
 		start += 6
 		if end := strings.Index(content[start:], "```"); end != -1 {
 			return strings.TrimSpace(content[start : start+end])
 		}
 	}
+	return ""
+}
 
-	// Look for generic code blocks that might contain SQL
+// extractFromGenericCodeBlock extracts SQL from generic ``` code blocks
+func (p *anthropicProvider) extractFromGenericCodeBlock(content string) string {
 	if start := strings.Index(content, "```"); start != -1 {
 		start += 3
 		if end := strings.Index(content[start:], "```"); end != -1 {
@@ -514,8 +534,11 @@ func (p *anthropicProvider) extractSQL(content string) string {
 			}
 		}
 	}
+	return ""
+}
 
-	// Look for JSON within the response
+// extractFromJSON extracts SQL from JSON response
+func (p *anthropicProvider) extractFromJSON(content string) string {
 	if start := strings.Index(content, "{"); start != -1 {
 		if end := strings.LastIndex(content, "}"); end != -1 && end > start {
 			jsonStr := content[start : end+1]
@@ -527,8 +550,11 @@ func (p *anthropicProvider) extractSQL(content string) string {
 			}
 		}
 	}
+	return ""
+}
 
-	// Look for common SQL keywords at the start of lines
+// extractFromLines extracts SQL by looking for SQL keywords at start of lines
+func (p *anthropicProvider) extractFromLines(content string) string {
 	lines := strings.Split(content, "\n")
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
@@ -536,7 +562,6 @@ func (p *anthropicProvider) extractSQL(content string) string {
 			return line
 		}
 	}
-
 	return ""
 }
 

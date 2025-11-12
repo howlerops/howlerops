@@ -170,9 +170,9 @@ func TestProviderAdapterWrapper_GenerateSQL_OptionConversion(t *testing.T) {
 			// Verify context
 			if tt.expected.Context != nil {
 				assert.Equal(t, tt.expected.Context, captured.Context, "context mismatch")
-			} else if len(captured.Context) == 0 {
+			} else {
 				// Both nil and empty map are acceptable for empty context
-				assert.True(t, captured.Context == nil || len(captured.Context) == 0, "context should be nil or empty")
+				assert.Empty(t, captured.Context, "context should be nil or empty")
 			}
 		})
 	}
@@ -184,7 +184,7 @@ func TestProviderAdapterWrapper_GenerateSQL_AdapterCall(t *testing.T) {
 	called := false
 
 	mock := &mockProviderAdapter{
-		generateSQLFunc: func(ctx context.Context, prompt, schema string, opts ...GenerateOption) (*SQLResponse, error) {
+		generateSQLFunc: func(_ context.Context, prompt, schema string, _ ...GenerateOption) (*SQLResponse, error) {
 			called = true
 			assert.Equal(t, expectedPrompt, prompt)
 			assert.Equal(t, expectedSchema, schema)
@@ -221,7 +221,7 @@ func TestProviderAdapterWrapper_GenerateSQL_Error(t *testing.T) {
 	expectedErr := errors.New("generation failed")
 
 	mock := &mockProviderAdapter{
-		generateSQLFunc: func(ctx context.Context, prompt, schema string, opts ...GenerateOption) (*SQLResponse, error) {
+		generateSQLFunc: func(_ context.Context, _, _ string, _ ...GenerateOption) (*SQLResponse, error) {
 			return nil, expectedErr
 		},
 	}
@@ -315,7 +315,7 @@ func TestProviderAdapterWrapper_FixSQL_AdapterCall(t *testing.T) {
 	called := false
 
 	mock := &mockProviderAdapter{
-		fixSQLFunc: func(ctx context.Context, query, errorMsg, schema string, opts ...GenerateOption) (*SQLResponse, error) {
+		fixSQLFunc: func(_ context.Context, query, errorMsg, schema string, _ ...GenerateOption) (*SQLResponse, error) {
 			called = true
 			assert.Equal(t, expectedQuery, query)
 			assert.Equal(t, expectedError, errorMsg)
@@ -520,7 +520,7 @@ func TestProviderAdapterWrapper_Chat_AdapterCall(t *testing.T) {
 	called := false
 
 	mock := &mockProviderAdapter{
-		chatFunc: func(ctx context.Context, prompt string, opts ...GenerateOption) (*ChatResponse, error) {
+		chatFunc: func(_ context.Context, prompt string, _ ...GenerateOption) (*ChatResponse, error) {
 			called = true
 			assert.Equal(t, expectedPrompt, prompt)
 			return &ChatResponse{
@@ -556,7 +556,7 @@ func TestProviderAdapterWrapper_Chat_Error(t *testing.T) {
 	expectedErr := errors.New("chat failed")
 
 	mock := &mockProviderAdapter{
-		chatFunc: func(ctx context.Context, prompt string, opts ...GenerateOption) (*ChatResponse, error) {
+		chatFunc: func(_ context.Context, _ string, _ ...GenerateOption) (*ChatResponse, error) {
 			return nil, expectedErr
 		},
 	}
@@ -587,7 +587,7 @@ func TestProviderAdapterWrapper_HealthCheck(t *testing.T) {
 	}
 
 	mock := &mockProviderAdapter{
-		getHealthFunc: func(ctx context.Context) (*HealthStatus, error) {
+		getHealthFunc: func(_ context.Context) (*HealthStatus, error) {
 			return expectedHealth, nil
 		},
 	}
@@ -611,7 +611,7 @@ func TestProviderAdapterWrapper_HealthCheck_Error(t *testing.T) {
 	expectedErr := errors.New("health check failed")
 
 	mock := &mockProviderAdapter{
-		getHealthFunc: func(ctx context.Context) (*HealthStatus, error) {
+		getHealthFunc: func(_ context.Context) (*HealthStatus, error) {
 			return nil, expectedErr
 		},
 	}
@@ -649,7 +649,7 @@ func TestProviderAdapterWrapper_GetModels(t *testing.T) {
 	}
 
 	mock := &mockProviderAdapter{
-		listModelsFunc: func(ctx context.Context) ([]ModelInfo, error) {
+		listModelsFunc: func(_ context.Context) ([]ModelInfo, error) {
 			return expectedModels, nil
 		},
 	}
@@ -673,7 +673,7 @@ func TestProviderAdapterWrapper_GetModels_Error(t *testing.T) {
 	expectedErr := errors.New("failed to list models")
 
 	mock := &mockProviderAdapter{
-		listModelsFunc: func(ctx context.Context) ([]ModelInfo, error) {
+		listModelsFunc: func(_ context.Context) ([]ModelInfo, error) {
 			return nil, expectedErr
 		},
 	}
@@ -734,7 +734,7 @@ func TestProviderAdapterWrapper_GetProviderType(t *testing.T) {
 
 func TestProviderAdapterWrapper_IsAvailable_Healthy(t *testing.T) {
 	mock := &mockProviderAdapter{
-		getHealthFunc: func(ctx context.Context) (*HealthStatus, error) {
+		getHealthFunc: func(_ context.Context) (*HealthStatus, error) {
 			return &HealthStatus{
 				Provider: ProviderOpenAI,
 				Status:   "healthy",
@@ -755,7 +755,7 @@ func TestProviderAdapterWrapper_IsAvailable_Healthy(t *testing.T) {
 
 func TestProviderAdapterWrapper_IsAvailable_Unhealthy(t *testing.T) {
 	mock := &mockProviderAdapter{
-		getHealthFunc: func(ctx context.Context) (*HealthStatus, error) {
+		getHealthFunc: func(_ context.Context) (*HealthStatus, error) {
 			return &HealthStatus{
 				Provider: ProviderOpenAI,
 				Status:   "unhealthy",
@@ -776,7 +776,7 @@ func TestProviderAdapterWrapper_IsAvailable_Unhealthy(t *testing.T) {
 
 func TestProviderAdapterWrapper_IsAvailable_Error(t *testing.T) {
 	mock := &mockProviderAdapter{
-		getHealthFunc: func(ctx context.Context) (*HealthStatus, error) {
+		getHealthFunc: func(_ context.Context) (*HealthStatus, error) {
 			return nil, errors.New("health check failed")
 		},
 	}
@@ -869,19 +869,19 @@ func TestProviderAdapterWrapper_ContextPropagation(t *testing.T) {
 			contextReceived := false
 
 			mock := &mockProviderAdapter{
-				generateSQLFunc: func(ctx context.Context, prompt, schema string, opts ...GenerateOption) (*SQLResponse, error) {
+				generateSQLFunc: func(ctx context.Context, _, _ string, _ ...GenerateOption) (*SQLResponse, error) {
 					if ctx.Value(testKey) == testValue {
 						contextReceived = true
 					}
 					return &SQLResponse{}, nil
 				},
-				fixSQLFunc: func(ctx context.Context, query, errorMsg, schema string, opts ...GenerateOption) (*SQLResponse, error) {
+				fixSQLFunc: func(ctx context.Context, _, _, _ string, _ ...GenerateOption) (*SQLResponse, error) {
 					if ctx.Value(testKey) == testValue {
 						contextReceived = true
 					}
 					return &SQLResponse{}, nil
 				},
-				chatFunc: func(ctx context.Context, prompt string, opts ...GenerateOption) (*ChatResponse, error) {
+				chatFunc: func(ctx context.Context, _ string, _ ...GenerateOption) (*ChatResponse, error) {
 					if ctx.Value(testKey) == testValue {
 						contextReceived = true
 					}

@@ -58,8 +58,8 @@ func NewModule(logger *logrus.Logger) (*Module, error) {
 	}
 
 	// Validate configuration
-	if err := ValidateConfig(config); err != nil {
-		return nil, err
+	if validateErr := ValidateConfig(config); validateErr != nil {
+		return nil, validateErr
 	}
 
 	// Create service
