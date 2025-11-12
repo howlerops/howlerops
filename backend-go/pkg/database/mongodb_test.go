@@ -941,6 +941,7 @@ func TestMongoDBDatabase_ComputeEditableMetadata(t *testing.T) {
 // Utility Methods Tests
 
 func TestMongoDBDatabase_GetDatabaseType(t *testing.T) {
+	requireMongoDB(t)
 	logger := newTestLogger()
 
 	t.Run("returns MongoDB type", func(t *testing.T) {
@@ -957,6 +958,7 @@ func TestMongoDBDatabase_GetDatabaseType(t *testing.T) {
 }
 
 func TestMongoDBDatabase_GetConnectionStats(t *testing.T) {
+	requireMongoDB(t)
 	logger := newTestLogger()
 
 	t.Run("get connection stats", func(t *testing.T) {
@@ -976,6 +978,7 @@ func TestMongoDBDatabase_GetConnectionStats(t *testing.T) {
 }
 
 func TestMongoDBDatabase_QuoteIdentifier(t *testing.T) {
+	requireMongoDB(t)
 	logger := newTestLogger()
 
 	tests := []struct {
@@ -1026,6 +1029,7 @@ func TestMongoDBDatabase_QuoteIdentifier(t *testing.T) {
 }
 
 func TestMongoDBDatabase_GetDataTypeMappings(t *testing.T) {
+	requireMongoDB(t)
 	logger := newTestLogger()
 
 	t.Run("returns MongoDB data type mappings", func(t *testing.T) {
@@ -1061,6 +1065,7 @@ func TestMongoDBDatabase_GetDataTypeMappings(t *testing.T) {
 // buildConnectionURI Tests (Indirect Testing)
 
 func TestMongoDBDatabase_ConnectionURIBuilding(t *testing.T) {
+	requireMongoDB(t)
 	logger := newTestLogger()
 
 	t.Run("standard URI with host and port", func(t *testing.T) {
