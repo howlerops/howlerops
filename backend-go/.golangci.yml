@@ -264,6 +264,10 @@ issues:
         - goconst
         - funlen
         - gocognit
+        - revive          # Unused parameters common in test mocks
+        - gocritic        # Style issues less critical in tests
+        - misspell        # Spelling less critical in tests
+        - prealloc        # Performance less critical in tests
 
     # Exclude linters for generated files
     - path: ".*\\.pb\\.go"
