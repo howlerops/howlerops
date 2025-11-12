@@ -1287,8 +1287,8 @@ func TestCalculateConfidence(t *testing.T) {
 	})
 }
 
-// TestConcurrentAccess tests thread safety
-func TestConcurrentAccess(t *testing.T) {
+// TestSmartSQLGeneratorConcurrentAccess tests thread safety
+func TestSmartSQLGeneratorConcurrentAccess(t *testing.T) {
 	t.Run("concurrent Generate calls", func(t *testing.T) {
 		contextBuilder := newMockContextBuilder()
 		llmProvider := newMockLLMProvider()

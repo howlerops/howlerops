@@ -55,20 +55,10 @@ func newMongoConfigWithSSL() database.ConnectionConfig {
 	}
 }
 
-// skipIfNoMongoDB is a helper to skip tests when MongoDB isn't available
-func skipIfNoMongoDB(t *testing.T, db database.Database) {
-	t.Helper()
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-
-	if err := db.Ping(ctx); err != nil {
-		t.Skipf("Skipping test: MongoDB not available: %v", err)
-	}
-}
-
 // Constructor Tests
 
 func TestNewMongoDBDatabase(t *testing.T) {
+	requireMongoDB(t)
 	logger := newTestLogger()
 
 	t.Run("create with minimal config", func(t *testing.T) {
@@ -178,6 +168,7 @@ func TestNewMongoDBDatabase(t *testing.T) {
 // Connection Lifecycle Tests
 
 func TestMongoDBDatabase_Connect(t *testing.T) {
+	requireMongoDB(t)
 	logger := newTestLogger()
 	ctx := context.Background()
 
@@ -255,6 +246,7 @@ func TestMongoDBDatabase_Connect(t *testing.T) {
 }
 
 func TestMongoDBDatabase_Disconnect(t *testing.T) {
+	requireMongoDB(t)
 	logger := newTestLogger()
 
 	t.Run("disconnect succeeds", func(t *testing.T) {
@@ -300,6 +292,7 @@ func TestMongoDBDatabase_Disconnect(t *testing.T) {
 }
 
 func TestMongoDBDatabase_Ping(t *testing.T) {
+	requireMongoDB(t)
 	logger := newTestLogger()
 	ctx := context.Background()
 
@@ -364,6 +357,7 @@ func TestMongoDBDatabase_Ping(t *testing.T) {
 // Connection Info Tests
 
 func TestMongoDBDatabase_GetConnectionInfo(t *testing.T) {
+	requireMongoDB(t)
 	logger := newTestLogger()
 	ctx := context.Background()
 
@@ -424,6 +418,7 @@ func TestMongoDBDatabase_GetConnectionInfo(t *testing.T) {
 // Note: These tests require a running MongoDB instance
 
 func TestMongoDBDatabase_Execute_Select(t *testing.T) {
+	requireMongoDB(t)
 	logger := newTestLogger()
 	ctx := context.Background()
 
@@ -510,6 +505,7 @@ func TestMongoDBDatabase_Execute_Select(t *testing.T) {
 // ExecuteStream Tests
 
 func TestMongoDBDatabase_ExecuteStream(t *testing.T) {
+	requireMongoDB(t)
 	logger := newTestLogger()
 	ctx := context.Background()
 
@@ -570,6 +566,7 @@ func TestMongoDBDatabase_ExecuteStream(t *testing.T) {
 // ExplainQuery Tests
 
 func TestMongoDBDatabase_ExplainQuery(t *testing.T) {
+	requireMongoDB(t)
 	logger := newTestLogger()
 	ctx := context.Background()
 
@@ -618,6 +615,7 @@ func TestMongoDBDatabase_ExplainQuery(t *testing.T) {
 // Schema Operations Tests
 
 func TestMongoDBDatabase_GetSchemas(t *testing.T) {
+	requireMongoDB(t)
 	logger := newTestLogger()
 	ctx := context.Background()
 
@@ -652,6 +650,7 @@ func TestMongoDBDatabase_GetSchemas(t *testing.T) {
 }
 
 func TestMongoDBDatabase_GetTables(t *testing.T) {
+	requireMongoDB(t)
 	logger := newTestLogger()
 	ctx := context.Background()
 
@@ -718,6 +717,7 @@ func TestMongoDBDatabase_GetTables(t *testing.T) {
 }
 
 func TestMongoDBDatabase_GetTableStructure(t *testing.T) {
+	requireMongoDB(t)
 	logger := newTestLogger()
 	ctx := context.Background()
 
@@ -792,6 +792,7 @@ func TestMongoDBDatabase_GetTableStructure(t *testing.T) {
 // Transaction Tests
 
 func TestMongoDBDatabase_BeginTransaction(t *testing.T) {
+	requireMongoDB(t)
 	logger := newTestLogger()
 	ctx := context.Background()
 
@@ -868,6 +869,7 @@ func TestMongoDBDatabase_BeginTransaction(t *testing.T) {
 // UpdateRow Tests
 
 func TestMongoDBDatabase_UpdateRow(t *testing.T) {
+	requireMongoDB(t)
 	logger := newTestLogger()
 	ctx := context.Background()
 
@@ -900,6 +902,7 @@ func TestMongoDBDatabase_UpdateRow(t *testing.T) {
 // ComputeEditableMetadata Tests
 
 func TestMongoDBDatabase_ComputeEditableMetadata(t *testing.T) {
+	requireMongoDB(t)
 	logger := newTestLogger()
 	ctx := context.Background()
 
@@ -1138,6 +1141,7 @@ func TestMongoDBDatabase_ConnectionURIBuilding(t *testing.T) {
 // Edge Cases
 
 func TestMongoDBDatabase_EdgeCases(t *testing.T) {
+	requireMongoDB(t)
 	logger := newTestLogger()
 	ctx := context.Background()
 
@@ -1287,6 +1291,7 @@ func TestMongoDBDatabase_EdgeCases(t *testing.T) {
 // BSON Type Conversion Tests (Indirect)
 
 func TestMongoDBDatabase_BSONTypeHandling(t *testing.T) {
+	requireMongoDB(t)
 	logger := newTestLogger()
 
 	t.Run("data type mappings include BSON types", func(t *testing.T) {

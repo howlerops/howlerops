@@ -19,14 +19,14 @@ import (
 
 // Test Helpers
 
-func newTestLogger() *logrus.Logger {
+func newTestLoggerSQLiteVectorStore() *logrus.Logger {
 	logger := logrus.New()
 	logger.SetLevel(logrus.ErrorLevel) // Quiet during tests
 	return logger
 }
 
 func newMemoryVectorStore(t *testing.T) (*rag.SQLiteVectorStore, context.Context) {
-	logger := newTestLogger()
+	logger := newTestLoggerSQLiteVectorStore()
 	config := &rag.SQLiteVectorConfig{
 		Path:        ":memory:",
 		VectorSize:  128, // Smaller for tests
@@ -51,7 +51,7 @@ func newFileVectorStore(t *testing.T) (*rag.SQLiteVectorStore, context.Context, 
 	tmpDir, err := os.MkdirTemp("", "rag-test-*")
 	require.NoError(t, err)
 
-	logger := newTestLogger()
+	logger := newTestLoggerSQLiteVectorStore()
 	config := &rag.SQLiteVectorConfig{
 		Path:        filepath.Join(tmpDir, "test-vectors.db"),
 		VectorSize:  128,
@@ -98,7 +98,7 @@ func makeTestDocument(connectionID string, docType rag.DocumentType, content str
 // Constructor Tests
 
 func TestNewSQLiteVectorStore(t *testing.T) {
-	logger := newTestLogger()
+	logger := newTestLoggerSQLiteVectorStore()
 
 	t.Run("create with memory database", func(t *testing.T) {
 		config := &rag.SQLiteVectorConfig{
@@ -166,7 +166,7 @@ func TestSQLiteVectorStore_Initialize(t *testing.T) {
 	})
 
 	t.Run("initialize is idempotent", func(t *testing.T) {
-		logger := newTestLogger()
+		logger := newTestLoggerSQLiteVectorStore()
 		config := &rag.SQLiteVectorConfig{
 			Path:        ":memory:",
 			VectorSize:  128,
@@ -193,7 +193,7 @@ func TestSQLiteVectorStore_Initialize(t *testing.T) {
 	})
 
 	t.Run("initialize with context timeout", func(t *testing.T) {
-		logger := newTestLogger()
+		logger := newTestLoggerSQLiteVectorStore()
 		config := &rag.SQLiteVectorConfig{
 			Path:        ":memory:",
 			VectorSize:  128,
@@ -1380,7 +1380,7 @@ func TestSQLiteVectorStore_FileBased(t *testing.T) {
 		defer os.RemoveAll(tmpDir)
 
 		dbPath := filepath.Join(tmpDir, "persist.db")
-		logger := newTestLogger()
+		logger := newTestLoggerSQLiteVectorStore()
 
 		// First connection
 		config1 := &rag.SQLiteVectorConfig{
@@ -1443,7 +1443,7 @@ func TestSQLiteVectorStore_FileBased(t *testing.T) {
 
 func TestSQLiteVectorStore_ContextCancellation(t *testing.T) {
 	t.Run("cancelled context on initialize", func(t *testing.T) {
-		logger := newTestLogger()
+		logger := newTestLoggerSQLiteVectorStore()
 		config := &rag.SQLiteVectorConfig{
 			Path:        ":memory:",
 			VectorSize:  128,

@@ -30,6 +30,7 @@ func newTestClickHouseConfig() database.ConnectionConfig {
 }
 
 func TestNewClickHouseDatabase(t *testing.T) {
+	requireClickHouse(t)
 	logger := newTestLogger()
 
 	t.Run("valid config", func(t *testing.T) {
@@ -104,6 +105,7 @@ func TestNewClickHouseDatabase(t *testing.T) {
 }
 
 func TestClickHouseDatabase_GetDatabaseType(t *testing.T) {
+	requireClickHouse(t)
 	logger := newTestLogger()
 	config := newTestClickHouseConfig()
 
@@ -118,6 +120,7 @@ func TestClickHouseDatabase_GetDatabaseType(t *testing.T) {
 }
 
 func TestClickHouseDatabase_QuoteIdentifier(t *testing.T) {
+	requireClickHouse(t)
 	logger := newTestLogger()
 	config := newTestClickHouseConfig()
 
@@ -173,6 +176,7 @@ func TestClickHouseDatabase_QuoteIdentifier(t *testing.T) {
 }
 
 func TestClickHouseDatabase_GetDataTypeMappings(t *testing.T) {
+	requireClickHouse(t)
 	logger := newTestLogger()
 	config := newTestClickHouseConfig()
 
@@ -268,6 +272,7 @@ func TestClickHouseDatabase_Execute_QueryType(t *testing.T) {
 }
 
 func TestClickHouseDatabase_UpdateRow(t *testing.T) {
+	requireClickHouse(t)
 	logger := newTestLogger()
 	config := newTestClickHouseConfig()
 
@@ -297,6 +302,7 @@ func TestClickHouseDatabase_UpdateRow(t *testing.T) {
 }
 
 func TestClickHouseDatabase_ComputeEditableMetadata(t *testing.T) {
+	requireClickHouse(t)
 	logger := newTestLogger()
 	config := newTestClickHouseConfig()
 
@@ -316,6 +322,7 @@ func TestClickHouseDatabase_ComputeEditableMetadata(t *testing.T) {
 }
 
 func TestClickHouseDatabase_BeginTransaction(t *testing.T) {
+	requireClickHouse(t)
 	logger := newTestLogger()
 	config := newTestClickHouseConfig()
 
@@ -335,6 +342,8 @@ func TestClickHouseDatabase_BeginTransaction(t *testing.T) {
 }
 
 func TestClickHouseDatabase_Execute(t *testing.T) {
+	requireClickHouse(t)
+
 	t.Run("SELECT query structure", func(t *testing.T) {
 		logger := newTestLogger()
 		config := newTestClickHouseConfig()
@@ -419,6 +428,8 @@ func TestClickHouseDatabase_Execute(t *testing.T) {
 }
 
 func TestClickHouseDatabase_ExecuteStream(t *testing.T) {
+	requireClickHouse(t)
+
 	t.Run("callback invocation", func(t *testing.T) {
 		logger := newTestLogger()
 		config := newTestClickHouseConfig()
@@ -510,6 +521,8 @@ func TestClickHouseDatabase_ExecuteStream(t *testing.T) {
 }
 
 func TestClickHouseDatabase_GetSchemas(t *testing.T) {
+	requireClickHouse(t)
+
 	t.Run("filters system schemas", func(t *testing.T) {
 		logger := newTestLogger()
 		config := newTestClickHouseConfig()
@@ -556,6 +569,8 @@ func TestClickHouseDatabase_GetSchemas(t *testing.T) {
 }
 
 func TestClickHouseDatabase_GetTables(t *testing.T) {
+	requireClickHouse(t)
+
 	t.Run("requires schema parameter", func(t *testing.T) {
 		logger := newTestLogger()
 		config := newTestClickHouseConfig()
@@ -629,6 +644,8 @@ func TestClickHouseDatabase_GetTables(t *testing.T) {
 }
 
 func TestClickHouseDatabase_GetTableStructure(t *testing.T) {
+	requireClickHouse(t)
+
 	t.Run("includes table info with engine", func(t *testing.T) {
 		logger := newTestLogger()
 		config := newTestClickHouseConfig()
@@ -753,6 +770,8 @@ func TestClickHouseDatabase_GetTableStructure(t *testing.T) {
 }
 
 func TestClickHouseDatabase_GetConnectionInfo(t *testing.T) {
+	requireClickHouse(t)
+
 	t.Run("returns version and database info", func(t *testing.T) {
 		logger := newTestLogger()
 		config := newTestClickHouseConfig()
@@ -810,6 +829,8 @@ func TestClickHouseDatabase_GetConnectionInfo(t *testing.T) {
 }
 
 func TestClickHouseDatabase_ExplainQuery(t *testing.T) {
+	requireClickHouse(t)
+
 	t.Run("explains simple SELECT", func(t *testing.T) {
 		logger := newTestLogger()
 		config := newTestClickHouseConfig()
@@ -868,6 +889,8 @@ func TestClickHouseDatabase_ExplainQuery(t *testing.T) {
 }
 
 func TestClickHouseDatabase_Ping(t *testing.T) {
+	requireClickHouse(t)
+
 	t.Run("successful ping", func(t *testing.T) {
 		logger := newTestLogger()
 		config := newTestClickHouseConfig()
@@ -906,6 +929,8 @@ func TestClickHouseDatabase_Ping(t *testing.T) {
 }
 
 func TestClickHouseDatabase_Connect(t *testing.T) {
+	requireClickHouse(t)
+
 	t.Run("connect with valid config", func(t *testing.T) {
 		logger := newTestLogger()
 		config := newTestClickHouseConfig()
@@ -974,6 +999,8 @@ func TestClickHouseDatabase_Connect(t *testing.T) {
 }
 
 func TestClickHouseDatabase_Disconnect(t *testing.T) {
+	requireClickHouse(t)
+
 	t.Run("disconnect closes connection", func(t *testing.T) {
 		logger := newTestLogger()
 		config := newTestClickHouseConfig()
@@ -1006,6 +1033,8 @@ func TestClickHouseDatabase_Disconnect(t *testing.T) {
 }
 
 func TestClickHouseDatabase_GetConnectionStats(t *testing.T) {
+	requireClickHouse(t)
+
 	t.Run("returns pool statistics", func(t *testing.T) {
 		logger := newTestLogger()
 		config := newTestClickHouseConfig()
@@ -1339,6 +1368,8 @@ func TestClickHouseDatabase_SchemaIntrospection(t *testing.T) {
 }
 
 func TestClickHouseDatabase_ErrorHandling(t *testing.T) {
+	requireClickHouse(t)
+
 	t.Run("context cancellation", func(t *testing.T) {
 		logger := newTestLogger()
 		config := newTestClickHouseConfig()

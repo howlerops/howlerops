@@ -128,6 +128,11 @@ func newTestServices() *services.Services {
 	}
 }
 
+// newTestAuthMiddleware creates a test AuthMiddleware
+func newTestAuthMiddleware() *middleware.AuthMiddleware {
+	return middleware.NewAuthMiddleware("test-jwt-secret-for-testing-only-min-32-chars", newTestLogger())
+}
+
 // healthResponse represents the health check JSON response
 type healthResponse struct {
 	Status  string `json:"status"`
@@ -141,7 +146,7 @@ func TestNewHTTPServer(t *testing.T) {
 		logger := newTestLogger()
 		svc := newTestServices()
 
-		httpServer, err := server.NewHTTPServer(cfg, logger, svc)
+		httpServer, err := server.NewHTTPServer(cfg, logger, svc, newTestAuthMiddleware())
 
 		require.NoError(t, err)
 		assert.NotNil(t, httpServer)
@@ -154,7 +159,7 @@ func TestNewHTTPServer(t *testing.T) {
 			AI: nil, // Explicitly nil
 		}
 
-		httpServer, err := server.NewHTTPServer(cfg, logger, svc)
+		httpServer, err := server.NewHTTPServer(cfg, logger, svc, newTestAuthMiddleware())
 
 		require.NoError(t, err)
 		assert.NotNil(t, httpServer)
@@ -169,7 +174,7 @@ func TestNewHTTPServer(t *testing.T) {
 		logger := newTestLogger()
 		svc := newTestServices()
 
-		httpServer, err := server.NewHTTPServer(cfg, logger, svc)
+		httpServer, err := server.NewHTTPServer(cfg, logger, svc, newTestAuthMiddleware())
 
 		require.NoError(t, err)
 		assert.NotNil(t, httpServer)
@@ -182,7 +187,7 @@ func TestNewHTTPServer(t *testing.T) {
 		logger := newTestLogger()
 		svc := newTestServices()
 
-		httpServer, err := server.NewHTTPServer(cfg, logger, svc)
+		httpServer, err := server.NewHTTPServer(cfg, logger, svc, newTestAuthMiddleware())
 
 		require.NoError(t, err)
 		assert.NotNil(t, httpServer)
@@ -195,7 +200,7 @@ func TestNewHTTPServer(t *testing.T) {
 			AI: &mockAIService{}, // Use mock AI service
 		}
 
-		httpServer, err := server.NewHTTPServer(cfg, logger, svc)
+		httpServer, err := server.NewHTTPServer(cfg, logger, svc, newTestAuthMiddleware())
 
 		require.NoError(t, err)
 		assert.NotNil(t, httpServer)
@@ -210,7 +215,7 @@ func TestHealthCheckEndpoint(t *testing.T) {
 	logger := newTestLogger()
 	svc := newTestServices()
 
-	httpServer, err := server.NewHTTPServer(cfg, logger, svc)
+	httpServer, err := server.NewHTTPServer(cfg, logger, svc, newTestAuthMiddleware())
 	require.NoError(t, err)
 
 	t.Run("returns 200 OK with JSON response", func(t *testing.T) {
@@ -269,7 +274,7 @@ func TestCORSHandler(t *testing.T) {
 		logger := newTestLogger()
 		svc := newTestServices()
 
-		_, err := server.NewHTTPServer(cfg, logger, svc)
+		_, err := server.NewHTTPServer(cfg, logger, svc, newTestAuthMiddleware())
 		require.NoError(t, err)
 
 		// Test CORS headers on a simple request
@@ -307,7 +312,7 @@ func TestCORSHandler(t *testing.T) {
 		logger := newTestLogger()
 		svc := newTestServices()
 
-		_, err := server.NewHTTPServer(cfg, logger, svc)
+		_, err := server.NewHTTPServer(cfg, logger, svc, newTestAuthMiddleware())
 		require.NoError(t, err)
 
 		req := httptest.NewRequest(http.MethodOptions, "/health", nil)
@@ -344,7 +349,7 @@ func TestCORSHandler(t *testing.T) {
 		logger := newTestLogger()
 		svc := newTestServices()
 
-		_, err := server.NewHTTPServer(cfg, logger, svc)
+		_, err := server.NewHTTPServer(cfg, logger, svc, newTestAuthMiddleware())
 		require.NoError(t, err)
 
 		req := httptest.NewRequest(http.MethodGet, "/health", nil)
@@ -374,7 +379,7 @@ func TestCORSHandler(t *testing.T) {
 		logger := newTestLogger()
 		svc := newTestServices()
 
-		_, err := server.NewHTTPServer(cfg, logger, svc)
+		_, err := server.NewHTTPServer(cfg, logger, svc, newTestAuthMiddleware())
 		require.NoError(t, err)
 
 		req := httptest.NewRequest(http.MethodGet, "/health", nil)
@@ -401,7 +406,7 @@ func TestServerLifecycle(t *testing.T) {
 		logger := newTestLogger()
 		svc := newTestServices()
 
-		httpServer, err := server.NewHTTPServer(cfg, logger, svc)
+		httpServer, err := server.NewHTTPServer(cfg, logger, svc, newTestAuthMiddleware())
 		require.NoError(t, err)
 
 		// Start server in goroutine
@@ -438,7 +443,7 @@ func TestServerLifecycle(t *testing.T) {
 		logger := newTestLogger()
 		svc := newTestServices()
 
-		httpServer, err := server.NewHTTPServer(cfg, logger, svc)
+		httpServer, err := server.NewHTTPServer(cfg, logger, svc, newTestAuthMiddleware())
 		require.NoError(t, err)
 
 		// Start server
@@ -462,7 +467,7 @@ func TestServerLifecycle(t *testing.T) {
 		logger := newTestLogger()
 		svc := newTestServices()
 
-		httpServer, err := server.NewHTTPServer(cfg, logger, svc)
+		httpServer, err := server.NewHTTPServer(cfg, logger, svc, newTestAuthMiddleware())
 		require.NoError(t, err)
 
 		// Start server
@@ -493,7 +498,7 @@ func TestEdgeCases(t *testing.T) {
 		logger := newTestLogger()
 		svc := newTestServices()
 
-		httpServer, err := server.NewHTTPServer(cfg, logger, svc)
+		httpServer, err := server.NewHTTPServer(cfg, logger, svc, newTestAuthMiddleware())
 		require.NoError(t, err)
 
 		// Start server
@@ -523,7 +528,7 @@ func TestEdgeCases(t *testing.T) {
 		logger := newTestLogger()
 		svc := newTestServices()
 
-		httpServer, err := server.NewHTTPServer(cfg, logger, svc)
+		httpServer, err := server.NewHTTPServer(cfg, logger, svc, newTestAuthMiddleware())
 		require.NoError(t, err)
 
 		// Try to stop without starting
@@ -545,7 +550,7 @@ func TestEdgeCases(t *testing.T) {
 			logger := newTestLogger()
 			svc := newTestServices()
 
-			httpServer, err := server.NewHTTPServer(cfg, logger, svc)
+			httpServer, err := server.NewHTTPServer(cfg, logger, svc, newTestAuthMiddleware())
 			require.NoError(t, err)
 			assert.NotNil(t, httpServer)
 		}
@@ -559,7 +564,7 @@ func TestRouteRegistration(t *testing.T) {
 		logger := newTestLogger()
 		svc := newTestServices()
 
-		httpServer, err := server.NewHTTPServer(cfg, logger, svc)
+		httpServer, err := server.NewHTTPServer(cfg, logger, svc, newTestAuthMiddleware())
 		require.NoError(t, err)
 		assert.NotNil(t, httpServer)
 
@@ -573,7 +578,7 @@ func TestRouteRegistration(t *testing.T) {
 		logger := newTestLogger()
 		svc := newTestServices()
 
-		httpServer, err := server.NewHTTPServer(cfg, logger, svc)
+		httpServer, err := server.NewHTTPServer(cfg, logger, svc, newTestAuthMiddleware())
 		require.NoError(t, err)
 		assert.NotNil(t, httpServer)
 
@@ -588,7 +593,7 @@ func TestRouteRegistration(t *testing.T) {
 			AI: nil, // Explicitly nil
 		}
 
-		httpServer, err := server.NewHTTPServer(cfg, logger, svc)
+		httpServer, err := server.NewHTTPServer(cfg, logger, svc, newTestAuthMiddleware())
 		require.NoError(t, err)
 		assert.NotNil(t, httpServer)
 
@@ -606,7 +611,7 @@ func TestHTTPServerConfiguration(t *testing.T) {
 		logger := newTestLogger()
 		svc := newTestServices()
 
-		httpServer, err := server.NewHTTPServer(cfg, logger, svc)
+		httpServer, err := server.NewHTTPServer(cfg, logger, svc, newTestAuthMiddleware())
 		require.NoError(t, err)
 		assert.NotNil(t, httpServer)
 	})
@@ -618,7 +623,7 @@ func TestHTTPServerConfiguration(t *testing.T) {
 		logger := newTestLogger()
 		svc := newTestServices()
 
-		httpServer, err := server.NewHTTPServer(cfg, logger, svc)
+		httpServer, err := server.NewHTTPServer(cfg, logger, svc, newTestAuthMiddleware())
 		require.NoError(t, err)
 		assert.NotNil(t, httpServer)
 	})
@@ -630,7 +635,7 @@ func TestHTTPServerConfiguration(t *testing.T) {
 		logger := newTestLogger()
 		svc := newTestServices()
 
-		httpServer, err := server.NewHTTPServer(cfg, logger, svc)
+		httpServer, err := server.NewHTTPServer(cfg, logger, svc, newTestAuthMiddleware())
 		require.NoError(t, err)
 		assert.NotNil(t, httpServer)
 	})
@@ -642,7 +647,7 @@ func TestHTTPServerConfiguration(t *testing.T) {
 		logger := newTestLogger()
 		svc := newTestServices()
 
-		httpServer, err := server.NewHTTPServer(cfg, logger, svc)
+		httpServer, err := server.NewHTTPServer(cfg, logger, svc, newTestAuthMiddleware())
 		require.NoError(t, err)
 		assert.NotNil(t, httpServer)
 	})
@@ -656,7 +661,7 @@ func TestHeaderMatching(t *testing.T) {
 		svc := newTestServices()
 
 		// Create server to initialize the header matcher
-		httpServer, err := server.NewHTTPServer(cfg, logger, svc)
+		httpServer, err := server.NewHTTPServer(cfg, logger, svc, newTestAuthMiddleware())
 		require.NoError(t, err)
 		assert.NotNil(t, httpServer)
 
@@ -673,7 +678,7 @@ func TestShutdownGracePeriod(t *testing.T) {
 		logger := newTestLogger()
 		svc := newTestServices()
 
-		httpServer, err := server.NewHTTPServer(cfg, logger, svc)
+		httpServer, err := server.NewHTTPServer(cfg, logger, svc, newTestAuthMiddleware())
 		require.NoError(t, err)
 
 		// Start server
@@ -786,7 +791,7 @@ func TestHTTPServerIntegration(t *testing.T) {
 		logger := newTestLogger()
 		svc := newTestServices()
 
-		httpServer, err := server.NewHTTPServer(cfg, logger, svc)
+		httpServer, err := server.NewHTTPServer(cfg, logger, svc, newTestAuthMiddleware())
 		require.NoError(t, err)
 
 		// Start server
@@ -813,7 +818,7 @@ func TestHTTPServerIntegration(t *testing.T) {
 		logger := newTestLogger()
 		svc := newTestServices()
 
-		httpServer, err := server.NewHTTPServer(cfg, logger, svc)
+		httpServer, err := server.NewHTTPServer(cfg, logger, svc, newTestAuthMiddleware())
 		require.NoError(t, err)
 		assert.NotNil(t, httpServer)
 
@@ -858,7 +863,7 @@ func TestCORSIntegration(t *testing.T) {
 				logger := newTestLogger()
 				svc := newTestServices()
 
-				_, err := server.NewHTTPServer(cfg, logger, svc)
+				_, err := server.NewHTTPServer(cfg, logger, svc, newTestAuthMiddleware())
 				require.NoError(t, err)
 
 				// Test with mock CORS handler

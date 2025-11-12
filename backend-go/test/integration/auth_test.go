@@ -3,6 +3,7 @@ package integration
 import (
 	"bytes"
 	"encoding/json"
+	"net"
 	"net/http"
 	"os"
 	"testing"
@@ -30,6 +31,32 @@ func NewAuthTestSuite() *AuthTestSuite {
 		client: &http.Client{
 			Timeout: 30 * time.Second,
 		},
+	}
+}
+
+// isServerAvailable checks if the test server is available
+func isServerAvailable(baseURL string) bool {
+	// Extract host:port from URL (handle both http://localhost:8500 and localhost:8500)
+	address := baseURL
+	if len(address) > 7 && address[:7] == "http://" {
+		address = address[7:]
+	} else if len(address) > 8 && address[:8] == "https://" {
+		address = address[8:]
+	}
+
+	// Try to connect with a short timeout
+	conn, err := net.DialTimeout("tcp", address, 2*time.Second)
+	if err != nil {
+		return false
+	}
+	conn.Close()
+	return true
+}
+
+// requireServer skips the test if the server is not available
+func requireServer(t *testing.T, baseURL string) {
+	if !isServerAvailable(baseURL) {
+		t.Skipf("Skipping integration test: server not available at %s (connection refused or timeout)", baseURL)
 	}
 }
 
@@ -76,6 +103,7 @@ func TestAuthFlow(t *testing.T) {
 		t.Skip("skipping integration test in short mode")
 	}
 	suite := NewAuthTestSuite()
+	requireServer(t, suite.baseURL)
 
 	// Generate unique test user
 	timestamp := time.Now().Unix()
@@ -337,6 +365,7 @@ func TestAuthRateLimiting(t *testing.T) {
 		t.Skip("skipping integration test in short mode")
 	}
 	suite := NewAuthTestSuite()
+	requireServer(t, suite.baseURL)
 
 	loginReq := LoginRequest{
 		Username: "nonexistent",
@@ -371,6 +400,7 @@ func TestAuthValidation(t *testing.T) {
 		t.Skip("skipping integration test in short mode")
 	}
 	suite := NewAuthTestSuite()
+	requireServer(t, suite.baseURL)
 
 	tests := []struct {
 		name       string

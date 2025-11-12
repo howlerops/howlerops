@@ -9,9 +9,14 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// ContextBuilderInterface defines the interface for building query context
+type ContextBuilderInterface interface {
+	BuildContext(ctx context.Context, query string, connectionID string) (*QueryContext, error)
+}
+
 // SmartSQLGenerator generates SQL using RAG context
 type SmartSQLGenerator struct {
-	contextBuilder *ContextBuilder
+	contextBuilder ContextBuilderInterface
 	llmProvider    LLMProvider
 	validator      *SQLValidator
 	planner        *QueryPlanner
@@ -71,7 +76,7 @@ type Improvement struct {
 
 // NewSmartSQLGenerator creates a new smart SQL generator
 func NewSmartSQLGenerator(
-	contextBuilder *ContextBuilder,
+	contextBuilder ContextBuilderInterface,
 	llmProvider LLMProvider,
 	logger *logrus.Logger,
 ) *SmartSQLGenerator {
