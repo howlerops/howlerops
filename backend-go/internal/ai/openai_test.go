@@ -151,7 +151,7 @@ func TestOpenAI_GenerateSQL_Success(t *testing.T) {
 	logger := createTestLogger()
 
 	// Create mock server
-	server := testServer()(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Verify request method and path
 		assert.Equal(t, "POST", r.Method)
 		assert.Equal(t, "/chat/completions", r.URL.Path)
