@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -37,183 +39,21 @@ var (
 )
 
 func main() {
-	// Set version info in package
-	version.Version = Version
-	version.Commit = Commit
-	version.BuildDate = BuildDate
+	setupVersion()
+	cfg, appLogger := initializeConfig()
+	logStartupInfo(cfg, appLogger)
 
-	// Handle version flag
-	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-v") {
-		info := version.GetInfo()
-		fmt.Println(info.String())
-		os.Exit(0)
-	}
-
-	// Load configuration
-	cfg, err := config.Load()
-	if err != nil {
-		log.Fatalf("Failed to load configuration: %v", err)
-	}
-
-	// Create logger
-	logConfig := logger.Config{
-		Level:      cfg.Log.Level,
-		Format:     cfg.Log.Format,
-		Output:     cfg.Log.Output,
-		File:       cfg.Log.File,
-		MaxSize:    cfg.Log.MaxSize,
-		MaxBackups: cfg.Log.MaxBackups,
-		MaxAge:     cfg.Log.MaxAge,
-		Compress:   cfg.Log.Compress,
-	}
-
-	appLogger, err := logger.NewLogger(logConfig)
-	if err != nil {
-		log.Fatalf("Failed to create logger: %v", err)
-	}
-
-	appLogger.WithFields(logrus.Fields{
-		"version":     Version,
-		"commit":      Commit,
-		"build_date":  BuildDate,
-		"environment": cfg.GetEnv(),
-		"grpc_port":   cfg.Server.GRPCPort,
-		"http_port":   cfg.Server.HTTPPort,
-	}).Info("Starting SQL Studio Backend (Phase 2)")
-
-	// Check for updates (non-blocking, non-intrusive)
+	// Check for updates and validate environment
 	if !cfg.IsProduction() {
 		go checkForUpdates(appLogger)
 	}
-
-	// Validate environment in production
-	if err := validateEnvironment(cfg, appLogger); err != nil {
-		appLogger.WithError(err).Fatal("Environment validation failed")
+	if validateErr := validateEnvironment(cfg, appLogger); validateErr != nil {
+		appLogger.WithError(validateErr).Fatal("Environment validation failed")
 	}
 
-	// Initialize Turso database connection
-	appLogger.Info("Connecting to Turso database...")
-	tursoClient, err := turso.NewClient(&turso.Config{
-		URL:       cfg.Turso.URL,
-		AuthToken: cfg.Turso.AuthToken,
-		MaxConns:  cfg.Turso.MaxConnections,
-	}, appLogger)
-	if err != nil {
-		appLogger.WithError(err).Fatal("Failed to connect to Turso database")
-	}
-
-	// Initialize schema (creates tables if they don't exist)
-	appLogger.Info("Initializing database schema...")
-	if err := turso.InitializeSchema(tursoClient, appLogger); err != nil {
-		appLogger.WithError(err).Fatal("Failed to initialize schema")
-	}
-
-	// Run database migrations
-	appLogger.Info("Running database migrations...")
-	if err := turso.RunMigrations(tursoClient, appLogger); err != nil {
-		appLogger.WithError(err).Fatal("Failed to run migrations")
-	}
-
-	// Create Turso storage implementations
-	userStore := turso.NewTursoUserStore(tursoClient, appLogger)
-	sessionStore := turso.NewTursoSessionStore(tursoClient, appLogger)
-	loginAttemptStore := turso.NewTursoLoginAttemptStore(tursoClient, appLogger)
-	syncStore := turso.NewSyncStoreAdapter(tursoClient, appLogger)
-	organizationStore := turso.NewOrganizationStore(tursoClient, appLogger)
-
-	appLogger.Info("Storage layer initialized with Turso")
-
-	// Create email service
-	var emailService email.EmailService
-	if cfg.Email.APIKey != "" {
-		emailService, err = email.NewResendEmailService(
-			cfg.Email.APIKey,
-			cfg.Email.FromEmail,
-			cfg.Email.FromName,
-			appLogger,
-		)
-		if err != nil {
-			appLogger.WithError(err).Fatal("Failed to create email service")
-		}
-		appLogger.Info("Email service initialized (Resend)")
-	} else {
-		emailService = email.NewMockEmailService(appLogger)
-		appLogger.Warn("Email service initialized (Mock - emails logged only)")
-	}
-
-	// Create auth middleware
-	authMiddleware := middleware.NewAuthMiddleware(cfg.Auth.JWTSecret, appLogger)
-
-	// Create auth service
-	authConfig := auth.Config{
-		BcryptCost:        cfg.Auth.BcryptCost,
-		JWTExpiration:     cfg.Auth.JWTExpiration,
-		RefreshExpiration: cfg.Auth.RefreshExpiration,
-		MaxLoginAttempts:  cfg.Auth.MaxLoginAttempts,
-		LockoutDuration:   cfg.Auth.LockoutDuration,
-	}
-
-	authService := auth.NewService(
-		userStore,
-		sessionStore,
-		loginAttemptStore,
-		authMiddleware,
-		authConfig,
-		appLogger,
-	)
-
-	// Wire up email service to auth
-	authService.SetEmailService(emailService)
-
-	appLogger.Info("Auth service initialized")
-
-	// Create sync service
-	syncConfig := appsync.Config{
-		MaxUploadSize:      cfg.Sync.MaxUploadSize,
-		ConflictStrategy:   appsync.ConflictResolutionStrategy(cfg.Sync.ConflictStrategy),
-		RetentionDays:      cfg.Sync.RetentionDays,
-		MaxHistoryItems:    cfg.Sync.MaxHistoryItems,
-		EnableSanitization: cfg.Sync.EnableSanitization,
-	}
-
-	syncService := appsync.NewService(
-		syncStore,
-		syncConfig,
-		appLogger,
-	)
-
-	appLogger.Info("Sync service initialized")
-
-	// Create organization service
-	organizationService := organization.NewService(
-		organizationStore,
-		appLogger,
-	)
-
-	appLogger.Info("Organization service initialized")
-
-	// Create database manager (for query execution on user-connected databases)
-	dbManager := database.NewManager(appLogger)
-
-	// Create legacy services (existing database operations)
-	serviceConfig := services.Config{
-		Database: cfg.Database,
-		Auth:     cfg.Auth,
-		Security: cfg.Security,
-	}
-
-	svc, err := services.NewServices(serviceConfig, dbManager, authMiddleware, appLogger)
-	if err != nil {
-		appLogger.WithError(err).Fatal("Failed to create services")
-	}
-
-	// Wire up new services to replace in-memory implementations
-	svc.Auth = authService
-	svc.Sync = syncService
-	svc.Database = dbManager
-	svc.Organization = organizationService
-
-	appLogger.Info("All services wired up successfully")
+	// Initialize database and services
+	tursoClient := initializeDatabase(cfg, appLogger)
+	svc, authMiddleware, dbManager := initializeServices(cfg, tursoClient, appLogger)
 
 	// Create gRPC server
 	grpcServer, err := server.NewGRPCServer(cfg, appLogger, svc)
@@ -268,8 +108,8 @@ func main() {
 	go func() {
 		defer wg.Done()
 		appLogger.Info("Starting HTTP gateway server")
-		if err := httpServer.Start(); err != nil && err != http.ErrServerClosed {
-			appLogger.WithError(err).Error("HTTP server failed")
+		if startErr := httpServer.Start(); startErr != nil && !errors.Is(startErr, http.ErrServerClosed) {
+			appLogger.WithError(startErr).Error("HTTP server failed")
 		}
 	}()
 
@@ -394,44 +234,57 @@ func runBackgroundTasks(ctx context.Context, svc *services.Services, logger *log
 			logger.Info("Background tasks stopped")
 			return
 		case <-ticker.C:
-			// Cleanup expired sessions
-			if err := svc.Auth.CleanupExpiredSessions(ctx); err != nil {
-				logger.WithError(err).Error("Failed to cleanup expired sessions")
-			} else {
-				logger.Debug("Expired sessions cleaned up")
-			}
-
-			// Cleanup old login attempts
-			if err := svc.Auth.CleanupOldLoginAttempts(ctx); err != nil {
-				logger.WithError(err).Error("Failed to cleanup old login attempts")
-			} else {
-				logger.Debug("Old login attempts cleaned up")
-			}
-
-			// Health check all user database connections
-			if svc.Database != nil {
-				healthStatuses := svc.Database.HealthCheckAll(ctx)
-				unhealthyCount := 0
-				for connID, status := range healthStatuses {
-					if status.Status != "healthy" {
-						unhealthyCount++
-						logger.WithFields(logrus.Fields{
-							"connection_id": connID,
-							"status":        status.Status,
-							"message":       status.Message,
-						}).Warn("Unhealthy user database connection detected")
-					}
-				}
-
-				if unhealthyCount > 0 {
-					logger.WithField("unhealthy_connections", unhealthyCount).Warn("Some user database connections are unhealthy")
-				} else {
-					logger.Debug("All user database connections healthy")
-				}
-			}
-
-			logger.Debug("Background cleanup tasks completed successfully")
+			runCleanupTasks(ctx, svc, logger)
 		}
+	}
+}
+
+// runCleanupTasks performs all periodic cleanup operations
+func runCleanupTasks(ctx context.Context, svc *services.Services, logger *logrus.Logger) {
+	// Cleanup expired sessions
+	if err := svc.Auth.CleanupExpiredSessions(ctx); err != nil {
+		logger.WithError(err).Error("Failed to cleanup expired sessions")
+	} else {
+		logger.Debug("Expired sessions cleaned up")
+	}
+
+	// Cleanup old login attempts
+	if err := svc.Auth.CleanupOldLoginAttempts(ctx); err != nil {
+		logger.WithError(err).Error("Failed to cleanup old login attempts")
+	} else {
+		logger.Debug("Old login attempts cleaned up")
+	}
+
+	// Health check all user database connections
+	checkDatabaseHealth(ctx, svc, logger)
+
+	logger.Debug("Background cleanup tasks completed successfully")
+}
+
+// checkDatabaseHealth performs health checks on all database connections
+func checkDatabaseHealth(ctx context.Context, svc *services.Services, logger *logrus.Logger) {
+	if svc.Database == nil {
+		return
+	}
+
+	healthStatuses := svc.Database.HealthCheckAll(ctx)
+	unhealthyCount := 0
+
+	for connID, status := range healthStatuses {
+		if status.Status != "healthy" {
+			unhealthyCount++
+			logger.WithFields(logrus.Fields{
+				"connection_id": connID,
+				"status":        status.Status,
+				"message":       status.Message,
+			}).Warn("Unhealthy user database connection detected")
+		}
+	}
+
+	if unhealthyCount > 0 {
+		logger.WithField("unhealthy_connections", unhealthyCount).Warn("Some user database connections are unhealthy")
+	} else {
+		logger.Debug("All user database connections healthy")
 	}
 }
 
@@ -471,6 +324,198 @@ func validateEnvironment(cfg *config.Config, logger *logrus.Logger) error {
 	}
 
 	return nil
+}
+
+// setupVersion sets version information in the version package
+func setupVersion() {
+	version.Version = Version
+	version.Commit = Commit
+	version.BuildDate = BuildDate
+
+	// Handle version flag
+	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-v") {
+		info := version.GetInfo()
+		fmt.Println(info.String())
+		os.Exit(0)
+	}
+}
+
+// initializeConfig loads configuration and creates logger
+func initializeConfig() (*config.Config, *logrus.Logger) {
+	// Load configuration
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("Failed to load configuration: %v", err)
+	}
+
+	// Create logger
+	logConfig := logger.Config{
+		Level:      cfg.Log.Level,
+		Format:     cfg.Log.Format,
+		Output:     cfg.Log.Output,
+		File:       cfg.Log.File,
+		MaxSize:    cfg.Log.MaxSize,
+		MaxBackups: cfg.Log.MaxBackups,
+		MaxAge:     cfg.Log.MaxAge,
+		Compress:   cfg.Log.Compress,
+	}
+
+	appLogger, err := logger.NewLogger(logConfig)
+	if err != nil {
+		log.Fatalf("Failed to create logger: %v", err)
+	}
+
+	return cfg, appLogger
+}
+
+// logStartupInfo logs startup information
+func logStartupInfo(cfg *config.Config, logger *logrus.Logger) {
+	logger.WithFields(logrus.Fields{
+		"version":     Version,
+		"commit":      Commit,
+		"build_date":  BuildDate,
+		"environment": cfg.GetEnv(),
+		"grpc_port":   cfg.Server.GRPCPort,
+		"http_port":   cfg.Server.HTTPPort,
+	}).Info("Starting SQL Studio Backend (Phase 2)")
+}
+
+// initializeDatabase connects to database and runs migrations
+func initializeDatabase(cfg *config.Config, logger *logrus.Logger) *sql.DB {
+	logger.Info("Connecting to Turso database...")
+	tursoClient, err := turso.NewClient(&turso.Config{
+		URL:       cfg.Turso.URL,
+		AuthToken: cfg.Turso.AuthToken,
+		MaxConns:  cfg.Turso.MaxConnections,
+	}, logger)
+	if err != nil {
+		logger.WithError(err).Fatal("Failed to connect to Turso database")
+	}
+
+	logger.Info("Initializing database schema...")
+	if schemaErr := turso.InitializeSchema(tursoClient, logger); schemaErr != nil {
+		logger.WithError(schemaErr).Fatal("Failed to initialize schema")
+	}
+
+	logger.Info("Running database migrations...")
+	if migErr := turso.RunMigrations(tursoClient, logger); migErr != nil {
+		logger.WithError(migErr).Fatal("Failed to run migrations")
+	}
+
+	return tursoClient
+}
+
+// initializeServices creates and wires up all application services
+func initializeServices(cfg *config.Config, tursoClient *sql.DB, logger *logrus.Logger) (*services.Services, *middleware.AuthMiddleware, *database.Manager) {
+	// Create storage implementations
+	userStore := turso.NewTursoUserStore(tursoClient, logger)
+	sessionStore := turso.NewTursoSessionStore(tursoClient, logger)
+	loginAttemptStore := turso.NewTursoLoginAttemptStore(tursoClient, logger)
+	syncStore := turso.NewSyncStoreAdapter(tursoClient, logger)
+	organizationStore := turso.NewOrganizationStore(tursoClient, logger)
+	logger.Info("Storage layer initialized with Turso")
+
+	// Create email service
+	emailService := createEmailService(cfg, logger)
+
+	// Create auth middleware and service
+	authMiddleware := middleware.NewAuthMiddleware(cfg.Auth.JWTSecret, logger)
+	authService := createAuthService(cfg, userStore, sessionStore, loginAttemptStore, authMiddleware, emailService, logger)
+
+	// Create sync and organization services
+	syncService := createSyncService(cfg, syncStore, logger)
+	organizationService := organization.NewService(organizationStore, logger)
+	logger.Info("Organization service initialized")
+
+	// Create database manager and wire up services
+	dbManager := database.NewManager(logger)
+	serviceConfig := services.Config{
+		Database: cfg.Database,
+		Auth:     cfg.Auth,
+		Security: cfg.Security,
+	}
+
+	svc, err := services.NewServices(serviceConfig, dbManager, authMiddleware, logger)
+	if err != nil {
+		logger.WithError(err).Fatal("Failed to create services")
+	}
+
+	svc.Auth = authService
+	svc.Sync = syncService
+	svc.Database = dbManager
+	svc.Organization = organizationService
+	logger.Info("All services wired up successfully")
+
+	return svc, authMiddleware, dbManager
+}
+
+// createEmailService creates and configures email service
+func createEmailService(cfg *config.Config, logger *logrus.Logger) email.EmailService {
+	if cfg.Email.APIKey != "" {
+		emailService, err := email.NewResendEmailService(
+			cfg.Email.APIKey,
+			cfg.Email.FromEmail,
+			cfg.Email.FromName,
+			logger,
+		)
+		if err != nil {
+			logger.WithError(err).Fatal("Failed to create email service")
+		}
+		logger.Info("Email service initialized (Resend)")
+		return emailService
+	}
+
+	logger.Warn("Email service initialized (Mock - emails logged only)")
+	return email.NewMockEmailService(logger)
+}
+
+// createAuthService creates and configures authentication service
+func createAuthService(
+	cfg *config.Config,
+	userStore auth.UserStore,
+	sessionStore auth.SessionStore,
+	loginAttemptStore auth.LoginAttemptStore,
+	authMiddleware *middleware.AuthMiddleware,
+	emailService email.EmailService,
+	logger *logrus.Logger,
+) *auth.Service {
+	authConfig := auth.Config{
+		BcryptCost:        cfg.Auth.BcryptCost,
+		JWTExpiration:     cfg.Auth.JWTExpiration,
+		RefreshExpiration: cfg.Auth.RefreshExpiration,
+		MaxLoginAttempts:  cfg.Auth.MaxLoginAttempts,
+		LockoutDuration:   cfg.Auth.LockoutDuration,
+	}
+
+	authService := auth.NewService(
+		userStore,
+		sessionStore,
+		loginAttemptStore,
+		authMiddleware,
+		authConfig,
+		logger,
+	)
+
+	authService.SetEmailService(emailService)
+	logger.Info("Auth service initialized")
+
+	return authService
+}
+
+// createSyncService creates and configures sync service
+func createSyncService(cfg *config.Config, syncStore appsync.Store, logger *logrus.Logger) *appsync.Service {
+	syncConfig := appsync.Config{
+		MaxUploadSize:      cfg.Sync.MaxUploadSize,
+		ConflictStrategy:   appsync.ConflictResolutionStrategy(cfg.Sync.ConflictStrategy),
+		RetentionDays:      cfg.Sync.RetentionDays,
+		MaxHistoryItems:    cfg.Sync.MaxHistoryItems,
+		EnableSanitization: cfg.Sync.EnableSanitization,
+	}
+
+	syncService := appsync.NewService(syncStore, syncConfig, logger)
+	logger.Info("Sync service initialized")
+
+	return syncService
 }
 
 // checkForUpdates checks for available updates in the background

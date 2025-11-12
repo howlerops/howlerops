@@ -19,7 +19,7 @@ type fakeStatsStore struct {
 	statsCalls     map[string]int
 }
 
-func (f *fakeStatsStore) ListCollections(ctx context.Context) ([]string, error) {
+func (f *fakeStatsStore) ListCollections(_ context.Context) ([]string, error) {
 	f.listCalled = true
 	if f.collectionsErr != nil {
 		return nil, f.collectionsErr
@@ -27,7 +27,7 @@ func (f *fakeStatsStore) ListCollections(ctx context.Context) ([]string, error) 
 	return append([]string(nil), f.collections...), nil
 }
 
-func (f *fakeStatsStore) GetCollectionStats(ctx context.Context, collection string) (*rag.CollectionStats, error) {
+func (f *fakeStatsStore) GetCollectionStats(_ context.Context, collection string) (*rag.CollectionStats, error) {
 	if f.statsCalls == nil {
 		f.statsCalls = make(map[string]int)
 	}
@@ -36,8 +36,8 @@ func (f *fakeStatsStore) GetCollectionStats(ctx context.Context, collection stri
 		return nil, err
 	}
 	if stat, ok := f.stats[collection]; ok {
-		copy := *stat
-		return &copy, nil
+		statCopy := *stat
+		return &statCopy, nil
 	}
 	return nil, nil
 }

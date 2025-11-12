@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 
@@ -107,7 +106,7 @@ func demoNL2SQL(logger *logrus.Logger) {
 		"average price from products",
 		"users where email contains gmail",
 		"update users set status to active where id = 1",
-		"delete orders where status is cancelled",
+		"delete orders where status is canceled",
 	}
 
 	for _, query := range queries {
@@ -272,10 +271,4 @@ func createSampleSchema() *analyzer.Schema {
 			},
 		},
 	}
-}
-
-// Helper function to pretty print JSON
-func prettyPrint(v interface{}) {
-	b, _ := json.MarshalIndent(v, "", "  ")
-	fmt.Println(string(b))
 }

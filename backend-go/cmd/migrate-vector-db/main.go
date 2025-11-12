@@ -115,7 +115,7 @@ func initSQLiteStore(path string, logger *logrus.Logger) (rag.VectorStore, error
 	return store, nil
 }
 
-func migrateVectorStore(ctx context.Context, source collectionStatsStore, target collectionStatsStore, batchSize int, dryRun bool, logger *logrus.Logger) error {
+func migrateVectorStore(ctx context.Context, source collectionStatsStore, _ collectionStatsStore, _ int, dryRun bool, logger *logrus.Logger) error {
 	// Get collections from source
 	collections, err := source.ListCollections(ctx)
 	if err != nil {

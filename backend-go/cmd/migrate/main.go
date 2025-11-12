@@ -40,8 +40,8 @@ func main() {
 	}).Info("Starting database migration")
 
 	// Create database directory if using local file
-	if err := ensureDatabaseDirectory(cfg.Turso.URL, appLogger); err != nil {
-		appLogger.WithError(err).Fatal("Failed to create database directory")
+	if dirErr := ensureDatabaseDirectory(cfg.Turso.URL, appLogger); dirErr != nil {
+		appLogger.WithError(dirErr).Fatal("Failed to create database directory")
 	}
 
 	// Connect to database
@@ -87,7 +87,7 @@ func ensureDatabaseDirectory(dbURL string, logger *logrus.Logger) error {
 		}
 
 		// Create directory if it doesn't exist
-		if err := os.MkdirAll(dir, 0755); err != nil {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return fmt.Errorf("failed to create database directory: %w", err)
 		}
 

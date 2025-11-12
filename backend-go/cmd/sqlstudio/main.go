@@ -64,7 +64,10 @@ func handleUpdate(args []string) {
 	fs := flag.NewFlagSet("update", flag.ExitOnError)
 	checkOnly := fs.Bool("check", false, "Only check for updates without installing")
 	force := fs.Bool("force", false, "Force update even if already up to date")
-	fs.Parse(args)
+	if err := fs.Parse(args); err != nil {
+		fmt.Printf("Error parsing flags: %v\n", err)
+		return
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
@@ -73,7 +76,7 @@ func handleUpdate(args []string) {
 	configDir, err := getConfigDir()
 	if err != nil {
 		fmt.Printf("Error: Failed to get config directory: %v\n", err)
-		os.Exit(1)
+		return
 	}
 
 	// Create updater
@@ -90,7 +93,7 @@ func handleUpdate(args []string) {
 		fmt.Println("  - No internet connection")
 		fmt.Println("  - GitHub API rate limit exceeded")
 		fmt.Println("  - Network firewall blocking requests")
-		os.Exit(1)
+		return
 	}
 
 	if !updateInfo.Available {
@@ -121,12 +124,12 @@ func handleUpdate(args []string) {
 		response, err := reader.ReadString('\n')
 		if err != nil {
 			fmt.Printf("Error reading input: %v\n", err)
-			os.Exit(1)
+			return
 		}
 
 		response = strings.TrimSpace(strings.ToLower(response))
 		if response != "y" && response != "yes" {
-			fmt.Println("Update cancelled.")
+			fmt.Println("Update canceled.")
 			return
 		}
 	}
@@ -141,7 +144,7 @@ func handleUpdate(args []string) {
 		fmt.Println("  - Installation method doesn't support auto-update (e.g., brew)")
 		fmt.Println("\nManual update:")
 		fmt.Printf("  Download from: %s\n", updateInfo.DownloadURL)
-		os.Exit(1)
+		return
 	}
 
 	fmt.Println("\n✓ Update installed successfully!")
@@ -159,7 +162,7 @@ func getConfigDir() (string, error) {
 	configDir := filepath.Join(homeDir, ".sqlstudio")
 
 	// Create directory if it doesn't exist
-	if err := os.MkdirAll(configDir, 0755); err != nil {
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
 		return "", err
 	}
 

@@ -6,6 +6,10 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+const (
+	healthyStatus = "healthy"
+)
+
 // providerAdapterWrapper wraps the new ProviderAdapter to work with the existing AIProvider interface
 type providerAdapterWrapper struct {
 	adapter ProviderAdapter
@@ -84,17 +88,17 @@ func (w *providerAdapterWrapper) IsAvailable(ctx context.Context) bool {
 	if err != nil {
 		return false
 	}
-	return health.Status == "healthy"
+	return health.Status == healthyStatus
 }
 
 // UpdateConfig implements AIProvider
-func (w *providerAdapterWrapper) UpdateConfig(config interface{}) error {
+func (w *providerAdapterWrapper) UpdateConfig(_ interface{}) error {
 	// Not implemented for now
 	return nil
 }
 
 // ValidateConfig implements AIProvider
-func (w *providerAdapterWrapper) ValidateConfig(config interface{}) error {
+func (w *providerAdapterWrapper) ValidateConfig(_ interface{}) error {
 	// Not implemented for now
 	return nil
 }
