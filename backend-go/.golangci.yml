@@ -49,7 +49,6 @@ linters:
     - staticcheck    # Go static analysis
     - typecheck      # Type-checks Go code
     - unused         # Checks for unused code
-    - shadow         # Reports shadowed variables
 
     # Style and formatting
     - gofmt          # Checks code is gofmt-ed
@@ -106,7 +105,6 @@ linters-settings:
     # Disable specific analyzers
     disable:
       - fieldalignment  # Too strict for most use cases
-      - shadow        # Use shadow linter instead
 
   # gocyclo - Cyclomatic complexity
   gocyclo:
