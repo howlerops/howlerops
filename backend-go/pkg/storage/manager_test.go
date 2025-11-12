@@ -571,7 +571,7 @@ func TestManager_Close_CanBeCalledMultipleTimes(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Second close (should handle gracefully)
-	err = manager.Close()
+	_ = manager.Close()
 	// The behavior depends on the underlying storage implementation
 	// For now, we just ensure it doesn't panic
 }

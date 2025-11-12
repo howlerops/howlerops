@@ -3,8 +3,10 @@ package auth
 import (
 	"context"
 	"crypto/rand"
+	"database/sql"
 	"encoding/base32"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -254,7 +256,10 @@ func (s *TwoFactorService) RegenerateBackupCodes(ctx context.Context, userID str
 func (s *TwoFactorService) IsEnabled(ctx context.Context, userID string) (bool, error) {
 	config, err := s.store.GetTwoFactor(ctx, userID)
 	if err != nil {
-		return false, nil // Assume not configured
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, nil // Not configured
+		}
+		return false, fmt.Errorf("failed to get two-factor config: %w", err)
 	}
 	return config.Enabled, nil
 }
@@ -320,10 +325,13 @@ type TwoFactorStatusResponse struct {
 func (s *TwoFactorService) GetStatus(ctx context.Context, userID string) (*TwoFactorStatusResponse, error) {
 	config, err := s.store.GetTwoFactor(ctx, userID)
 	if err != nil {
-		// Not configured
-		return &TwoFactorStatusResponse{
-			Enabled: false,
-		}, nil
+		if errors.Is(err, sql.ErrNoRows) {
+			// Not configured
+			return &TwoFactorStatusResponse{
+				Enabled: false,
+			}, nil
+		}
+		return nil, fmt.Errorf("failed to get two-factor config: %w", err)
 	}
 
 	// Count remaining backup codes

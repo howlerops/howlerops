@@ -268,7 +268,7 @@ func (p *PostgresDatabase) computeEditableMetadata(ctx context.Context, query st
 
 	if err := populateEditableMetadataFromStructure(metadata, columns, structure); err != nil {
 		metadata.Reason = err.Error()
-		return metadata, true, nil
+		return metadata, true, err
 	}
 
 	return metadata, true, nil

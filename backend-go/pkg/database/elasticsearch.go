@@ -273,23 +273,24 @@ func (es *ElasticsearchDatabase) Execute(ctx context.Context, query string, args
 	if resp.StatusCode >= 400 {
 		es.stats.errorCount++
 		var errResp map[string]interface{}
-		if err := json.Unmarshal(body, &errResp); err == nil {
+		var resultErr error
+		if unmarshalErr := json.Unmarshal(body, &errResp); unmarshalErr == nil {
 			if errMsg, ok := errResp["error"].(map[string]interface{}); ok {
 				if reason, ok := errMsg["reason"].(string); ok {
-					err = fmt.Errorf("elasticsearch error: %s", reason)
+					resultErr = fmt.Errorf("elasticsearch error: %s", reason)
 				} else {
-					err = fmt.Errorf("elasticsearch error: status %d", resp.StatusCode)
+					resultErr = fmt.Errorf("elasticsearch error: status %d", resp.StatusCode)
 				}
 			} else {
-				err = fmt.Errorf("elasticsearch error: %s", string(body))
+				resultErr = fmt.Errorf("elasticsearch error: %s", string(body))
 			}
 		} else {
-			err = fmt.Errorf("elasticsearch error: status %d - %s", resp.StatusCode, string(body))
+			resultErr = fmt.Errorf("elasticsearch error: status %d - %s", resp.StatusCode, string(body))
 		}
 		return &QueryResult{
-			Error:    err,
+			Error:    resultErr,
 			Duration: time.Since(start),
-		}, err
+		}, resultErr
 	}
 
 	// Parse SQL response

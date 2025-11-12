@@ -331,15 +331,9 @@ func (s *DashboardService) getQueryFrequency(ctx context.Context, orgID *string,
 // getPopularTables extracts and counts table references
 func (s *DashboardService) getPopularTables(ctx context.Context, orgID *string, timeRange TimeRange) []TableUsage {
 	// This is a simplified version - in production, you'd want proper SQL parsing
-	whereClause := "WHERE executed_at >= ? AND executed_at <= ?"
-	args := []interface{}{timeRange.Start.Unix(), timeRange.End.Unix()}
-
-	if orgID != nil {
-		whereClause += " AND organization_id = ?"
-		args = append(args, *orgID)
-	}
-
 	// For now, return empty - would need SQL parser for accurate table extraction
+	// TODO: Implement table extraction using SQL parser
+	// When implemented, build whereClause and args for filtering by orgID and timeRange
 	return []TableUsage{}
 }
 

@@ -527,9 +527,12 @@ func (s *Service) SendPasswordResetEmail(ctx context.Context, email string) erro
 
 	user, err := s.userStore.GetUserByEmail(ctx, email)
 	if err != nil {
-		// Don't reveal if user exists
-		s.logger.WithField("email", email).Warn("Password reset requested for non-existent email")
-		return nil
+		if errors.Is(err, sql.ErrNoRows) {
+			// Don't reveal if user exists
+			s.logger.WithField("email", email).Warn("Password reset requested for non-existent email")
+			return nil
+		}
+		return fmt.Errorf("failed to get user: %w", err)
 	}
 
 	// Generate reset token

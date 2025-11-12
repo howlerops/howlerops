@@ -2,6 +2,8 @@ package sync
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -70,8 +72,11 @@ func (m *MetadataTracker) GetSyncHistory(ctx context.Context, userID string, lim
 func (m *MetadataTracker) GetLastSyncTime(ctx context.Context, userID, deviceID string) (time.Time, error) {
 	metadata, err := m.store.GetSyncMetadata(ctx, userID, deviceID)
 	if err != nil {
-		// If metadata not found, return zero time
-		return time.Time{}, nil
+		if errors.Is(err, sql.ErrNoRows) {
+			// If metadata not found, return zero time
+			return time.Time{}, nil
+		}
+		return time.Time{}, fmt.Errorf("failed to get sync metadata: %w", err)
 	}
 
 	return metadata.LastSyncAt, nil

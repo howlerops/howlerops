@@ -246,17 +246,8 @@ func TestTiDBDatabase_GetConnectionInfo_TiDBDetection(t *testing.T) {
 			// This test demonstrates the logic without mocking
 			// In a real implementation, we'd mock the SQL queries
 
-			// Test version string detection logic
-			versionLower := tt.versionString
-			isTiDB := false
-			for _, c := range versionLower {
-				if c >= 'A' && c <= 'Z' {
-					c = c + 32 // Convert to lowercase
-				}
-				versionLower = string(c)
-			}
-
 			// Check if version contains "tidb"
+			isTiDB := false
 			containsTiDB := false
 			if len(tt.versionString) > 0 {
 				lower := ""
@@ -481,7 +472,7 @@ func TestTiDBDatabase_Integration(t *testing.T) {
 		require.NoError(t, err)
 
 		// Add TiFlash replica (if TiFlash is available)
-		_, err = db.Execute(ctx, "ALTER TABLE test_tidb_table SET TIFLASH REPLICA 1")
+		_, _ = db.Execute(ctx, "ALTER TABLE test_tidb_table SET TIFLASH REPLICA 1")
 		// May fail if TiFlash not available - that's okay
 
 		// Get table info
@@ -580,9 +571,9 @@ func TestTiDBDatabase_Integration(t *testing.T) {
 		if err == nil {
 			// If successful, check availability after replica is ready
 			// Note: This may take time for replica to become available
-			available, err = db.IsTiFlashAvailable(ctx, "testdb", "test_tiflash_check")
+			_, err = db.IsTiFlashAvailable(ctx, "testdb", "test_tiflash_check")
 			require.NoError(t, err)
-			// May be true or false depending on sync status
+			// Replica status may vary depending on sync status
 		}
 
 		// Cleanup

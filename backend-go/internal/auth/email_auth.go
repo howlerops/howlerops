@@ -2,6 +2,8 @@ package auth
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -210,9 +212,12 @@ func (s *ExtendedService) RequestPasswordReset(ctx context.Context, email string
 	// Get user by email
 	user, err := s.userStore.GetUserByEmail(ctx, email)
 	if err != nil {
-		// For security, don't reveal if email exists
-		s.logger.WithField("email", email).Info("Password reset requested for non-existent email")
-		return nil
+		if errors.Is(err, sql.ErrNoRows) {
+			// For security, don't reveal if email exists
+			s.logger.WithField("email", email).Info("Password reset requested for non-existent email")
+			return nil
+		}
+		return fmt.Errorf("failed to get user: %w", err)
 	}
 
 	// Generate reset token
