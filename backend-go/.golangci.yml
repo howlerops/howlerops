@@ -13,20 +13,6 @@ run:
   # Timeout for analysis
   timeout: 5m
 
-  # Which dirs to skip: issues from them won't be reported
-  skip-dirs:
-    - vendor
-    - third_party
-    - testdata
-    - examples
-    - .github
-
-  # Which files to skip: they will be analyzed but issues won't be reported
-  skip-files:
-    - ".*\\.pb\\.go$"
-    - ".*_gen\\.go$"
-    - ".*\\.mock\\.go$"
-
   # Enable Go modules
   modules-download-mode: readonly
 
@@ -35,17 +21,15 @@ run:
 
 # Output configuration
 output:
-  # Format: colored-line-number|line-number|json|tab|checkstyle|code-climate
-  format: colored-line-number
+  # Formats: colored-line-number|line-number|json|tab|checkstyle|code-climate
+  formats:
+    - format: colored-line-number
 
   # Print lines of code with issue
   print-issued-lines: true
 
   # Print linter name in the end of issue text
   print-linter-name: true
-
-  # Make issues output unique by line
-  uniq-by-line: true
 
   # Sort results by: filepath, line and column
   sort-results: true
@@ -65,6 +49,7 @@ linters:
     - staticcheck    # Go static analysis
     - typecheck      # Type-checks Go code
     - unused         # Checks for unused code
+    - shadow         # Reports shadowed variables
 
     # Style and formatting
     - gofmt          # Checks code is gofmt-ed
@@ -115,15 +100,13 @@ linters-settings:
 
   # govet - Standard Go vet
   govet:
-    # Report about shadowed variables
-    check-shadowing: true
-
     # Enable all analyzers
     enable-all: true
 
     # Disable specific analyzers
     disable:
       - fieldalignment  # Too strict for most use cases
+      - shadow        # Use shadow linter instead
 
   # gocyclo - Cyclomatic complexity
   gocyclo:
@@ -242,6 +225,23 @@ linters-settings:
 
 # Issues configuration
 issues:
+  # Make issues output unique by line
+  uniq-by-line: true
+
+  # Which dirs to exclude: issues from them won't be reported
+  exclude-dirs:
+    - vendor
+    - third_party
+    - testdata
+    - examples
+    - .github
+
+  # Which files to exclude: they will be analyzed but issues won't be reported
+  exclude-files:
+    - ".*\\.pb\\.go$"
+    - ".*_gen\\.go$"
+    - ".*\\.mock\\.go$"
+
   # Maximum issues count per linter
   max-issues-per-linter: 0
 
