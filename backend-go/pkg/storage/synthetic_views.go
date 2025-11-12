@@ -3,6 +3,7 @@ package storage
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -162,7 +163,7 @@ func (s *SyntheticViewStorage) GetSyntheticView(id string) (*ViewDefinition, err
 	var view SyntheticView
 	err := row.Scan(&view.ID, &view.Name, &view.Description, &view.Version, &view.Definition, &view.CreatedAt, &view.UpdatedAt)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("synthetic view not found: %s", id)
 		}
 		return nil, fmt.Errorf("failed to get synthetic view: %w", err)
@@ -244,7 +245,7 @@ func (s *SyntheticViewStorage) GetSyntheticViewByName(name string) (*ViewDefinit
 	var view SyntheticView
 	err := row.Scan(&view.ID, &view.Name, &view.Description, &view.Version, &view.Definition, &view.CreatedAt, &view.UpdatedAt)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("synthetic view not found: %s", name)
 		}
 		return nil, fmt.Errorf("failed to get synthetic view by name: %w", err)

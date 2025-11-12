@@ -9,8 +9,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// TiDBDatabase implements the Database interface for TiDB
-// TiDB is MySQL-compatible, so we extend MySQL functionality with TiDB-specific features
+// TiDBDatabase implements the Database interface for TiDB.
+// TiDB is MySQL-compatible, so we extend MySQL functionality with TiDB-specific features.
 type TiDBDatabase struct {
 	*MySQLDatabase // Embed MySQL for base functionality
 	logger         *logrus.Logger

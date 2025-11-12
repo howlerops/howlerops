@@ -133,7 +133,7 @@ func (a *AuthMiddleware) validateToken(tokenString string) (*JWTClaims, error) {
 	}
 
 	// Check if token is expired
-	if claims.ExpiresAt != nil && claims.ExpiresAt.Time.Before(time.Now()) {
+	if claims.ExpiresAt != nil && claims.ExpiresAt.Before(time.Now()) {
 		return nil, fmt.Errorf("token is expired")
 	}
 
@@ -209,7 +209,7 @@ func (a *AuthMiddleware) ValidateRefreshToken(tokenString string) (string, error
 	}
 
 	// Check if token is expired
-	if claims.ExpiresAt != nil && claims.ExpiresAt.Time.Before(time.Now()) {
+	if claims.ExpiresAt != nil && claims.ExpiresAt.Before(time.Now()) {
 		return "", fmt.Errorf("token is expired")
 	}
 

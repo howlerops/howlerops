@@ -227,11 +227,12 @@ func TestGetSharedConnections(t *testing.T) {
 			personalCount++
 			assert.Equal(t, "user-2", conn.UserID, "Personal connections should belong to user")
 		} else if conn.Visibility == "shared" && conn.OrganizationID != nil {
-			if *conn.OrganizationID == "org-1" {
+			switch *conn.OrganizationID {
+			case "org-1":
 				sharedOrg1Count++
-			} else if *conn.OrganizationID == "org-2" {
+			case "org-2":
 				sharedOrg2Count++
-			} else if *conn.OrganizationID == "org-3" {
+			case "org-3":
 				t.Error("Should not include connections from org-3")
 			}
 		}

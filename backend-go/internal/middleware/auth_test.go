@@ -520,7 +520,7 @@ func TestValidateToken_ExpiredToken(t *testing.T) {
 	if err == nil {
 		claims, ok := parsedToken.Claims.(*middleware.JWTClaims)
 		assert.True(t, ok)
-		assert.True(t, claims.ExpiresAt.Time.Before(time.Now()))
+		assert.True(t, claims.ExpiresAt.Before(time.Now()))
 	} else {
 		assert.Error(t, err)
 	}
@@ -544,7 +544,7 @@ func TestValidateToken_NotBeforeToken(t *testing.T) {
 
 	claims, ok := parsedToken.Claims.(*middleware.JWTClaims)
 	assert.True(t, ok)
-	assert.True(t, claims.NotBefore.Time.Before(time.Now().Add(1*time.Minute)))
+	assert.True(t, claims.NotBefore.Before(time.Now().Add(1*time.Minute)))
 }
 
 // TestGenerateRefreshToken_Success tests successful refresh token generation

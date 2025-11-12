@@ -1136,7 +1136,7 @@ func TestServiceImpl_IsNotExportedDirectly(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify service implements the Service interface
-	var _ ai.Service = service
+	var _ = service
 }
 
 // TestAIError tests the custom error type

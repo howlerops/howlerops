@@ -680,7 +680,7 @@ func (p *PostgresDatabase) InsertRow(ctx context.Context, params InsertRowParams
 		if !ok || colMeta.Name == "" {
 			return nil, fmt.Errorf("column %s is not editable in this result set", key)
 		}
-		insertColumns = append(insertColumns, fmt.Sprintf("%s", p.QuoteIdentifier(colMeta.Name)))
+		insertColumns = append(insertColumns, p.QuoteIdentifier(colMeta.Name))
 		args = append(args, params.Values[key])
 		argIndex++
 	}

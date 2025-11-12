@@ -227,11 +227,12 @@ func sanitizeBoolean(value interface{}) (string, error) {
 		boolVal = v
 	case string:
 		lower := strings.ToLower(v)
-		if lower == "true" || lower == "1" || lower == "yes" {
+		switch lower {
+		case "true", "1", "yes":
 			boolVal = true
-		} else if lower == "false" || lower == "0" || lower == "no" {
+		case "false", "0", "no":
 			boolVal = false
-		} else {
+		default:
 			return "", fmt.Errorf("invalid boolean value")
 		}
 	case int:

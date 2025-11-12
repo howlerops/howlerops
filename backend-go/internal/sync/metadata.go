@@ -164,9 +164,10 @@ func (m *MetadataTracker) CalculateStatistics(ctx context.Context, userID string
 		stats.TotalConflicts += log.ConflictCount
 		stats.ResourcesSynced += log.ResourceCount
 
-		if log.Action == "pull" {
+		switch log.Action {
+		case "pull":
 			stats.TotalPulls++
-		} else if log.Action == "push" {
+		case "push":
 			stats.TotalPushes++
 		}
 

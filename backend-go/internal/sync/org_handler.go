@@ -321,15 +321,17 @@ func (h *OrgAwareHandler) validateChangePermissions(ctx context.Context, userID 
 
 	switch change.ItemType {
 	case SyncItemTypeConnection:
-		if change.Action == SyncActionCreate {
+		switch change.Action {
+		case SyncActionCreate:
 			requiredPerm = organization.PermCreateConnections
-		} else if change.Action == SyncActionUpdate {
+		case SyncActionUpdate:
 			requiredPerm = organization.PermUpdateConnections
 		}
 	case SyncItemTypeSavedQuery:
-		if change.Action == SyncActionCreate {
+		switch change.Action {
+		case SyncActionCreate:
 			requiredPerm = organization.PermCreateQueries
-		} else if change.Action == SyncActionUpdate {
+		case SyncActionUpdate:
 			requiredPerm = organization.PermUpdateQueries
 		}
 	default:

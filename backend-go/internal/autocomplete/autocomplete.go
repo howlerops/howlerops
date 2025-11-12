@@ -474,10 +474,11 @@ func (s *AutocompleteService) sortSuggestions(suggestions []Suggestion, context 
 		}
 
 		// Adjust priorities based on context
-		if context.Type == "after_from" || context.Type == "after_join" {
+		switch context.Type {
+		case "after_from", "after_join":
 			typePriority["table"] = 1
 			typePriority["column"] = 5
-		} else if context.Type == "after_select" {
+		case "after_select":
 			typePriority["column"] = 1
 			typePriority["function"] = 2
 		}

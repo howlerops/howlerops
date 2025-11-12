@@ -2,6 +2,7 @@ package quotas
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -291,6 +292,7 @@ func (e *QuotaExceededError) Error() string {
 
 // IsQuotaExceeded checks if error is a quota exceeded error
 func IsQuotaExceeded(err error) bool {
-	_, ok := err.(*QuotaExceededError)
+	quotaExceededError := &QuotaExceededError{}
+	ok := errors.As(err, &quotaExceededError)
 	return ok
 }

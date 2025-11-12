@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -121,7 +122,7 @@ func (s *OrganizationStore) GetByID(ctx context.Context, id string) (*organizati
 		&settingsJSON,
 	)
 
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("organization not found")
 	}
 	if err != nil {

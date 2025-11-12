@@ -224,9 +224,7 @@ func (es *ElasticsearchDatabase) Execute(ctx context.Context, query string, args
 	// Add parameters if provided
 	if len(args) > 0 {
 		params := make([]interface{}, len(args))
-		for i, arg := range args {
-			params[i] = arg
-		}
+		copy(params, args)
 		queryBody["params"] = params
 	}
 
@@ -346,9 +344,7 @@ func (es *ElasticsearchDatabase) ExecuteStream(ctx context.Context, query string
 
 	if len(args) > 0 {
 		params := make([]interface{}, len(args))
-		for i, arg := range args {
-			params[i] = arg
-		}
+		copy(params, args)
 		queryBody["params"] = params
 	}
 
@@ -453,9 +449,7 @@ func (es *ElasticsearchDatabase) ExplainQuery(ctx context.Context, query string,
 
 	if len(args) > 0 {
 		params := make([]interface{}, len(args))
-		for i, arg := range args {
-			params[i] = arg
-		}
+		copy(params, args)
 		queryBody["params"] = params
 	}
 

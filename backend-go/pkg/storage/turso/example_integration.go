@@ -101,8 +101,6 @@ func startCleanupTasks(ctx context.Context, sessionStore *turso.TursoSessionStor
 		case <-ctx.Done():
 			return
 		}
-	}
-}
 
 EXAMPLE 2: User Registration Handler
 =====================================
@@ -135,7 +133,7 @@ func (h *Handler) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create user
-	user := &auth.User{
+	:= &auth.User{
 		ID:       uuid.New().String(),
 		Username: req.Username,
 		Email:    req.Email,
@@ -251,7 +249,6 @@ func (h *Handler) SyncConnectionsHandler(w http.ResponseWriter, r *http.Request)
 	default:
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
-}
 
 EXAMPLE 5: Sync Saved Queries
 ==============================
@@ -287,7 +284,6 @@ func (h *Handler) SyncQueriesHandler(w http.ResponseWriter, r *http.Request) {
 	default:
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
-}
 
 EXAMPLE 6: Query History (Sanitized)
 =====================================
@@ -383,7 +379,6 @@ type Config struct {
 		MaxLoginAttempts int
 		LockoutDuration  time.Duration
 	}
-}
 
 func LoadConfig() (*Config, error) {
 	var cfg Config
@@ -422,7 +417,6 @@ func getEnvInt(key string, defaultVal int) int {
 		if i, err := strconv.Atoi(val); err == nil {
 			return i
 		}
-	}
 	return defaultVal
 }
 
@@ -431,7 +425,6 @@ func getEnvDuration(key string, defaultVal time.Duration) time.Duration {
 		if d, err := time.ParseDuration(val); err == nil {
 			return d
 		}
-	}
 	return defaultVal
 }
 

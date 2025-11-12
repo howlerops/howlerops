@@ -111,8 +111,8 @@ func (d *OllamaDetector) IsOllamaInstalled() (bool, string, error) {
 	output, err := cmd.Output()
 	if err != nil {
 		// Check if ollama command exists in PATH
-		if _, err := exec.LookPath("ollama"); err != nil {
-			return false, "", nil
+		if _, lookErr := exec.LookPath("ollama"); lookErr != nil {
+			return false, "", lookErr
 		}
 		return false, "", err
 	}
@@ -247,7 +247,7 @@ func (d *OllamaDetector) StartOllamaService(ctx context.Context) error {
 
 	cmd := exec.CommandContext(ctx, "ollama", "serve")
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("failed to start Ollama service: %v. Please start it manually with 'ollama serve'", err)
+		return fmt.Errorf("failed to start Ollama service: %w. Please start it manually with 'ollama serve'", err)
 	}
 
 	// Wait a moment for the service to start
@@ -283,7 +283,7 @@ func (d *OllamaDetector) PullModel(ctx context.Context, modelName string) error 
 	cmd := exec.CommandContext(ctx, "ollama", "pull", modelName)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("failed to pull model %s: %v, output: %s", modelName, err, string(output))
+		return fmt.Errorf("failed to pull model %s: %w, output: %s", modelName, err, string(output))
 	}
 
 	d.logger.WithField("model", modelName).Info("Model pulled successfully")
