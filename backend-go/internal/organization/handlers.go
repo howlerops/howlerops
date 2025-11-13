@@ -10,6 +10,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
+	"github.com/sql-studio/backend-go/internal/middleware"
 )
 
 // Handler handles organization HTTP requests
@@ -61,7 +62,7 @@ func (h *Handler) CreateOrganization(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	// Get user ID from context (set by auth middleware)
-	userID, ok := ctx.Value("user_id").(string)
+	userID, ok := ctx.Value(middleware.UserIDKey).(string)
 	if !ok || userID == "" {
 		h.respondError(w, http.StatusUnauthorized, "unauthorized")
 		return
@@ -101,7 +102,7 @@ func (h *Handler) ListOrganizations(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	// Get user ID from context
-	userID, ok := ctx.Value("user_id").(string)
+	userID, ok := ctx.Value(middleware.UserIDKey).(string)
 	if !ok || userID == "" {
 		h.respondError(w, http.StatusUnauthorized, "unauthorized")
 		return
@@ -126,7 +127,7 @@ func (h *Handler) GetOrganization(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	// Get user ID from context
-	userID, ok := ctx.Value("user_id").(string)
+	userID, ok := ctx.Value(middleware.UserIDKey).(string)
 	if !ok || userID == "" {
 		h.respondError(w, http.StatusUnauthorized, "unauthorized")
 		return
@@ -161,7 +162,7 @@ func (h *Handler) UpdateOrganization(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	// Get user ID from context
-	userID, ok := ctx.Value("user_id").(string)
+	userID, ok := ctx.Value(middleware.UserIDKey).(string)
 	if !ok || userID == "" {
 		h.respondError(w, http.StatusUnauthorized, "unauthorized")
 		return
@@ -208,7 +209,7 @@ func (h *Handler) DeleteOrganization(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	// Get user ID from context
-	userID, ok := ctx.Value("user_id").(string)
+	userID, ok := ctx.Value(middleware.UserIDKey).(string)
 	if !ok || userID == "" {
 		h.respondError(w, http.StatusUnauthorized, "unauthorized")
 		return
@@ -253,7 +254,7 @@ func (h *Handler) ListMembers(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	// Get user ID from context
-	userID, ok := ctx.Value("user_id").(string)
+	userID, ok := ctx.Value(middleware.UserIDKey).(string)
 	if !ok || userID == "" {
 		h.respondError(w, http.StatusUnauthorized, "unauthorized")
 		return
@@ -291,7 +292,7 @@ func (h *Handler) UpdateMemberRole(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	// Get user ID from context
-	actorUserID, ok := ctx.Value("user_id").(string)
+	actorUserID, ok := ctx.Value(middleware.UserIDKey).(string)
 	if !ok || actorUserID == "" {
 		h.respondError(w, http.StatusUnauthorized, "unauthorized")
 		return
@@ -349,7 +350,7 @@ func (h *Handler) RemoveMember(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	// Get user ID from context
-	actorUserID, ok := ctx.Value("user_id").(string)
+	actorUserID, ok := ctx.Value(middleware.UserIDKey).(string)
 	if !ok || actorUserID == "" {
 		h.respondError(w, http.StatusUnauthorized, "unauthorized")
 		return
@@ -397,7 +398,7 @@ func (h *Handler) CreateInvitation(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	// Get user ID from context
-	userID, ok := ctx.Value("user_id").(string)
+	userID, ok := ctx.Value(middleware.UserIDKey).(string)
 	if !ok || userID == "" {
 		h.respondError(w, http.StatusUnauthorized, "unauthorized")
 		return
@@ -460,7 +461,7 @@ func (h *Handler) ListOrgInvitations(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	// Get user ID from context
-	userID, ok := ctx.Value("user_id").(string)
+	userID, ok := ctx.Value(middleware.UserIDKey).(string)
 	if !ok || userID == "" {
 		h.respondError(w, http.StatusUnauthorized, "unauthorized")
 		return
@@ -498,7 +499,7 @@ func (h *Handler) ListUserInvitations(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	// Get user ID from context
-	userID, ok := ctx.Value("user_id").(string)
+	userID, ok := ctx.Value(middleware.UserIDKey).(string)
 	if !ok || userID == "" {
 		h.respondError(w, http.StatusUnauthorized, "unauthorized")
 		return
@@ -531,7 +532,7 @@ func (h *Handler) AcceptInvitation(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	// Get user ID from context
-	userID, ok := ctx.Value("user_id").(string)
+	userID, ok := ctx.Value(middleware.UserIDKey).(string)
 	if !ok || userID == "" {
 		h.respondError(w, http.StatusUnauthorized, "unauthorized")
 		return
@@ -579,7 +580,7 @@ func (h *Handler) DeclineInvitation(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	// Get user ID from context (optional for decline)
-	userID, _ := ctx.Value("user_id").(string)
+	userID, _ := ctx.Value(middleware.UserIDKey).(string)
 
 	// Get invitation token from URL (using ID as token)
 	vars := mux.Vars(r)
@@ -618,7 +619,7 @@ func (h *Handler) RevokeInvitation(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	// Get user ID from context
-	userID, ok := ctx.Value("user_id").(string)
+	userID, ok := ctx.Value(middleware.UserIDKey).(string)
 	if !ok || userID == "" {
 		h.respondError(w, http.StatusUnauthorized, "unauthorized")
 		return
@@ -668,7 +669,7 @@ func (h *Handler) GetAuditLogs(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	// Get user ID from context
-	userID, ok := ctx.Value("user_id").(string)
+	userID, ok := ctx.Value(middleware.UserIDKey).(string)
 	if !ok || userID == "" {
 		h.respondError(w, http.StatusUnauthorized, "unauthorized")
 		return
