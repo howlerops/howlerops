@@ -74,7 +74,7 @@ func TestValidateAuthAcceptsBearerToken(t *testing.T) {
 }
 
 func TestExtractUserFromContext(t *testing.T) {
-	ctx := context.WithValue(context.Background(), testUserIDKey, "abc-123")
+	ctx := context.WithValue(context.Background(), "user_id", "abc-123")
 	userID, err := extractUserFromContext(ctx)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

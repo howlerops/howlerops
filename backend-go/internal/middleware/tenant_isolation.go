@@ -182,7 +182,7 @@ func BuildOrgFilterQuery(ctx context.Context, orgColumnName string) (string, []i
 // getTenantUserIDFromContext extracts user ID from context (set by auth middleware)
 func getTenantUserIDFromContext(ctx context.Context) string {
 	// This should be set by your authentication middleware
-	userID, ok := ctx.Value("user_id").(string)
+	userID, ok := ctx.Value(UserIDKey).(string)
 	if !ok {
 		return ""
 	}
