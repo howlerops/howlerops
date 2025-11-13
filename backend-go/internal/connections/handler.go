@@ -6,6 +6,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
+	"github.com/sql-studio/backend-go/internal/middleware"
 	"github.com/sql-studio/backend-go/pkg/storage/turso"
 )
 
@@ -39,7 +40,7 @@ func (h *Handler) ShareConnection(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get user ID from context (set by auth middleware)
-	userID, ok := r.Context().Value("user_id").(string)
+	userID, ok := r.Context().Value(middleware.UserIDKey).(string)
 	if !ok || userID == "" {
 		h.respondError(w, http.StatusUnauthorized, "user not authenticated")
 		return
@@ -93,7 +94,7 @@ func (h *Handler) UnshareConnection(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get user ID from context
-	userID, ok := r.Context().Value("user_id").(string)
+	userID, ok := r.Context().Value(middleware.UserIDKey).(string)
 	if !ok || userID == "" {
 		h.respondError(w, http.StatusUnauthorized, "user not authenticated")
 		return
@@ -135,7 +136,7 @@ func (h *Handler) GetOrganizationConnections(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Get user ID from context
-	userID, ok := r.Context().Value("user_id").(string)
+	userID, ok := r.Context().Value(middleware.UserIDKey).(string)
 	if !ok || userID == "" {
 		h.respondError(w, http.StatusUnauthorized, "user not authenticated")
 		return
@@ -168,7 +169,7 @@ func (h *Handler) GetOrganizationConnections(w http.ResponseWriter, r *http.Requ
 // Get all connections accessible to the user (personal + shared)
 func (h *Handler) GetAccessibleConnections(w http.ResponseWriter, r *http.Request) {
 	// Get user ID from context
-	userID, ok := r.Context().Value("user_id").(string)
+	userID, ok := r.Context().Value(middleware.UserIDKey).(string)
 	if !ok || userID == "" {
 		h.respondError(w, http.StatusUnauthorized, "user not authenticated")
 		return
@@ -189,7 +190,7 @@ func (h *Handler) GetAccessibleConnections(w http.ResponseWriter, r *http.Reques
 
 // CreateConnection handles POST /api/connections
 func (h *Handler) CreateConnection(w http.ResponseWriter, r *http.Request) {
-	userID, ok := r.Context().Value("user_id").(string)
+	userID, ok := r.Context().Value(middleware.UserIDKey).(string)
 	if !ok || userID == "" {
 		h.respondError(w, http.StatusUnauthorized, "user not authenticated")
 		return
@@ -226,7 +227,7 @@ func (h *Handler) UpdateConnection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, ok := r.Context().Value("user_id").(string)
+	userID, ok := r.Context().Value(middleware.UserIDKey).(string)
 	if !ok || userID == "" {
 		h.respondError(w, http.StatusUnauthorized, "user not authenticated")
 		return
@@ -271,7 +272,7 @@ func (h *Handler) DeleteConnection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, ok := r.Context().Value("user_id").(string)
+	userID, ok := r.Context().Value(middleware.UserIDKey).(string)
 	if !ok || userID == "" {
 		h.respondError(w, http.StatusUnauthorized, "user not authenticated")
 		return
