@@ -23,7 +23,6 @@ type ParsedQuery struct {
 
 // Common SQL patterns
 var (
-	selectPattern   = regexp.MustCompile(`(?i)^SELECT\s+(DISTINCT\s+)?(.+?)\s+FROM\s+(.+?)(\s+WHERE.+)?$`)
 	insertPattern   = regexp.MustCompile(`(?i)^INSERT\s+INTO\s+(\S+)\s*\(([^)]+)\)\s*VALUES`)
 	updatePattern   = regexp.MustCompile(`(?i)^UPDATE\s+(\S+)\s+SET\s+(.+?)(\s+WHERE.+)?$`)
 	deletePattern   = regexp.MustCompile(`(?i)^DELETE\s+FROM\s+(\S+)(\s+WHERE.+)?$`)

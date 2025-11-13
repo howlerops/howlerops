@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"go/ast"
 	"go/format"
 	"go/parser"
 	"go/token"
@@ -247,37 +246,3 @@ func (f *Fixer) ensureImport(content string, pkg string) string {
 	return content
 }
 
-// AST-based fixes for more complex issues
-func (f *Fixer) fixWithAST(path string) error {
-	node, err := parser.ParseFile(f.fset, path, nil, parser.ParseComments)
-	if err != nil {
-		return err
-	}
-
-	modified := false
-
-	// Walk AST and fix issues
-	ast.Inspect(node, func(n ast.Node) bool {
-		switch x := n.(type) {
-		case *ast.AssignStmt:
-			// Fix ineffectual assignments
-			_ = x
-		case *ast.CallExpr:
-			// Fix error checking
-			_ = x
-		}
-		return true
-	})
-
-	if !modified {
-		return nil
-	}
-
-	// Write back
-	var buf bytes.Buffer
-	if err := format.Node(&buf, f.fset, node); err != nil {
-		return err
-	}
-
-	return os.WriteFile(path, buf.Bytes(), 0600)
-}

@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"go/ast"
 	"go/format"
 	"go/parser"
 	"go/token"
@@ -132,25 +131,3 @@ func fixIneffectualAssignments(content string) string {
 	return content
 }
 
-// AST-based fixes
-func fixWithAST(path string) error {
-	fset := token.NewFileSet()
-	node, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
-	if err != nil {
-		return err
-	}
-
-	// Walk the AST and apply fixes
-	ast.Inspect(node, func(n ast.Node) bool {
-		// Add specific AST-based fixes here
-		return true
-	})
-
-	// Write back
-	var buf bytes.Buffer
-	if err := format.Node(&buf, fset, node); err != nil {
-		return err
-	}
-
-	return os.WriteFile(path, buf.Bytes(), 0600)
-}
