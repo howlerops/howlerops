@@ -1,6 +1,7 @@
 package database
 
 import (
+	"context"
 	"testing"
 
 	"github.com/sirupsen/logrus"
@@ -144,7 +145,7 @@ func TestElasticsearchDatabase_ComputeEditableMetadata(t *testing.T) {
 	}
 
 	columns := []string{"id", "name", "email"}
-	metadata, err := es.ComputeEditableMetadata(nil, "SELECT * FROM users", columns)
+	metadata, err := es.ComputeEditableMetadata(context.TODO(), "SELECT * FROM users", columns)
 	if err != nil {
 		t.Fatalf("ComputeEditableMetadata failed: %v", err)
 	}

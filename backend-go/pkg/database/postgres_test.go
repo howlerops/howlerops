@@ -1142,6 +1142,6 @@ func TestPostgresDatabase_CacheTTL(t *testing.T) {
 
 	// Both should have same result
 	if err1 == nil && err2 == nil {
-		// Successfully cached
+		// TODO: Assert that cache was hit on second call (requires cache metrics)
 	}
 }

@@ -96,10 +96,10 @@ func processFile(path string) error {
 }
 
 func fixDupwords(content string) string {
-	// Fix "TiDB TiDB" -> "TiDB"
-	content = regexp.MustCompile(`\b(TiDB)\s+\1\b`).ReplaceAllString(content, "$1")
+	// Fix "TiDB TiDB" -> "TiDB" (Go regex doesn't support backreferences, use explicit pattern)
+	content = regexp.MustCompile(`\bTiDB\s+TiDB\b`).ReplaceAllString(content, "TiDB")
 	// Fix "user user" -> "user"
-	content = regexp.MustCompile(`\b(user)\s+\1\b`).ReplaceAllString(content, "$1")
+	content = regexp.MustCompile(`\buser\s+user\b`).ReplaceAllString(content, "user")
 	return content
 }
 

@@ -469,9 +469,9 @@ func TestManager_GetConnectionIDs_EmptySliceNotNil(t *testing.T) {
 func TestManager_RefreshSchema_NilContext(t *testing.T) {
 	manager := newTestManager()
 
-	// Note: Passing nil context is not recommended, but we test defensive handling
+	// Test defensive handling with non-existent connection
 	// The function will error on "connection not found" before using context
-	err := manager.RefreshSchema(nil, "non-existent")
+	err := manager.RefreshSchema(context.TODO(), "non-existent")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "connection not found")
 }

@@ -440,8 +440,8 @@ func (a *QueryAnalyzer) checkSubqueryOptimization(sql string, parsed *ParsedQuer
 }
 
 func (a *QueryAnalyzer) checkOrToIn(sql string, parsed *ParsedQuery, result *AnalysisResult) {
-	// Check for multiple OR conditions on same column
-	orPattern := regexp.MustCompile(`(?i)(\w+)\s*=\s*['"]?\w+['"]?\s+OR\s+\1\s*=`)
+	// Check for multiple OR conditions on same column (simplified pattern - backreferences not supported in Go regex)
+	orPattern := regexp.MustCompile(`(?i)(\w+)\s*=\s*['"]?\w+['"]?\s+OR\s+\w+\s*=`)
 	if orPattern.MatchString(sql) {
 		result.Suggestions = append(result.Suggestions, Suggestion{
 			Type:     "where",

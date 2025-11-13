@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"sync"
@@ -94,7 +95,7 @@ func (r *OrgRateLimiter) getLimiter(orgID string) *rate.Limiter {
 	}
 
 	// Get organization quota to determine rate
-	quota, err := r.quotaService.GetQuota(nil, orgID)
+	quota, err := r.quotaService.GetQuota(context.TODO(), orgID)
 	if err != nil {
 		r.logger.WithError(err).Error("Failed to get quota, using default")
 		quota = &quotas.OrganizationQuota{
