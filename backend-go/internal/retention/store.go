@@ -134,7 +134,7 @@ func (s *store) GetAllPolicies(ctx context.Context) ([]*RetentionPolicy, error) 
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }() // Best-effort close
 
 	return s.scanPolicies(rows)
 }
@@ -152,7 +152,7 @@ func (s *store) GetOrganizationPolicies(ctx context.Context, orgID string) ([]*R
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }() // Best-effort close
 
 	return s.scanPolicies(rows)
 }
@@ -261,7 +261,7 @@ func (s *store) GetArchiveLogs(ctx context.Context, orgID string, since time.Tim
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }() // Best-effort close
 
 	var logs []*ArchiveLog
 	for rows.Next() {

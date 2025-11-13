@@ -123,7 +123,7 @@ func (s *MySQLVectorStore) IndexDocument(ctx context.Context, doc *Document) err
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }() // Best-effort rollback
 
 	now := time.Now().Unix()
 	if doc.CreatedAt.IsZero() {

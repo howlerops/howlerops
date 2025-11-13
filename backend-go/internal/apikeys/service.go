@@ -120,7 +120,7 @@ func (s *Service) CreateAPIKey(ctx context.Context, userID string, input *Create
 
 	// Log security event
 	if s.eventLogger != nil {
-		s.eventLogger.LogSecurityEvent(
+		_ = s.eventLogger.LogSecurityEvent(
 			ctx,
 			"api_key_created",
 			userID,
@@ -221,7 +221,7 @@ func (s *Service) RevokeAPIKey(ctx context.Context, keyID, userID string) error 
 
 	// Log security event
 	if s.eventLogger != nil {
-		s.eventLogger.LogSecurityEvent(
+		_ = s.eventLogger.LogSecurityEvent(
 			ctx,
 			"api_key_revoked",
 			userID,
@@ -308,7 +308,10 @@ func (s *Service) generateAPIKey() string {
 	// Format: sk_live_xxxxxxxxxxxxxxxxxxxxx (32 random chars)
 	// or sk_test_xxxxxxxxxxxxxxxxxxxxx for test environment
 	randomBytes := make([]byte, 32)
-	rand.Read(randomBytes)
+	if _, err := rand.Read(randomBytes); err != nil {
+		// This should never fail, but if it does, use a fallback
+		panic(fmt.Sprintf("crypto/rand.Read failed: %v", err))
+	}
 	randomPart := hex.EncodeToString(randomBytes)[:32]
 
 	// Determine environment prefix
@@ -362,7 +365,7 @@ func (s *Service) logInvalidKeyUsage(ctx context.Context, reason string, apiKey 
 		details["user_id"] = apiKey.UserID
 	}
 
-	s.eventLogger.LogSecurityEvent(
+	_ = s.eventLogger.LogSecurityEvent(
 		ctx,
 		"api_key_invalid_usage",
 		"",

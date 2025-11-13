@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"reflect"
 	"strings"
@@ -137,13 +138,15 @@ func (m *MongoDBDatabase) Connect(ctx context.Context, config ConnectionConfig) 
 
 	// Test connection
 	if err := client.Ping(ctx, readpref.Primary()); err != nil {
-		client.Disconnect(ctx)
+		_ = client.Disconnect(ctx) // Best-effort disconnect on error
 		return fmt.Errorf("failed to ping MongoDB: %w", err)
 	}
 
 	m.mu.Lock()
 	if m.client != nil {
-		m.client.Disconnect(context.Background())
+		if err := m.client.Disconnect(context.Background()); err != nil {
+			log.Printf("Failed to disconnect existing MongoDB client: %v", err)
+		}
 	}
 	m.client = client
 	m.mu.Unlock()
@@ -410,7 +413,7 @@ func (m *MongoDBDatabase) executeSelectQuery(ctx context.Context, client *mongo.
 	if limitIndex != -1 {
 		limitClause := strings.TrimSpace(query[limitIndex+5:])
 		var limitValue int64
-		fmt.Sscanf(limitClause, "%d", &limitValue)
+		_, _ = fmt.Sscanf(limitClause, "%d", &limitValue) // Best-effort parsing
 		if limitValue > 0 {
 			limit = limitValue
 		}
@@ -425,7 +428,11 @@ func (m *MongoDBDatabase) executeSelectQuery(ctx context.Context, client *mongo.
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute MongoDB find: %w", err)
 	}
-	defer cursor.Close(ctx)
+	defer func() {
+		if err := cursor.Close(ctx); err != nil {
+			log.Printf("Failed to close MongoDB cursor: %v", err)
+		}
+	}()
 
 	// Read all documents
 	var documents []bson.M
@@ -625,7 +632,11 @@ func (m *MongoDBDatabase) ExecuteStream(ctx context.Context, query string, batch
 	if err != nil {
 		return fmt.Errorf("failed to execute MongoDB find: %w", err)
 	}
-	defer cursor.Close(ctx)
+	defer func() {
+		if err := cursor.Close(ctx); err != nil {
+			log.Printf("Failed to close MongoDB cursor: %v", err)
+		}
+	}()
 
 	// Determine columns from first batch
 	var columnOrder []string
@@ -920,7 +931,11 @@ func (m *MongoDBDatabase) GetTableStructure(ctx context.Context, schema, table s
 	opts := options.Find().SetLimit(100)
 	cursor, err := collection.Find(ctx, bson.M{}, opts)
 	if err == nil {
-		defer cursor.Close(ctx)
+		defer func() {
+			if err := cursor.Close(ctx); err != nil {
+				log.Printf("Failed to close MongoDB cursor: %v", err)
+			}
+		}()
 
 		fieldTypes := make(map[string]map[string]int) // field -> type -> count
 		fieldOrder := []string{}
@@ -978,7 +993,11 @@ func (m *MongoDBDatabase) GetTableStructure(ctx context.Context, schema, table s
 	// Get indexes
 	indexCursor, err := collection.Indexes().List(ctx)
 	if err == nil {
-		defer indexCursor.Close(ctx)
+		defer func() {
+			if err := indexCursor.Close(ctx); err != nil {
+				log.Printf("Failed to close MongoDB index cursor: %v", err)
+			}
+		}()
 
 		for indexCursor.Next(ctx) {
 			var indexDoc bson.M

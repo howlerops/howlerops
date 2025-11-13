@@ -165,7 +165,9 @@ func (s *Service) performExport(request *DataExportRequest) {
 
 	if err := os.WriteFile(filePath, jsonData, 0600); err != nil {
 		logger.WithError(err).Error("Failed to write export file")
-		s.store.UpdateRequestFailed(ctx, request.ID, "Failed to write export file")
+		if updateErr := s.store.UpdateRequestFailed(ctx, request.ID, "Failed to write export file"); updateErr != nil {
+			logger.WithError(updateErr).Error("Failed to update request status")
+		}
 		return
 	}
 
@@ -322,7 +324,9 @@ func (s *Service) performDeletion(request *DataExportRequest) {
 	// Finally, delete user account
 	if err := s.store.DeleteUser(ctx, request.UserID); err != nil {
 		logger.WithError(err).Error("Failed to delete user")
-		s.store.UpdateRequestFailed(ctx, request.ID, "Failed to delete user account")
+		if updateErr := s.store.UpdateRequestFailed(ctx, request.ID, "Failed to delete user account"); updateErr != nil {
+			logger.WithError(updateErr).Error("Failed to update request status")
+		}
 		return
 	}
 

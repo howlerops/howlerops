@@ -247,7 +247,11 @@ func (p *OllamaProvider) GetModels(ctx context.Context) ([]ModelInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			p.logger.WithError(err).Warn("Failed to close response body")
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("HTTP %d", resp.StatusCode)
@@ -368,7 +372,11 @@ func (p *OllamaProvider) PullModel(ctx context.Context, modelName string) error 
 	if err != nil {
 		return fmt.Errorf("pull request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			p.logger.WithError(err).Warn("Failed to close pull response body")
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -437,7 +445,11 @@ func (p *OllamaProvider) callOllama(ctx context.Context, model, prompt string, s
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			p.logger.WithError(err).Warn("Failed to close response body")
+		}
+	}()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

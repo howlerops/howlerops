@@ -67,7 +67,7 @@ func (s *store) CreateDetailedLogs(ctx context.Context, logs []*AuditLogDetailed
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }() // Best-effort rollback
 
 	stmt, err := tx.PrepareContext(ctx, `
 		INSERT INTO audit_logs_detailed (

@@ -533,7 +533,7 @@ func setupIntegrationDB(t *testing.T) (*sql.DB, func()) {
 	require.NoError(t, err)
 
 	cleanup := func() {
-		db.Close()
+		_ = db.Close() // Best-effort close in test
 	}
 
 	return db, cleanup

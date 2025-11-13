@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 	"sort"
 	"strings"
 	"time"
@@ -45,7 +46,9 @@ func (m *MySQLDatabase) Connect(ctx context.Context, config ConnectionConfig) er
 	}
 
 	if m.pool != nil {
-		m.pool.Close()
+		if err := m.pool.Close(); err != nil {
+			log.Printf("Failed to close existing MySQL pool: %v", err)
+		}
 	}
 	m.pool = pool
 	m.structureCache = newTableStructureCache(10 * time.Minute)

@@ -306,7 +306,7 @@ func (p *ConnectionPool) WarmUp(ctx context.Context, connections int) error {
 				errors <- err
 				return
 			}
-			defer conn.Close()
+			defer func() { _ = conn.Close() }() // Best-effort close
 
 			// Execute a simple query to warm the connection
 			if err := conn.PingContext(ctx); err != nil {

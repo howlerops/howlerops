@@ -85,7 +85,9 @@ func (s *Service) performBackup(backup *DatabaseBackup, opts *BackupOptions) {
 	_, err := s.db.ExecContext(ctx, query)
 	if err != nil {
 		logger.WithError(err).Error("Backup failed")
-		s.store.UpdateBackupFailed(ctx, backup.ID, err.Error())
+		if updateErr := s.store.UpdateBackupFailed(ctx, backup.ID, err.Error()); updateErr != nil {
+			logger.WithError(updateErr).Error("Failed to update backup status")
+		}
 		return
 	}
 
@@ -93,7 +95,9 @@ func (s *Service) performBackup(backup *DatabaseBackup, opts *BackupOptions) {
 	info, err := os.Stat(backup.FilePath)
 	if err != nil {
 		logger.WithError(err).Error("Failed to stat backup file")
-		s.store.UpdateBackupFailed(ctx, backup.ID, "Failed to get file size")
+		if updateErr := s.store.UpdateBackupFailed(ctx, backup.ID, "Failed to get file size"); updateErr != nil {
+			logger.WithError(updateErr).Error("Failed to update backup status")
+		}
 		return
 	}
 
@@ -246,7 +250,7 @@ func (s *Service) VerifyBackup(ctx context.Context, backupID string) error {
 	if err != nil {
 		return fmt.Errorf("failed to open backup database: %w", err)
 	}
-	defer testDB.Close()
+	defer func() { _ = testDB.Close() }() // Best-effort close
 
 	// Run a simple query to verify integrity
 	var count int

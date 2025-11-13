@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -44,7 +45,9 @@ func (s *SQLiteDatabase) Connect(ctx context.Context, config ConnectionConfig) e
 	}
 
 	if s.pool != nil {
-		s.pool.Close()
+		if err := s.pool.Close(); err != nil {
+			log.Printf("Failed to close existing SQLite pool: %v", err)
+		}
 	}
 	s.pool = pool
 	s.structureCache = newTableStructureCache(10 * time.Minute)
@@ -697,7 +700,7 @@ func (s *SQLiteDatabase) getTableIndexes(ctx context.Context, db *sql.DB, table 
 			}
 			columns = append(columns, name)
 		}
-		colRows.Close()
+		_ = colRows.Close() // Best-effort close
 
 		idx.Columns = columns
 		idx.Type = "BTREE" // SQLite default

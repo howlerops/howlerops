@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -41,7 +42,9 @@ func (c *ClickHouseDatabase) Connect(ctx context.Context, config ConnectionConfi
 	}
 
 	if c.pool != nil {
-		c.pool.Close()
+		if err := c.pool.Close(); err != nil {
+			log.Printf("Failed to close existing ClickHouse pool: %v", err)
+		}
 	}
 	c.pool = pool
 

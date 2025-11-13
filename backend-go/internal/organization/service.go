@@ -145,7 +145,7 @@ func (s *Service) UpdateOrganization(ctx context.Context, orgID string, userID s
 
 	if !HasPermission(member.Role, PermUpdateOrganization) {
 		// Log permission denial
-		s.CreateAuditLog(ctx, &AuditLog{
+		_ = s.CreateAuditLog(ctx, &AuditLog{
 			OrganizationID: &orgID,
 			UserID:         userID,
 			Action:         "permission_denied",
@@ -218,7 +218,7 @@ func (s *Service) DeleteOrganization(ctx context.Context, orgID string, userID s
 
 	if !HasPermission(member.Role, PermDeleteOrganization) {
 		// Log permission denial
-		s.CreateAuditLog(ctx, &AuditLog{
+		_ = s.CreateAuditLog(ctx, &AuditLog{
 			OrganizationID: &orgID,
 			UserID:         userID,
 			Action:         "permission_denied",

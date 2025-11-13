@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 	"sort"
 	"strings"
 	"time"
@@ -45,7 +46,9 @@ func (p *PostgresDatabase) Connect(ctx context.Context, config ConnectionConfig)
 	}
 
 	if p.pool != nil {
-		p.pool.Close()
+		if err := p.pool.Close(); err != nil {
+			log.Printf("Failed to close existing PostgreSQL pool: %v", err)
+		}
 	}
 	p.pool = pool
 	p.structureCache = newTableStructureCache(10 * time.Minute)

@@ -561,7 +561,7 @@ func (es *ElasticsearchDatabase) GetTables(ctx context.Context, schema string) (
 
 		docsCount := int64(0)
 		if count, ok := idx["docs.count"].(string); ok {
-			fmt.Sscanf(count, "%d", &docsCount)
+			_, _ = fmt.Sscanf(count, "%d", &docsCount) // Best-effort parsing
 		}
 
 		sizeBytes := int64(0)
@@ -598,7 +598,7 @@ func parseSizeString(size string) int64 {
 
 	var num float64
 	var unit string
-	fmt.Sscanf(size, "%f%s", &num, &unit)
+	_, _ = fmt.Sscanf(size, "%f%s", &num, &unit) // Best-effort parsing
 
 	multiplier := int64(1)
 	switch unit {

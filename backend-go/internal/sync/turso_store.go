@@ -543,7 +543,7 @@ func (s *TursoStore) ListQueryHistory(ctx context.Context, userID string, since 
 			qh.Error = errorMsg.String
 		}
 		if metadataJSON.Valid && metadataJSON.String != "" {
-			json.Unmarshal([]byte(metadataJSON.String), &qh.Metadata)
+			_ = json.Unmarshal([]byte(metadataJSON.String), &qh.Metadata) // Best-effort unmarshal
 		}
 
 		history = append(history, qh)
@@ -623,8 +623,8 @@ func (s *TursoStore) GetConflict(ctx context.Context, userID, conflictID string)
 		return nil, fmt.Errorf("failed to get conflict: %w", err)
 	}
 
-	json.Unmarshal([]byte(localJSON), &conflict.LocalVersion)
-	json.Unmarshal([]byte(remoteJSON), &conflict.RemoteVersion)
+	_ = json.Unmarshal([]byte(localJSON), &conflict.LocalVersion)   // Best-effort unmarshal
+	_ = json.Unmarshal([]byte(remoteJSON), &conflict.RemoteVersion) // Best-effort unmarshal
 
 	if resolvedAt.Valid {
 		conflict.ResolvedAt = &resolvedAt.Time

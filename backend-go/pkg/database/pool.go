@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"strings"
 	"sync"
 	"time"
@@ -493,7 +494,9 @@ func (p *ConnectionPool) Reconnect() error {
 
 	// Close existing connection
 	if p.db != nil {
-		p.db.Close()
+		if err := p.db.Close(); err != nil {
+			log.Printf("Failed to close existing database connection: %v", err)
+		}
 		p.db = nil
 	}
 

@@ -76,7 +76,7 @@ func (m *SSHTunnelManager) EstablishTunnel(ctx context.Context, config *SSHTunne
 	// Allocate local port
 	localPort, listener, err := m.allocateLocalPort()
 	if err != nil {
-		sshClient.Close()
+		_ = sshClient.Close() // Best-effort close on error
 		return nil, fmt.Errorf("failed to allocate local port: %w", err)
 	}
 
@@ -137,11 +137,15 @@ func (m *SSHTunnelManager) CloseTunnel(tunnel *SSHTunnel) error {
 	tunnel.connected = false
 
 	if tunnel.listener != nil {
-		tunnel.listener.Close()
+		if err := tunnel.listener.Close(); err != nil {
+			tunnel.logger.WithError(err).Warn("Failed to close SSH tunnel listener")
+		}
 	}
 
 	if tunnel.sshClient != nil {
-		tunnel.sshClient.Close()
+		if err := tunnel.sshClient.Close(); err != nil {
+			tunnel.logger.WithError(err).Warn("Failed to close SSH client")
+		}
 	}
 
 	tunnel.wg.Wait()
@@ -331,7 +335,11 @@ func (t *SSHTunnel) forwardConnections() {
 // handleConnection handles a single connection through the tunnel
 func (t *SSHTunnel) handleConnection(localConn net.Conn) {
 	defer t.wg.Done()
-	defer localConn.Close()
+	defer func() {
+		if err := localConn.Close(); err != nil {
+			t.logger.WithError(err).Debug("Failed to close local connection")
+		}
+	}()
 
 	// Dial remote connection through SSH
 	remoteAddr := fmt.Sprintf("%s:%d", t.remoteHost, t.remotePort)
@@ -340,7 +348,11 @@ func (t *SSHTunnel) handleConnection(localConn net.Conn) {
 		t.logger.WithError(err).WithField("remote", remoteAddr).Error("Failed to dial remote connection")
 		return
 	}
-	defer remoteConn.Close()
+	defer func() {
+		if err := remoteConn.Close(); err != nil {
+			t.logger.WithError(err).Debug("Failed to close remote connection")
+		}
+	}()
 
 	// Bidirectional copy
 	var wg sync.WaitGroup

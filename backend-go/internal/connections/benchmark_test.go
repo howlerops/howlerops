@@ -344,7 +344,7 @@ func setupBenchmarkDB(b *testing.B, numOrgs, numConnections int) (*sql.DB, func(
 		require.NoError(b, err)
 	}
 
-	return db, func() { db.Close() }
+	return db, func() { _ = db.Close() } // Best-effort close in test
 }
 
 func setupBenchmarkDBQueries(b *testing.B, numOrgs, numQueries int) (*sql.DB, func()) {
@@ -438,7 +438,7 @@ func setupBenchmarkDBQueries(b *testing.B, numOrgs, numQueries int) (*sql.DB, fu
 		require.NoError(b, err)
 	}
 
-	return db, func() { db.Close() }
+	return db, func() { _ = db.Close() } // Best-effort close in test
 }
 
 func setupBenchOrg(b *testing.B, db *sql.DB, orgID, ownerID string) {

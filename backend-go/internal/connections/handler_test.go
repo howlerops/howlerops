@@ -589,19 +589,19 @@ func NewHandler(service *connections.Service, logger *logrus.Logger) *Handler {
 func (h *Handler) ShareConnection(w http.ResponseWriter, r *http.Request) {
 	// Implementation would be in actual handler.go
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
+	_ = json.NewEncoder(w).Encode(map[string]string{"status": "success"}) // Best-effort encode in test mock
 }
 
 func (h *Handler) GetOrgConnections(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"connections": []map[string]string{},
-	})
+	}) // Best-effort encode in test mock
 }
 
 func (h *Handler) UnshareConnection(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
+	_ = json.NewEncoder(w).Encode(map[string]string{"status": "success"}) // Best-effort encode in test mock
 }
 
 func (h *Handler) GetAccessibleConnections(w http.ResponseWriter, r *http.Request) {
