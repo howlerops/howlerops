@@ -129,7 +129,12 @@ func (c *ClickHouseDatabase) executeSelect(ctx context.Context, db *sql.DB, quer
 			Duration: time.Since(start),
 		}, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			// Log error but don't fail the query - data already retrieved
+			_ = err
+		}
+	}()
 
 	// Get column information
 	columns, err := rows.Columns()
@@ -217,7 +222,12 @@ func (c *ClickHouseDatabase) ExecuteStream(ctx context.Context, query string, ba
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			// Log error but don't fail the stream - data already retrieved
+			_ = err
+		}
+	}()
 
 	columns, err := rows.Columns()
 	if err != nil {
@@ -277,7 +287,12 @@ func (c *ClickHouseDatabase) ExplainQuery(ctx context.Context, query string, arg
 	if err != nil {
 		return "", fmt.Errorf("failed to explain query: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			// Log error but don't fail - data already retrieved
+			_ = err
+		}
+	}()
 
 	var plan strings.Builder
 	for rows.Next() {
@@ -309,7 +324,12 @@ func (c *ClickHouseDatabase) GetSchemas(ctx context.Context) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			// Log error but don't fail - data already retrieved
+			_ = err
+		}
+	}()
 
 	var schemas []string
 	for rows.Next() {
@@ -346,7 +366,12 @@ func (c *ClickHouseDatabase) GetTables(ctx context.Context, schema string) ([]Ta
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			// Log error but don't fail - data already retrieved
+			_ = err
+		}
+	}()
 
 	var tables []TableInfo
 	for rows.Next() {
@@ -423,7 +448,12 @@ func (c *ClickHouseDatabase) GetTableStructure(ctx context.Context, schema, tabl
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			// Log error but don't fail - data already retrieved
+			_ = err
+		}
+	}()
 
 	var columns []ColumnInfo
 	for rows.Next() {

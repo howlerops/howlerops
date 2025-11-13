@@ -132,7 +132,7 @@ func TestCheckForUpdate(t *testing.T) {
 
 	server := newTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(mockRelease)
+		_ = json.NewEncoder(w).Encode(mockRelease) // Best-effort encode in test
 	}))
 	defer server.Close()
 

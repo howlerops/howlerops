@@ -388,7 +388,9 @@ func (m *MonitoringMiddleware) RecentRequestsHandler(w http.ResponseWriter, r *h
 
 	recent := m.collector.GetRecent(count)
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(recent)
+	if err := json.NewEncoder(w).Encode(recent); err != nil {
+		m.logger.WithError(err).Error("Failed to encode recent requests response")
+	}
 }
 
 // StatsHandler returns aggregated statistics
@@ -402,7 +404,9 @@ func (m *MonitoringMiddleware) StatsHandler(w http.ResponseWriter, r *http.Reque
 
 	stats := m.collector.GetStats(duration)
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(stats)
+	if err := json.NewEncoder(w).Encode(stats); err != nil {
+		m.logger.WithError(err).Error("Failed to encode stats response")
+	}
 }
 
 // HealthHandler returns health status
@@ -414,7 +418,9 @@ func (m *MonitoringMiddleware) HealthHandler(w http.ResponseWriter, r *http.Requ
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(health)
+	if err := json.NewEncoder(w).Encode(health); err != nil {
+		m.logger.WithError(err).Error("Failed to encode health response")
+	}
 }
 
 // RegisterRoutes registers monitoring HTTP routes

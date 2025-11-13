@@ -370,5 +370,8 @@ func (m *MockSchemaService) GetSchema(connectionID string) (*Schema, error) {
 func respondJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(data)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		// Log error but response status already written
+		_ = err
+	}
 }

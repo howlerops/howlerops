@@ -201,7 +201,9 @@ func (h *Handler) UpdateTemplate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(template)
+	if err := json.NewEncoder(w).Encode(template); err != nil {
+		h.logger.WithError(err).Error("Failed to encode template response")
+	}
 }
 
 // DeleteTemplate deletes a template
@@ -257,9 +259,11 @@ func (h *Handler) ExecuteTemplate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"sql": sql,
-	})
+	}); err != nil {
+		h.logger.WithError(err).Error("Failed to encode execute template response")
+	}
 }
 
 // GetPopularTemplates returns popular templates
@@ -314,7 +318,9 @@ func (h *Handler) CreateSchedule(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(schedule)
+	if err := json.NewEncoder(w).Encode(schedule); err != nil {
+		h.logger.WithError(err).Error("Failed to encode schedule response")
+	}
 }
 
 // ListSchedules lists schedules with filters

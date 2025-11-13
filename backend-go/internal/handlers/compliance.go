@@ -100,7 +100,9 @@ func (h *ComplianceHandler) CreateRetentionPolicy(w http.ResponseWriter, r *http
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(policy)
+	if err := json.NewEncoder(w).Encode(policy); err != nil {
+		h.logger.WithError(err).Error("Failed to encode policy response")
+	}
 }
 
 // GetRetentionPolicies retrieves retention policies for an organization
@@ -116,7 +118,9 @@ func (h *ComplianceHandler) GetRetentionPolicies(w http.ResponseWriter, r *http.
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(policies)
+	if err := json.NewEncoder(w).Encode(policies); err != nil {
+		h.logger.WithError(err).Error("Failed to encode policies response")
+	}
 }
 
 // UpdateRetentionPolicy updates a retention policy
@@ -141,7 +145,9 @@ func (h *ComplianceHandler) UpdateRetentionPolicy(w http.ResponseWriter, r *http
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(policy)
+	if err := json.NewEncoder(w).Encode(policy); err != nil {
+		h.logger.WithError(err).Error("Failed to encode updated policy response")
+	}
 }
 
 // DeleteRetentionPolicy deletes a retention policy

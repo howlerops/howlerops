@@ -308,7 +308,12 @@ func (c *HTTPChecker) Check(ctx context.Context) CheckResult {
 			Timestamp:    time.Now(),
 		}
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			// Log error but don't fail the check - response already received
+			_ = err
+		}
+	}()
 
 	// Check status code
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {

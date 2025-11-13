@@ -1024,7 +1024,7 @@ func TestClickHouseDatabase_Disconnect(t *testing.T) {
 		}
 
 		// Disconnect once
-		db.Disconnect()
+		_ = db.Disconnect() // Best-effort disconnect in test
 
 		// Disconnect again - should not panic
 		err = db.Disconnect()

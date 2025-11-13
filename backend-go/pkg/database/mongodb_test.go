@@ -78,7 +78,7 @@ func TestNewMongoDBDatabase(t *testing.T) {
 		} else {
 			assert.NotNil(t, db)
 			assert.Equal(t, database.MongoDB, db.GetDatabaseType())
-			db.Disconnect()
+			_ = db.Disconnect() // Best-effort disconnect in test
 		}
 	})
 
@@ -91,7 +91,7 @@ func TestNewMongoDBDatabase(t *testing.T) {
 			assert.Error(t, err)
 		} else {
 			assert.NotNil(t, db)
-			db.Disconnect()
+			_ = db.Disconnect() // Best-effort disconnect in test
 		}
 	})
 
@@ -104,7 +104,7 @@ func TestNewMongoDBDatabase(t *testing.T) {
 			assert.Error(t, err)
 		} else {
 			assert.NotNil(t, db)
-			db.Disconnect()
+			_ = db.Disconnect() // Best-effort disconnect in test
 		}
 	})
 
@@ -122,7 +122,7 @@ func TestNewMongoDBDatabase(t *testing.T) {
 			assert.Error(t, err)
 		} else {
 			assert.NotNil(t, db)
-			db.Disconnect()
+			_ = db.Disconnect() // Best-effort disconnect in test
 		}
 	})
 
@@ -143,7 +143,7 @@ func TestNewMongoDBDatabase(t *testing.T) {
 			assert.Error(t, err)
 		} else {
 			assert.NotNil(t, db)
-			db.Disconnect()
+			_ = db.Disconnect() // Best-effort disconnect in test
 		}
 	})
 
@@ -160,7 +160,7 @@ func TestNewMongoDBDatabase(t *testing.T) {
 
 		db, err := database.NewMongoDBDatabase(config, nil)
 		if err == nil && db != nil {
-			db.Disconnect()
+			_ = db.Disconnect() // Best-effort disconnect in test
 		}
 	})
 }
@@ -184,7 +184,7 @@ func TestMongoDBDatabase_Connect(t *testing.T) {
 		if err != nil {
 			t.Skipf("MongoDB not available: %v", err)
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 		assert.NoError(t, err)
 		assert.NotNil(t, db)
@@ -198,7 +198,7 @@ func TestMongoDBDatabase_Connect(t *testing.T) {
 		if err != nil {
 			t.Skipf("MongoDB not available: %v", err)
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 		assert.NotNil(t, db)
 	})
@@ -209,7 +209,7 @@ func TestMongoDBDatabase_Connect(t *testing.T) {
 		if err != nil {
 			t.Skipf("MongoDB not available: %v", err)
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 		// Reconnect with same config
 		err = db.Connect(ctx, config)
@@ -240,7 +240,7 @@ func TestMongoDBDatabase_Connect(t *testing.T) {
 			assert.Error(t, err)
 		} else {
 			assert.NotNil(t, db)
-			db.Disconnect()
+			_ = db.Disconnect() // Best-effort disconnect in test
 		}
 	})
 }
@@ -1138,7 +1138,7 @@ func TestMongoDBDatabase_ConnectionURIBuilding(t *testing.T) {
 			assert.Error(t, err)
 		} else {
 			assert.NotNil(t, db)
-			db.Disconnect()
+			_ = db.Disconnect() // Best-effort disconnect in test
 		}
 	})
 }

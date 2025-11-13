@@ -91,7 +91,7 @@ func NewClient(config *Config, logger *logrus.Logger) (*sql.DB, error) {
 
 	// Test connection
 	if err := db.Ping(); err != nil {
-		db.Close()
+		_ = db.Close() // Best-effort close on error
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 

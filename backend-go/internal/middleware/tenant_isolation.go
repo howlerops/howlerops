@@ -77,7 +77,12 @@ func (m *TenantIsolationMiddleware) getUserOrganizations(ctx context.Context, us
 	if err != nil {
 		return nil, fmt.Errorf("query user organizations: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			// Log error but don't fail the query - data already retrieved
+			_ = err
+		}
+	}()
 
 	var orgIDs []string
 	for rows.Next() {

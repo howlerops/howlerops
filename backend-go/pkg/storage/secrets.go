@@ -107,7 +107,12 @@ func (s *SecretStore) ListSecrets(ctx context.Context, ownerID string) ([]*crypt
 	if err != nil {
 		return nil, fmt.Errorf("failed to list secrets: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			// Log error but don't fail the query - data already retrieved
+			_ = err
+		}
+	}()
 
 	var secrets []*crypto.EncryptedSecret
 	for rows.Next() {

@@ -56,7 +56,11 @@ func TestHealthCheck(t *testing.T) {
 
 	resp, err := suite.client.Do(req)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			t.Logf("Failed to close response body: %v", err)
+		}
+	}()
 
 	// Health check should always return 200
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
@@ -84,7 +88,11 @@ func TestHealthCheckResponseTime(t *testing.T) {
 
 	resp, err := suite.client.Do(req)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			t.Logf("Failed to close response body: %v", err)
+		}
+	}()
 
 	duration := time.Since(start)
 

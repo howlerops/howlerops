@@ -33,7 +33,7 @@ func setupMigrationTestDB(t *testing.T) (*sql.DB, *logrus.Logger) {
 // TestMigrationTableCreation tests that the migrations table is created correctly
 func TestMigrationTableCreation(t *testing.T) {
 	db, _ := setupMigrationTestDB(t)
-	defer db.Close()
+	defer func() { _ = db.Close() }() // Best-effort close in test
 
 	// Create migrations table
 	err := createMigrationsTable(db)
@@ -69,7 +69,7 @@ func TestMigrationTableCreation(t *testing.T) {
 // TestGetCurrentVersion tests getting the current migration version
 func TestGetCurrentVersion(t *testing.T) {
 	db, _ := setupMigrationTestDB(t)
-	defer db.Close()
+	defer func() { _ = db.Close() }() // Best-effort close in test
 
 	// Create migrations table
 	err := createMigrationsTable(db)
@@ -102,7 +102,7 @@ func TestGetCurrentVersion(t *testing.T) {
 // TestRunMigrationsIdempotency tests that running migrations twice is safe
 func TestRunMigrationsIdempotency(t *testing.T) {
 	db, logger := setupMigrationTestDB(t)
-	defer db.Close()
+	defer func() { _ = db.Close() }() // Best-effort close in test
 
 	// Initialize schema first
 	err := InitializeSchema(db, logger)

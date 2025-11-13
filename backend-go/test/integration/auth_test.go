@@ -384,7 +384,7 @@ func TestAuthRateLimiting(t *testing.T) {
 			if resp.StatusCode == http.StatusTooManyRequests {
 				failureCount++
 			}
-			resp.Body.Close()
+			_ = resp.Body.Close() // Best-effort close in test
 		}
 		time.Sleep(100 * time.Millisecond)
 	}

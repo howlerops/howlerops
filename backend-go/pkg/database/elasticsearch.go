@@ -423,16 +423,16 @@ func (es *ElasticsearchDatabase) ExecuteStream(ctx context.Context, query string
 
 		if resp.StatusCode >= 400 {
 			body, _ := io.ReadAll(resp.Body)
-			resp.Body.Close()
+			_ = resp.Body.Close() // Best-effort close
 			return fmt.Errorf("cursor fetch failed: status %d - %s", resp.StatusCode, string(body))
 		}
 
 		var cursorResp elasticsearchSQLResponse
 		if err := json.NewDecoder(resp.Body).Decode(&cursorResp); err != nil {
-			resp.Body.Close()
+			_ = resp.Body.Close() // Best-effort close
 			return err
 		}
-		resp.Body.Close()
+		_ = resp.Body.Close() // Best-effort close
 
 		if len(cursorResp.Rows) > 0 {
 			if err := callback(cursorResp.Rows); err != nil {

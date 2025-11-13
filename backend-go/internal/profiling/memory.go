@@ -272,7 +272,9 @@ func (p *MemoryProfiler) GetSnapshot() *MemorySnapshot {
 func (p *MemoryProfiler) MemoryHandler(w http.ResponseWriter, r *http.Request) {
 	stats := p.GetMemoryStats()
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(stats)
+	if err := json.NewEncoder(w).Encode(stats); err != nil {
+		p.logger.WithError(err).Error("Failed to encode memory stats response")
+	}
 }
 
 // SnapshotHandler serves complete memory snapshot

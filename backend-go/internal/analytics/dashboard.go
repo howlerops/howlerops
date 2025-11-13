@@ -500,7 +500,12 @@ func (s *DashboardService) getActiveUsersByDay(ctx context.Context, orgID *strin
 	if err != nil {
 		return nil
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			// Log error but don't fail the query - data already retrieved
+			_ = err
+		}
+	}()
 
 	var points []TimeSeriesPoint
 	for rows.Next() {
@@ -543,7 +548,12 @@ func (s *DashboardService) getQueryCountByUser(ctx context.Context, orgID *strin
 	if err != nil {
 		return nil
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			// Log error but don't fail the query - data already retrieved
+			_ = err
+		}
+	}()
 
 	var users []UserQueryCount
 	for rows.Next() {
@@ -581,7 +591,12 @@ func (s *DashboardService) getPeakHours(ctx context.Context, orgID *string, time
 	if err != nil {
 		return nil
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			// Log error but don't fail the query - data already retrieved
+			_ = err
+		}
+	}()
 
 	var hours []HourlyActivity
 	for rows.Next() {

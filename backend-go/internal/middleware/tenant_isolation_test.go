@@ -15,7 +15,7 @@ func TestTenantIsolationMiddleware(t *testing.T) {
 	// Create mock database
 	db, mock, err := sqlmock.New()
 	assert.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }() // Best-effort close in test
 
 	logger := logrus.New()
 	middleware := NewTenantIsolationMiddleware(db, logger)
@@ -201,7 +201,7 @@ func TestVerifyOrgAccess(t *testing.T) {
 func TestDataIsolation(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	assert.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }() // Best-effort close in test
 
 	ctx := context.WithValue(context.Background(), UserOrganizationsKey, []string{"org-1"})
 
@@ -239,7 +239,7 @@ func TestDataIsolation(t *testing.T) {
 // Benchmark tenant isolation middleware
 func BenchmarkTenantIsolation(b *testing.B) {
 	db, mock, _ := sqlmock.New()
-	defer db.Close()
+	defer func() { _ = db.Close() }() // Best-effort close in test
 
 	logger := logrus.New()
 	middleware := NewTenantIsolationMiddleware(db, logger)

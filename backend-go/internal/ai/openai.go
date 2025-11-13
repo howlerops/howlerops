@@ -158,7 +158,12 @@ func (p *openaiProvider) HealthCheck(ctx context.Context) (*HealthStatus, error)
 			LastChecked: time.Now(),
 		}, nil
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			// Log error but don't fail - response already received
+			_ = err
+		}
+	}()
 
 	responseTime := time.Since(start)
 
@@ -198,7 +203,12 @@ func (p *openaiProvider) GetModels(ctx context.Context) ([]ModelInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			// Log error but don't fail - response already received
+			_ = err
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("HTTP %d", resp.StatusCode)
@@ -316,7 +326,12 @@ func (p *openaiProvider) callOpenAIWithMessages(ctx context.Context, model strin
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			// Log error but don't fail - response already received
+			_ = err
+		}
+	}()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

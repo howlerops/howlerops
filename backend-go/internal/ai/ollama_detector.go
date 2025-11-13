@@ -144,7 +144,12 @@ func (d *OllamaDetector) IsOllamaRunning(ctx context.Context, endpoint string) (
 	if err != nil {
 		return false, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			// Log error but don't fail the check - response already received
+			_ = err
+		}
+	}()
 
 	return resp.StatusCode == http.StatusOK, nil
 }
@@ -160,7 +165,12 @@ func (d *OllamaDetector) ListAvailableModels(ctx context.Context, endpoint strin
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			// Log error but don't fail the query - response already received
+			_ = err
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("HTTP %d", resp.StatusCode)

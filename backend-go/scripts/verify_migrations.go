@@ -66,7 +66,11 @@ func main() {
 	if err != nil {
 		logger.Fatal("Failed to open database: ", err)
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			logger.WithError(err).Error("Failed to close database")
+		}
+	}()
 
 	// Run verification tests
 	passed := 0

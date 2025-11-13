@@ -67,7 +67,7 @@ func (s *TursoRemoteVectorStore) IndexDocument(ctx context.Context, doc *Documen
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }() // Best-effort rollback
 
 	// Idempotent upsert by primary key
 	if _, err := tx.ExecContext(ctx, `
@@ -104,7 +104,7 @@ func (s *TursoRemoteVectorStore) BatchIndexDocuments(ctx context.Context, docs [
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }() // Best-effort rollback
 
 	now := time.Now().Unix()
 	for _, doc := range docs {

@@ -52,7 +52,11 @@ func (m *MigrationManager) migratePasswordsToSecrets(ctx context.Context) error 
 	if err != nil {
 		return fmt.Errorf("failed to query connections: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			m.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	migratedCount := 0
 	failedCount := 0

@@ -346,7 +346,7 @@ func NewLocalStorage(config *LocalStorageConfig, logger *logrus.Logger) (*LocalS
 	migrationManager := NewMigrationManager(db, secretStore, logger)
 	ctx := context.Background()
 	if err := migrationManager.RunMigrations(ctx); err != nil {
-		db.Close()
+		_ = db.Close() // Best-effort close on error
 		return nil, fmt.Errorf("failed to run migrations: %w", err)
 	}
 
