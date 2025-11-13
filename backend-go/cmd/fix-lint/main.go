@@ -53,6 +53,7 @@ func main() {
 }
 
 func processFile(path string) error {
+	// #nosec G304 - path is from filepath.Walk, not user input
 	content, err := os.ReadFile(path)
 	if err != nil {
 		return err
@@ -80,15 +81,15 @@ func processFile(path string) error {
 		node, err := parser.ParseFile(fset, path, modified, parser.ParseComments)
 		if err != nil {
 			// If parsing fails, write the modified version anyway
-			return os.WriteFile(path, []byte(modified), 0644)
+			return os.WriteFile(path, []byte(modified), 0600)
 		}
 
 		var buf bytes.Buffer
 		if err := format.Node(&buf, fset, node); err != nil {
-			return os.WriteFile(path, []byte(modified), 0644)
+			return os.WriteFile(path, []byte(modified), 0600)
 		}
 
-		return os.WriteFile(path, buf.Bytes(), 0644)
+		return os.WriteFile(path, buf.Bytes(), 0600)
 	}
 
 	return nil
@@ -151,5 +152,5 @@ func fixWithAST(path string) error {
 		return err
 	}
 
-	return os.WriteFile(path, buf.Bytes(), 0644)
+	return os.WriteFile(path, buf.Bytes(), 0600)
 }

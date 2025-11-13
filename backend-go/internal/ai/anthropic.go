@@ -173,7 +173,11 @@ func (p *anthropicProvider) HealthCheck(ctx context.Context) (*HealthStatus, err
 			LastChecked: time.Now(),
 		}, nil
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			p.logger.WithError(err).Error("Failed to close response body")
+		}
+	}()
 
 	responseTime := time.Since(start)
 
@@ -318,7 +322,11 @@ func (p *anthropicProvider) callAnthropicWithMessages(ctx context.Context, model
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			p.logger.WithError(err).Error("Failed to close response body")
+		}
+	}()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -328,7 +336,7 @@ func (p *anthropicProvider) callAnthropicWithMessages(ctx context.Context, model
 	if resp.StatusCode != http.StatusOK {
 		var errorResp anthropicErrorResponse
 		if err := json.Unmarshal(body, &errorResp); err == nil {
-			return nil, fmt.Errorf("Anthropic API error: %s", errorResp.Error.Message)
+			return nil, fmt.Errorf("anthropic API error: %s", errorResp.Error.Message)
 		}
 		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(body))
 	}

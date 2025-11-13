@@ -9,14 +9,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type contextKey string
-
-const (
-	// Context keys
-	UserOrganizationsKey contextKey = "user_organizations"
-	CurrentOrgIDKey      contextKey = "current_org_id"
-)
-
 // TenantIsolationMiddleware ensures all database queries are scoped to the user's organizations
 type TenantIsolationMiddleware struct {
 	db     *sql.DB

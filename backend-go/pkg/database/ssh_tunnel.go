@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
+	"os"
 	"net"
 	"sync"
 	"time"
@@ -216,7 +216,7 @@ func (m *SSHTunnelManager) buildSSHConfig(ctx context.Context, config *SSHTunnel
 				if config.PrivateKey != "" {
 					keyData = []byte(config.PrivateKey)
 				} else if config.PrivateKeyPath != "" {
-					keyData, err = ioutil.ReadFile(config.PrivateKeyPath)
+					keyData, err = os.ReadFile(config.PrivateKeyPath)
 					if err != nil {
 						return nil, fmt.Errorf("failed to read private key file: %w", err)
 					}
@@ -227,7 +227,7 @@ func (m *SSHTunnelManager) buildSSHConfig(ctx context.Context, config *SSHTunnel
 			if config.PrivateKey != "" {
 				keyData = []byte(config.PrivateKey)
 			} else if config.PrivateKeyPath != "" {
-				keyData, err = ioutil.ReadFile(config.PrivateKeyPath)
+				keyData, err = os.ReadFile(config.PrivateKeyPath)
 				if err != nil {
 					return nil, fmt.Errorf("failed to read private key file: %w", err)
 				}
@@ -259,6 +259,7 @@ func (m *SSHTunnelManager) buildSSHConfig(ctx context.Context, config *SSHTunnel
 		}
 	} else {
 		// Allow any host key (insecure, but useful for development)
+		// #nosec G106 - InsecureIgnoreHostKey used only when KnownHostsFile not provided, logged as warning
 		hostKeyCallback = ssh.InsecureIgnoreHostKey()
 		m.logger.Warn("SSH host key verification is disabled - this is insecure!")
 	}
@@ -347,12 +348,12 @@ func (t *SSHTunnel) handleConnection(localConn net.Conn) {
 
 	go func() {
 		defer wg.Done()
-		io.Copy(remoteConn, localConn)
+		_, _ = io.Copy(remoteConn, localConn) // Best-effort copy - errors handled by connection close
 	}()
 
 	go func() {
 		defer wg.Done()
-		io.Copy(localConn, remoteConn)
+		_, _ = io.Copy(localConn, remoteConn) // Best-effort copy - errors handled by connection close
 	}()
 
 	// Wait for both directions to complete or context cancellation

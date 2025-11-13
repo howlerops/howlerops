@@ -10,9 +10,10 @@ import (
 type SecretType string
 
 const (
+	// #nosec G101 - these are secret type identifiers, not actual secrets
 	SecretTypeDBPassword    SecretType = "db_password"
 	SecretTypeSSHPassword   SecretType = "ssh_password"
-	SecretTypeSSHPrivateKey SecretType = "ssh_private_key"
+	SecretTypeSSHPrivateKey SecretType = "ssh_private_key" // #nosec G101 - type identifier, not actual key
 	SecretTypeAPIKey        SecretType = "api_key"
 )
 

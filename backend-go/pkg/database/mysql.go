@@ -1068,6 +1068,7 @@ func (m *MySQLDatabase) UpdateRow(ctx context.Context, params UpdateRowParams) e
 		tableIdentifier = fmt.Sprintf("%s.%s", m.QuoteIdentifier(schema), tableIdentifier)
 	}
 
+	// #nosec G201 - uses parameterized WHERE clauses with quoted identifiers
 	updateSQL := fmt.Sprintf("UPDATE %s SET %s WHERE %s",
 		tableIdentifier,
 		strings.Join(setClauses, ", "),
@@ -1183,6 +1184,7 @@ func (m *MySQLDatabase) InsertRow(ctx context.Context, params InsertRowParams) (
 	valuePlaceholders := strings.Repeat("?,", len(bindings))
 	valuePlaceholders = strings.TrimSuffix(valuePlaceholders, ",")
 
+	// #nosec G201 - uses parameterized VALUES with quoted identifiers
 	insertSQL := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)",
 		tableIdentifier,
 		strings.Join(insertColumns, ", "),
@@ -1249,6 +1251,7 @@ func (m *MySQLDatabase) InsertRow(ctx context.Context, params InsertRowParams) (
 		whereArgs = append(whereArgs, pkValues[pk])
 	}
 
+	// #nosec G201 - uses parameterized WHERE clauses with quoted identifiers
 	selectSQL := fmt.Sprintf("SELECT %s FROM %s WHERE %s",
 		strings.Join(actualColumns, ", "),
 		tableIdentifier,
@@ -1361,6 +1364,7 @@ func (m *MySQLDatabase) DeleteRow(ctx context.Context, params DeleteRowParams) e
 		tableIdentifier = fmt.Sprintf("%s.%s", m.QuoteIdentifier(schema), tableIdentifier)
 	}
 
+	// #nosec G201 - uses parameterized WHERE clauses with quoted identifiers
 	deleteSQL := fmt.Sprintf("DELETE FROM %s WHERE %s",
 		tableIdentifier,
 		strings.Join(whereClauses, " AND "),

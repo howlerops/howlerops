@@ -105,9 +105,11 @@ func (h *Handler) ConfigureSSO(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{
+	if err := json.NewEncoder(w).Encode(map[string]string{
 		"message": "SSO configured successfully",
-	})
+	}); err != nil {
+		h.logger.WithError(err).Error("Failed to encode SSO config response")
+	}
 }
 
 // GetSSOConfig retrieves SSO configuration for an organization
@@ -122,7 +124,10 @@ func (h *Handler) GetSSOConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(config)
+	if err := json.NewEncoder(w).Encode(config); err != nil {
+		h.logger.WithError(err).Error("Failed to encode SSO config")
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 // DisableSSO disables SSO for an organization

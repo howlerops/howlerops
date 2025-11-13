@@ -194,6 +194,7 @@ func (s *DashboardService) getOverviewStats(ctx context.Context, orgID *string, 
 	}
 
 	// Total queries and success rate
+	// #nosec G201 - whereClause built from parameterized conditions with placeholders
 	query := fmt.Sprintf(`
 		SELECT
 			COUNT(*) as total_queries,
@@ -218,19 +219,25 @@ func (s *DashboardService) getOverviewStats(ctx context.Context, orgID *string, 
 	// Count unique users
 	query = fmt.Sprintf(`
 		SELECT COUNT(DISTINCT user_id) FROM query_metrics %s`, whereClause)
-	s.db.QueryRowContext(ctx, query, args...).Scan(&stats.TotalUsers)
+	if err := s.db.QueryRowContext(ctx, query, args...).Scan(&stats.TotalUsers); err != nil {
+		s.logger.WithError(err).Warn("Failed to scan total users count")
+	}
 
 	// Active users in last 24h
 	query = `
 		SELECT COUNT(DISTINCT user_id)
 		FROM query_metrics
 		WHERE executed_at >= ?`
-	s.db.QueryRowContext(ctx, query, time.Now().Add(-24*time.Hour).Unix()).Scan(&stats.ActiveUsers24h)
+	if err := s.db.QueryRowContext(ctx, query, time.Now().Add(-24*time.Hour).Unix()).Scan(&stats.ActiveUsers24h); err != nil {
+		s.logger.WithError(err).Warn("Failed to scan active users 24h count")
+	}
 
 	// Total connections
 	query = fmt.Sprintf(`
 		SELECT COUNT(DISTINCT connection_id) FROM query_metrics %s`, whereClause)
-	s.db.QueryRowContext(ctx, query, args...).Scan(&stats.TotalConnections)
+	if err := s.db.QueryRowContext(ctx, query, args...).Scan(&stats.TotalConnections); err != nil {
+		s.logger.WithError(err).Warn("Failed to scan total connections count")
+	}
 
 	return stats, nil
 }
@@ -295,6 +302,7 @@ func (s *DashboardService) getQueryFrequency(ctx context.Context, orgID *string,
 		args = append(args, *orgID)
 	}
 
+	// #nosec G201 - whereClause built from parameterized conditions, bucketSize is validated constant
 	query := fmt.Sprintf(`
 		SELECT
 			(executed_at / %d) * %d as bucket,
@@ -309,7 +317,11 @@ func (s *DashboardService) getQueryFrequency(ctx context.Context, orgID *string,
 		s.logger.WithError(err).Error("Failed to get query frequency")
 		return nil
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			s.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	var points []TimeSeriesPoint
 	for rows.Next() {
@@ -349,6 +361,7 @@ func (s *DashboardService) getQueryTypes(ctx context.Context, orgID *string, tim
 		args = append(args, *orgID)
 	}
 
+	// #nosec G201 - whereClause built from parameterized conditions with placeholders
 	query := fmt.Sprintf(`
 		SELECT
 			CASE
@@ -367,7 +380,11 @@ func (s *DashboardService) getQueryTypes(ctx context.Context, orgID *string, tim
 	if err != nil {
 		return types
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			s.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	for rows.Next() {
 		var queryType string
@@ -393,6 +410,7 @@ func (s *DashboardService) getErrorQueries(ctx context.Context, orgID *string, l
 	whereClause += " ORDER BY executed_at DESC LIMIT ?"
 	args = append(args, limit)
 
+	// #nosec G201 - whereClause built from parameterized conditions with placeholders
 	query := fmt.Sprintf(`
 		SELECT id, query_id, connection_id, user_id, organization_id,
 			   sql, sql_hash, execution_time_ms, rows_returned,
@@ -404,7 +422,11 @@ func (s *DashboardService) getErrorQueries(ctx context.Context, orgID *string, l
 	if err != nil {
 		return nil
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			s.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	var executions []*QueryExecution
 	for rows.Next() {
@@ -464,6 +486,7 @@ func (s *DashboardService) getActiveUsersByDay(ctx context.Context, orgID *strin
 		args = append(args, *orgID)
 	}
 
+	// #nosec G201 - whereClause built from parameterized conditions with placeholders
 	query := fmt.Sprintf(`
 		SELECT
 			(executed_at / 86400) * 86400 as day,
@@ -507,6 +530,7 @@ func (s *DashboardService) getQueryCountByUser(ctx context.Context, orgID *strin
 
 	args = append(args, limit)
 
+	// #nosec G201 - whereClause built from parameterized conditions with placeholders
 	query := fmt.Sprintf(`
 		SELECT user_id, COUNT(*) as query_count
 		FROM query_metrics
@@ -542,6 +566,7 @@ func (s *DashboardService) getPeakHours(ctx context.Context, orgID *string, time
 		args = append(args, *orgID)
 	}
 
+	// #nosec G201 - whereClause built from parameterized conditions with placeholders
 	query := fmt.Sprintf(`
 		SELECT
 			CAST(strftime('%%H', datetime(executed_at, 'unixepoch')) AS INTEGER) as hour,
@@ -589,6 +614,7 @@ func (s *DashboardService) getPerformanceStats(ctx context.Context, orgID *strin
 	}
 
 	// Get basic performance metrics
+	// #nosec G201 - whereClause built from parameterized conditions with placeholders
 	query := fmt.Sprintf(`
 		SELECT
 			AVG(execution_time_ms) as avg_time,
@@ -669,6 +695,7 @@ func (s *DashboardService) getResponseTrend(ctx context.Context, orgID *string, 
 		args = append(args, *orgID)
 	}
 
+	// #nosec G201 - whereClause built from parameterized conditions, bucketSize is validated constant
 	query := fmt.Sprintf(`
 		SELECT
 			(executed_at / %d) * %d as bucket,
@@ -750,7 +777,9 @@ func (s *DashboardService) DashboardHandler(w http.ResponseWriter, r *http.Reque
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(data)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		s.logger.WithError(err).Error("Failed to encode dashboard data")
+	}
 }
 
 // RegisterRoutes registers dashboard HTTP routes

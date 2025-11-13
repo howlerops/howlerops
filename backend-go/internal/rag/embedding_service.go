@@ -2,6 +2,7 @@ package rag
 
 import (
 	"context"
+	// #nosec G501 - MD5 used for cache key generation, not cryptographic security
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
@@ -328,6 +329,7 @@ func (es *DefaultEmbeddingService) preprocessQueryContent(content string, metada
 
 // getCacheKey generates a cache key for text
 func (es *DefaultEmbeddingService) getCacheKey(text string) string {
+	// #nosec G401 - MD5 used for cache key generation, not cryptographic security
 	hash := md5.Sum([]byte(text))
 	return hex.EncodeToString(hash[:])
 }

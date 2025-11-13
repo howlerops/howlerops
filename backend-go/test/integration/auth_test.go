@@ -49,7 +49,7 @@ func isServerAvailable(baseURL string) bool {
 	if err != nil {
 		return false
 	}
-	conn.Close()
+	_ = conn.Close() // Best-effort close in test
 	return true
 }
 
@@ -148,7 +148,7 @@ func (s *AuthTestSuite) testSignup(t *testing.T, user SignupRequest) {
 
 	resp, err := s.client.Do(req)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }() // Best-effort close in test
 
 	// Should return 201 Created or 200 OK
 	assert.True(t, resp.StatusCode == http.StatusCreated || resp.StatusCode == http.StatusOK,
@@ -181,7 +181,7 @@ func (s *AuthTestSuite) testLogin(t *testing.T, user SignupRequest) {
 
 	resp, err := s.client.Do(req)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }() // Best-effort close in test
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 

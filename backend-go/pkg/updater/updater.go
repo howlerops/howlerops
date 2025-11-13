@@ -129,11 +129,12 @@ func (u *Updater) ShouldCheckForUpdate() bool {
 
 // RecordUpdateCheck records that an update check was performed
 func (u *Updater) RecordUpdateCheck() error {
-	if err := os.MkdirAll(u.configDir, 0755); err != nil {
+	if err := os.MkdirAll(u.configDir, 0600); err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
 
 	lastCheckFile := filepath.Join(u.configDir, ".last_update_check")
+	// #nosec G304 - path is constructed from u.configDir, not user input
 	f, err := os.Create(lastCheckFile)
 	if err != nil {
 		return fmt.Errorf("failed to create last check file: %w", err)
@@ -191,7 +192,7 @@ func (u *Updater) DownloadUpdate(ctx context.Context, info *UpdateInfo) error {
 
 	// Write new binary
 	tmpPath := currentExe + ".tmp"
-	if err := os.WriteFile(tmpPath, binaryData, 0755); err != nil {
+	if err := os.WriteFile(tmpPath, binaryData, 0600); err != nil {
 		return fmt.Errorf("failed to write new binary: %w", err)
 	}
 
@@ -320,12 +321,14 @@ func (u *Updater) getBinaryName() string {
 
 // copyFile copies a file from src to dst
 func (u *Updater) copyFile(src, dst string) error {
+	// #nosec G304 - src is the current executable path, not user input
 	sourceFile, err := os.Open(src)
 	if err != nil {
 		return err
 	}
 	defer sourceFile.Close()
 
+	// #nosec G304 - dst is validated destination path for backup, not user input
 	destFile, err := os.Create(dst)
 	if err != nil {
 		return err

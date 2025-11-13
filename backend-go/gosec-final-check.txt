@@ -1,0 +1,9 @@
+internal/audit/detailed_logger.go:1: : # github.com/sql-studio/backend-go/internal/audit
+internal/audit/store.go:72:6: s.logger undefined (type *store has no field or method logger)
+internal/audit/store.go:87:6: s.logger undefined (type *store has no field or method logger)
+internal/audit/store.go:140:6: s.logger undefined (type *store has no field or method logger)
+internal/audit/store.go:198:6: s.logger undefined (type *store has no field or method logger)
+internal/audit/store.go:258:6: s.logger undefined (type *store has no field or method logger) (typecheck)
+package audit
+1 issues:
+* typecheck: 1

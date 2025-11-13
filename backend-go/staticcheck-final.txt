@@ -1,0 +1,11 @@
+internal/middleware/auth.go:1: : # github.com/sql-studio/backend-go/internal/middleware [github.com/sql-studio/backend-go/internal/middleware.test]
+internal/middleware/tenant_isolation.go:12:6: contextKey redeclared in this block
+	internal/middleware/auth.go:18:6: other declaration of contextKey
+internal/middleware/tenant_isolation_test.go:14:6: contextKey redeclared in this block
+	internal/middleware/auth.go:18:6: other declaration of contextKey
+internal/middleware/tenant_isolation_test.go:17:2: userIDKey redeclared in this block
+	internal/middleware/auth.go:21:2: other declaration of userIDKey
+internal/middleware/org_rate_limit.go:97:40: undefined: context (typecheck)
+package middleware
+1 issues:
+* typecheck: 1

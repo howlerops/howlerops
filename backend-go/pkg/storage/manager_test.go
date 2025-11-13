@@ -65,9 +65,9 @@ func setupTestManager(t *testing.T, mode storage.Mode) (*storage.Manager, string
 
 	cleanup := func() {
 		if manager != nil {
-			manager.Close()
+			_ = manager.Close() // Best-effort close in test
 		}
-		os.RemoveAll(tmpDir)
+		_ = os.RemoveAll(tmpDir) // Best-effort cleanup in test
 	}
 
 	return manager, tmpDir, cleanup
@@ -87,7 +87,7 @@ func TestNewManager_SoloMode_Success(t *testing.T) {
 func TestNewManager_TeamMode_FallsBackToSolo_NilTeamConfig(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "howlerops-manager-test-*")
 	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }() // Best-effort cleanup in test
 
 	config := createTestConfig(tmpDir, "test-user", storage.ModeTeam)
 	config.Team = nil // Team config is nil
@@ -95,7 +95,7 @@ func TestNewManager_TeamMode_FallsBackToSolo_NilTeamConfig(t *testing.T) {
 	logger := createTestLogger()
 	manager, err := storage.NewManager(context.Background(), config, logger)
 	require.NoError(t, err)
-	defer manager.Close()
+	defer func() { _ = manager.Close() }() // Best-effort close in test
 
 	// Should fall back to solo mode
 	assert.Equal(t, storage.ModeSolo, manager.GetMode())
@@ -105,7 +105,7 @@ func TestNewManager_TeamMode_FallsBackToSolo_NilTeamConfig(t *testing.T) {
 func TestNewManager_TeamMode_FallsBackToSolo_DisabledTeamConfig(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "howlerops-manager-test-*")
 	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }() // Best-effort cleanup in test
 
 	config := createTestConfig(tmpDir, "test-user", storage.ModeTeam)
 	config.Team = &storage.TursoConfig{
@@ -116,7 +116,7 @@ func TestNewManager_TeamMode_FallsBackToSolo_DisabledTeamConfig(t *testing.T) {
 	logger := createTestLogger()
 	manager, err := storage.NewManager(context.Background(), config, logger)
 	require.NoError(t, err)
-	defer manager.Close()
+	defer func() { _ = manager.Close() }() // Best-effort close in test
 
 	// Should fall back to solo mode
 	assert.Equal(t, storage.ModeSolo, manager.GetMode())
@@ -144,7 +144,7 @@ func TestNewManager_TeamMode_FallsBackToSolo_NotYetImplemented(t *testing.T) {
 	logger := createTestLogger()
 	manager, err := storage.NewManager(context.Background(), config, logger)
 	require.NoError(t, err)
-	defer manager.Close()
+	defer func() { _ = manager.Close() }() // Best-effort close in test
 
 	// Team mode not yet implemented, should fall back to solo mode
 	assert.Equal(t, storage.ModeSolo, manager.GetMode())

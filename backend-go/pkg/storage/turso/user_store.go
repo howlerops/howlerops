@@ -202,7 +202,7 @@ func (s *TursoUserStore) CreateUser(ctx context.Context, user *auth.User) error 
 
 	// Marshal metadata
 	var metadataJSON []byte
-	if user.Metadata != nil && len(user.Metadata) > 0 {
+	if len(user.Metadata) > 0 {
 		metadataJSON, err = json.Marshal(user.Metadata)
 		if err != nil {
 			return fmt.Errorf("failed to marshal metadata: %w", err)
@@ -251,7 +251,7 @@ func (s *TursoUserStore) UpdateUser(ctx context.Context, user *auth.User) error 
 	// Marshal metadata
 	var metadataJSON []byte
 	var err error
-	if user.Metadata != nil && len(user.Metadata) > 0 {
+	if len(user.Metadata) > 0 {
 		metadataJSON, err = json.Marshal(user.Metadata)
 		if err != nil {
 			return fmt.Errorf("failed to marshal metadata: %w", err)

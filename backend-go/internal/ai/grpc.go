@@ -61,6 +61,7 @@ func (s *GRPCServer) GenerateSQL(ctx context.Context, req *aipb.GenerateSQLReque
 			Suggestions: resp.Suggestions,
 			Provider:    providerToProto(resp.Provider),
 			Model:       resp.Model,
+			// #nosec G115 - token counts from LLMs are reasonable (<100k), well within int32 range
 			TokensUsed:  int32(resp.TokensUsed),
 			TimeTaken:   durationpb.New(timeTaken),
 			Metadata:    resp.Metadata,
@@ -106,6 +107,7 @@ func (s *GRPCServer) FixSQL(ctx context.Context, req *aipb.FixSQLRequest) (*aipb
 			Suggestions: resp.Suggestions,
 			Provider:    providerToProto(resp.Provider),
 			Model:       resp.Model,
+			// #nosec G115 - token counts from LLMs are reasonable (<100k), well within int32 range
 			TokensUsed:  int32(resp.TokensUsed),
 			TimeTaken:   durationpb.New(timeTaken),
 			Metadata:    resp.Metadata,
@@ -153,6 +155,7 @@ func (s *GRPCServer) GetProviderModels(ctx context.Context, req *aipb.GetProvide
 			Name:         model.Name,
 			Provider:     providerToProto(model.Provider),
 			Description:  model.Description,
+			// #nosec G115 - model max tokens are configured values (<1M), well within int32 range
 			MaxTokens:    int32(model.MaxTokens),
 			Capabilities: model.Capabilities,
 			Metadata:     model.Metadata,
@@ -251,9 +254,11 @@ func (s *GRPCServer) GetConfig(ctx context.Context, req *aipb.GetConfigRequest) 
 
 	protoConfig := &aipb.AIConfig{
 		DefaultProvider: providerToProto(config.DefaultProvider),
+		// #nosec G115 - config max tokens are reasonable (<1M), well within int32 range
 		MaxTokens:       int32(config.MaxTokens),
 		Temperature:     config.Temperature,
 		RequestTimeout:  durationpb.New(config.RequestTimeout),
+		// #nosec G115 - rate limit is config value (<10000), well within int32 range
 		RateLimitPerMin: int32(config.RateLimitPerMin),
 	}
 

@@ -514,7 +514,7 @@ func TestDefaultProviderFactory_CreateProvider_ClaudeCode(t *testing.T) {
 			assert.Error(t, err)
 		} else {
 			assert.NotNil(t, provider)
-			provider.Close()
+			defer func() { _ = provider.Close() }() // Best-effort close in test
 		}
 	})
 
@@ -553,7 +553,7 @@ func TestDefaultProviderFactory_CreateProvider_Codex(t *testing.T) {
 			assert.Error(t, err)
 		} else {
 			assert.NotNil(t, provider)
-			provider.Close()
+			defer func() { _ = provider.Close() }() // Best-effort close in test
 		}
 	})
 
@@ -666,7 +666,7 @@ func TestDefaultProviderFactory_CreateProvider_AllProviderTypes(t *testing.T) {
 					assert.Nil(t, provider)
 				} else {
 					assert.NotNil(t, provider)
-					provider.Close()
+					defer func() { _ = provider.Close() }() // Best-effort close in test
 				}
 			} else if tt.shouldError {
 				assert.Error(t, err)
@@ -677,7 +677,7 @@ func TestDefaultProviderFactory_CreateProvider_AllProviderTypes(t *testing.T) {
 				assert.NoError(t, err)
 				assert.NotNil(t, provider)
 				if provider != nil {
-					provider.Close()
+					defer func() { _ = provider.Close() }() // Best-effort close in test
 				}
 			}
 		})

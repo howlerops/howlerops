@@ -1,0 +1,440 @@
+internal/ai/handlers.go:160:20: Error return value of `r.Body.Close` is not checked (errcheck)
+	defer r.Body.Close()
+	                  ^
+internal/ai/handlers.go:511:22: Error return value of `provider.Close` is not checked (errcheck)
+	defer provider.Close()
+	                    ^
+internal/ai/handlers.go:558:22: Error return value of `provider.Close` is not checked (errcheck)
+	defer provider.Close()
+	                    ^
+internal/ai/provider_test.go:517:18: Error return value of `provider.Close` is not checked (errcheck)
+			provider.Close()
+			              ^
+internal/ai/provider_test.go:556:18: Error return value of `provider.Close` is not checked (errcheck)
+			provider.Close()
+			              ^
+internal/ai/provider_test.go:669:20: Error return value of `provider.Close` is not checked (errcheck)
+					provider.Close()
+					              ^
+internal/ai/provider_test.go:680:20: Error return value of `provider.Close` is not checked (errcheck)
+					provider.Close()
+					              ^
+internal/analytics/query_metrics.go:164:18: Error return value of `rows.Close` is not checked (errcheck)
+	defer rows.Close()
+	                ^
+internal/analytics/query_metrics.go:275:18: Error return value of `rows.Close` is not checked (errcheck)
+	defer rows.Close()
+	                ^
+internal/analytics/query_metrics.go:318:18: Error return value of `rows.Close` is not checked (errcheck)
+	defer rows.Close()
+	                ^
+internal/auth/two_factor.go:115:33: Error return value of `s.eventLogger.LogSecurityEvent` is not checked (errcheck)
+		s.eventLogger.LogSecurityEvent(ctx, "2fa_setup_initiated", userID, "", "", "", nil)
+		                              ^
+internal/auth/two_factor.go:151:33: Error return value of `s.eventLogger.LogSecurityEvent` is not checked (errcheck)
+		s.eventLogger.LogSecurityEvent(ctx, "2fa_enabled", userID, "", "", "", nil)
+		                              ^
+internal/auth/two_factor.go:192:35: Error return value of `s.eventLogger.LogSecurityEvent` is not checked (errcheck)
+				s.eventLogger.LogSecurityEvent(ctx, "2fa_backup_code_used", userID, "", "", "", nil)
+				                              ^
+internal/auth/two_factor.go:202:33: Error return value of `s.eventLogger.LogSecurityEvent` is not checked (errcheck)
+		s.eventLogger.LogSecurityEvent(ctx, "2fa_validation_failed", userID, "", "", "", nil)
+		                              ^
+internal/auth/two_factor.go:219:33: Error return value of `s.eventLogger.LogSecurityEvent` is not checked (errcheck)
+		s.eventLogger.LogSecurityEvent(ctx, "2fa_disabled", userID, "", "", "", nil)
+		                              ^
+internal/auth/two_factor.go:249:33: Error return value of `s.eventLogger.LogSecurityEvent` is not checked (errcheck)
+		s.eventLogger.LogSecurityEvent(ctx, "2fa_backup_codes_regenerated", userID, "", "", "", nil)
+		                              ^
+internal/auth/two_factor.go:280:11: Error return value of `rand.Read` is not checked (errcheck)
+	rand.Read(bytes)
+	         ^
+internal/backup/service.go:88:29: Error return value of `s.store.UpdateBackupFailed` is not checked (errcheck)
+		s.store.UpdateBackupFailed(ctx, backup.ID, err.Error())
+		                          ^
+internal/backup/service.go:96:29: Error return value of `s.store.UpdateBackupFailed` is not checked (errcheck)
+		s.store.UpdateBackupFailed(ctx, backup.ID, "Failed to get file size")
+		                          ^
+internal/backup/service.go:249:20: Error return value of `testDB.Close` is not checked (errcheck)
+	defer testDB.Close()
+	                  ^
+internal/connections/integration_test.go:536:11: Error return value of `db.Close` is not checked (errcheck)
+		db.Close()
+		        ^
+internal/email/email_test.go:204:32: Error return value of `mockSvc.SendVerificationEmail` is not checked (errcheck)
+		mockSvc.SendVerificationEmail("test@example.com", "token", "url")
+		                             ^
+internal/email/email_test.go:214:32: Error return value of `mockSvc.SendVerificationEmail` is not checked (errcheck)
+		mockSvc.SendVerificationEmail("user1@example.com", "token1", "url1")
+		                             ^
+internal/email/email_test.go:215:33: Error return value of `mockSvc.SendPasswordResetEmail` is not checked (errcheck)
+		mockSvc.SendPasswordResetEmail("user2@example.com", "token2", "url2")
+		                              ^
+internal/email/email_test.go:216:27: Error return value of `mockSvc.SendWelcomeEmail` is not checked (errcheck)
+		mockSvc.SendWelcomeEmail("user3@example.com", "User 3")
+		                        ^
+internal/email/email_test.go:285:33: Error return value of `mockSvc.SendVerificationEmail` is not checked (errcheck)
+			mockSvc.SendVerificationEmail("bench@example.com", "token", "url")
+			                             ^
+internal/email/email_test.go:291:43: Error return value of `mockSvc.SendOrganizationInvitationEmail` is not checked (errcheck)
+			mockSvc.SendOrganizationInvitationEmail(
+			                                       ^
+internal/email/organization_test.go:274:41: Error return value of `mockSvc.SendOrganizationInvitationEmail` is not checked (errcheck)
+	mockSvc.SendOrganizationInvitationEmail(
+	                                       ^
+internal/email/organization_test.go:282:38: Error return value of `mockSvc.SendOrganizationWelcomeEmail` is not checked (errcheck)
+	mockSvc.SendOrganizationWelcomeEmail(
+	                                    ^
+internal/email/organization_test.go:289:32: Error return value of `mockSvc.SendMemberRemovedEmail` is not checked (errcheck)
+	mockSvc.SendMemberRemovedEmail("removed@example.com", "Team C")
+	                              ^
+internal/gdpr/service.go:137:30: Error return value of `s.store.UpdateRequestFailed` is not checked (errcheck)
+		s.store.UpdateRequestFailed(ctx, request.ID, err.Error())
+		                           ^
+internal/gdpr/service.go:145:30: Error return value of `s.store.UpdateRequestFailed` is not checked (errcheck)
+		s.store.UpdateRequestFailed(ctx, request.ID, "Failed to serialize data")
+		                           ^
+internal/gdpr/service.go:152:30: Error return value of `s.store.UpdateRequestFailed` is not checked (errcheck)
+		s.store.UpdateRequestFailed(ctx, request.ID, "Failed to create export directory")
+		                           ^
+internal/gdpr/service.go:162:30: Error return value of `s.store.UpdateRequestFailed` is not checked (errcheck)
+		s.store.UpdateRequestFailed(ctx, request.ID, "Failed to write export file")
+		                           ^
+internal/gdpr/service.go:319:30: Error return value of `s.store.UpdateRequestFailed` is not checked (errcheck)
+		s.store.UpdateRequestFailed(ctx, request.ID, "Failed to delete user account")
+		                           ^
+internal/handlers/enterprise_handlers.go:136:9: Error return value of `w.Write` is not checked (errcheck)
+	w.Write([]byte(css))
+	       ^
+internal/handlers/enterprise_handlers.go:351:9: Error return value of `w.Write` is not checked (errcheck)
+	w.Write([]byte(csv))
+	       ^
+internal/middleware/ip_whitelist.go:246:33: Error return value of `s.eventLogger.LogSecurityEvent` is not checked (errcheck)
+		s.eventLogger.LogSecurityEvent(
+		                              ^
+internal/middleware/ip_whitelist.go:271:33: Error return value of `s.eventLogger.LogSecurityEvent` is not checked (errcheck)
+		s.eventLogger.LogSecurityEvent(
+		                              ^
+internal/middleware/org_rate_limit.go:145:9: Error return value of `w.Write` is not checked (errcheck)
+	w.Write([]byte(response))
+	       ^
+internal/organization/integration_test.go:40:21: Error return value of `suite.testDB.Close` is not checked (errcheck)
+		suite.testDB.Close()
+		                  ^
+internal/organization/integration_test.go:494:20: Error return value of `testDB.Close` is not checked (errcheck)
+	defer testDB.Close()
+	                  ^
+internal/organization/integration_test.go:501:23: Error return value of `testDB.InsertTestUser` is not checked (errcheck)
+	testDB.InsertTestUser(ctx, "owner1", "owner@test.com", "owner", "pass")
+	                     ^
+internal/organization/integration_test.go:502:23: Error return value of `testDB.InsertTestUser` is not checked (errcheck)
+	testDB.InsertTestUser(ctx, "member1", "member@test.com", "member", "pass")
+	                     ^
+internal/organization/service.go:344:19: Error return value of `s.CreateAuditLog` is not checked (errcheck)
+		s.CreateAuditLog(ctx, &AuditLog{
+		                ^
+internal/organization/service.go:439:19: Error return value of `s.CreateAuditLog` is not checked (errcheck)
+		s.CreateAuditLog(ctx, &AuditLog{
+		                ^
+internal/organization/service.go:562:19: Error return value of `s.CreateAuditLog` is not checked (errcheck)
+		s.CreateAuditLog(ctx, &AuditLog{
+		                ^
+internal/organization/service.go:721:19: Error return value of `s.CreateAuditLog` is not checked (errcheck)
+		s.CreateAuditLog(ctx, &AuditLog{
+		                ^
+internal/organization/service.go:774:19: Error return value of `s.CreateAuditLog` is not checked (errcheck)
+		s.CreateAuditLog(ctx, &AuditLog{
+		                ^
+internal/profiling/memory.go:275:27: Error return value of `(*encoding/json.Encoder).Encode` is not checked (errcheck)
+	json.NewEncoder(w).Encode(stats)
+	                         ^
+internal/profiling/memory.go:282:27: Error return value of `(*encoding/json.Encoder).Encode` is not checked (errcheck)
+	json.NewEncoder(w).Encode(snapshot)
+	                         ^
+internal/profiling/memory.go:289:24: Error return value of `pprof.WriteHeapProfile` is not checked (errcheck)
+	pprof.WriteHeapProfile(w)
+	                      ^
+internal/profiling/memory.go:295:35: Error return value of `(*runtime/pprof.Profile).WriteTo` is not checked (errcheck)
+	pprof.Lookup("goroutine").WriteTo(w, 2)
+	                                 ^
+internal/rag/mysql_vector_store.go:126:19: Error return value of `tx.Rollback` is not checked (errcheck)
+	defer tx.Rollback()
+	                 ^
+internal/rag/sqlite_vector_store.go:159:19: Error return value of `tx.Rollback` is not checked (errcheck)
+	defer tx.Rollback()
+	                 ^
+internal/rag/sqlite_vector_store.go:329:19: Error return value of `tx.Rollback` is not checked (errcheck)
+	defer tx.Rollback()
+	                 ^
+internal/rag/sqlite_vector_store.go:396:19: Error return value of `tx.Rollback` is not checked (errcheck)
+	defer tx.Rollback()
+	                 ^
+internal/rag/turso_remote_store.go:70:19: Error return value of `tx.Rollback` is not checked (errcheck)
+	defer tx.Rollback()
+	                 ^
+internal/rag/turso_remote_store.go:107:19: Error return value of `tx.Rollback` is not checked (errcheck)
+	defer tx.Rollback()
+	                 ^
+internal/security/handler.go:108:27: Error return value of `(*encoding/json.Encoder).Encode` is not checked (errcheck)
+	json.NewEncoder(w).Encode(map[string]string{
+	                         ^
+internal/security/handler.go:125:27: Error return value of `(*encoding/json.Encoder).Encode` is not checked (errcheck)
+	json.NewEncoder(w).Encode(config)
+	                         ^
+internal/security/handler.go:139:27: Error return value of `(*encoding/json.Encoder).Encode` is not checked (errcheck)
+	json.NewEncoder(w).Encode(map[string]string{
+	                         ^
+internal/security/handler.go:181:27: Error return value of `(*encoding/json.Encoder).Encode` is not checked (errcheck)
+	json.NewEncoder(w).Encode(user)
+	                         ^
+internal/security/handler.go:206:27: Error return value of `(*encoding/json.Encoder).Encode` is not checked (errcheck)
+	json.NewEncoder(w).Encode(entry)
+	                         ^
+internal/security/handler.go:221:27: Error return value of `(*encoding/json.Encoder).Encode` is not checked (errcheck)
+	json.NewEncoder(w).Encode(whitelist)
+	                         ^
+internal/security/handler.go:253:27: Error return value of `(*encoding/json.Encoder).Encode` is not checked (errcheck)
+	json.NewEncoder(w).Encode(setup)
+	                         ^
+internal/security/handler.go:274:27: Error return value of `(*encoding/json.Encoder).Encode` is not checked (errcheck)
+	json.NewEncoder(w).Encode(map[string]string{
+	                         ^
+internal/security/handler.go:297:27: Error return value of `(*encoding/json.Encoder).Encode` is not checked (errcheck)
+	json.NewEncoder(w).Encode(map[string]string{
+	                         ^
+internal/security/handler.go:320:27: Error return value of `(*encoding/json.Encoder).Encode` is not checked (errcheck)
+	json.NewEncoder(w).Encode(map[string]bool{
+	                         ^
+internal/security/handler.go:336:27: Error return value of `(*encoding/json.Encoder).Encode` is not checked (errcheck)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+	                         ^
+internal/security/handler.go:353:27: Error return value of `(*encoding/json.Encoder).Encode` is not checked (errcheck)
+	json.NewEncoder(w).Encode(status)
+	                         ^
+internal/security/handler.go:375:27: Error return value of `(*encoding/json.Encoder).Encode` is not checked (errcheck)
+	json.NewEncoder(w).Encode(response)
+	                         ^
+internal/security/handler.go:389:27: Error return value of `(*encoding/json.Encoder).Encode` is not checked (errcheck)
+	json.NewEncoder(w).Encode(keys)
+	                         ^
+internal/security/handler.go:405:27: Error return value of `(*encoding/json.Encoder).Encode` is not checked (errcheck)
+	json.NewEncoder(w).Encode(apiKey)
+	                         ^
+internal/security/handler.go:443:27: Error return value of `(*encoding/json.Encoder).Encode` is not checked (errcheck)
+	json.NewEncoder(w).Encode(events)
+	                         ^
+internal/sso/service.go:201:11: Error return value of `rand.Read` is not checked (errcheck)
+	rand.Read(b)
+	         ^
+internal/sync/handlers.go:318:27: Error return value of `(*encoding/json.Encoder).Encode` is not checked (errcheck)
+	json.NewEncoder(w).Encode(data)
+	                         ^
+internal/sync/turso_store.go:253:18: Error return value of `rows.Close` is not checked (errcheck)
+	defer rows.Close()
+	                ^
+internal/sync/turso_store.go:413:18: Error return value of `rows.Close` is not checked (errcheck)
+	defer rows.Close()
+	                ^
+internal/sync/turso_store.go:505:18: Error return value of `rows.Close` is not checked (errcheck)
+	defer rows.Close()
+	                ^
+internal/sync/turso_store.go:634:18: Error return value of `rows.Close` is not checked (errcheck)
+	defer rows.Close()
+	                ^
+internal/sync/turso_store.go:762:18: Error return value of `rows.Close` is not checked (errcheck)
+	defer rows.Close()
+	                ^
+internal/sync/turso_store.go:854:18: Error return value of `rows.Close` is not checked (errcheck)
+	defer rows.Close()
+	                ^
+internal/sync/turso_store.go:930:18: Error return value of `rows.Close` is not checked (errcheck)
+	defer rows.Close()
+	                ^
+internal/templates/handler.go:84:27: Error return value of `(*encoding/json.Encoder).Encode` is not checked (errcheck)
+	json.NewEncoder(w).Encode(template)
+	                         ^
+internal/templates/handler.go:135:27: Error return value of `(*encoding/json.Encoder).Encode` is not checked (errcheck)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+	                         ^
+internal/templates/handler.go:163:27: Error return value of `(*encoding/json.Encoder).Encode` is not checked (errcheck)
+	json.NewEncoder(w).Encode(template)
+	                         ^
+internal/templates/handler.go:195:27: Error return value of `(*encoding/json.Encoder).Encode` is not checked (errcheck)
+	json.NewEncoder(w).Encode(template)
+	                         ^
+internal/templates/handler.go:251:27: Error return value of `(*encoding/json.Encoder).Encode` is not checked (errcheck)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+	                         ^
+internal/templates/handler.go:307:27: Error return value of `(*encoding/json.Encoder).Encode` is not checked (errcheck)
+	json.NewEncoder(w).Encode(schedule)
+	                         ^
+internal/testutil/server.go:25:17: Error return value of `listener.Close` is not checked (errcheck)
+		listener.Close()
+		              ^
+internal/testutil/server.go:47:13: Error return value of `conn.Close` is not checked (errcheck)
+		conn.Close()
+		          ^
+pkg/database/clickhouse.go:44:15: Error return value of `c.pool.Close` is not checked (errcheck)
+		c.pool.Close()
+		            ^
+pkg/database/elasticsearch.go:422:19: Error return value of `resp.Body.Close` is not checked (errcheck)
+			resp.Body.Close()
+			               ^
+pkg/database/elasticsearch.go:428:19: Error return value of `resp.Body.Close` is not checked (errcheck)
+			resp.Body.Close()
+			               ^
+pkg/database/elasticsearch.go:431:18: Error return value of `resp.Body.Close` is not checked (errcheck)
+		resp.Body.Close()
+		               ^
+pkg/database/elasticsearch.go:564:14: Error return value of `fmt.Sscanf` is not checked (errcheck)
+			fmt.Sscanf(count, "%d", &docsCount)
+			          ^
+pkg/database/elasticsearch.go:601:12: Error return value of `fmt.Sscanf` is not checked (errcheck)
+	fmt.Sscanf(size, "%f%s", &num, &unit)
+	          ^
+pkg/database/examples/elasticsearch_example.go:37:21: Error return value of `es.Disconnect` is not checked (errcheck)
+	defer es.Disconnect()
+	                   ^
+pkg/database/examples/elasticsearch_example.go:152:21: Error return value of `os.Disconnect` is not checked (errcheck)
+	defer os.Disconnect()
+	                   ^
+pkg/database/mongodb.go:140:20: Error return value of `client.Disconnect` is not checked (errcheck)
+		client.Disconnect(ctx)
+		                 ^
+pkg/database/mongodb.go:146:22: Error return value of `m.client.Disconnect` is not checked (errcheck)
+		m.client.Disconnect(context.Background())
+		                   ^
+pkg/database/mongodb.go:413:13: Error return value of `fmt.Sscanf` is not checked (errcheck)
+		fmt.Sscanf(limitClause, "%d", &limitValue)
+		          ^
+pkg/database/mongodb.go:428:20: Error return value of `cursor.Close` is not checked (errcheck)
+	defer cursor.Close(ctx)
+	                  ^
+pkg/database/mongodb.go:627:20: Error return value of `cursor.Close` is not checked (errcheck)
+	defer cursor.Close(ctx)
+	                  ^
+pkg/database/mongodb.go:922:21: Error return value of `cursor.Close` is not checked (errcheck)
+		defer cursor.Close(ctx)
+		                  ^
+pkg/database/mongodb.go:980:26: Error return value of `indexCursor.Close` is not checked (errcheck)
+		defer indexCursor.Close(ctx)
+		                       ^
+pkg/database/mysql.go:48:15: Error return value of `m.pool.Close` is not checked (errcheck)
+		m.pool.Close()
+		            ^
+pkg/database/pool.go:110:11: Error return value of `db.Close` is not checked (errcheck)
+		db.Close()
+		        ^
+pkg/database/pool.go:496:13: Error return value of `p.db.Close` is not checked (errcheck)
+		p.db.Close()
+		          ^
+pkg/database/postgres.go:48:15: Error return value of `p.pool.Close` is not checked (errcheck)
+		p.pool.Close()
+		            ^
+pkg/database/postgres_test.go:536:21: Error return value of `tx.Rollback` is not checked (errcheck)
+			defer tx.Rollback()
+			                 ^
+pkg/database/sqlite.go:47:15: Error return value of `s.pool.Close` is not checked (errcheck)
+		s.pool.Close()
+		            ^
+pkg/database/sqlite.go:696:16: Error return value of `colRows.Close` is not checked (errcheck)
+		colRows.Close()
+		             ^
+pkg/database/ssh_tunnel.go:79:18: Error return value of `sshClient.Close` is not checked (errcheck)
+		sshClient.Close()
+		               ^
+pkg/database/ssh_tunnel.go:140:24: Error return value of `tunnel.listener.Close` is not checked (errcheck)
+		tunnel.listener.Close()
+		                     ^
+pkg/database/ssh_tunnel.go:144:25: Error return value of `tunnel.sshClient.Close` is not checked (errcheck)
+		tunnel.sshClient.Close()
+		                      ^
+pkg/database/ssh_tunnel.go:347:10: Error return value of `io.Copy` is not checked (errcheck)
+		io.Copy(remoteConn, localConn)
+		       ^
+pkg/database/ssh_tunnel.go:352:10: Error return value of `io.Copy` is not checked (errcheck)
+		io.Copy(localConn, remoteConn)
+		       ^
+pkg/database/test_helpers_test.go:27:12: Error return value of `conn.Close` is not checked (errcheck)
+	conn.Close()
+	          ^
+pkg/storage/manager_test.go:68:17: Error return value of `manager.Close` is not checked (errcheck)
+			manager.Close()
+			             ^
+pkg/storage/sqlite_local.go:238:19: Error return value of `tx.Rollback` is not checked (errcheck)
+	defer tx.Rollback()
+	                 ^
+pkg/storage/sqlite_local.go:290:11: Error return value of `db.Close` is not checked (errcheck)
+		db.Close()
+		        ^
+pkg/storage/sqlite_local.go:301:12: Error return value of `db.Close` is not checked (errcheck)
+			db.Close()
+			        ^
+pkg/storage/sqlite_local.go:325:11: Error return value of `db.Close` is not checked (errcheck)
+		db.Close()
+		        ^
+pkg/storage/sqlite_local.go:330:11: Error return value of `db.Close` is not checked (errcheck)
+		db.Close()
+		        ^
+pkg/storage/sqlite_local.go:347:11: Error return value of `db.Close` is not checked (errcheck)
+		db.Close()
+		        ^
+pkg/storage/sqlite_local.go:888:26: Error return value of `s.InvalidateSchemaCache` is not checked (errcheck)
+		s.InvalidateSchemaCache(ctx, connID)
+		                       ^
+pkg/storage/sqlite_local_test.go:34:16: Error return value of `storage.Close` is not checked (errcheck)
+		storage.Close()
+		             ^
+pkg/storage/turso/client.go:94:11: Error return value of `db.Close` is not checked (errcheck)
+		db.Close()
+		        ^
+pkg/storage/turso/connection_store_test.go:105:11: Error return value of `db.Close` is not checked (errcheck)
+		db.Close()
+		        ^
+pkg/storage/turso/connection_store_test.go:493:19: Error return value of `connStore.Create` is not checked (errcheck)
+		connStore.Create(ctx, conn)
+		                ^
+pkg/storage/turso/connection_store_test.go:500:38: Error return value of `syncStore.ListAccessibleConnections` is not checked (errcheck)
+		syncStore.ListAccessibleConnections(ctx, "user-1", orgIDs, time.Time{})
+		                                   ^
+pkg/storage/turso/migrate.go:299:19: Error return value of `tx.Rollback` is not checked (errcheck)
+	defer tx.Rollback()
+	                 ^
+pkg/storage/turso/organization_store_test.go:99:11: Error return value of `db.Close` is not checked (errcheck)
+		db.Close()
+		        ^
+pkg/storage/turso/pool.go:85:11: Error return value of `db.Close` is not checked (errcheck)
+		db.Close()
+		        ^
+pkg/storage/turso/shared_resources_test.go:542:11: Error return value of `db.Close` is not checked (errcheck)
+		db.Close()
+		        ^
+pkg/updater/updater_test.go:135:28: Error return value of `(*encoding/json.Encoder).Encode` is not checked (errcheck)
+		json.NewEncoder(w).Encode(mockRelease)
+		                         ^
+pkg/updater/updater_test.go:232:10: Error return value of `w.Write` is not checked (errcheck)
+		w.Write([]byte("Internal Server Error"))
+		       ^
+pkg/updater/updater_test.go:250:10: Error return value of `w.Write` is not checked (errcheck)
+		w.Write([]byte("invalid json"))
+		       ^
+pkg/updater/updater_test.go:268:10: Error return value of `w.Write` is not checked (errcheck)
+		w.Write([]byte(expectedHash + "  filename.bin\n"))
+		       ^
+scripts/verify_migrations.go:337:12: Error return value of `rows.Scan` is not checked (errcheck)
+		rows.Scan(&table, &rowid, &parent, &fkid)
+		         ^
+scripts/verify_migrations.go:502:12: Error return value of `rows.Scan` is not checked (errcheck)
+		rows.Scan(&cid, &name, &colType, &notNull, &dfltValue, &pk)
+		         ^
+test/integration/auth_test.go:52:12: Error return value of `conn.Close` is not checked (errcheck)
+	conn.Close()
+	          ^
+test/integration/auth_test.go:387:19: Error return value of `resp.Body.Close` is not checked (errcheck)
+			resp.Body.Close()
+			               ^
+test/integration/health_test.go:364:18: Error return value of `resp.Body.Close` is not checked (errcheck)
+		resp.Body.Close()
+		               ^
+146 issues:
+* errcheck: 146

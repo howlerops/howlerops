@@ -100,6 +100,7 @@ func hashedFeatureVector(tokens []string, size int) []float32 {
 		if _, err := hasher.Write([]byte(tok)); err != nil {
 			continue
 		}
+		// #nosec G115 - modulo operation ensures result is within size bounds, safe conversion
 		index := int(hasher.Sum32() % uint32(size))
 		sign := float32(1)
 		if index%2 == 1 {

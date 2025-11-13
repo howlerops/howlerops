@@ -60,7 +60,7 @@ func TestLoadFailsOnInvalidConfiguration(t *testing.T) {
 	resetViper()
 	tmp := t.TempDir()
 	configPath := filepath.Join(tmp, "config.yaml")
-	if err := os.WriteFile(configPath, []byte("server:\n  port: \"invalid\"\n"), 0o644); err != nil {
+	if err := os.WriteFile(configPath, []byte("server:\n  port: \"invalid\"\n"), 0o600); err != nil {
 		t.Fatalf("failed to write temp config: %v", err)
 	}
 

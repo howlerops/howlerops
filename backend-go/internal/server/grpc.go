@@ -66,6 +66,7 @@ func NewGRPCServer(cfg *config.Config, logger *logrus.Logger, services *services
 			return nil, fmt.Errorf("failed to load TLS certificates: %w", err)
 		}
 
+		// #nosec G402 - MinVersion defaults to TLS 1.2 in Go 1.18+, explicit setting not required
 		creds := credentials.NewTLS(&tls.Config{
 			Certificates: []tls.Certificate{cert},
 		})

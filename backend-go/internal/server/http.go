@@ -90,7 +90,9 @@ func NewHTTPServer(cfg *config.Config, logger *logrus.Logger, svc *services.Serv
 	mainRouter.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status": "healthy", "service": "backend"}`))
+		if _, err := w.Write([]byte(`{"status": "healthy", "service": "backend"}`)); err != nil {
+			logger.WithError(err).Error("Failed to write health check response")
+		}
 	})
 
 	// Register auth service
@@ -185,7 +187,9 @@ func NewWebSocketServer(cfg *config.Config, logger *logrus.Logger, services inte
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status": "healthy", "timestamp": "` + time.Now().Format(time.RFC3339) + `"}`))
+		if _, err := w.Write([]byte(`{"status": "healthy", "timestamp": "` + time.Now().Format(time.RFC3339) + `"}`)); err != nil {
+			logger.WithError(err).Error("Failed to write health check response")
+		}
 	})
 
 	server := &http.Server{
@@ -230,5 +234,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request, logger *logrus.Logg
 	// 4. Bridge gRPC streaming to WebSocket messages
 
 	w.WriteHeader(http.StatusNotImplemented)
-	w.Write([]byte("WebSocket implementation coming soon"))
+	if _, err := w.Write([]byte("WebSocket implementation coming soon")); err != nil {
+		logger.WithError(err).Error("Failed to write WebSocket response")
+	}
 }

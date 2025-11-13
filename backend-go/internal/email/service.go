@@ -376,7 +376,11 @@ func (s *ResendEmailService) sendEmail(req ResendRequest) error {
 	if err != nil {
 		return fmt.Errorf("failed to send request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			s.logger.WithError(err).Error("Failed to close response body")
+		}
+	}()
 
 	// Parse response
 	var resendResp ResendResponse

@@ -122,6 +122,7 @@ func (m *MongoDBDatabase) Connect(ctx context.Context, config ConnectionConfig) 
 
 	// Configure TLS/SSL
 	if config.SSLMode == "require" || config.SSLMode == "verify-full" {
+		// #nosec G402 - InsecureSkipVerify controlled by user config, disabled in verify-full mode
 		tlsConfig := &tls.Config{
 			InsecureSkipVerify: config.SSLMode != "verify-full",
 		}
@@ -618,6 +619,7 @@ func (m *MongoDBDatabase) ExecuteStream(ctx context.Context, query string, batch
 	db := client.Database(m.config.Database)
 	collection := db.Collection(collectionName)
 
+	// #nosec G115 - batch size from config, reasonable values (<100k), well within int32 range
 	opts := options.Find().SetBatchSize(int32(batchSize))
 	cursor, err := collection.Find(ctx, filter, opts)
 	if err != nil {

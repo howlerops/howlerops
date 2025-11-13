@@ -112,7 +112,9 @@ func (s *TwoFactorService) EnableTwoFactor(ctx context.Context, userID, userEmai
 
 	// Log security event
 	if s.eventLogger != nil {
-		s.eventLogger.LogSecurityEvent(ctx, "2fa_setup_initiated", userID, "", "", "", nil)
+		if err := s.eventLogger.LogSecurityEvent(ctx, "2fa_setup_initiated", userID, "", "", "", nil); err != nil {
+			s.logger.WithError(err).Warn("Failed to log 2FA setup initiated security event")
+		}
 	}
 
 	return &TwoFactorSetup{
@@ -148,7 +150,9 @@ func (s *TwoFactorService) ConfirmTwoFactor(ctx context.Context, userID, code st
 
 	// Log security event
 	if s.eventLogger != nil {
-		s.eventLogger.LogSecurityEvent(ctx, "2fa_enabled", userID, "", "", "", nil)
+		if err := s.eventLogger.LogSecurityEvent(ctx, "2fa_enabled", userID, "", "", "", nil); err != nil {
+			s.logger.WithError(err).Warn("Failed to log 2FA enabled security event")
+		}
 	}
 
 	s.logger.WithField("user_id", userID).Info("2FA enabled successfully")
@@ -189,7 +193,9 @@ func (s *TwoFactorService) ValidateCode(ctx context.Context, userID, code string
 
 			// Log security event
 			if s.eventLogger != nil {
-				s.eventLogger.LogSecurityEvent(ctx, "2fa_backup_code_used", userID, "", "", "", nil)
+				if err := s.eventLogger.LogSecurityEvent(ctx, "2fa_backup_code_used", userID, "", "", "", nil); err != nil {
+					s.logger.WithError(err).Warn("Failed to log 2FA backup code used security event")
+				}
 			}
 
 			s.logger.WithField("user_id", userID).Info("Backup code used for 2FA")
@@ -277,7 +283,13 @@ func (s *TwoFactorService) generateBackupCodes(count int) []string {
 func (s *TwoFactorService) generateRandomCode(length int) string {
 	// Use base32 encoding for better readability (no 0/O or 1/I confusion)
 	bytes := make([]byte, length)
-	rand.Read(bytes)
+	if _, err := rand.Read(bytes); err != nil {
+		s.logger.WithError(err).Error("Failed to generate random bytes, using fallback")
+		// Fallback to time-based seed if crypto/rand fails
+		for i := range bytes {
+			bytes[i] = byte(time.Now().UnixNano() % 256)
+		}
+	}
 	code := base32.StdEncoding.EncodeToString(bytes)
 	// Take first 'length' characters and convert to uppercase
 	if len(code) > length {

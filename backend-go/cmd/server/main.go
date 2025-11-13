@@ -171,11 +171,11 @@ func validateProductionSecurity(cfg *config.Config) error {
 	}
 
 	if cfg.Turso.URL == "" {
-		return fmt.Errorf("Turso URL must be configured in production")
+		return fmt.Errorf("turso URL must be configured in production")
 	}
 
 	if cfg.Turso.AuthToken == "" {
-		return fmt.Errorf("Turso auth token must be configured in production")
+		return fmt.Errorf("turso auth token must be configured in production")
 	}
 
 	return nil
@@ -469,6 +469,7 @@ func createServers(cfg *config.Config, logger *logrus.Logger, svc *services.Serv
 	// Create metrics server
 	var metricsServer *http.Server
 	if cfg.Metrics.Enabled {
+		// #nosec G112 - metrics server is internal/trusted, ReadHeaderTimeout not critical for prometheus scraping
 		metricsServer = &http.Server{
 			Addr:    cfg.GetMetricsAddress(),
 			Handler: promhttp.Handler(),

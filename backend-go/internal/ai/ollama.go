@@ -208,7 +208,11 @@ func (p *OllamaProvider) HealthCheck(ctx context.Context) (*HealthStatus, error)
 			LastChecked: time.Now(),
 		}, nil
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			p.logger.WithError(err).Error("Failed to close response body")
+		}
+	}()
 
 	responseTime := time.Since(start)
 
@@ -443,7 +447,7 @@ func (p *OllamaProvider) callOllama(ctx context.Context, model, prompt string, s
 	if resp.StatusCode != http.StatusOK {
 		var errorResp ollamaErrorResponse
 		if err := json.Unmarshal(body, &errorResp); err == nil {
-			return nil, fmt.Errorf("Ollama API error: %s", errorResp.Error)
+			return nil, fmt.Errorf("ollama API error: %s", errorResp.Error)
 		}
 		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(body))
 	}

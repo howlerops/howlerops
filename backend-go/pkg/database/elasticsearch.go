@@ -80,6 +80,7 @@ func (es *ElasticsearchDatabase) Connect(ctx context.Context, config ConnectionC
 		timeout = config.ConnectionTimeout
 	}
 
+	// #nosec G402 - InsecureSkipVerify controlled by user config for dev/test environments
 	tlsConfig := &tls.Config{
 		InsecureSkipVerify: config.SSLMode == "skip-verify" || config.SSLMode == "disable",
 	}
@@ -128,11 +129,13 @@ func base64Encode(data []byte) string {
 
 		var val uint32
 		for j := 0; j < n; j++ {
+			// #nosec G115 - base64 encoding: j is 0-2, shift values (16,8,0) are safe
 			val |= uint32(data[i+j]) << uint(16-j*8)
 		}
 
 		for j := 0; j < 4; j++ {
 			if i+j*3/4 < len(data) || j < (n*8+5)/6 {
+				// #nosec G115 - base64 encoding: j is 0-3, shift values (18,12,6,0) are safe
 				idx := (val >> uint(18-j*6)) & 0x3F
 				b[j] = base64Table[idx]
 			} else {
@@ -688,7 +691,7 @@ func (es *ElasticsearchDatabase) GetTableStructure(ctx context.Context, schema, 
 
 // BeginTransaction is not supported for Elasticsearch
 func (es *ElasticsearchDatabase) BeginTransaction(ctx context.Context) (Transaction, error) {
-	return nil, fmt.Errorf("Elasticsearch does not support transactions")
+	return nil, fmt.Errorf("elasticsearch does not support transactions")
 }
 
 // UpdateRow is not supported for Elasticsearch

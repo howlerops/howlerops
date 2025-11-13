@@ -500,7 +500,7 @@ func setupSyncTestDB(t *testing.T) (*sql.DB, func()) {
 	_, err = db.Exec(schema)
 	require.NoError(t, err)
 
-	return db, func() { db.Close() }
+	return db, func() { _ = db.Close() } // Best-effort close in test
 }
 
 func setupOrgMembership(t *testing.T, db *sql.DB, orgID, userID, role string) {

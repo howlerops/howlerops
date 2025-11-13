@@ -1,0 +1,193 @@
+cmd/migrate/main.go:56:16: Error return value of `db.Close` is not checked (errcheck)
+	defer db.Close()
+	              ^
+internal/apikeys/service.go:123:33: Error return value of `s.eventLogger.LogSecurityEvent` is not checked (errcheck)
+		s.eventLogger.LogSecurityEvent(
+		                              ^
+internal/apikeys/service.go:224:33: Error return value of `s.eventLogger.LogSecurityEvent` is not checked (errcheck)
+		s.eventLogger.LogSecurityEvent(
+		                              ^
+internal/apikeys/service.go:311:11: Error return value of `rand.Read` is not checked (errcheck)
+	rand.Read(randomBytes)
+	         ^
+internal/apikeys/service.go:365:32: Error return value of `s.eventLogger.LogSecurityEvent` is not checked (errcheck)
+	s.eventLogger.LogSecurityEvent(
+	                              ^
+internal/backup/service.go:88:29: Error return value of `s.store.UpdateBackupFailed` is not checked (errcheck)
+		s.store.UpdateBackupFailed(ctx, backup.ID, err.Error())
+		                          ^
+internal/organization/service.go:148:19: Error return value of `s.CreateAuditLog` is not checked (errcheck)
+		s.CreateAuditLog(ctx, &AuditLog{
+		                ^
+internal/organization/service.go:221:19: Error return value of `s.CreateAuditLog` is not checked (errcheck)
+		s.CreateAuditLog(ctx, &AuditLog{
+		                ^
+internal/organization/service.go:287:19: Error return value of `s.CreateAuditLog` is not checked (errcheck)
+		s.CreateAuditLog(ctx, &AuditLog{
+		                ^
+internal/sync/handlers.go:184:27: Error return value of `(*encoding/json.Encoder).Encode` is not checked (errcheck)
+	json.NewEncoder(w).Encode(data)
+	                         ^
+internal/sync/handlers.go:318:27: Error return value of `(*encoding/json.Encoder).Encode` is not checked (errcheck)
+	json.NewEncoder(w).Encode(data)
+	                         ^
+internal/sync/org_handler.go:548:27: Error return value of `(*encoding/json.Encoder).Encode` is not checked (errcheck)
+	json.NewEncoder(w).Encode(data)
+	                         ^
+internal/sync/org_sync_integration_test.go:190:22: Error return value of `store.SaveConnection` is not checked (errcheck)
+	store.SaveConnection(ctx, userA, conn1)
+	                    ^
+internal/sync/org_sync_integration_test.go:200:22: Error return value of `store.SaveConnection` is not checked (errcheck)
+	store.SaveConnection(ctx, userA, conn2)
+	                    ^
+internal/sync/org_sync_integration_test.go:210:22: Error return value of `store.SaveConnection` is not checked (errcheck)
+	store.SaveConnection(ctx, userB, conn3)
+	                    ^
+internal/sync/org_sync_integration_test.go:248:17: Error return value of `store.SaveQuery` is not checked (errcheck)
+	store.SaveQuery(ctx, userA, query1)
+	               ^
+internal/sync/org_sync_integration_test.go:259:17: Error return value of `store.SaveQuery` is not checked (errcheck)
+	store.SaveQuery(ctx, userA, query2)
+	               ^
+internal/sync/org_sync_integration_test.go:269:17: Error return value of `store.SaveQuery` is not checked (errcheck)
+	store.SaveQuery(ctx, userB, query3)
+	               ^
+internal/sync/turso_store.go:390:17: Error return value of `json.Unmarshal` is not checked (errcheck)
+		json.Unmarshal([]byte(tagsJSON.String), &sq.Tags)
+		              ^
+internal/sync/turso_store.go:393:17: Error return value of `json.Unmarshal` is not checked (errcheck)
+		json.Unmarshal([]byte(metadataJSON.String), &sq.Metadata)
+		              ^
+internal/sync/turso_store.go:435:18: Error return value of `json.Unmarshal` is not checked (errcheck)
+			json.Unmarshal([]byte(tagsJSON.String), &sq.Tags)
+			              ^
+pkg/database/clickhouse.go:44:15: Error return value of `c.pool.Close` is not checked (errcheck)
+		c.pool.Close()
+		            ^
+pkg/database/clickhouse.go:129:18: Error return value of `rows.Close` is not checked (errcheck)
+	defer rows.Close()
+	                ^
+pkg/database/clickhouse.go:217:18: Error return value of `rows.Close` is not checked (errcheck)
+	defer rows.Close()
+	                ^
+pkg/database/clickhouse.go:277:18: Error return value of `rows.Close` is not checked (errcheck)
+	defer rows.Close()
+	                ^
+pkg/database/elasticsearch.go:173:23: Error return value of `resp.Body.Close` is not checked (errcheck)
+	defer resp.Body.Close()
+	                     ^
+pkg/database/elasticsearch.go:198:23: Error return value of `resp.Body.Close` is not checked (errcheck)
+	defer resp.Body.Close()
+	                     ^
+pkg/database/elasticsearch.go:263:23: Error return value of `resp.Body.Close` is not checked (errcheck)
+	defer resp.Body.Close()
+	                     ^
+pkg/database/elasticsearch.go:562:14: Error return value of `fmt.Sscanf` is not checked (errcheck)
+			fmt.Sscanf(count, "%d", &docsCount)
+			          ^
+pkg/database/elasticsearch.go:599:12: Error return value of `fmt.Sscanf` is not checked (errcheck)
+	fmt.Sscanf(size, "%f%s", &num, &unit)
+	          ^
+pkg/database/mongodb.go:140:20: Error return value of `client.Disconnect` is not checked (errcheck)
+		client.Disconnect(ctx)
+		                 ^
+pkg/database/mongodb.go:146:22: Error return value of `m.client.Disconnect` is not checked (errcheck)
+		m.client.Disconnect(context.Background())
+		                   ^
+pkg/database/mongodb.go:413:13: Error return value of `fmt.Sscanf` is not checked (errcheck)
+		fmt.Sscanf(limitClause, "%d", &limitValue)
+		          ^
+pkg/database/mongodb.go:428:20: Error return value of `cursor.Close` is not checked (errcheck)
+	defer cursor.Close(ctx)
+	                  ^
+pkg/database/mongodb.go:627:20: Error return value of `cursor.Close` is not checked (errcheck)
+	defer cursor.Close(ctx)
+	                  ^
+pkg/database/mongodb.go:922:21: Error return value of `cursor.Close` is not checked (errcheck)
+		defer cursor.Close(ctx)
+		                  ^
+pkg/database/mongodb.go:980:26: Error return value of `indexCursor.Close` is not checked (errcheck)
+		defer indexCursor.Close(ctx)
+		                       ^
+pkg/database/mysql.go:48:15: Error return value of `m.pool.Close` is not checked (errcheck)
+		m.pool.Close()
+		            ^
+pkg/database/pool.go:110:11: Error return value of `db.Close` is not checked (errcheck)
+		db.Close()
+		        ^
+pkg/database/pool.go:496:13: Error return value of `p.db.Close` is not checked (errcheck)
+		p.db.Close()
+		          ^
+pkg/database/postgres.go:48:15: Error return value of `p.pool.Close` is not checked (errcheck)
+		p.pool.Close()
+		            ^
+pkg/database/sqlite.go:47:15: Error return value of `s.pool.Close` is not checked (errcheck)
+		s.pool.Close()
+		            ^
+pkg/database/sqlite.go:700:16: Error return value of `colRows.Close` is not checked (errcheck)
+		colRows.Close()
+		             ^
+pkg/database/ssh_tunnel.go:79:18: Error return value of `sshClient.Close` is not checked (errcheck)
+		sshClient.Close()
+		               ^
+pkg/database/ssh_tunnel.go:140:24: Error return value of `tunnel.listener.Close` is not checked (errcheck)
+		tunnel.listener.Close()
+		                     ^
+pkg/database/ssh_tunnel.go:144:25: Error return value of `tunnel.sshClient.Close` is not checked (errcheck)
+		tunnel.sshClient.Close()
+		                      ^
+pkg/database/ssh_tunnel.go:334:23: Error return value of `localConn.Close` is not checked (errcheck)
+	defer localConn.Close()
+	                     ^
+pkg/database/ssh_tunnel.go:343:24: Error return value of `remoteConn.Close` is not checked (errcheck)
+	defer remoteConn.Close()
+	                      ^
+pkg/database/ssh_tunnel.go:351:10: Error return value of `io.Copy` is not checked (errcheck)
+		io.Copy(remoteConn, localConn)
+		       ^
+pkg/database/ssh_tunnel.go:356:10: Error return value of `io.Copy` is not checked (errcheck)
+		io.Copy(localConn, remoteConn)
+		       ^
+cmd/server/main.go:174:10: ST1005: error strings should not be capitalized (staticcheck)
+		return fmt.Errorf("Turso URL must be configured in production")
+		       ^
+internal/middleware/org_rate_limit.go:97:40: SA1012: do not pass a nil Context, even if a function permits it; pass context.TODO if you are unsure about which Context to use (staticcheck)
+	quota, err := r.quotaService.GetQuota(nil, orgID)
+	                                      ^
+internal/organization/handlers_test.go:150:42: SA1029: should not use built-in type string as key for value; define your own type to avoid collisions (staticcheck)
+	ctx := context.WithValue(req.Context(), "user_id", "test-user-123")
+	                                        ^
+internal/organization/handlers_test.go:151:31: SA1029: should not use built-in type string as key for value; define your own type to avoid collisions (staticcheck)
+	ctx = context.WithValue(ctx, "username", "testuser")
+	                             ^
+internal/organization/handlers_test.go:152:31: SA1029: should not use built-in type string as key for value; define your own type to avoid collisions (staticcheck)
+	ctx = context.WithValue(ctx, "role", "user")
+	                             ^
+internal/organization/service_test.go:1311:39: SA1012: do not pass a nil Context, even if a function permits it; pass context.TODO if you are unsure about which Context to use (staticcheck)
+	_, err := service.CreateOrganization(nil, "user-1", input)
+	                                     ^
+pkg/database/postgres.go:326:10: ST1005: error strings should not be capitalized (staticcheck)
+		return fmt.Errorf("Result set is missing primary key columns: %s", strings.Join(missingPK, ", "))
+		       ^
+pkg/database/postgres.go:389:10: ST1005: error strings should not be capitalized (staticcheck)
+		return fmt.Errorf("No editable columns found in result set")
+		       ^
+cmd/fix-lint/main.go:135:6: func fixWithAST is unused (unused)
+func fixWithAST(path string) error {
+     ^
+internal/middleware/test_helpers_test.go:21:6: func newAuthMiddleware is unused (unused)
+func newAuthMiddleware(secret string) *middleware.AuthMiddleware {
+     ^
+pkg/database/test_helpers_test.go:85:6: func skipIfMongoDBUnavailable is unused (unused)
+func skipIfMongoDBUnavailable(t interface{ Skip(args ...interface{}) }, err error) {
+     ^
+pkg/database/test_helpers_test.go:93:6: func skipIfClickHouseUnavailable is unused (unused)
+func skipIfClickHouseUnavailable(t interface{ Skip(args ...interface{}) }, err error) {
+     ^
+tools/lint-fixer/main.go:250:17: func (*Fixer).fixWithAST is unused (unused)
+func (f *Fixer) fixWithAST(path string) error {
+                ^
+63 issues:
+* errcheck: 50
+* staticcheck: 8
+* unused: 5

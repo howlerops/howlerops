@@ -1,0 +1,5 @@
+pkg/database/clickhouse.go:1: : # github.com/sql-studio/backend-go/pkg/database [github.com/sql-studio/backend-go/pkg/database.test]
+pkg/database/elasticsearch_test.go:147:46: undefined: context (typecheck)
+package database
+1 issues:
+* typecheck: 1

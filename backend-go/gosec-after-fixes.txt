@@ -1,0 +1,5 @@
+internal/quotas/models.go:1: : # github.com/sql-studio/backend-go/internal/quotas [github.com/sql-studio/backend-go/internal/quotas.test]
+internal/quotas/service_test.go:275:10: assignment mismatch: 2 variables but service.CheckQuota returns 1 value (typecheck)
+package quotas
+1 issues:
+* typecheck: 1

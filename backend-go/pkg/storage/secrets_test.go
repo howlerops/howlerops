@@ -84,7 +84,7 @@ func TestSecretStore_ConcurrentAccess(t *testing.T) {
 func TestSecretStore_ErrorHandling(t *testing.T) {
 	t.Skip("TODO: Fix this test - temporarily skipped for deployment")
 	db := setupTestDB(t)
-	defer db.Close()
+	defer func() { _ = db.Close() }() // Best-effort close in test
 
 	logger := logrus.New()
 	logger.SetLevel(logrus.ErrorLevel)

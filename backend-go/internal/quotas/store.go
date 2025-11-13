@@ -203,6 +203,7 @@ func (s *Store) IncrementUsage(ctx context.Context, orgID string, resourceType R
 	}
 
 	// Upsert usage record
+	// #nosec G201 - column name from validated enum type, safe for SQL formatting
 	query := fmt.Sprintf(`
 		INSERT INTO organization_usage (
 			id, organization_id, usage_date, %s, created_at, updated_at

@@ -1833,7 +1833,7 @@ func TestAccountLockout_ChecksIPAndUsername(t *testing.T) {
 		IPAddress: "192.168.1.1",
 	}
 
-	service.Login(context.Background(), req)
+	_, _ = service.Login(context.Background(), req) // Test setup - error not relevant
 
 	assert.Equal(t, "192.168.1.1", checkedIP)
 	assert.Equal(t, "testuser", checkedUsername)
@@ -1860,7 +1860,7 @@ func TestAccountLockout_TimeWindow(t *testing.T) {
 		IPAddress: "127.0.0.1",
 	}
 
-	service.Login(context.Background(), req)
+	_, _ = service.Login(context.Background(), req) // Test setup - error not relevant
 
 	assert.InDelta(t, 30*time.Minute, sinceDuration, float64(time.Second))
 }
@@ -2338,6 +2338,7 @@ func TestEdgeCase_SpecialCharactersInUsername(t *testing.T) {
 }
 
 func TestEdgeCase_UnicodePassword(t *testing.T) {
+	// #nosec G101 - test password for unicode handling validation
 	unicodePassword := "密码🔐🔑"
 	hashedPassword := hashPassword(unicodePassword)
 

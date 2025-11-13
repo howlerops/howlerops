@@ -1,0 +1,193 @@
+cmd/migrate/main.go:56:16: Error return value of `db.Close` is not checked (errcheck)
+	defer db.Close()
+	              ^
+internal/analytics/dashboard.go:222:48: Error return value of `(*database/sql.Row).Scan` is not checked (errcheck)
+	s.db.QueryRowContext(ctx, query, args...).Scan(&stats.TotalUsers)
+	                                              ^
+internal/analytics/dashboard.go:229:77: Error return value of `(*database/sql.Row).Scan` is not checked (errcheck)
+	s.db.QueryRowContext(ctx, query, time.Now().Add(-24*time.Hour).Unix()).Scan(&stats.ActiveUsers24h)
+	                                                                           ^
+internal/analytics/dashboard.go:234:48: Error return value of `(*database/sql.Row).Scan` is not checked (errcheck)
+	s.db.QueryRowContext(ctx, query, args...).Scan(&stats.TotalConnections)
+	                                              ^
+internal/audit/store.go:70:19: Error return value of `tx.Rollback` is not checked (errcheck)
+	defer tx.Rollback()
+	                 ^
+internal/audit/store.go:81:18: Error return value of `stmt.Close` is not checked (errcheck)
+	defer stmt.Close()
+	                ^
+internal/audit/store.go:130:18: Error return value of `rows.Close` is not checked (errcheck)
+	defer rows.Close()
+	                ^
+internal/audit/store.go:184:18: Error return value of `rows.Close` is not checked (errcheck)
+	defer rows.Close()
+	                ^
+internal/auth/two_factor.go:208:33: Error return value of `s.eventLogger.LogSecurityEvent` is not checked (errcheck)
+		s.eventLogger.LogSecurityEvent(ctx, "2fa_validation_failed", userID, "", "", "", nil)
+		                              ^
+internal/auth/two_factor.go:286:11: Error return value of `rand.Read` is not checked (errcheck)
+	rand.Read(bytes)
+	         ^
+internal/email/organization_test.go:274:41: Error return value of `mockSvc.SendOrganizationInvitationEmail` is not checked (errcheck)
+	mockSvc.SendOrganizationInvitationEmail(
+	                                       ^
+internal/email/organization_test.go:282:38: Error return value of `mockSvc.SendOrganizationWelcomeEmail` is not checked (errcheck)
+	mockSvc.SendOrganizationWelcomeEmail(
+	                                    ^
+internal/email/organization_test.go:289:32: Error return value of `mockSvc.SendMemberRemovedEmail` is not checked (errcheck)
+	mockSvc.SendMemberRemovedEmail("removed@example.com", "Team C")
+	                              ^
+internal/middleware/ip_whitelist.go:92:35: Error return value of `m.eventLogger.LogSecurityEvent` is not checked (errcheck)
+				m.eventLogger.LogSecurityEvent(
+				                              ^
+internal/middleware/ip_whitelist.go:246:33: Error return value of `s.eventLogger.LogSecurityEvent` is not checked (errcheck)
+		s.eventLogger.LogSecurityEvent(
+		                              ^
+internal/middleware/ip_whitelist.go:271:33: Error return value of `s.eventLogger.LogSecurityEvent` is not checked (errcheck)
+		s.eventLogger.LogSecurityEvent(
+		                              ^
+internal/middleware/org_rate_limit.go:144:9: Error return value of `w.Write` is not checked (errcheck)
+	w.Write([]byte(response))
+	       ^
+internal/middleware/tenant_isolation.go:88:18: Error return value of `rows.Close` is not checked (errcheck)
+	defer rows.Close()
+	                ^
+internal/middleware/tenant_isolation_test.go:18:16: Error return value of `db.Close` is not checked (errcheck)
+	defer db.Close()
+	              ^
+internal/middleware/tenant_isolation_test.go:204:16: Error return value of `db.Close` is not checked (errcheck)
+	defer db.Close()
+	              ^
+internal/middleware/tenant_isolation_test.go:225:20: Error return value of `result.Close` is not checked (errcheck)
+	defer result.Close()
+	                  ^
+internal/monitoring/middleware.go:391:27: Error return value of `(*encoding/json.Encoder).Encode` is not checked (errcheck)
+	json.NewEncoder(w).Encode(recent)
+	                         ^
+internal/monitoring/middleware.go:405:27: Error return value of `(*encoding/json.Encoder).Encode` is not checked (errcheck)
+	json.NewEncoder(w).Encode(stats)
+	                         ^
+internal/monitoring/middleware.go:417:27: Error return value of `(*encoding/json.Encoder).Encode` is not checked (errcheck)
+	json.NewEncoder(w).Encode(health)
+	                         ^
+internal/organization/service.go:148:19: Error return value of `s.CreateAuditLog` is not checked (errcheck)
+		s.CreateAuditLog(ctx, &AuditLog{
+		                ^
+internal/organization/service.go:221:19: Error return value of `s.CreateAuditLog` is not checked (errcheck)
+		s.CreateAuditLog(ctx, &AuditLog{
+		                ^
+internal/organization/service.go:287:19: Error return value of `s.CreateAuditLog` is not checked (errcheck)
+		s.CreateAuditLog(ctx, &AuditLog{
+		                ^
+internal/sso/service.go:201:11: Error return value of `rand.Read` is not checked (errcheck)
+	rand.Read(b)
+	         ^
+pkg/database/clickhouse.go:44:15: Error return value of `c.pool.Close` is not checked (errcheck)
+		c.pool.Close()
+		            ^
+pkg/storage/manager_test.go:98:21: Error return value of `manager.Close` is not checked (errcheck)
+	defer manager.Close()
+	                   ^
+pkg/storage/manager_test.go:119:21: Error return value of `manager.Close` is not checked (errcheck)
+	defer manager.Close()
+	                   ^
+pkg/storage/manager_test.go:147:21: Error return value of `manager.Close` is not checked (errcheck)
+	defer manager.Close()
+	                   ^
+pkg/storage/sqlite_local.go:238:19: Error return value of `tx.Rollback` is not checked (errcheck)
+	defer tx.Rollback()
+	                 ^
+pkg/storage/sqlite_local.go:888:26: Error return value of `s.InvalidateSchemaCache` is not checked (errcheck)
+		s.InvalidateSchemaCache(ctx, connID)
+		                       ^
+pkg/storage/sqlite_local_test.go:34:16: Error return value of `storage.Close` is not checked (errcheck)
+		storage.Close()
+		             ^
+pkg/updater/updater.go:141:15: Error return value of `f.Close` is not checked (errcheck)
+	defer f.Close()
+	             ^
+pkg/updater/updater.go:327:24: Error return value of `sourceFile.Close` is not checked (errcheck)
+	defer sourceFile.Close()
+	                      ^
+pkg/updater/updater.go:333:22: Error return value of `destFile.Close` is not checked (errcheck)
+	defer destFile.Close()
+	                    ^
+pkg/updater/updater_test.go:163:20: Error return value of `os.RemoveAll` is not checked (errcheck)
+	defer os.RemoveAll(tmpDir)
+	                  ^
+pkg/updater/updater_test.go:201:20: Error return value of `os.RemoveAll` is not checked (errcheck)
+	defer os.RemoveAll(tmpDir)
+	                  ^
+pkg/updater/updater_test.go:231:10: Error return value of `w.Write` is not checked (errcheck)
+		w.Write([]byte("Internal Server Error"))
+		       ^
+pkg/updater/updater_test.go:249:10: Error return value of `w.Write` is not checked (errcheck)
+		w.Write([]byte("invalid json"))
+		       ^
+pkg/updater/updater_test.go:290:20: Error return value of `os.RemoveAll` is not checked (errcheck)
+	defer os.RemoveAll(tmpDir)
+	                  ^
+scripts/verify_migrations.go:339:12: Error return value of `rows.Scan` is not checked (errcheck)
+		rows.Scan(&table, &rowid, &parent, &fkid)
+		         ^
+scripts/verify_migrations.go:444:21: Error return value of `dbFresh.Close` is not checked (errcheck)
+	defer dbFresh.Close()
+	                   ^
+scripts/verify_migrations.go:455:24: Error return value of `dbMigrated.Close` is not checked (errcheck)
+	defer dbMigrated.Close()
+	                      ^
+scripts/verify_migrations.go:504:12: Error return value of `rows.Scan` is not checked (errcheck)
+		rows.Scan(&cid, &name, &colType, &notNull, &dfltValue, &pk)
+		         ^
+test/integration/auth_test.go:260:23: Error return value of `resp.Body.Close` is not checked (errcheck)
+	defer resp.Body.Close()
+	                     ^
+test/integration/auth_test.go:301:23: Error return value of `resp.Body.Close` is not checked (errcheck)
+	defer resp.Body.Close()
+	                     ^
+test/integration/auth_test.go:312:23: Error return value of `resp.Body.Close` is not checked (errcheck)
+	defer resp.Body.Close()
+	                     ^
+cmd/server/main.go:174:10: ST1005: error strings should not be capitalized (staticcheck)
+		return fmt.Errorf("Turso URL must be configured in production")
+		       ^
+internal/middleware/org_rate_limit.go:97:40: SA1012: do not pass a nil Context, even if a function permits it; pass context.TODO if you are unsure about which Context to use (staticcheck)
+	quota, err := r.quotaService.GetQuota(nil, orgID)
+	                                      ^
+internal/organization/handlers_test.go:150:42: SA1029: should not use built-in type string as key for value; define your own type to avoid collisions (staticcheck)
+	ctx := context.WithValue(req.Context(), "user_id", "test-user-123")
+	                                        ^
+internal/organization/handlers_test.go:151:31: SA1029: should not use built-in type string as key for value; define your own type to avoid collisions (staticcheck)
+	ctx = context.WithValue(ctx, "username", "testuser")
+	                             ^
+internal/organization/handlers_test.go:152:31: SA1029: should not use built-in type string as key for value; define your own type to avoid collisions (staticcheck)
+	ctx = context.WithValue(ctx, "role", "user")
+	                             ^
+internal/organization/service_test.go:1311:39: SA1012: do not pass a nil Context, even if a function permits it; pass context.TODO if you are unsure about which Context to use (staticcheck)
+	_, err := service.CreateOrganization(nil, "user-1", input)
+	                                     ^
+pkg/database/postgres.go:326:10: ST1005: error strings should not be capitalized (staticcheck)
+		return fmt.Errorf("Result set is missing primary key columns: %s", strings.Join(missingPK, ", "))
+		       ^
+pkg/database/postgres.go:389:10: ST1005: error strings should not be capitalized (staticcheck)
+		return fmt.Errorf("No editable columns found in result set")
+		       ^
+cmd/fix-lint/main.go:135:6: func fixWithAST is unused (unused)
+func fixWithAST(path string) error {
+     ^
+internal/middleware/test_helpers_test.go:21:6: func newAuthMiddleware is unused (unused)
+func newAuthMiddleware(secret string) *middleware.AuthMiddleware {
+     ^
+pkg/database/test_helpers_test.go:85:6: func skipIfMongoDBUnavailable is unused (unused)
+func skipIfMongoDBUnavailable(t interface{ Skip(args ...interface{}) }, err error) {
+     ^
+pkg/database/test_helpers_test.go:93:6: func skipIfClickHouseUnavailable is unused (unused)
+func skipIfClickHouseUnavailable(t interface{ Skip(args ...interface{}) }, err error) {
+     ^
+tools/lint-fixer/main.go:250:17: func (*Fixer).fixWithAST is unused (unused)
+func (f *Fixer) fixWithAST(path string) error {
+                ^
+63 issues:
+* errcheck: 50
+* staticcheck: 8
+* unused: 5

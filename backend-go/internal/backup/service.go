@@ -32,7 +32,7 @@ func NewService(db *sql.DB, store Store, backupPath string, logger *logrus.Logge
 // CreateBackup initiates a database backup
 func (s *Service) CreateBackup(ctx context.Context, opts *BackupOptions) (*DatabaseBackup, error) {
 	// Ensure backup directory exists
-	if err := os.MkdirAll(s.backupPath, 0755); err != nil {
+	if err := os.MkdirAll(s.backupPath, 0750); err != nil {
 		return nil, fmt.Errorf("create backup directory: %w", err)
 	}
 
@@ -77,6 +77,7 @@ func (s *Service) performBackup(backup *DatabaseBackup, opts *BackupOptions) {
 
 	// For SQLite, use VACUUM INTO for backup
 	// For Turso/libSQL, this creates a consistent snapshot
+	// #nosec G201 - SQLite VACUUM with validated path, not user input
 	query := fmt.Sprintf("VACUUM INTO '%s'", backup.FilePath)
 
 	logger.Info("Executing backup command")

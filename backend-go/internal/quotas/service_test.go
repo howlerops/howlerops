@@ -272,6 +272,6 @@ func BenchmarkCheckQuota(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		service.CheckQuota(context.Background(), "org-1", ResourceQuery)
+		_ = service.CheckQuota(context.Background(), "org-1", ResourceQuery) // Benchmark - error not relevant
 	}
 }

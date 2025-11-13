@@ -157,7 +157,7 @@ func (h *HTTPHandler) PullOllamaModel(w http.ResponseWriter, r *http.Request) {
 
 // OpenOllamaTerminal attempts to launch a terminal window with Ollama commands prefilled
 func (h *HTTPHandler) OpenOllamaTerminal(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
+	defer func() { _ = r.Body.Close() }() // Best-effort close
 
 	commands := []string{"ollama serve"}
 
@@ -200,6 +200,7 @@ func launchTerminalWithCommands(commands []string) error {
   activate
   do script "%s"
 end tell`, escapeAppleScriptString(cmdString))
+		// #nosec G204 - command string is sanitized via escapeAppleScriptString, terminal launch is intended feature
 		return exec.Command("osascript", "-e", script).Start()
 	case "linux":
 		candidates := [][]string{
@@ -213,12 +214,14 @@ end tell`, escapeAppleScriptString(cmdString))
 
 		for _, candidate := range candidates {
 			if _, err := exec.LookPath(candidate[0]); err == nil {
+				// #nosec G204 - terminal emulator launch with validated cmdString, intended feature
 				return exec.Command(candidate[0], candidate[1:]...).Start()
 			}
 		}
 
 		return fmt.Errorf("no supported terminal emulator found; run manually: %s", cmdString)
 	case "windows":
+		// #nosec G204 - Windows terminal launch with cmdString, intended feature
 		return exec.Command("cmd", "/C", "start", "cmd", "/K", cmdString).Start()
 	default:
 		return fmt.Errorf("unsupported operating system: %s", runtime.GOOS)
@@ -508,7 +511,11 @@ func (h *HTTPHandler) TestClaudeCode(w http.ResponseWriter, r *http.Request) {
 		h.respondWithError(w, http.StatusInternalServerError, "Failed to create Claude Code provider", err)
 		return
 	}
-	defer provider.Close()
+	defer func() {
+		if err := provider.Close(); err != nil {
+			h.logger.WithError(err).Error("Failed to close Claude Code provider")
+		}
+	}()
 
 	// Wrap in adapter for compatibility
 	wrappedProvider := &providerAdapterWrapper{
@@ -555,7 +562,11 @@ func (h *HTTPHandler) TestCodex(w http.ResponseWriter, r *http.Request) {
 		h.respondWithError(w, http.StatusInternalServerError, "Failed to create Codex provider", err)
 		return
 	}
-	defer provider.Close()
+	defer func() {
+		if err := provider.Close(); err != nil {
+			h.logger.WithError(err).Error("Failed to close Codex provider")
+		}
+	}()
 
 	// Wrap in adapter for compatibility
 	wrappedProvider := &providerAdapterWrapper{

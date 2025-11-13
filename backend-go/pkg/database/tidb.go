@@ -272,6 +272,7 @@ func (t *TiDBDatabase) GetTiKVRegionInfo(ctx context.Context, schema, table stri
 
 	// Get region count
 	var regionCount int
+	// #nosec G201 - schema and table names from internal metadata query, validated by TiDB
 	query := fmt.Sprintf("SELECT COUNT(*) FROM information_schema.tikv_region_status WHERE db_name = '%s' AND table_name = '%s'", schema, table)
 	err = db.QueryRowContext(ctx, query).Scan(&regionCount)
 	if err == nil {

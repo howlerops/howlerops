@@ -162,7 +162,7 @@ func getConfigDir() (string, error) {
 	configDir := filepath.Join(homeDir, ".sqlstudio")
 
 	// Create directory if it doesn't exist
-	if err := os.MkdirAll(configDir, 0o755); err != nil {
+	if err := os.MkdirAll(configDir, 0o750); err != nil {
 		return "", err
 	}
 

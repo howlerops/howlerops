@@ -17,7 +17,9 @@ func LoadEnv(logger *logrus.Logger) error {
 	env := os.Getenv("ENVIRONMENT")
 	if env == "" {
 		env = "development"
-		os.Setenv("ENVIRONMENT", env)
+		if err := os.Setenv("ENVIRONMENT", env); err != nil {
+			logger.WithError(err).Warn("Failed to set ENVIRONMENT variable")
+		}
 	}
 
 	// Get working directory

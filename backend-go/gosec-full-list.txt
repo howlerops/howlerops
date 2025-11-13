@@ -1,0 +1,1347 @@
+cmd/fix-errcheck/main.go:103:12: G306: Expect WriteFile permissions to be 0600 or less (gosec)
+	if err := os.WriteFile(filename, buf.Bytes(), 0644); err != nil {
+	          ^
+cmd/fix-lint/main.go:56:18: G304: Potential file inclusion via variable (gosec)
+	content, err := os.ReadFile(path)
+	                ^
+cmd/fix-lint/main.go:83:11: G306: Expect WriteFile permissions to be 0600 or less (gosec)
+			return os.WriteFile(path, []byte(modified), 0644)
+			       ^
+cmd/fix-lint/main.go:88:11: G306: Expect WriteFile permissions to be 0600 or less (gosec)
+			return os.WriteFile(path, []byte(modified), 0644)
+			       ^
+cmd/fix-lint/main.go:91:10: G306: Expect WriteFile permissions to be 0600 or less (gosec)
+		return os.WriteFile(path, buf.Bytes(), 0644)
+		       ^
+cmd/fix-lint/main.go:154:9: G306: Expect WriteFile permissions to be 0600 or less (gosec)
+	return os.WriteFile(path, buf.Bytes(), 0644)
+	       ^
+cmd/migrate/main.go:90:13: G301: Expect directory permissions to be 0750 or less (gosec)
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+		          ^
+cmd/server/main.go:472:20: G112: Potential Slowloris Attack because ReadHeaderTimeout is not configured in the http.Server (gosec)
+		metricsServer = &http.Server{
+			Addr:    cfg.GetMetricsAddress(),
+			Handler: promhttp.Handler(),
+		}
+cmd/sqlstudio/main.go:165:12: G301: Expect directory permissions to be 0750 or less (gosec)
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
+	          ^
+internal/ai/grpc.go:64:22: G115: integer overflow conversion int -> int32 (gosec)
+			TokensUsed:  int32(resp.TokensUsed),
+			                  ^
+internal/ai/grpc.go:109:22: G115: integer overflow conversion int -> int32 (gosec)
+			TokensUsed:  int32(resp.TokensUsed),
+			                  ^
+internal/ai/grpc.go:156:23: G115: integer overflow conversion int -> int32 (gosec)
+			MaxTokens:    int32(model.MaxTokens),
+			                   ^
+internal/ai/grpc.go:254:25: G115: integer overflow conversion int -> int32 (gosec)
+		MaxTokens:       int32(config.MaxTokens),
+		                      ^
+internal/ai/grpc.go:257:25: G115: integer overflow conversion int -> int32 (gosec)
+		RateLimitPerMin: int32(config.RateLimitPerMin),
+		                      ^
+internal/ai/handlers.go:203:10: G204: Subprocess launched with variable (gosec)
+		return exec.Command("osascript", "-e", script).Start()
+		       ^
+internal/ai/handlers.go:216:12: G204: Subprocess launched with a potential tainted input or cmd arguments (gosec)
+				return exec.Command(candidate[0], candidate[1:]...).Start()
+				       ^
+internal/ai/handlers.go:222:10: G204: Subprocess launched with variable (gosec)
+		return exec.Command("cmd", "/C", "start", "cmd", "/K", cmdString).Start()
+		       ^
+internal/ai/provider_test.go:517:4: G104: Errors unhandled (gosec)
+			provider.Close()
+			^
+internal/ai/provider_test.go:556:4: G104: Errors unhandled (gosec)
+			provider.Close()
+			^
+internal/ai/provider_test.go:669:6: G104: Errors unhandled (gosec)
+					provider.Close()
+					^
+internal/ai/provider_test.go:680:6: G104: Errors unhandled (gosec)
+					provider.Close()
+					^
+internal/analytics/dashboard.go:197:11: G201: SQL string formatting (gosec)
+	query := fmt.Sprintf(`
+		SELECT
+			COUNT(*) as total_queries,
+			SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) as success_count,
+			AVG(execution_time_ms) as avg_time
+		FROM query_metrics %s`, whereClause)
+internal/analytics/dashboard.go:221:2: G104: Errors unhandled (gosec)
+	s.db.QueryRowContext(ctx, query, args...).Scan(&stats.TotalUsers)
+	^
+internal/analytics/dashboard.go:228:2: G104: Errors unhandled (gosec)
+	s.db.QueryRowContext(ctx, query, time.Now().Add(-24*time.Hour).Unix()).Scan(&stats.ActiveUsers24h)
+	^
+internal/analytics/dashboard.go:233:2: G104: Errors unhandled (gosec)
+	s.db.QueryRowContext(ctx, query, args...).Scan(&stats.TotalConnections)
+	^
+internal/analytics/dashboard.go:298:11: G201: SQL string formatting (gosec)
+	query := fmt.Sprintf(`
+		SELECT
+			(executed_at / %d) * %d as bucket,
+			COUNT(*) as query_count
+		FROM query_metrics
+		%s
+		GROUP BY bucket
+		ORDER BY bucket`, bucketSize, bucketSize, whereClause)
+internal/analytics/dashboard.go:352:11: G201: SQL string formatting (gosec)
+	query := fmt.Sprintf(`
+		SELECT
+			CASE
+				WHEN UPPER(SUBSTR(TRIM(sql), 1, 6)) = 'SELECT' THEN 'SELECT'
+				WHEN UPPER(SUBSTR(TRIM(sql), 1, 6)) = 'INSERT' THEN 'INSERT'
+				WHEN UPPER(SUBSTR(TRIM(sql), 1, 6)) = 'UPDATE' THEN 'UPDATE'
+				WHEN UPPER(SUBSTR(TRIM(sql), 1, 6)) = 'DELETE' THEN 'DELETE'
+				ELSE 'OTHER'
+			END as query_type,
+			COUNT(*) as count
+		FROM query_metrics
+		%s
+		GROUP BY query_type`, whereClause)
+internal/analytics/dashboard.go:396:11: G201: SQL string formatting (gosec)
+	query := fmt.Sprintf(`
+		SELECT id, query_id, connection_id, user_id, organization_id,
+			   sql, sql_hash, execution_time_ms, rows_returned,
+			   status, error_message, executed_at
+		FROM query_metrics
+		%s`, whereClause)
+internal/analytics/dashboard.go:467:11: G201: SQL string formatting (gosec)
+	query := fmt.Sprintf(`
+		SELECT
+			(executed_at / 86400) * 86400 as day,
+			COUNT(DISTINCT user_id) as user_count
+		FROM query_metrics
+		%s
+		GROUP BY day
+		ORDER BY day`, whereClause)
+internal/analytics/dashboard.go:510:11: G201: SQL string formatting (gosec)
+	query := fmt.Sprintf(`
+		SELECT user_id, COUNT(*) as query_count
+		FROM query_metrics
+		%s
+		GROUP BY user_id
+		ORDER BY query_count DESC
+		LIMIT ?`, whereClause)
+internal/analytics/dashboard.go:545:11: G201: SQL string formatting (gosec)
+	query := fmt.Sprintf(`
+		SELECT
+			CAST(strftime('%%H', datetime(executed_at, 'unixepoch')) AS INTEGER) as hour,
+			COUNT(*) as query_count,
+			AVG(execution_time_ms) as avg_time
+		FROM query_metrics
+		%s
+		GROUP BY hour
+		ORDER BY hour`, whereClause)
+internal/analytics/dashboard.go:592:11: G201: SQL string formatting (gosec)
+	query := fmt.Sprintf(`
+		SELECT
+			AVG(execution_time_ms) as avg_time,
+			COUNT(*) as total,
+			SUM(CASE WHEN status = 'error' THEN 1 ELSE 0 END) as errors,
+			SUM(CASE WHEN status = 'timeout' THEN 1 ELSE 0 END) as timeouts
+		FROM query_metrics
+		%s`, whereClause)
+internal/analytics/dashboard.go:672:11: G201: SQL string formatting (gosec)
+	query := fmt.Sprintf(`
+		SELECT
+			(executed_at / %d) * %d as bucket,
+			AVG(execution_time_ms) as avg_time
+		FROM query_metrics
+		%s
+		GROUP BY bucket
+		ORDER BY bucket`, bucketSize, bucketSize, whereClause)
+internal/analytics/dashboard.go:753:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(data)
+	^
+internal/analyzer/handler.go:373:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(data)
+	^
+internal/apikeys/service.go:123:3: G104: Errors unhandled (gosec)
+		s.eventLogger.LogSecurityEvent(
+			ctx,
+			"api_key_created",
+			userID,
+			input.OrganizationID,
+			"",
+			"",
+			map[string]interface{}{
+				"key_id":      apiKey.ID,
+				"key_prefix":  keyPrefix,
+				"permissions": input.Permissions,
+				"expires_in":  input.ExpiresInDays,
+			},
+		)
+internal/apikeys/service.go:224:3: G104: Errors unhandled (gosec)
+		s.eventLogger.LogSecurityEvent(
+			ctx,
+			"api_key_revoked",
+			userID,
+			apiKey.OrganizationID,
+			"",
+			"",
+			map[string]interface{}{
+				"key_id":     keyID,
+				"key_prefix": apiKey.KeyPrefix,
+			},
+		)
+internal/apikeys/service.go:311:2: G104: Errors unhandled (gosec)
+	rand.Read(randomBytes)
+	^
+internal/apikeys/service.go:365:2: G104: Errors unhandled (gosec)
+	s.eventLogger.LogSecurityEvent(
+		ctx,
+		"api_key_invalid_usage",
+		"",
+		"",
+		"",
+		"",
+		details,
+	)
+internal/auth/service_test.go:1836:2: G104: Errors unhandled (gosec)
+	service.Login(context.Background(), req)
+	^
+internal/auth/service_test.go:1863:2: G104: Errors unhandled (gosec)
+	service.Login(context.Background(), req)
+	^
+internal/auth/service_test.go:2341:2: G101: Potential hardcoded credentials (gosec)
+	unicodePassword := "密码🔐🔑"
+	^
+internal/auth/token_store.go:16:2: G101: Potential hardcoded credentials (gosec)
+	TokenTypeEmailVerification TokenType = "email_verification"
+	^
+internal/auth/two_factor.go:115:3: G104: Errors unhandled (gosec)
+		s.eventLogger.LogSecurityEvent(ctx, "2fa_setup_initiated", userID, "", "", "", nil)
+		^
+internal/auth/two_factor.go:151:3: G104: Errors unhandled (gosec)
+		s.eventLogger.LogSecurityEvent(ctx, "2fa_enabled", userID, "", "", "", nil)
+		^
+internal/auth/two_factor.go:192:5: G104: Errors unhandled (gosec)
+				s.eventLogger.LogSecurityEvent(ctx, "2fa_backup_code_used", userID, "", "", "", nil)
+				^
+internal/auth/two_factor.go:202:3: G104: Errors unhandled (gosec)
+		s.eventLogger.LogSecurityEvent(ctx, "2fa_validation_failed", userID, "", "", "", nil)
+		^
+internal/auth/two_factor.go:219:3: G104: Errors unhandled (gosec)
+		s.eventLogger.LogSecurityEvent(ctx, "2fa_disabled", userID, "", "", "", nil)
+		^
+internal/auth/two_factor.go:249:3: G104: Errors unhandled (gosec)
+		s.eventLogger.LogSecurityEvent(ctx, "2fa_backup_codes_regenerated", userID, "", "", "", nil)
+		^
+internal/auth/two_factor.go:280:2: G104: Errors unhandled (gosec)
+	rand.Read(bytes)
+	^
+internal/backup/service.go:35:12: G301: Expect directory permissions to be 0750 or less (gosec)
+	if err := os.MkdirAll(s.backupPath, 0755); err != nil {
+	          ^
+internal/backup/service.go:80:11: G201: SQL string formatting (gosec)
+	query := fmt.Sprintf("VACUUM INTO '%s'", backup.FilePath)
+	         ^
+internal/backup/service.go:87:3: G104: Errors unhandled (gosec)
+		s.store.UpdateBackupFailed(ctx, backup.ID, err.Error())
+		^
+internal/backup/service.go:95:3: G104: Errors unhandled (gosec)
+		s.store.UpdateBackupFailed(ctx, backup.ID, "Failed to get file size")
+		^
+internal/backup/store.go:116:3: G104: Errors unhandled (gosec)
+		json.Unmarshal([]byte(tablesJSON.String), &backup.TablesIncluded)
+		^
+internal/backup/store.go:175:4: G104: Errors unhandled (gosec)
+			json.Unmarshal([]byte(tablesJSON.String), &backup.TablesIncluded)
+			^
+internal/config/config_test.go:63:12: G306: Expect WriteFile permissions to be 0600 or less (gosec)
+	if err := os.WriteFile(configPath, []byte("server:\n  port: \"invalid\"\n"), 0o644); err != nil {
+	          ^
+internal/config/env.go:20:3: G104: Errors unhandled (gosec)
+		os.Setenv("ENVIRONMENT", env)
+		^
+internal/connections/benchmark_test.go:347:22: G104: Errors unhandled (gosec)
+	return db, func() { db.Close() }
+	                    ^
+internal/connections/benchmark_test.go:441:22: G104: Errors unhandled (gosec)
+	return db, func() { db.Close() }
+	                    ^
+internal/connections/handler_test.go:591:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
+	^
+internal/connections/handler_test.go:596:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"connections": []map[string]string{},
+	})
+internal/connections/handler_test.go:603:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
+	^
+internal/connections/handler_test.go:608:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"connections": []map[string]string{},
+	})
+internal/connections/handler_test.go:615:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
+	^
+internal/connections/handler_test.go:620:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(map[string]string{"id": "new-conn-id"})
+	^
+internal/connections/handler_test.go:625:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(map[string]string{"status": "deleted"})
+	^
+internal/connections/integration_test.go:536:3: G104: Errors unhandled (gosec)
+		db.Close()
+		^
+internal/email/email_test.go:204:3: G104: Errors unhandled (gosec)
+		mockSvc.SendVerificationEmail("test@example.com", "token", "url")
+		^
+internal/email/email_test.go:214:3: G104: Errors unhandled (gosec)
+		mockSvc.SendVerificationEmail("user1@example.com", "token1", "url1")
+		^
+internal/email/email_test.go:215:3: G104: Errors unhandled (gosec)
+		mockSvc.SendPasswordResetEmail("user2@example.com", "token2", "url2")
+		^
+internal/email/email_test.go:216:3: G104: Errors unhandled (gosec)
+		mockSvc.SendWelcomeEmail("user3@example.com", "User 3")
+		^
+internal/email/email_test.go:285:4: G104: Errors unhandled (gosec)
+			mockSvc.SendVerificationEmail("bench@example.com", "token", "url")
+			^
+internal/email/email_test.go:291:4: G104: Errors unhandled (gosec)
+			mockSvc.SendOrganizationInvitationEmail(
+				"bench@example.com",
+				"Company",
+				"Inviter",
+				"member",
+				"url",
+			)
+internal/email/organization_test.go:274:2: G104: Errors unhandled (gosec)
+	mockSvc.SendOrganizationInvitationEmail(
+		"invite@example.com",
+		"Team A",
+		"Manager",
+		"member",
+		"https://example.com/invite1",
+	)
+internal/email/organization_test.go:282:2: G104: Errors unhandled (gosec)
+	mockSvc.SendOrganizationWelcomeEmail(
+		"welcome@example.com",
+		"New User",
+		"Team B",
+		"admin",
+	)
+internal/email/organization_test.go:289:2: G104: Errors unhandled (gosec)
+	mockSvc.SendMemberRemovedEmail("removed@example.com", "Team C")
+	^
+internal/email/templates.go:129:7: G101: Potential hardcoded credentials (gosec)
+const passwordResetTemplate = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reset Your Password</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 8px;
+            padding: 40px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .logo {
+            font-size: 32px;
+            font-weight: bold;
+            color: #4F46E5;
+            margin-bottom: 10px;
+        }
+        h1 {
+            color: #1F2937;
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+        p {
+            color: #6B7280;
+            margin-bottom: 20px;
+        }
+        .button {
+            display: inline-block;
+            padding: 14px 32px;
+            background-color: #DC2626;
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            margin: 20px 0;
+        }
+        .button:hover {
+            background-color: #B91C1C;
+        }
+        .token-box {
+            background-color: #F3F4F6;
+            border: 1px solid #E5E7EB;
+            border-radius: 6px;
+            padding: 16px;
+            margin: 20px 0;
+            text-align: center;
+            font-family: 'Courier New', monospace;
+            font-size: 18px;
+            letter-spacing: 2px;
+            color: #1F2937;
+        }
+        .footer {
+            margin-top: 40px;
+            text-align: center;
+            font-size: 14px;
+            color: #9CA3AF;
+            border-top: 1px solid #E5E7EB;
+            padding-top: 20px;
+        }
+        .warning {
+            background-color: #FEE2E2;
+            border-left: 4px solid #DC2626;
+            padding: 12px 16px;
+            margin: 20px 0;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .info {
+            background-color: #DBEAFE;
+            border-left: 4px solid #3B82F6;
+            padding: 12px 16px;
+            margin: 20px 0;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">SQL Studio</div>
+        </div>
+
+        <h1>Reset Your Password</h1>
+
+        <p>Hello,</p>
+
+        <p>We received a request to reset the password for your SQL Studio account. Click the button below to create a new password:</p>
+
+        <div style="text-align: center;">
+            <a href="{{.ResetURL}}" class="button">Reset Password</a>
+        </div>
+
+        <p>Or copy and paste this link into your browser:</p>
+
+        <div class="token-box">
+            {{.ResetURL}}
+        </div>
+
+        <div class="warning">
+            <strong>Security Notice:</strong> This password reset link will expire in 1 hour. If you didn't request a password reset, please ignore this email and your password will remain unchanged.
+        </div>
+
+        <div class="info">
+            <strong>Tip:</strong> To keep your account secure, choose a strong password that:
+            <ul style="margin: 10px 0 0 20px;">
+                <li>Is at least 8 characters long</li>
+                <li>Contains uppercase and lowercase letters</li>
+                <li>Includes numbers and special characters</li>
+                <li>Is unique to SQL Studio</li>
+            </ul>
+        </div>
+
+        <p>If you're having trouble or didn't request this reset, please contact our support team immediately.</p>
+
+        <p>Best regards,<br>The SQL Studio Team</p>
+
+        <div class="footer">
+            <p>&copy; {{.Year}} SQL Studio. All rights reserved.</p>
+            <p>This is an automated message, please do not reply to this email.</p>
+        </div>
+    </div>
+</body>
+</html>
+`
+internal/gdpr/service.go:137:3: G104: Errors unhandled (gosec)
+		s.store.UpdateRequestFailed(ctx, request.ID, err.Error())
+		^
+internal/gdpr/service.go:145:3: G104: Errors unhandled (gosec)
+		s.store.UpdateRequestFailed(ctx, request.ID, "Failed to serialize data")
+		^
+internal/gdpr/service.go:150:12: G301: Expect directory permissions to be 0750 or less (gosec)
+	if err := os.MkdirAll(s.exportPath, 0755); err != nil {
+	          ^
+internal/gdpr/service.go:152:3: G104: Errors unhandled (gosec)
+		s.store.UpdateRequestFailed(ctx, request.ID, "Failed to create export directory")
+		^
+internal/gdpr/service.go:162:3: G104: Errors unhandled (gosec)
+		s.store.UpdateRequestFailed(ctx, request.ID, "Failed to write export file")
+		^
+internal/gdpr/service.go:319:3: G104: Errors unhandled (gosec)
+		s.store.UpdateRequestFailed(ctx, request.ID, "Failed to delete user account")
+		^
+internal/handlers/compliance.go:103:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(policy)
+	^
+internal/handlers/compliance.go:119:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(policies)
+	^
+internal/handlers/compliance.go:144:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(policy)
+	^
+internal/handlers/compliance.go:176:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(stats)
+	^
+internal/handlers/compliance.go:197:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(request)
+	^
+internal/handlers/compliance.go:213:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(request)
+	^
+internal/handlers/compliance.go:234:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(request)
+	^
+internal/handlers/compliance.go:254:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(requests)
+	^
+internal/handlers/compliance.go:277:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(backupRecord)
+	^
+internal/handlers/compliance.go:298:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(backups)
+	^
+internal/handlers/compliance.go:314:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(backupRecord)
+	^
+internal/handlers/compliance.go:339:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Restore initiated - application restart required",
+	})
+internal/handlers/compliance.go:368:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(stats)
+	^
+internal/handlers/compliance.go:385:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(history)
+	^
+internal/handlers/compliance.go:403:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(history)
+	^
+internal/handlers/compliance.go:427:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(result)
+	^
+internal/handlers/compliance.go:440:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(fields)
+	^
+internal/handlers/compliance.go:464:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "PII field registered successfully",
+	})
+internal/handlers/compliance.go:478:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "PII field verified",
+	})
+internal/handlers/enterprise_handlers.go:136:2: G104: Errors unhandled (gosec)
+	w.Write([]byte(css))
+	^
+internal/handlers/enterprise_handlers.go:351:2: G104: Errors unhandled (gosec)
+	w.Write([]byte(csv))
+	^
+internal/handlers/enterprise_handlers.go:437:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(data)
+	^
+internal/middleware/ip_whitelist.go:92:5: G104: Errors unhandled (gosec)
+				m.eventLogger.LogSecurityEvent(
+					r.Context(),
+					"ip_blocked",
+					getUserIDFromContext(r.Context()),
+					orgID,
+					clientIP,
+					r.Header.Get("User-Agent"),
+					map[string]interface{}{
+						"path":   r.URL.Path,
+						"method": r.Method,
+					},
+				)
+internal/middleware/ip_whitelist.go:246:3: G104: Errors unhandled (gosec)
+		s.eventLogger.LogSecurityEvent(
+			ctx,
+			"ip_whitelist_added",
+			entry.CreatedBy,
+			entry.OrganizationID,
+			"",
+			"",
+			map[string]interface{}{
+				"ip_address": entry.IPAddress,
+				"ip_range":   entry.IPRange,
+			},
+		)
+internal/middleware/ip_whitelist.go:271:3: G104: Errors unhandled (gosec)
+		s.eventLogger.LogSecurityEvent(
+			ctx,
+			"ip_whitelist_removed",
+			userID,
+			orgID,
+			"",
+			"",
+			map[string]interface{}{
+				"entry_id": id,
+			},
+		)
+internal/middleware/org_rate_limit.go:144:2: G104: Errors unhandled (gosec)
+	w.Write([]byte(response))
+	^
+internal/middleware/tenant_isolation_test.go:220:15: G202: SQL string concatenation (gosec)
+	fullQuery := "SELECT * FROM connections WHERE " + whereClause
+	             ^
+internal/monitoring/middleware.go:391:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(recent)
+	^
+internal/monitoring/middleware.go:405:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(stats)
+	^
+internal/monitoring/middleware.go:417:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(health)
+	^
+internal/monitoring/middleware.go:471:6: G104: Errors unhandled (gosec)
+					json.NewEncoder(w).Encode(map[string]string{
+						"error": "Internal server error",
+					})
+internal/organization/integration_test.go:40:3: G104: Errors unhandled (gosec)
+		suite.testDB.Close()
+		^
+internal/organization/integration_test.go:501:2: G104: Errors unhandled (gosec)
+	testDB.InsertTestUser(ctx, "owner1", "owner@test.com", "owner", "pass")
+	^
+internal/organization/integration_test.go:502:2: G104: Errors unhandled (gosec)
+	testDB.InsertTestUser(ctx, "member1", "member@test.com", "member", "pass")
+	^
+internal/organization/service.go:148:3: G104: Errors unhandled (gosec)
+		s.CreateAuditLog(ctx, &AuditLog{
+			OrganizationID: &orgID,
+			UserID:         userID,
+			Action:         "permission_denied",
+			ResourceType:   "organization",
+			ResourceID:     &orgID,
+			Details: map[string]interface{}{
+				"permission": string(PermUpdateOrganization),
+				"role":       string(member.Role),
+				"attempted":  "update_organization",
+			},
+		})
+internal/organization/service.go:221:3: G104: Errors unhandled (gosec)
+		s.CreateAuditLog(ctx, &AuditLog{
+			OrganizationID: &orgID,
+			UserID:         userID,
+			Action:         "permission_denied",
+			ResourceType:   "organization",
+			ResourceID:     &orgID,
+			Details: map[string]interface{}{
+				"permission": string(PermDeleteOrganization),
+				"role":       string(member.Role),
+				"attempted":  "delete_organization",
+			},
+		})
+internal/organization/service.go:287:3: G104: Errors unhandled (gosec)
+		s.CreateAuditLog(ctx, &AuditLog{
+			OrganizationID: &orgID,
+			UserID:         actorUserID,
+			Action:         "permission_denied",
+			ResourceType:   "member",
+			ResourceID:     &targetUserID,
+			Details: map[string]interface{}{
+				"permission":   string(PermUpdateMemberRoles),
+				"role":         string(actorMember.Role),
+				"attempted":    "update_member_role",
+				"target_user":  targetUserID,
+				"desired_role": string(role),
+			},
+		})
+internal/organization/service.go:344:3: G104: Errors unhandled (gosec)
+		s.CreateAuditLog(ctx, &AuditLog{
+			OrganizationID: &orgID,
+			UserID:         actorUserID,
+			Action:         "permission_denied",
+			ResourceType:   "member",
+			ResourceID:     &targetUserID,
+			Details: map[string]interface{}{
+				"permission":  string(PermRemoveMembers),
+				"role":        string(actorMember.Role),
+				"attempted":   "remove_member",
+				"target_user": targetUserID,
+			},
+		})
+internal/organization/service.go:439:3: G104: Errors unhandled (gosec)
+		s.CreateAuditLog(ctx, &AuditLog{
+			OrganizationID: &orgID,
+			UserID:         actorUserID,
+			Action:         "permission_denied",
+			ResourceType:   "invitation",
+			Details: map[string]interface{}{
+				"permission": string(PermInviteMembers),
+				"role":       string(actorMember.Role),
+				"attempted":  "create_invitation",
+				"email":      input.Email,
+			},
+		})
+internal/organization/service.go:562:3: G104: Errors unhandled (gosec)
+		s.CreateAuditLog(ctx, &AuditLog{
+			OrganizationID: &orgID,
+			UserID:         userID,
+			Action:         "permission_denied",
+			ResourceType:   "invitation",
+			Details: map[string]interface{}{
+				"permission": string(PermInviteMembers),
+				"role":       string(member.Role),
+				"attempted":  "view_invitations",
+			},
+		})
+internal/organization/service.go:721:3: G104: Errors unhandled (gosec)
+		s.CreateAuditLog(ctx, &AuditLog{
+			OrganizationID: &orgID,
+			UserID:         userID,
+			Action:         "permission_denied",
+			ResourceType:   "invitation",
+			ResourceID:     &invitationID,
+			Details: map[string]interface{}{
+				"permission": string(PermInviteMembers),
+				"role":       string(member.Role),
+				"attempted":  "revoke_invitation",
+			},
+		})
+internal/organization/service.go:774:3: G104: Errors unhandled (gosec)
+		s.CreateAuditLog(ctx, &AuditLog{
+			OrganizationID: &orgID,
+			UserID:         userID,
+			Action:         "permission_denied",
+			ResourceType:   "audit_log",
+			Details: map[string]interface{}{
+				"permission": string(PermViewAuditLogs),
+				"role":       string(member.Role),
+				"attempted":  "view_audit_logs",
+			},
+		})
+internal/organization/testutil/db.go:155:40: G202: SQL string concatenation (gosec)
+		if _, err := tdb.DB.ExecContext(ctx, "DELETE FROM "+table); err != nil {
+		                                     ^
+internal/profiling/memory.go:275:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(stats)
+	^
+internal/profiling/memory.go:282:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(snapshot)
+	^
+internal/profiling/memory.go:289:2: G104: Errors unhandled (gosec)
+	pprof.WriteHeapProfile(w)
+	^
+internal/profiling/memory.go:295:2: G104: Errors unhandled (gosec)
+	pprof.Lookup("goroutine").WriteTo(w, 2)
+	^
+internal/quotas/service_test.go:275:3: G104: Errors unhandled (gosec)
+		service.CheckQuota(context.Background(), "org-1", ResourceQuery)
+		^
+internal/quotas/store.go:206:11: G201: SQL string formatting (gosec)
+	query := fmt.Sprintf(`
+		INSERT INTO organization_usage (
+			id, organization_id, usage_date, %s, created_at, updated_at
+		) VALUES (?, ?, ?, ?, ?, ?)
+		ON CONFLICT(organization_id, usage_date) DO UPDATE
+		SET %s = %s + ?, updated_at = ?
+	`, column, column, column)
+internal/rag/embedding_service.go:5:2: G501: Blocklisted import crypto/md5: weak cryptographic primitive (gosec)
+	"crypto/md5"
+	^
+internal/rag/embedding_service.go:331:10: G401: Use of weak cryptographic primitive (gosec)
+	hash := md5.Sum([]byte(text))
+	        ^
+internal/rag/onnx_embedding_provider.go:103:39: G115: integer overflow conversion int -> uint32 (gosec)
+		index := int(hasher.Sum32() % uint32(size))
+		                                    ^
+internal/retention/archiver.go:42:12: G301: Expect directory permissions to be 0750 or less (gosec)
+	if err := os.MkdirAll(a.basePath, 0755); err != nil {
+	          ^
+internal/retention/archiver.go:52:15: G304: Potential file inclusion via variable (gosec)
+	file, err := os.Create(location)
+	             ^
+internal/retention/archiver.go:91:15: G304: Potential file inclusion via variable (gosec)
+	file, err := os.Open(location)
+	             ^
+internal/retention/store.go:410:11: G201: SQL string formatting (gosec)
+	query := fmt.Sprintf(`
+		SELECT COUNT(*), MIN(%s)
+		FROM %s
+		WHERE organization_id = ?
+	`, dateColumn, tableName)
+internal/security/handler.go:108:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "SSO configured successfully",
+	})
+internal/security/handler.go:125:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(config)
+	^
+internal/security/handler.go:139:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "SSO disabled successfully",
+	})
+internal/security/handler.go:181:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(user)
+	^
+internal/security/handler.go:206:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(entry)
+	^
+internal/security/handler.go:221:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(whitelist)
+	^
+internal/security/handler.go:253:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(setup)
+	^
+internal/security/handler.go:274:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Two-factor authentication enabled successfully",
+	})
+internal/security/handler.go:297:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Two-factor authentication disabled",
+	})
+internal/security/handler.go:320:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(map[string]bool{
+		"valid": true,
+	})
+internal/security/handler.go:336:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"backup_codes": codes,
+		"created_at":   time.Now(),
+	})
+internal/security/handler.go:353:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(status)
+	^
+internal/security/handler.go:375:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(response)
+	^
+internal/security/handler.go:389:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(keys)
+	^
+internal/security/handler.go:405:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(apiKey)
+	^
+internal/security/handler.go:443:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(events)
+	^
+internal/server/grpc.go:69:32: G402: TLS MinVersion too low. (gosec)
+		creds := credentials.NewTLS(&tls.Config{
+			Certificates: []tls.Certificate{cert},
+		})
+internal/server/http.go:93:3: G104: Errors unhandled (gosec)
+		w.Write([]byte(`{"status": "healthy", "service": "backend"}`))
+		^
+internal/server/http.go:188:3: G104: Errors unhandled (gosec)
+		w.Write([]byte(`{"status": "healthy", "timestamp": "` + time.Now().Format(time.RFC3339) + `"}`))
+		^
+internal/server/http.go:233:2: G104: Errors unhandled (gosec)
+	w.Write([]byte("WebSocket implementation coming soon"))
+	^
+internal/sso/service.go:201:2: G104: Errors unhandled (gosec)
+	rand.Read(b)
+	^
+internal/sync/handlers.go:185:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(data)
+	^
+internal/sync/handlers.go:319:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(data)
+	^
+internal/sync/org_handler.go:548:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(data)
+	^
+internal/sync/org_sync_integration_test.go:190:2: G104: Errors unhandled (gosec)
+	store.SaveConnection(ctx, userA, conn1)
+	^
+internal/sync/org_sync_integration_test.go:200:2: G104: Errors unhandled (gosec)
+	store.SaveConnection(ctx, userA, conn2)
+	^
+internal/sync/org_sync_integration_test.go:210:2: G104: Errors unhandled (gosec)
+	store.SaveConnection(ctx, userB, conn3)
+	^
+internal/sync/org_sync_integration_test.go:248:2: G104: Errors unhandled (gosec)
+	store.SaveQuery(ctx, userA, query1)
+	^
+internal/sync/org_sync_integration_test.go:259:2: G104: Errors unhandled (gosec)
+	store.SaveQuery(ctx, userA, query2)
+	^
+internal/sync/org_sync_integration_test.go:269:2: G104: Errors unhandled (gosec)
+	store.SaveQuery(ctx, userB, query3)
+	^
+internal/sync/shared_sync_test.go:503:22: G104: Errors unhandled (gosec)
+	return db, func() { db.Close() }
+	                    ^
+internal/sync/turso_store.go:390:3: G104: Errors unhandled (gosec)
+		json.Unmarshal([]byte(tagsJSON.String), &sq.Tags)
+		^
+internal/sync/turso_store.go:393:3: G104: Errors unhandled (gosec)
+		json.Unmarshal([]byte(metadataJSON.String), &sq.Metadata)
+		^
+internal/sync/turso_store.go:435:4: G104: Errors unhandled (gosec)
+			json.Unmarshal([]byte(tagsJSON.String), &sq.Tags)
+			^
+internal/sync/turso_store.go:438:4: G104: Errors unhandled (gosec)
+			json.Unmarshal([]byte(metadataJSON.String), &sq.Metadata)
+			^
+internal/sync/turso_store.go:526:4: G104: Errors unhandled (gosec)
+			json.Unmarshal([]byte(metadataJSON.String), &qh.Metadata)
+			^
+internal/sync/turso_store.go:606:2: G104: Errors unhandled (gosec)
+	json.Unmarshal([]byte(localJSON), &conflict.LocalVersion)
+	^
+internal/sync/turso_store.go:607:2: G104: Errors unhandled (gosec)
+	json.Unmarshal([]byte(remoteJSON), &conflict.RemoteVersion)
+	^
+internal/sync/turso_store.go:651:3: G104: Errors unhandled (gosec)
+		json.Unmarshal([]byte(localJSON), &conflict.LocalVersion)
+		^
+internal/sync/turso_store.go:652:3: G104: Errors unhandled (gosec)
+		json.Unmarshal([]byte(remoteJSON), &conflict.RemoteVersion)
+		^
+internal/sync/turso_store.go:881:4: G104: Errors unhandled (gosec)
+			json.Unmarshal([]byte(tagsJSON.String), &sq.Tags)
+			^
+internal/sync/turso_store.go:884:4: G104: Errors unhandled (gosec)
+			json.Unmarshal([]byte(metadataJSON.String), &sq.Metadata)
+			^
+internal/templates/handler.go:84:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(template)
+	^
+internal/templates/handler.go:135:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"templates": templates,
+		"count":     len(templates),
+	})
+internal/templates/handler.go:163:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(template)
+	^
+internal/templates/handler.go:195:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(template)
+	^
+internal/templates/handler.go:251:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"sql": sql,
+	})
+internal/templates/handler.go:307:2: G104: Errors unhandled (gosec)
+	json.NewEncoder(w).Encode(schedule)
+	^
+internal/testutil/server.go:25:3: G104: Errors unhandled (gosec)
+		listener.Close()
+		^
+internal/testutil/server.go:47:3: G104: Errors unhandled (gosec)
+		conn.Close()
+		^
+pkg/crypto/secrets.go:15:2: G101: Potential hardcoded credentials (gosec)
+	SecretTypeSSHPrivateKey SecretType = "ssh_private_key"
+	^
+pkg/database/clickhouse.go:44:3: G104: Errors unhandled (gosec)
+		c.pool.Close()
+		^
+pkg/database/clickhouse_test.go:1027:3: G104: Errors unhandled (gosec)
+		db.Disconnect()
+		^
+pkg/database/clickhouse_test.go:1303:4: G104: Errors unhandled (gosec)
+			result.Scan(&schema)
+			^
+pkg/database/clickhouse_test.go:1359:4: G104: Errors unhandled (gosec)
+			result.Scan(&table.database, &table.name, &table.engine, &table.comment, &table.totalRows, &table.totalBytes)
+			^
+pkg/database/elasticsearch.go:84:23: G402: TLS InsecureSkipVerify may be true. (gosec)
+		InsecureSkipVerify: config.SSLMode == "skip-verify" || config.SSLMode == "disable",
+		                    ^
+pkg/database/elasticsearch.go:131:36: G115: integer overflow conversion int -> uint (gosec)
+			val |= uint32(data[i+j]) << uint(16-j*8)
+			                                ^
+pkg/database/elasticsearch.go:136:24: G115: integer overflow conversion int -> uint (gosec)
+				idx := (val >> uint(18-j*6)) & 0x3F
+				                   ^
+pkg/database/elasticsearch.go:419:4: G104: Errors unhandled (gosec)
+			resp.Body.Close()
+			^
+pkg/database/elasticsearch.go:425:4: G104: Errors unhandled (gosec)
+			resp.Body.Close()
+			^
+pkg/database/elasticsearch.go:428:3: G104: Errors unhandled (gosec)
+		resp.Body.Close()
+		^
+pkg/database/elasticsearch.go:561:4: G104: Errors unhandled (gosec)
+			fmt.Sscanf(count, "%d", &docsCount)
+			^
+pkg/database/elasticsearch.go:598:2: G104: Errors unhandled (gosec)
+	fmt.Sscanf(size, "%f%s", &num, &unit)
+	^
+pkg/database/mongodb.go:126:24: G402: TLS InsecureSkipVerify may be true. (gosec)
+			InsecureSkipVerify: config.SSLMode != "verify-full",
+			                    ^
+pkg/database/mongodb.go:139:3: G104: Errors unhandled (gosec)
+		client.Disconnect(ctx)
+		^
+pkg/database/mongodb.go:145:3: G104: Errors unhandled (gosec)
+		m.client.Disconnect(context.Background())
+		^
+pkg/database/mongodb.go:412:3: G104: Errors unhandled (gosec)
+		fmt.Sscanf(limitClause, "%d", &limitValue)
+		^
+pkg/database/mongodb.go:621:43: G115: integer overflow conversion int -> int32 (gosec)
+	opts := options.Find().SetBatchSize(int32(batchSize))
+	                                         ^
+pkg/database/mongodb_test.go:81:4: G104: Errors unhandled (gosec)
+			db.Disconnect()
+			^
+pkg/database/mongodb_test.go:94:4: G104: Errors unhandled (gosec)
+			db.Disconnect()
+			^
+pkg/database/mongodb_test.go:107:4: G104: Errors unhandled (gosec)
+			db.Disconnect()
+			^
+pkg/database/mongodb_test.go:125:4: G104: Errors unhandled (gosec)
+			db.Disconnect()
+			^
+pkg/database/mongodb_test.go:146:4: G104: Errors unhandled (gosec)
+			db.Disconnect()
+			^
+pkg/database/mongodb_test.go:163:4: G104: Errors unhandled (gosec)
+			db.Disconnect()
+			^
+pkg/database/mongodb_test.go:243:4: G104: Errors unhandled (gosec)
+			db.Disconnect()
+			^
+pkg/database/mongodb_test.go:334:3: G104: Errors unhandled (gosec)
+		db.Disconnect()
+		^
+pkg/database/mongodb_test.go:391:3: G104: Errors unhandled (gosec)
+		db.Disconnect()
+		^
+pkg/database/mongodb_test.go:480:3: G104: Errors unhandled (gosec)
+		db.Disconnect()
+		^
+pkg/database/mongodb_test.go:519:3: G104: Errors unhandled (gosec)
+		db.Disconnect()
+		^
+pkg/database/mongodb_test.go:580:3: G104: Errors unhandled (gosec)
+		db.Disconnect()
+		^
+pkg/database/mongodb_test.go:644:3: G104: Errors unhandled (gosec)
+		db.Disconnect()
+		^
+pkg/database/mongodb_test.go:693:3: G104: Errors unhandled (gosec)
+		db.Disconnect()
+		^
+pkg/database/mongodb_test.go:748:3: G104: Errors unhandled (gosec)
+		db.Disconnect()
+		^
+pkg/database/mongodb_test.go:806:3: G104: Errors unhandled (gosec)
+		db.Disconnect()
+		^
+pkg/database/mongodb_test.go:828:4: G104: Errors unhandled (gosec)
+			tx.Rollback()
+			^
+pkg/database/mongodb_test.go:1086:4: G104: Errors unhandled (gosec)
+			db.Disconnect()
+			^
+pkg/database/mongodb_test.go:1102:4: G104: Errors unhandled (gosec)
+			db.Disconnect()
+			^
+pkg/database/mongodb_test.go:1123:4: G104: Errors unhandled (gosec)
+			db.Disconnect()
+			^
+pkg/database/mongodb_test.go:1141:4: G104: Errors unhandled (gosec)
+			db.Disconnect()
+			^
+pkg/database/mongodb_test.go:1210:4: G104: Errors unhandled (gosec)
+			db.Disconnect()
+			^
+pkg/database/mongodb_test.go:1230:4: G104: Errors unhandled (gosec)
+			db.Disconnect()
+			^
+pkg/database/mongodb_test.go:1267:4: G104: Errors unhandled (gosec)
+			db.Disconnect()
+			^
+pkg/database/mysql.go:48:3: G104: Errors unhandled (gosec)
+		m.pool.Close()
+		^
+pkg/database/mysql.go:1071:15: G201: SQL string formatting (gosec)
+	updateSQL := fmt.Sprintf("UPDATE %s SET %s WHERE %s",
+		tableIdentifier,
+		strings.Join(setClauses, ", "),
+		strings.Join(whereClauses, " AND "),
+	)
+pkg/database/mysql.go:1186:15: G201: SQL string formatting (gosec)
+	insertSQL := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)",
+		tableIdentifier,
+		strings.Join(insertColumns, ", "),
+		valuePlaceholders,
+	)
+pkg/database/mysql.go:1252:15: G201: SQL string formatting (gosec)
+	selectSQL := fmt.Sprintf("SELECT %s FROM %s WHERE %s",
+		strings.Join(actualColumns, ", "),
+		tableIdentifier,
+		strings.Join(whereClauses, " AND "),
+	)
+pkg/database/mysql.go:1364:15: G201: SQL string formatting (gosec)
+	deleteSQL := fmt.Sprintf("DELETE FROM %s WHERE %s",
+		tableIdentifier,
+		strings.Join(whereClauses, " AND "),
+	)
+pkg/database/mysql_test.go:122:6: G104: Errors unhandled (gosec)
+					db.Disconnect()
+					^
+pkg/database/mysql_test.go:834:3: G104: Errors unhandled (gosec)
+		tx.Rollback()
+		^
+pkg/database/mysql_test.go:840:3: G104: Errors unhandled (gosec)
+		tx.Rollback()
+		^
+pkg/database/pool.go:110:3: G104: Errors unhandled (gosec)
+		db.Close()
+		^
+pkg/database/pool.go:496:3: G104: Errors unhandled (gosec)
+		p.db.Close()
+		^
+pkg/database/postgres.go:48:3: G104: Errors unhandled (gosec)
+		p.pool.Close()
+		^
+pkg/database/postgres.go:601:15: G201: SQL string formatting (gosec)
+	updateSQL := fmt.Sprintf("UPDATE %s SET %s WHERE %s",
+		tableIdentifier,
+		strings.Join(setClauses, ", "),
+		strings.Join(whereClauses, " AND "),
+	)
+pkg/database/postgres.go:727:15: G201: SQL string formatting (gosec)
+	insertSQL := fmt.Sprintf(
+		"INSERT INTO %s (%s) VALUES (%s) RETURNING %s",
+		tableIdentifier,
+		strings.Join(insertColumns, ", "),
+		strings.Join(valuesPlaceholders, ", "),
+		strings.Join(returningColumns, ", "),
+	)
+pkg/database/postgres.go:840:15: G201: SQL string formatting (gosec)
+	deleteSQL := fmt.Sprintf("DELETE FROM %s WHERE %s", tableIdentifier, strings.Join(whereClauses, " AND "))
+	             ^
+pkg/database/postgres_test.go:518:4: G104: Errors unhandled (gosec)
+			tx.Rollback()
+			^
+pkg/database/postgres_test.go:735:3: G104: Errors unhandled (gosec)
+		db.Disconnect()
+		^
+pkg/database/postgres_test.go:1021:4: G104: Errors unhandled (gosec)
+			result.Scan(&schema)
+			^
+pkg/database/sqlite.go:47:3: G104: Errors unhandled (gosec)
+		s.pool.Close()
+		^
+pkg/database/sqlite.go:541:18: G201: SQL string formatting (gosec)
+			countQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s", s.QuoteIdentifier(table.Name))
+			              ^
+pkg/database/sqlite.go:601:17: G201: SQL string formatting (gosec)
+		countQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s", s.QuoteIdentifier(table))
+		              ^
+pkg/database/sqlite.go:698:3: G104: Errors unhandled (gosec)
+		colRows.Close()
+		^
+pkg/database/ssh_tunnel.go:79:3: G104: Errors unhandled (gosec)
+		sshClient.Close()
+		^
+pkg/database/ssh_tunnel.go:140:3: G104: Errors unhandled (gosec)
+		tunnel.listener.Close()
+		^
+pkg/database/ssh_tunnel.go:144:3: G104: Errors unhandled (gosec)
+		tunnel.sshClient.Close()
+		^
+pkg/database/ssh_tunnel.go:262:21: G106: Use of ssh InsecureIgnoreHostKey should be audited (gosec)
+		hostKeyCallback = ssh.InsecureIgnoreHostKey()
+		                  ^
+pkg/database/ssh_tunnel.go:350:3: G104: Errors unhandled (gosec)
+		io.Copy(remoteConn, localConn)
+		^
+pkg/database/ssh_tunnel.go:355:3: G104: Errors unhandled (gosec)
+		io.Copy(localConn, remoteConn)
+		^
+pkg/database/ssh_tunnel_test.go:39:7: G101: Potential hardcoded credentials: RSA private key (gosec)
+const testSSHPrivateKey = `-----BEGIN RSA PRIVATE KEY-----
+MIIEowIBAAKCAQEA0Z8hRg3iJsKxWd9qdvN5zzGVVm3CrWMQcvGj3FEfYZ5nWvLZ
+mFMdPOdDxJy+N0XPzmZMg0UdNLF9pxLPVbJhCt2TqJkMPvPqYd7jE3xqLR0kFmOT
+yW3LQFmVFKGSE8F6RGN5dL1cDXwGJ8qYHYgLO3d9L3xNQRJh3TH3nPvN3cJKQvPP
+k8gN6e8LF0RvJfZ8FKwXYa6VNr3qLDqGsLgQMbQg9zNr7AqxPLF8r5vQnHLQKQQd
+5kT8YZ8qFYZmMF6rPqLQKMZ8HLrN3rZvNqQKqLPZmLhQcqFPmQrZmLhQcqFPmQrZ
+mLhQcqFPmQrZmLhQcqFPmQrZmLhQcqFPmQrZmLhQcqFPmQIDAQABAoIBABcW8F7N
+7E7gJQQTKQqYmLhQcqFPmQrZmLhQcqFPmQrZmLhQcqFPmQrZmLhQcqFPmQrZmLhQ
+cqFPmQrZmLhQcqFPmQrZmLhQcqFPmQrZmLhQcqFPmQrZmLhQcqFPmQrZmLhQcqFP
+mQrZmLhQcqFPmQrZmLhQcqFPmQrZmLhQcqFPmQrZmLhQcqFPmQrZmLhQcqFPmQrZ
+mLhQcqFPmQrZmLhQcqFPmQrZmLhQcqFPmQrZmLhQcqFPmQrZmLhQcqFPmQrZmLhQ
+cqFPmQrZmLhQcqFPmQrZmLhQcqFPmQrZmLhQcqFPmQrZmLhQcqFPmQrZmLhQcqFP
+mQrZmLgECgYEA8fP7KQQdL7YZmLhQcqFPmQrZmLhQcqFPmQrZmLhQcqFPmQrZmLhQ
+cqFPmQrZmLhQcqFPmQrZmLhQcqFPmQrZmLhQcqFPmQrZmLhQcqFPmQrZmLhQcqFP
+mQrZmLhQcqFPmQrZmLhQcqFPmQrZmLhQcqFPmQrZmLhQcqFPmQrZmLhQcqFPmQrZ
+mLhQcqFPmQrZmLhQcqFPmQECgYEA3W9L7AqZmLhQcqFPmQrZmLhQcqFPmQrZmLhQ
+cqFPmQrZmLhQcqFPmQrZmLhQcqFPmQrZmLhQcqFPmQrZmLhQcqFPmQrZmLhQcqFP
+mQrZmLhQcqFPmQrZmLhQcqFPmQrZmLhQcqFPmQrZmLhQcqFPmQrZmLhQcqFPmQrZ
+mLhQcqFPmQrZmLhQcqFPmQrZmLhQcqFPmQkCgYEAyN8P7LQZmLhQcqFPmQrZmLhQ
+cqFPmQrZmLhQcqFPmQrZmLhQcqFPmQrZmLhQcqFPmQrZmLhQcqFPmQrZmLhQcqFP
+mQrZmLhQcqFPmQrZmLhQcqFPmQrZmLhQcqFPmQrZmLhQcqFPmQrZmLhQcqFPmQrZ
+mLhQcqFPmQrZmLhQcqFPmQrZmLhQcqFPmQECgYBP7LQZmLhQcqFPmQrZmLhQcqFP
+mQrZmLhQcqFPmQrZmLhQcqFPmQrZmLhQcqFPmQrZmLhQcqFPmQrZmLhQcqFPmQrZ
+mLhQcqFPmQrZmLhQcqFPmQrZmLhQcqFPmQrZmLhQcqFPmQrZmLhQcqFPmQrZmLhQ
+cqFPmQrZmLhQcqFPmQrZmLhQcqFPmQKBgHN7LQZmLhQcqFPmQrZmLhQcqFPmQrZ
+mLhQcqFPmQrZmLhQcqFPmQrZmLhQcqFPmQrZmLhQcqFPmQrZmLhQcqFPmQrZmLhQ
+cqFPmQrZmLhQcqFPmQrZmLhQcqFPmQrZmLhQcqFPmQrZmLhQcqFPmQrZmLhQcqFP
+mQrZmLhQcqFPmQrZmLhQcqFPmQ==
+-----END RSA PRIVATE KEY-----`
+pkg/database/ssh_tunnel_test.go:79:7: G101: Potential hardcoded credentials: RSA private key (gosec)
+const testInvalidPrivateKey = `-----BEGIN RSA PRIVATE KEY-----
+THIS IS NOT A VALID PRIVATE KEY
+-----END RSA PRIVATE KEY-----`
+pkg/database/ssh_tunnel_test.go:340:9: G306: Expect WriteFile permissions to be 0600 or less (gosec)
+	err := os.WriteFile(knownHostsPath, []byte(""), 0644)
+	       ^
+pkg/database/test_helpers_test.go:27:2: G104: Errors unhandled (gosec)
+	conn.Close()
+	^
+pkg/database/tidb.go:275:11: G201: SQL string formatting (gosec)
+	query := fmt.Sprintf("SELECT COUNT(*) FROM information_schema.tikv_region_status WHERE db_name = '%s' AND table_name = '%s'", schema, table)
+	         ^
+pkg/database/tidb_test.go:116:6: G104: Errors unhandled (gosec)
+					db.Disconnect()
+					^
+pkg/storage/manager_test.go:68:4: G104: Errors unhandled (gosec)
+			manager.Close()
+			^
+pkg/storage/manager_test.go:70:3: G104: Errors unhandled (gosec)
+		os.RemoveAll(tmpDir)
+		^
+pkg/storage/sqlite_local.go:290:3: G104: Errors unhandled (gosec)
+		db.Close()
+		^
+pkg/storage/sqlite_local.go:301:4: G104: Errors unhandled (gosec)
+			db.Close()
+			^
+pkg/storage/sqlite_local.go:325:3: G104: Errors unhandled (gosec)
+		db.Close()
+		^
+pkg/storage/sqlite_local.go:330:3: G104: Errors unhandled (gosec)
+		db.Close()
+		^
+pkg/storage/sqlite_local.go:347:3: G104: Errors unhandled (gosec)
+		db.Close()
+		^
+pkg/storage/sqlite_local.go:888:3: G104: Errors unhandled (gosec)
+		s.InvalidateSchemaCache(ctx, connID)
+		^
+pkg/storage/sqlite_local_test.go:34:3: G104: Errors unhandled (gosec)
+		storage.Close()
+		^
+pkg/storage/sqlite_local_test.go:35:3: G104: Errors unhandled (gosec)
+		os.RemoveAll(tmpDir)
+		^
+pkg/storage/turso/client.go:94:3: G104: Errors unhandled (gosec)
+		db.Close()
+		^
+pkg/storage/turso/connection_store_test.go:105:3: G104: Errors unhandled (gosec)
+		db.Close()
+		^
+pkg/storage/turso/connection_store_test.go:493:3: G104: Errors unhandled (gosec)
+		connStore.Create(ctx, conn)
+		^
+pkg/storage/turso/connection_store_test.go:500:3: G104: Errors unhandled (gosec)
+		syncStore.ListAccessibleConnections(ctx, "user-1", orgIDs, time.Time{})
+		^
+pkg/storage/turso/organization_store_test.go:99:3: G104: Errors unhandled (gosec)
+		db.Close()
+		^
+pkg/storage/turso/pool.go:85:3: G104: Errors unhandled (gosec)
+		db.Close()
+		^
+pkg/storage/turso/pool.go:169:27: G115: integer overflow conversion int -> int32 (gosec)
+		OpenConnections:   int32(dbStats.OpenConnections),
+		                        ^
+pkg/storage/turso/pool.go:170:27: G115: integer overflow conversion int -> int32 (gosec)
+		InUse:             int32(dbStats.InUse),
+		                        ^
+pkg/storage/turso/pool.go:171:27: G115: integer overflow conversion int -> int32 (gosec)
+		Idle:              int32(dbStats.Idle),
+		                        ^
+pkg/storage/turso/shared_resources_test.go:542:3: G104: Errors unhandled (gosec)
+		db.Close()
+		^
+pkg/updater/updater.go:132:12: G301: Expect directory permissions to be 0750 or less (gosec)
+	if err := os.MkdirAll(u.configDir, 0755); err != nil {
+	          ^
+pkg/updater/updater.go:137:12: G304: Potential file inclusion via variable (gosec)
+	f, err := os.Create(lastCheckFile)
+	          ^
+pkg/updater/updater.go:194:12: G306: Expect WriteFile permissions to be 0600 or less (gosec)
+	if err := os.WriteFile(tmpPath, binaryData, 0755); err != nil {
+	          ^
+pkg/updater/updater.go:323:21: G304: Potential file inclusion via variable (gosec)
+	sourceFile, err := os.Open(src)
+	                   ^
+pkg/updater/updater.go:329:19: G304: Potential file inclusion via variable (gosec)
+	destFile, err := os.Create(dst)
+	                 ^
+pkg/updater/updater_test.go:135:3: G104: Errors unhandled (gosec)
+		json.NewEncoder(w).Encode(mockRelease)
+		^
+pkg/updater/updater_test.go:215:18: G304: Potential file inclusion via variable (gosec)
+	content, err := os.ReadFile(lastCheckFile)
+	                ^
+pkg/updater/updater_test.go:231:3: G104: Errors unhandled (gosec)
+		w.Write([]byte("Internal Server Error"))
+		^
+pkg/updater/updater_test.go:249:3: G104: Errors unhandled (gosec)
+		w.Write([]byte("invalid json"))
+		^
+pkg/updater/updater_test.go:267:3: G104: Errors unhandled (gosec)
+		w.Write([]byte(expectedHash + "  filename.bin\n"))
+		^
+pkg/updater/updater_test.go:295:12: G306: Expect WriteFile permissions to be 0600 or less (gosec)
+	if err := os.WriteFile(srcPath, content, 0644); err != nil {
+	          ^
+pkg/updater/updater_test.go:307:24: G304: Potential file inclusion via variable (gosec)
+	copiedContent, err := os.ReadFile(dstPath)
+	                      ^
+scripts/verify_migrations.go:56:5: G104: Errors unhandled (gosec)
+				os.RemoveAll(tmpDir)
+				^
+scripts/verify_migrations.go:339:3: G104: Errors unhandled (gosec)
+		rows.Scan(&table, &rowid, &parent, &fkid)
+		^
+scripts/verify_migrations.go:504:3: G104: Errors unhandled (gosec)
+		rows.Scan(&cid, &name, &colType, &notNull, &dfltValue, &pk)
+		^
+test/integration/auth_test.go:52:2: G104: Errors unhandled (gosec)
+	conn.Close()
+	^
+test/integration/auth_test.go:387:4: G104: Errors unhandled (gosec)
+			resp.Body.Close()
+			^
+test/integration/health_test.go:364:3: G104: Errors unhandled (gosec)
+		resp.Body.Close()
+		^
+tools/lint-fixer/main.go:96:18: G304: Potential file inclusion via variable (gosec)
+	content, err := ioutil.ReadFile(path)
+	                ^
+tools/lint-fixer/main.go:118:11: G306: Expect WriteFile permissions to be 0600 or less (gosec)
+			return ioutil.WriteFile(path, []byte(modified), 0644)
+			       ^
+tools/lint-fixer/main.go:123:11: G306: Expect WriteFile permissions to be 0600 or less (gosec)
+			return ioutil.WriteFile(path, []byte(modified), 0644)
+			       ^
+tools/lint-fixer/main.go:127:10: G306: Expect WriteFile permissions to be 0600 or less (gosec)
+		return ioutil.WriteFile(path, buf.Bytes(), 0644)
+		       ^
+tools/lint-fixer/main.go:282:9: G306: Expect WriteFile permissions to be 0600 or less (gosec)
+	return ioutil.WriteFile(path, buf.Bytes(), 0644)
+	       ^
+308 issues:
+* gosec: 308

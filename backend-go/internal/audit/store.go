@@ -78,7 +78,9 @@ func (s *store) CreateDetailedLogs(ctx context.Context, logs []*AuditLogDetailed
 	if err != nil {
 		return fmt.Errorf("prepare statement: %w", err)
 	}
-	defer stmt.Close()
+	defer func() {
+		_ = stmt.Close() // Best-effort close
+	}()
 
 	for _, log := range logs {
 		if log.ID == "" {

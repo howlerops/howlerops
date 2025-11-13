@@ -152,6 +152,7 @@ func (tdb *TestDB) CleanupTables(ctx context.Context) error {
 	}
 
 	for _, table := range tables {
+		// #nosec G202 - table names from hardcoded test list, safe for test cleanup
 		if _, err := tdb.DB.ExecContext(ctx, "DELETE FROM "+table); err != nil {
 			return err
 		}

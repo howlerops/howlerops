@@ -53,7 +53,11 @@ func main() {
 	if err != nil {
 		appLogger.WithError(err).Fatal("Failed to connect to database")
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			appLogger.WithError(err).Error("Failed to close database")
+		}
+	}()
 
 	// Run migrations
 	appLogger.Info("Running database migrations...")
@@ -87,7 +91,7 @@ func ensureDatabaseDirectory(dbURL string, logger *logrus.Logger) error {
 		}
 
 		// Create directory if it doesn't exist
-		if err := os.MkdirAll(dir, 0o755); err != nil {
+		if err := os.MkdirAll(dir, 0o750); err != nil {
 			return fmt.Errorf("failed to create database directory: %w", err)
 		}
 

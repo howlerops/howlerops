@@ -7,7 +7,6 @@ import (
 	"go/format"
 	"go/parser"
 	"go/token"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -93,7 +92,8 @@ func main() {
 }
 
 func (f *Fixer) processFile(path string) error {
-	content, err := ioutil.ReadFile(path)
+	// #nosec G304 - path from filepath.Walk, not user input
+	content, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
@@ -115,16 +115,16 @@ func (f *Fixer) processFile(path string) error {
 		if err != nil {
 			// Write as-is if parsing fails
 			fmt.Printf("Warning: %s - parsing failed, writing unformatted\n", path)
-			return ioutil.WriteFile(path, []byte(modified), 0644)
+			return os.WriteFile(path, []byte(modified), 0600)
 		}
 
 		var buf bytes.Buffer
 		if err := format.Node(&buf, fset, node); err != nil {
-			return ioutil.WriteFile(path, []byte(modified), 0644)
+			return os.WriteFile(path, []byte(modified), 0600)
 		}
 
 		f.modified[path] = true
-		return ioutil.WriteFile(path, buf.Bytes(), 0644)
+		return os.WriteFile(path, buf.Bytes(), 0600)
 	}
 
 	return nil
@@ -279,5 +279,5 @@ func (f *Fixer) fixWithAST(path string) error {
 		return err
 	}
 
-	return ioutil.WriteFile(path, buf.Bytes(), 0644)
+	return os.WriteFile(path, buf.Bytes(), 0600)
 }

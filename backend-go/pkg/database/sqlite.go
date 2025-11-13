@@ -538,6 +538,7 @@ func (s *SQLiteDatabase) GetTables(ctx context.Context, schema string) ([]TableI
 		// Get row count for tables (not views)
 		if table.Type == "TABLE" {
 			var count int64
+			// #nosec G201 - table name from quoted identifier, safe for SQL formatting
 			countQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s", s.QuoteIdentifier(table.Name))
 			err = db.QueryRowContext(ctx, countQuery).Scan(&count)
 			if err == nil {
@@ -598,6 +599,7 @@ func (s *SQLiteDatabase) getTableInfo(ctx context.Context, db *sql.DB, table str
 	// Get row count for tables
 	if tableInfo.Type == "TABLE" {
 		var count int64
+		// #nosec G201 - table name from quoted identifier, safe for SQL formatting
 		countQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s", s.QuoteIdentifier(table))
 		err = db.QueryRowContext(ctx, countQuery).Scan(&count)
 		if err == nil {

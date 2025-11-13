@@ -217,6 +217,7 @@ func TestDataIsolation(t *testing.T) {
 
 	// Execute query with organization filter
 	whereClause, args := BuildOrgFilterQuery(ctx, "organization_id")
+	// #nosec G202 - test query with parameterized whereClause, safe string concatenation
 	fullQuery := "SELECT * FROM connections WHERE " + whereClause
 
 	result, err := db.QueryContext(ctx, fullQuery, args...)

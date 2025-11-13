@@ -238,7 +238,7 @@ func (d *OllamaDetector) StartOllamaService(ctx context.Context) error {
 	}
 
 	if !status.Installed {
-		return fmt.Errorf("Ollama is not installed")
+		return fmt.Errorf("ollama is not installed")
 	}
 
 	// Try to start Ollama service
@@ -260,7 +260,7 @@ func (d *OllamaDetector) StartOllamaService(ctx context.Context) error {
 	}
 
 	if !status.Running {
-		return fmt.Errorf("Ollama service failed to start. Please start it manually with 'ollama serve'")
+		return fmt.Errorf("ollama service failed to start. Please start it manually with 'ollama serve'")
 	}
 
 	d.logger.Info("Ollama service started successfully")
@@ -275,7 +275,7 @@ func (d *OllamaDetector) PullModel(ctx context.Context, modelName string) error 
 	}
 
 	if !status.Running {
-		return fmt.Errorf("Ollama service is not running")
+		return fmt.Errorf("ollama service is not running")
 	}
 
 	d.logger.WithField("model", modelName).Info("Pulling Ollama model")

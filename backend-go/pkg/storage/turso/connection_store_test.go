@@ -490,13 +490,13 @@ func BenchmarkListAccessibleConnections(b *testing.B) {
 	for i := 0; i < 1000; i++ {
 		orgID := "org-" + string(rune((i%10)+'0'))
 		conn := createTestConnection("user-1", "DB-"+string(rune(i+'0')), "shared", &orgID)
-		connStore.Create(ctx, conn)
+		_ = connStore.Create(ctx, conn) // Benchmark setup - error not relevant
 	}
 
 	orgIDs := []string{"org-1", "org-2", "org-3"}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		syncStore.ListAccessibleConnections(ctx, "user-1", orgIDs, time.Time{})
+		_, _ = syncStore.ListAccessibleConnections(ctx, "user-1", orgIDs, time.Time{}) // Benchmark - error not relevant
 	}
 }

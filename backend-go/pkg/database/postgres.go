@@ -294,7 +294,7 @@ func (p *PostgresDatabase) ensureTableStructure(ctx context.Context, schema, tab
 
 func populateEditableMetadataFromStructure(metadata *EditableQueryMetadata, columns []string, structure *TableStructure) error {
 	if metadata == nil || structure == nil {
-		return fmt.Errorf("Unable to load table metadata")
+		return fmt.Errorf("unable to load table metadata")
 	}
 
 	columnMap := make(map[string]ColumnInfo)
@@ -308,7 +308,7 @@ func populateEditableMetadataFromStructure(metadata *EditableQueryMetadata, colu
 	}
 
 	if len(primaryKeys) == 0 {
-		return fmt.Errorf("Table does not have a primary key")
+		return fmt.Errorf("table does not have a primary key")
 	}
 
 	resultColumnSet := make(map[string]struct{})
@@ -323,7 +323,7 @@ func populateEditableMetadataFromStructure(metadata *EditableQueryMetadata, colu
 		}
 	}
 	if len(missingPK) > 0 {
-		return fmt.Errorf("Result set is missing primary key columns: %s", strings.Join(missingPK, ", "))
+		return fmt.Errorf("result set is missing primary key columns: %s", strings.Join(missingPK, ", "))
 	}
 
 	// Create foreign key lookup map
@@ -386,7 +386,7 @@ func populateEditableMetadataFromStructure(metadata *EditableQueryMetadata, colu
 	}
 
 	if editableCount == 0 {
-		return fmt.Errorf("No editable columns found in result set")
+		return fmt.Errorf("no editable columns found in result set")
 	}
 
 	metadata.Enabled = true
@@ -598,6 +598,7 @@ func (p *PostgresDatabase) UpdateRow(ctx context.Context, params UpdateRowParams
 		tableIdentifier = fmt.Sprintf("%s.%s", p.QuoteIdentifier(schema), tableIdentifier)
 	}
 
+	// #nosec G201 - uses parameterized WHERE clauses with quoted identifiers
 	updateSQL := fmt.Sprintf("UPDATE %s SET %s WHERE %s",
 		tableIdentifier,
 		strings.Join(setClauses, ", "),
@@ -724,6 +725,7 @@ func (p *PostgresDatabase) InsertRow(ctx context.Context, params InsertRowParams
 		valuesPlaceholders[i] = fmt.Sprintf("$%d", i+1)
 	}
 
+	// #nosec G201 - uses parameterized placeholders with quoted identifiers
 	insertSQL := fmt.Sprintf(
 		"INSERT INTO %s (%s) VALUES (%s) RETURNING %s",
 		tableIdentifier,
@@ -837,6 +839,7 @@ func (p *PostgresDatabase) DeleteRow(ctx context.Context, params DeleteRowParams
 		tableIdentifier = fmt.Sprintf("%s.%s", p.QuoteIdentifier(schema), tableIdentifier)
 	}
 
+	// #nosec G201 - uses parameterized WHERE clauses with quoted identifiers
 	deleteSQL := fmt.Sprintf("DELETE FROM %s WHERE %s", tableIdentifier, strings.Join(whereClauses, " AND "))
 
 	db, err := p.pool.Get(ctx)

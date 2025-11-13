@@ -1,0 +1,239 @@
+internal/ai/anthropic.go:176:23: Error return value of `resp.Body.Close` is not checked (errcheck)
+	defer resp.Body.Close()
+	                     ^
+internal/ai/anthropic.go:321:23: Error return value of `resp.Body.Close` is not checked (errcheck)
+	defer resp.Body.Close()
+	                     ^
+internal/ai/handlers.go:160:20: Error return value of `r.Body.Close` is not checked (errcheck)
+	defer r.Body.Close()
+	                  ^
+internal/ai/handlers.go:507:22: Error return value of `provider.Close` is not checked (errcheck)
+	defer provider.Close()
+	                    ^
+internal/ai/handlers.go:554:22: Error return value of `provider.Close` is not checked (errcheck)
+	defer provider.Close()
+	                    ^
+internal/ai/ollama.go:204:23: Error return value of `resp.Body.Close` is not checked (errcheck)
+	defer resp.Body.Close()
+	                     ^
+internal/apikeys/service.go:123:33: Error return value of `s.eventLogger.LogSecurityEvent` is not checked (errcheck)
+		s.eventLogger.LogSecurityEvent(
+		                              ^
+internal/apikeys/service.go:224:33: Error return value of `s.eventLogger.LogSecurityEvent` is not checked (errcheck)
+		s.eventLogger.LogSecurityEvent(
+		                              ^
+internal/apikeys/service.go:311:11: Error return value of `rand.Read` is not checked (errcheck)
+	rand.Read(randomBytes)
+	         ^
+internal/apikeys/service.go:365:32: Error return value of `s.eventLogger.LogSecurityEvent` is not checked (errcheck)
+	s.eventLogger.LogSecurityEvent(
+	                              ^
+internal/audit/store.go:70:19: Error return value of `tx.Rollback` is not checked (errcheck)
+	defer tx.Rollback()
+	                 ^
+internal/audit/store.go:81:18: Error return value of `stmt.Close` is not checked (errcheck)
+	defer stmt.Close()
+	                ^
+internal/audit/store.go:130:18: Error return value of `rows.Close` is not checked (errcheck)
+	defer rows.Close()
+	                ^
+internal/audit/store.go:184:18: Error return value of `rows.Close` is not checked (errcheck)
+	defer rows.Close()
+	                ^
+internal/audit/store.go:240:18: Error return value of `rows.Close` is not checked (errcheck)
+	defer rows.Close()
+	                ^
+internal/backup/service.go:88:29: Error return value of `s.store.UpdateBackupFailed` is not checked (errcheck)
+		s.store.UpdateBackupFailed(ctx, backup.ID, err.Error())
+		                          ^
+internal/backup/service.go:96:29: Error return value of `s.store.UpdateBackupFailed` is not checked (errcheck)
+		s.store.UpdateBackupFailed(ctx, backup.ID, "Failed to get file size")
+		                          ^
+internal/backup/service.go:249:20: Error return value of `testDB.Close` is not checked (errcheck)
+	defer testDB.Close()
+	                  ^
+internal/organization/service.go:148:19: Error return value of `s.CreateAuditLog` is not checked (errcheck)
+		s.CreateAuditLog(ctx, &AuditLog{
+		                ^
+internal/organization/service.go:221:19: Error return value of `s.CreateAuditLog` is not checked (errcheck)
+		s.CreateAuditLog(ctx, &AuditLog{
+		                ^
+internal/organization/service.go:287:19: Error return value of `s.CreateAuditLog` is not checked (errcheck)
+		s.CreateAuditLog(ctx, &AuditLog{
+		                ^
+internal/sso/service.go:201:11: Error return value of `rand.Read` is not checked (errcheck)
+	rand.Read(b)
+	         ^
+internal/sync/handlers.go:184:27: Error return value of `(*encoding/json.Encoder).Encode` is not checked (errcheck)
+	json.NewEncoder(w).Encode(data)
+	                         ^
+internal/sync/handlers.go:318:27: Error return value of `(*encoding/json.Encoder).Encode` is not checked (errcheck)
+	json.NewEncoder(w).Encode(data)
+	                         ^
+internal/sync/org_handler.go:548:27: Error return value of `(*encoding/json.Encoder).Encode` is not checked (errcheck)
+	json.NewEncoder(w).Encode(data)
+	                         ^
+internal/sync/org_sync_integration_test.go:190:22: Error return value of `store.SaveConnection` is not checked (errcheck)
+	store.SaveConnection(ctx, userA, conn1)
+	                    ^
+internal/sync/org_sync_integration_test.go:200:22: Error return value of `store.SaveConnection` is not checked (errcheck)
+	store.SaveConnection(ctx, userA, conn2)
+	                    ^
+internal/sync/org_sync_integration_test.go:210:22: Error return value of `store.SaveConnection` is not checked (errcheck)
+	store.SaveConnection(ctx, userB, conn3)
+	                    ^
+internal/sync/org_sync_integration_test.go:248:17: Error return value of `store.SaveQuery` is not checked (errcheck)
+	store.SaveQuery(ctx, userA, query1)
+	               ^
+internal/sync/org_sync_integration_test.go:259:17: Error return value of `store.SaveQuery` is not checked (errcheck)
+	store.SaveQuery(ctx, userA, query2)
+	               ^
+internal/sync/org_sync_integration_test.go:269:17: Error return value of `store.SaveQuery` is not checked (errcheck)
+	store.SaveQuery(ctx, userB, query3)
+	               ^
+internal/sync/shared_sync_test.go:503:30: Error return value of `db.Close` is not checked (errcheck)
+	return db, func() { db.Close() }
+	                            ^
+internal/sync/turso_store.go:390:17: Error return value of `json.Unmarshal` is not checked (errcheck)
+		json.Unmarshal([]byte(tagsJSON.String), &sq.Tags)
+		              ^
+internal/sync/turso_store.go:393:17: Error return value of `json.Unmarshal` is not checked (errcheck)
+		json.Unmarshal([]byte(metadataJSON.String), &sq.Metadata)
+		              ^
+internal/sync/turso_store.go:435:18: Error return value of `json.Unmarshal` is not checked (errcheck)
+			json.Unmarshal([]byte(tagsJSON.String), &sq.Tags)
+			              ^
+internal/whitelabel/service_test.go:17:16: Error return value of `db.Close` is not checked (errcheck)
+	defer db.Close()
+	              ^
+pkg/storage/turso/client.go:137:19: Error return value of `tx.Rollback` is not checked (errcheck)
+	defer tx.Rollback()
+	                 ^
+pkg/storage/turso/connection_store_test.go:493:19: Error return value of `connStore.Create` is not checked (errcheck)
+		connStore.Create(ctx, conn)
+		                ^
+pkg/storage/turso/connection_store_test.go:500:38: Error return value of `syncStore.ListAccessibleConnections` is not checked (errcheck)
+		syncStore.ListAccessibleConnections(ctx, "user-1", orgIDs, time.Time{})
+		                                   ^
+pkg/storage/turso/migrate.go:223:19: Error return value of `tx.Rollback` is not checked (errcheck)
+	defer tx.Rollback()
+	                 ^
+pkg/storage/turso/pool.go:306:20: Error return value of `conn.Close` is not checked (errcheck)
+			defer conn.Close()
+			                ^
+pkg/updater/updater.go:141:15: Error return value of `f.Close` is not checked (errcheck)
+	defer f.Close()
+	             ^
+pkg/updater/updater.go:327:24: Error return value of `sourceFile.Close` is not checked (errcheck)
+	defer sourceFile.Close()
+	                      ^
+scripts/verify_migrations.go:56:17: Error return value of `os.RemoveAll` is not checked (errcheck)
+				os.RemoveAll(tmpDir)
+				            ^
+scripts/verify_migrations.go:69:16: Error return value of `db.Close` is not checked (errcheck)
+	defer db.Close()
+	              ^
+scripts/verify_migrations.go:339:12: Error return value of `rows.Scan` is not checked (errcheck)
+		rows.Scan(&table, &rowid, &parent, &fkid)
+		         ^
+scripts/verify_migrations.go:434:20: Error return value of `os.RemoveAll` is not checked (errcheck)
+	defer os.RemoveAll(tmpDir)
+	                  ^
+scripts/verify_migrations.go:444:21: Error return value of `dbFresh.Close` is not checked (errcheck)
+	defer dbFresh.Close()
+	                   ^
+scripts/verify_migrations.go:455:24: Error return value of `dbMigrated.Close` is not checked (errcheck)
+	defer dbMigrated.Close()
+	                      ^
+scripts/verify_migrations.go:504:12: Error return value of `rows.Scan` is not checked (errcheck)
+		rows.Scan(&cid, &name, &colType, &notNull, &dfltValue, &pk)
+		         ^
+cmd/fix-lint/main.go:56:18: G304: Potential file inclusion via variable (gosec)
+	content, err := os.ReadFile(path)
+	                ^
+cmd/fix-lint/main.go:83:11: G306: Expect WriteFile permissions to be 0600 or less (gosec)
+			return os.WriteFile(path, []byte(modified), 0644)
+			       ^
+cmd/fix-lint/main.go:88:11: G306: Expect WriteFile permissions to be 0600 or less (gosec)
+			return os.WriteFile(path, []byte(modified), 0644)
+			       ^
+cmd/fix-lint/main.go:91:10: G306: Expect WriteFile permissions to be 0600 or less (gosec)
+		return os.WriteFile(path, buf.Bytes(), 0644)
+		       ^
+internal/ai/grpc.go:64:22: G115: integer overflow conversion int -> int32 (gosec)
+			TokensUsed:  int32(resp.TokensUsed),
+			                  ^
+internal/ai/grpc.go:109:22: G115: integer overflow conversion int -> int32 (gosec)
+			TokensUsed:  int32(resp.TokensUsed),
+			                  ^
+internal/ai/grpc.go:156:23: G115: integer overflow conversion int -> int32 (gosec)
+			MaxTokens:    int32(model.MaxTokens),
+			                   ^
+internal/backup/service.go:35:12: G301: Expect directory permissions to be 0750 or less (gosec)
+	if err := os.MkdirAll(s.backupPath, 0755); err != nil {
+	          ^
+internal/gdpr/service.go:150:12: G301: Expect directory permissions to be 0750 or less (gosec)
+	if err := os.MkdirAll(s.exportPath, 0755); err != nil {
+	          ^
+internal/rag/onnx_embedding_provider.go:103:39: G115: integer overflow conversion int -> uint32 (gosec)
+		index := int(hasher.Sum32() % uint32(size))
+		                                    ^
+pkg/database/elasticsearch.go:132:36: G115: integer overflow conversion int -> uint (gosec)
+			val |= uint32(data[i+j]) << uint(16-j*8)
+			                                ^
+pkg/database/elasticsearch.go:137:24: G115: integer overflow conversion int -> uint (gosec)
+				idx := (val >> uint(18-j*6)) & 0x3F
+				                   ^
+pkg/updater/updater.go:132:12: G301: Expect directory permissions to be 0750 or less (gosec)
+	if err := os.MkdirAll(u.configDir, 0755); err != nil {
+	          ^
+pkg/updater/updater.go:137:12: G304: Potential file inclusion via variable (gosec)
+	f, err := os.Create(lastCheckFile)
+	          ^
+pkg/updater/updater.go:323:21: G304: Potential file inclusion via variable (gosec)
+	sourceFile, err := os.Open(src)
+	                   ^
+internal/ai/anthropic.go:331:16: ST1005: error strings should not be capitalized (staticcheck)
+			return nil, fmt.Errorf("Anthropic API error: %s", errorResp.Error.Message)
+			            ^
+internal/ai/ollama.go:439:16: ST1005: error strings should not be capitalized (staticcheck)
+			return nil, fmt.Errorf("Ollama API error: %s", errorResp.Error)
+			            ^
+internal/ai/ollama_detector.go:241:10: ST1005: error strings should not be capitalized (staticcheck)
+		return fmt.Errorf("Ollama is not installed")
+		       ^
+internal/middleware/org_rate_limit.go:97:40: SA1012: do not pass a nil Context, even if a function permits it; pass context.TODO if you are unsure about which Context to use (staticcheck)
+	quota, err := r.quotaService.GetQuota(nil, orgID)
+	                                      ^
+internal/organization/handlers_test.go:150:42: SA1029: should not use built-in type string as key for value; define your own type to avoid collisions (staticcheck)
+	ctx := context.WithValue(req.Context(), "user_id", "test-user-123")
+	                                        ^
+internal/organization/handlers_test.go:151:31: SA1029: should not use built-in type string as key for value; define your own type to avoid collisions (staticcheck)
+	ctx = context.WithValue(ctx, "username", "testuser")
+	                             ^
+internal/organization/handlers_test.go:152:31: SA1029: should not use built-in type string as key for value; define your own type to avoid collisions (staticcheck)
+	ctx = context.WithValue(ctx, "role", "user")
+	                             ^
+internal/organization/service_test.go:1311:39: SA1012: do not pass a nil Context, even if a function permits it; pass context.TODO if you are unsure about which Context to use (staticcheck)
+	_, err := service.CreateOrganization(nil, "user-1", input)
+	                                     ^
+cmd/fix-lint/main.go:135:6: func fixWithAST is unused (unused)
+func fixWithAST(path string) error {
+     ^
+internal/middleware/test_helpers_test.go:21:6: func newAuthMiddleware is unused (unused)
+func newAuthMiddleware(secret string) *middleware.AuthMiddleware {
+     ^
+pkg/database/test_helpers_test.go:85:6: func skipIfMongoDBUnavailable is unused (unused)
+func skipIfMongoDBUnavailable(t interface{ Skip(args ...interface{}) }, err error) {
+     ^
+pkg/database/test_helpers_test.go:93:6: func skipIfClickHouseUnavailable is unused (unused)
+func skipIfClickHouseUnavailable(t interface{ Skip(args ...interface{}) }, err error) {
+     ^
+tools/lint-fixer/main.go:250:17: func (*Fixer).fixWithAST is unused (unused)
+func (f *Fixer) fixWithAST(path string) error {
+                ^
+78 issues:
+* errcheck: 50
+* gosec: 15
+* staticcheck: 8
+* unused: 5

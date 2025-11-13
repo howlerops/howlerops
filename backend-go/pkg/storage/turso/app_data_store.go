@@ -65,7 +65,7 @@ func (s *TursoAppDataStore) SaveConnectionTemplate(ctx context.Context, conn *Co
 	// Marshal metadata
 	var metadataJSON []byte
 	var err error
-	if conn.Metadata != nil && len(conn.Metadata) > 0 {
+	if len(conn.Metadata) > 0 {
 		metadataJSON, err = json.Marshal(conn.Metadata)
 		if err != nil {
 			return fmt.Errorf("failed to marshal metadata: %w", err)
@@ -325,7 +325,7 @@ func (s *TursoAppDataStore) SaveQuerySync(ctx context.Context, query *SavedQuery
 	// Marshal tags
 	var tagsJSON []byte
 	var err error
-	if query.Tags != nil && len(query.Tags) > 0 {
+	if len(query.Tags) > 0 {
 		tagsJSON, err = json.Marshal(query.Tags)
 		if err != nil {
 			return fmt.Errorf("failed to marshal tags: %w", err)

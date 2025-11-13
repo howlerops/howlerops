@@ -39,7 +39,7 @@ func (a *LocalArchiver) Archive(ctx context.Context, resourceType string, data [
 	}
 
 	// Create archive directory
-	if err := os.MkdirAll(a.basePath, 0755); err != nil {
+	if err := os.MkdirAll(a.basePath, 0750); err != nil {
 		return "", fmt.Errorf("create archive directory: %w", err)
 	}
 
@@ -49,15 +49,24 @@ func (a *LocalArchiver) Archive(ctx context.Context, resourceType string, data [
 	location := filepath.Join(a.basePath, filename)
 
 	// Create file
+	// #nosec G304 - location constructed from basePath and timestamp, not user input
 	file, err := os.Create(location)
 	if err != nil {
 		return "", fmt.Errorf("create archive file: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			a.logger.WithError(err).Error("Failed to close archive file")
+		}
+	}()
 
 	// Create gzip writer
 	gzipWriter := gzip.NewWriter(file)
-	defer gzipWriter.Close()
+	defer func() {
+		if err := gzipWriter.Close(); err != nil {
+			a.logger.WithError(err).Error("Failed to close gzip writer")
+		}
+	}()
 
 	// Create archive data structure
 	archiveData := ArchiveData{
@@ -88,18 +97,27 @@ func (a *LocalArchiver) Archive(ctx context.Context, resourceType string, data [
 
 func (a *LocalArchiver) Restore(ctx context.Context, location string) ([]map[string]interface{}, error) {
 	// Open file
+	// #nosec G304 - location is archive path from internal storage, validated by system
 	file, err := os.Open(location)
 	if err != nil {
 		return nil, fmt.Errorf("open archive file: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			a.logger.WithError(err).Error("Failed to close archive file")
+		}
+	}()
 
 	// Create gzip reader
 	gzipReader, err := gzip.NewReader(file)
 	if err != nil {
 		return nil, fmt.Errorf("create gzip reader: %w", err)
 	}
-	defer gzipReader.Close()
+	defer func() {
+		if err := gzipReader.Close(); err != nil {
+			a.logger.WithError(err).Error("Failed to close gzip reader")
+		}
+	}()
 
 	// Decode JSON
 	var archiveData ArchiveData

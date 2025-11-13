@@ -34,7 +34,11 @@ func ElasticsearchExample() {
 	if err != nil {
 		log.Fatalf("Failed to create Elasticsearch connection: %v", err)
 	}
-	defer es.Disconnect()
+	defer func() {
+		if err := es.Disconnect(); err != nil {
+			logger.WithError(err).Error("Failed to disconnect from Elasticsearch")
+		}
+	}()
 
 	ctx := context.Background()
 
@@ -149,7 +153,11 @@ func OpenSearchExample() {
 	if err != nil {
 		log.Fatalf("Failed to create OpenSearch connection: %v", err)
 	}
-	defer os.Disconnect()
+	defer func() {
+		if err := os.Disconnect(); err != nil {
+			logger.WithError(err).Error("Failed to disconnect from OpenSearch")
+		}
+	}()
 
 	ctx := context.Background()
 

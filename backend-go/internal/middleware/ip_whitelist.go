@@ -89,7 +89,7 @@ func (m *IPWhitelistMiddleware) CheckIP(next http.Handler) http.Handler {
 		if !isIPWhitelisted(clientIP, whitelist) {
 			// Log security event
 			if m.eventLogger != nil {
-				m.eventLogger.LogSecurityEvent(
+				if err := m.eventLogger.LogSecurityEvent(
 					r.Context(),
 					"ip_blocked",
 					getUserIDFromContext(r.Context()),
@@ -100,7 +100,9 @@ func (m *IPWhitelistMiddleware) CheckIP(next http.Handler) http.Handler {
 						"path":   r.URL.Path,
 						"method": r.Method,
 					},
-				)
+				); err != nil {
+					m.logger.WithError(err).Warn("Failed to log IP blocked security event")
+				}
 			}
 
 			m.logger.WithFields(logrus.Fields{

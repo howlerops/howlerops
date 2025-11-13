@@ -166,8 +166,11 @@ func (p *ConnectionPool) GetStats() *PoolStats {
 	dbStats := p.db.Stats()
 
 	stats := &PoolStats{
+		// #nosec G115 - connection counts are reasonable (<1000), well within int32 range
 		OpenConnections:   int32(dbStats.OpenConnections),
+		// #nosec G115 - connection counts are reasonable (<1000), well within int32 range
 		InUse:             int32(dbStats.InUse),
+		// #nosec G115 - connection counts are reasonable (<1000), well within int32 range
 		Idle:              int32(dbStats.Idle),
 		WaitCount:         dbStats.WaitCount,
 		WaitDuration:      dbStats.WaitDuration.Milliseconds(),

@@ -235,7 +235,9 @@ func runLocalStorageMigrations(db *sql.DB, logger *logrus.Logger) error {
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() {
+		_ = tx.Rollback() // Best-effort rollback - will be no-op if committed
+	}()
 
 	for _, stmt := range statements {
 		stmt = strings.TrimSpace(stmt)
@@ -287,7 +289,7 @@ func NewLocalStorage(config *LocalStorageConfig, logger *logrus.Logger) (*LocalS
 
 	// Run migrations to ensure schema exists
 	if err := runLocalStorageMigrations(db, logger); err != nil {
-		db.Close()
+		_ = db.Close() // Best-effort close on error
 		return nil, fmt.Errorf("failed to run local storage migrations: %w", err)
 	}
 
@@ -298,7 +300,7 @@ func NewLocalStorage(config *LocalStorageConfig, logger *logrus.Logger) (*LocalS
 	switch vectorStoreType {
 	case "mysql":
 		if config.MySQLVector == nil || config.MySQLVector.DSN == "" {
-			db.Close()
+			_ = db.Close() // Best-effort close on error
 			return nil, fmt.Errorf("mysql vector store requires DSN")
 		}
 		vectorConfig.Type = "mysql"
@@ -322,12 +324,12 @@ func NewLocalStorage(config *LocalStorageConfig, logger *logrus.Logger) (*LocalS
 
 	vectorStore, err := rag.NewVectorStore(vectorConfig, logger)
 	if err != nil {
-		db.Close()
+		_ = db.Close() // Best-effort close on error
 		return nil, fmt.Errorf("failed to create vector store: %w", err)
 	}
 
 	if err := vectorStore.Initialize(context.Background()); err != nil {
-		db.Close()
+		_ = db.Close() // Best-effort close on error
 		return nil, fmt.Errorf("failed to initialize vector store: %w", err)
 	}
 
@@ -390,7 +392,7 @@ func (s *LocalSQLiteStorage) SaveConnection(ctx context.Context, conn *Connectio
 	if conn.Metadata == nil {
 		conn.Metadata = make(map[string]string)
 	}
-	if conn.Environments != nil && len(conn.Environments) > 0 {
+	if len(conn.Environments) > 0 {
 		envsJSON, err := json.Marshal(conn.Environments)
 		if err != nil {
 			return fmt.Errorf("failed to marshal environments: %w", err)
@@ -885,7 +887,9 @@ func (s *LocalSQLiteStorage) GetCachedSchema(ctx context.Context, connID string)
 	// Check if expired
 	if time.Now().Unix() > expiresAt {
 		// Delete expired cache
-		s.InvalidateSchemaCache(ctx, connID)
+		if err := s.InvalidateSchemaCache(ctx, connID); err != nil {
+			s.logger.WithError(err).Warn("Failed to invalidate expired schema cache")
+		}
 		return nil, nil
 	}
 

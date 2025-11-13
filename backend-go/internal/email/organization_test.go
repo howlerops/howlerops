@@ -271,22 +271,22 @@ func TestMultipleEmails(t *testing.T) {
 	mockSvc := NewMockEmailService(logger)
 
 	// Send multiple types of emails
-	mockSvc.SendOrganizationInvitationEmail(
+	_ = mockSvc.SendOrganizationInvitationEmail(
 		"invite@example.com",
 		"Team A",
 		"Manager",
 		"member",
 		"https://example.com/invite1",
-	)
+	) // Test setup - error not relevant
 
-	mockSvc.SendOrganizationWelcomeEmail(
+	_ = mockSvc.SendOrganizationWelcomeEmail(
 		"welcome@example.com",
 		"New User",
 		"Team B",
 		"admin",
-	)
+	) // Test setup - error not relevant
 
-	mockSvc.SendMemberRemovedEmail("removed@example.com", "Team C")
+	_ = mockSvc.SendMemberRemovedEmail("removed@example.com", "Team C") // Test setup - error not relevant
 
 	sent := mockSvc.GetSentEmails()
 	if len(sent) != 3 {

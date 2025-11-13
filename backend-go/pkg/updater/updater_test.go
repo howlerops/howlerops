@@ -212,6 +212,7 @@ func TestRecordUpdateCheck(t *testing.T) {
 	}
 
 	// Verify content
+	// #nosec G304 - test file path constructed from temp directory, not user input
 	content, err := os.ReadFile(lastCheckFile)
 	if err != nil {
 		t.Fatalf("Failed to read last check file: %v", err)
@@ -292,7 +293,7 @@ func TestCopyFile(t *testing.T) {
 	// Create source file
 	srcPath := filepath.Join(tmpDir, "source.txt")
 	content := []byte("test content")
-	if err := os.WriteFile(srcPath, content, 0644); err != nil {
+	if err := os.WriteFile(srcPath, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -304,6 +305,7 @@ func TestCopyFile(t *testing.T) {
 	}
 
 	// Verify content
+	// #nosec G304 - test file path from temp directory, not user input
 	copiedContent, err := os.ReadFile(dstPath)
 	if err != nil {
 		t.Fatal(err)

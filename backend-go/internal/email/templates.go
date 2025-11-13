@@ -126,6 +126,7 @@ const verificationTemplate = `
 `
 
 // passwordResetTemplate is the HTML template for password reset
+// #nosec G101 - template constant name, not actual password
 const passwordResetTemplate = `
 <!DOCTYPE html>
 <html lang="en">

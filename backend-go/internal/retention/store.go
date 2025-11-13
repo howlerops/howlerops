@@ -407,6 +407,7 @@ func (s *store) GetRetentionStats(ctx context.Context, orgID, resourceType strin
 		return nil, fmt.Errorf("unknown resource type: %s", resourceType)
 	}
 
+	// #nosec G201 - table/column names from hardcoded constants, parameterized WHERE clause
 	query := fmt.Sprintf(`
 		SELECT COUNT(*), MIN(%s)
 		FROM %s

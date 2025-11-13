@@ -22,7 +22,7 @@ func NewTestGRPCServer(t *testing.T) (*grpc.Server, *bufconn.Listener) {
 	// Cleanup
 	t.Cleanup(func() {
 		server.Stop()
-		listener.Close()
+		_ = listener.Close() // Best-effort close in test
 	})
 
 	return server, listener
@@ -44,7 +44,7 @@ func NewTestGRPCClient(t *testing.T, listener *bufconn.Listener) *grpc.ClientCon
 	}
 
 	t.Cleanup(func() {
-		conn.Close()
+		_ = conn.Close() // Best-effort close in test
 	})
 
 	return conn

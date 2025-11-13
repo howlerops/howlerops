@@ -36,6 +36,7 @@ import (
 
 // testSSHPrivateKey is a valid test RSA private key (2048-bit)
 // This key is only for testing purposes and should never be used in production
+// #nosec G101 - test key for unit tests only, never used in production
 const testSSHPrivateKey = `-----BEGIN RSA PRIVATE KEY-----
 MIIEowIBAAKCAQEA0Z8hRg3iJsKxWd9qdvN5zzGVVm3CrWMQcvGj3FEfYZ5nWvLZ
 mFMdPOdDxJy+N0XPzmZMg0UdNLF9pxLPVbJhCt2TqJkMPvPqYd7jE3xqLR0kFmOT
@@ -76,6 +77,7 @@ bkBzdGV2ZW5zLW1hY2Jvb2stcHJvLmxvY2FsAQIDBA==
 -----END OPENSSH PRIVATE KEY-----`
 
 // testInvalidPrivateKey is an invalid private key for testing error handling
+// #nosec G101 - intentionally invalid test key for error handling tests
 const testInvalidPrivateKey = `-----BEGIN RSA PRIVATE KEY-----
 THIS IS NOT A VALID PRIVATE KEY
 -----END RSA PRIVATE KEY-----`
@@ -337,7 +339,7 @@ func TestSSHTunnelManager_EstablishTunnel_StrictHostKeyChecking(t *testing.T) {
 	// Create temporary known_hosts file
 	tmpDir := t.TempDir()
 	knownHostsPath := filepath.Join(tmpDir, "known_hosts")
-	err := os.WriteFile(knownHostsPath, []byte(""), 0644)
+	err := os.WriteFile(knownHostsPath, []byte(""), 0600)
 	require.NoError(t, err, "Failed to create known_hosts file")
 
 	config := &database.SSHTunnelConfig{

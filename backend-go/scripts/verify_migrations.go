@@ -53,7 +53,7 @@ func main() {
 		cleanup = true
 		defer func() {
 			if cleanup {
-				os.RemoveAll(tmpDir)
+				_ = os.RemoveAll(tmpDir) // Best-effort cleanup
 				logger.Debug("Cleaned up temporary database")
 			}
 		}()
@@ -336,7 +336,10 @@ func testForeignKeys(db *sql.DB, logger *logrus.Logger) error {
 	for rows.Next() {
 		violations++
 		var table, rowid, parent, fkid string
-		rows.Scan(&table, &rowid, &parent, &fkid)
+		if err := rows.Scan(&table, &rowid, &parent, &fkid); err != nil {
+			logger.WithError(err).Warn("Failed to scan FK violation row")
+			continue
+		}
 		logger.Errorf("  ✗ FK violation in %s, row %s -> %s.%s", table, rowid, parent, fkid)
 	}
 
@@ -431,7 +434,7 @@ func testSchemaComparison(logger *logrus.Logger) error {
 	if err != nil {
 		return fmt.Errorf("failed to create temp directory: %w", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }() // Best-effort cleanup
 
 	freshDB := filepath.Join(tmpDir, "fresh.db")
 	migratedDB := filepath.Join(tmpDir, "migrated.db")
@@ -441,7 +444,7 @@ func testSchemaComparison(logger *logrus.Logger) error {
 	if err != nil {
 		return fmt.Errorf("failed to open fresh db: %w", err)
 	}
-	defer dbFresh.Close()
+	defer func() { _ = dbFresh.Close() }() // Best-effort close
 
 	if err := turso.InitializeSchema(dbFresh, logger); err != nil {
 		return fmt.Errorf("failed to init fresh schema: %w", err)
@@ -452,7 +455,7 @@ func testSchemaComparison(logger *logrus.Logger) error {
 	if err != nil {
 		return fmt.Errorf("failed to open migrated db: %w", err)
 	}
-	defer dbMigrated.Close()
+	defer func() { _ = dbMigrated.Close() }() // Best-effort close
 
 	if err := turso.InitializeSchema(dbMigrated, logger); err != nil {
 		return fmt.Errorf("failed to init migrated schema: %w", err)
@@ -501,7 +504,10 @@ func getColumns(db *sql.DB, table string) map[string]bool {
 		var name, colType string
 		var notNull, pk int
 		var dfltValue interface{}
-		rows.Scan(&cid, &name, &colType, &notNull, &dfltValue, &pk)
+		if err := rows.Scan(&cid, &name, &colType, &notNull, &dfltValue, &pk); err != nil {
+			// Skip rows that fail to scan
+			continue
+		}
 		columns[name] = true
 	}
 

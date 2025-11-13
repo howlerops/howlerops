@@ -147,7 +147,7 @@ func (s *Service) performExport(request *DataExportRequest) {
 	}
 
 	// Ensure export directory exists
-	if err := os.MkdirAll(s.exportPath, 0755); err != nil {
+	if err := os.MkdirAll(s.exportPath, 0750); err != nil {
 		logger.WithError(err).Error("Failed to create export directory")
 		s.store.UpdateRequestFailed(ctx, request.ID, "Failed to create export directory")
 		return

@@ -13,6 +13,7 @@ import (
 type TokenType string
 
 const (
+	// #nosec G101 - these are token type constants, not actual passwords
 	TokenTypeEmailVerification TokenType = "email_verification"
 	TokenTypePasswordReset     TokenType = "password_reset"
 )
