@@ -34,7 +34,7 @@ jobs:
 
       - name: Run unit tests
         working-directory: backend-go
-        run: go test ./... -v -coverprofile=coverage.out -race -timeout=5m
+        run: go test $(go list ./... | grep -v /test/integration) -v -coverprofile=coverage.out -race -timeout=5m
 
       - name: Generate coverage report
         working-directory: backend-go
