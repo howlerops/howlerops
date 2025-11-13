@@ -141,9 +141,12 @@ func (h *Handler) DisableSSO(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{
+	if err := json.NewEncoder(w).Encode(map[string]string{
 		"message": "SSO disabled successfully",
-	})
+	}); err != nil {
+		h.logger.WithError(err).Error("Failed to encode JSON response")
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	}
 }
 
 // InitiateSSOLogin initiates SSO login
@@ -183,7 +186,10 @@ func (h *Handler) SSOCallback(w http.ResponseWriter, r *http.Request) {
 	// Here you would typically create a session and return auth tokens
 	// For now, just return the user info
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(user)
+	if err := json.NewEncoder(w).Encode(user); err != nil {
+		h.logger.WithError(err).Error("Failed to encode JSON response")
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	}
 }
 
 // IP Whitelist Endpoints
@@ -208,7 +214,10 @@ func (h *Handler) AddIPToWhitelist(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(entry)
+	if err := json.NewEncoder(w).Encode(entry); err != nil {
+		h.logger.WithError(err).Error("Failed to encode JSON response")
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	}
 }
 
 // GetIPWhitelist retrieves the IP whitelist for an organization
@@ -223,7 +232,10 @@ func (h *Handler) GetIPWhitelist(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(whitelist)
+	if err := json.NewEncoder(w).Encode(whitelist); err != nil {
+		h.logger.WithError(err).Error("Failed to encode JSON response")
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	}
 }
 
 // RemoveIPFromWhitelist removes an IP from the whitelist

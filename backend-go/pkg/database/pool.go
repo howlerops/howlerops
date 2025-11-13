@@ -108,7 +108,7 @@ func (p *ConnectionPool) connect() error {
 	defer cancel()
 
 	if err := db.PingContext(ctx); err != nil {
-		db.Close()
+		_ = db.Close() // Best-effort close
 		return fmt.Errorf("failed to ping database: %w", err)
 	}
 

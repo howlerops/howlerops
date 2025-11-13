@@ -326,7 +326,7 @@ func (s *SQLiteVectorStore) IndexDocument(ctx context.Context, doc *Document) er
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }() // Best-effort rollback
 
 	// Insert/update document
 	_, err = tx.ExecContext(ctx, `

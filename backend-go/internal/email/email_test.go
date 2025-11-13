@@ -201,7 +201,7 @@ func TestEmailErrorHandling(t *testing.T) {
 	t.Run("sent emails can be cleared", func(t *testing.T) {
 		mockSvc := email.NewMockEmailService(logger)
 
-		mockSvc.SendVerificationEmail("test@example.com", "token", "url")
+		_ = mockSvc.SendVerificationEmail("test@example.com", "token", "url") // Best-effort mock in test
 		assert.Len(t, mockSvc.GetSentEmails(), 1)
 
 		mockSvc.ClearSentEmails()
@@ -211,9 +211,9 @@ func TestEmailErrorHandling(t *testing.T) {
 	t.Run("multiple emails accumulate", func(t *testing.T) {
 		mockSvc := email.NewMockEmailService(logger)
 
-		mockSvc.SendVerificationEmail("user1@example.com", "token1", "url1")
-		mockSvc.SendPasswordResetEmail("user2@example.com", "token2", "url2")
-		mockSvc.SendWelcomeEmail("user3@example.com", "User 3")
+		_ = mockSvc.SendVerificationEmail("user1@example.com", "token1", "url1") // Best-effort mock in test
+		_ = mockSvc.SendPasswordResetEmail("user2@example.com", "token2", "url2") // Best-effort mock in test
+		_ = mockSvc.SendWelcomeEmail("user3@example.com", "User 3") // Best-effort mock in test
 
 		sent := mockSvc.GetSentEmails()
 		assert.Len(t, sent, 3)
@@ -282,13 +282,13 @@ func BenchmarkMockEmailService(b *testing.B) {
 
 	b.Run("SendVerificationEmail", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			mockSvc.SendVerificationEmail("bench@example.com", "token", "url")
+			_ = mockSvc.SendVerificationEmail("bench@example.com", "token", "url") // Best-effort mock in test
 		}
 	})
 
 	b.Run("SendOrganizationInvitationEmail", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			mockSvc.SendOrganizationInvitationEmail(
+			_ = mockSvc.SendOrganizationInvitationEmail( // Best-effort mock in test
 				"bench@example.com",
 				"Company",
 				"Inviter",

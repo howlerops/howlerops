@@ -145,7 +145,7 @@ func (s *Service) UpdateOrganization(ctx context.Context, orgID string, userID s
 
 	if !HasPermission(member.Role, PermUpdateOrganization) {
 		// Log permission denial
-		_ = s.CreateAuditLog(ctx, &AuditLog{
+		_ = s.CreateAuditLog(ctx, &AuditLog{ // Best-effort audit logging
 			OrganizationID: &orgID,
 			UserID:         userID,
 			Action:         "permission_denied",
@@ -218,7 +218,7 @@ func (s *Service) DeleteOrganization(ctx context.Context, orgID string, userID s
 
 	if !HasPermission(member.Role, PermDeleteOrganization) {
 		// Log permission denial
-		_ = s.CreateAuditLog(ctx, &AuditLog{
+		_ = s.CreateAuditLog(ctx, &AuditLog{ // Best-effort audit logging
 			OrganizationID: &orgID,
 			UserID:         userID,
 			Action:         "permission_denied",
@@ -284,7 +284,7 @@ func (s *Service) UpdateMemberRole(ctx context.Context, orgID string, targetUser
 
 	if !HasPermission(actorMember.Role, PermUpdateMemberRoles) {
 		// Log permission denial
-		s.CreateAuditLog(ctx, &AuditLog{
+		_ = s.CreateAuditLog(ctx, &AuditLog{ // Best-effort audit logging
 			OrganizationID: &orgID,
 			UserID:         actorUserID,
 			Action:         "permission_denied",
@@ -341,7 +341,7 @@ func (s *Service) RemoveMember(ctx context.Context, orgID string, targetUserID s
 
 	if !HasPermission(actorMember.Role, PermRemoveMembers) {
 		// Log permission denial
-		s.CreateAuditLog(ctx, &AuditLog{
+		_ = s.CreateAuditLog(ctx, &AuditLog{ // Best-effort audit logging
 			OrganizationID: &orgID,
 			UserID:         actorUserID,
 			Action:         "permission_denied",
@@ -436,7 +436,7 @@ func (s *Service) CreateInvitation(ctx context.Context, orgID string, actorUserI
 
 	if !HasPermission(actorMember.Role, PermInviteMembers) {
 		// Log permission denial
-		s.CreateAuditLog(ctx, &AuditLog{
+		_ = s.CreateAuditLog(ctx, &AuditLog{ // Best-effort audit logging
 			OrganizationID: &orgID,
 			UserID:         actorUserID,
 			Action:         "permission_denied",
@@ -559,7 +559,7 @@ func (s *Service) GetInvitations(ctx context.Context, orgID string, userID strin
 
 	if !HasPermission(member.Role, PermInviteMembers) {
 		// Log permission denial
-		s.CreateAuditLog(ctx, &AuditLog{
+		_ = s.CreateAuditLog(ctx, &AuditLog{ // Best-effort audit logging
 			OrganizationID: &orgID,
 			UserID:         userID,
 			Action:         "permission_denied",
@@ -718,7 +718,7 @@ func (s *Service) RevokeInvitation(ctx context.Context, orgID string, invitation
 
 	if !HasPermission(member.Role, PermInviteMembers) {
 		// Log permission denial
-		s.CreateAuditLog(ctx, &AuditLog{
+		_ = s.CreateAuditLog(ctx, &AuditLog{ // Best-effort audit logging
 			OrganizationID: &orgID,
 			UserID:         userID,
 			Action:         "permission_denied",
@@ -771,7 +771,7 @@ func (s *Service) GetAuditLogs(ctx context.Context, orgID string, userID string,
 
 	if !HasPermission(member.Role, PermViewAuditLogs) {
 		// Log permission denial
-		s.CreateAuditLog(ctx, &AuditLog{
+		_ = s.CreateAuditLog(ctx, &AuditLog{ // Best-effort audit logging
 			OrganizationID: &orgID,
 			UserID:         userID,
 			Action:         "permission_denied",

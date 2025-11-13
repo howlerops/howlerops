@@ -113,7 +113,7 @@ func (s *store) GetBackup(ctx context.Context, backupID string) (*DatabaseBackup
 		backup.FileSize = fileSize.Int64
 	}
 	if tablesJSON.Valid {
-		json.Unmarshal([]byte(tablesJSON.String), &backup.TablesIncluded)
+		_ = json.Unmarshal([]byte(tablesJSON.String), &backup.TablesIncluded) // Best-effort unmarshal
 	}
 	if errorMsg.Valid {
 		backup.ErrorMessage = errorMsg.String
@@ -172,7 +172,7 @@ func (s *store) ListBackups(ctx context.Context, limit int) ([]*DatabaseBackup, 
 			backup.FileSize = fileSize.Int64
 		}
 		if tablesJSON.Valid {
-			json.Unmarshal([]byte(tablesJSON.String), &backup.TablesIncluded)
+			_ = json.Unmarshal([]byte(tablesJSON.String), &backup.TablesIncluded) // Best-effort unmarshal
 		}
 		if errorMsg.Valid {
 			backup.ErrorMessage = errorMsg.String

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -139,7 +140,11 @@ func (u *Updater) RecordUpdateCheck() error {
 	if err != nil {
 		return fmt.Errorf("failed to create last check file: %w", err)
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Printf("Failed to close file: %v", err)
+		}
+	}()
 
 	_, err = f.WriteString(time.Now().Format(time.RFC3339))
 	return err
@@ -224,7 +229,11 @@ func (u *Updater) fetchLatestRelease(ctx context.Context) (*Release, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("Failed to close response body: %v", err)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -250,7 +259,11 @@ func (u *Updater) downloadFile(ctx context.Context, url string) ([]byte, error) 
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("Failed to close response body: %v", err)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("download failed with status %d", resp.StatusCode)
@@ -326,14 +339,22 @@ func (u *Updater) copyFile(src, dst string) error {
 	if err != nil {
 		return err
 	}
-	defer sourceFile.Close()
+	defer func() {
+		if err := sourceFile.Close(); err != nil {
+			log.Printf("Failed to close source file: %v", err)
+		}
+	}()
 
 	// #nosec G304 - dst is validated destination path for backup, not user input
 	destFile, err := os.Create(dst)
 	if err != nil {
 		return err
 	}
-	defer destFile.Close()
+	defer func() {
+		if err := destFile.Close(); err != nil {
+			log.Printf("Failed to close destination file: %v", err)
+		}
+	}()
 
 	if _, err := io.Copy(destFile, sourceFile); err != nil {
 		return err

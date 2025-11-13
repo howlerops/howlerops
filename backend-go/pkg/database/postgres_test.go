@@ -515,7 +515,7 @@ func TestPostgresDatabase_BeginTransaction(t *testing.T) {
 		if err == nil {
 			assert.NotNil(t, tx)
 			// Clean up transaction
-			tx.Rollback()
+			_ = tx.Rollback() // Best-effort rollback
 		}
 	})
 
@@ -533,7 +533,7 @@ func TestPostgresDatabase_BeginTransaction(t *testing.T) {
 		tx, err := db.BeginTransaction(ctx)
 
 		if err == nil {
-			defer tx.Rollback()
+			defer func() { _ = tx.Rollback() }() // Best-effort rollback
 
 			result, err := tx.Execute(ctx, "SELECT 1")
 			if err == nil {
@@ -843,7 +843,7 @@ func TestPostgresDatabase_Mock_Execute(t *testing.T) {
 		// In practice, mocking is complex due to connection pool
 		db, mock, err := sqlmock.New()
 		require.NoError(t, err)
-		defer db.Close()
+		defer func() { _ = db.Close() }() // Best-effort close in test
 
 		// Mock a simple SELECT
 		rows := sqlmock.NewRows([]string{"id", "name"}).
@@ -855,7 +855,7 @@ func TestPostgresDatabase_Mock_Execute(t *testing.T) {
 		// Direct database query (not through our wrapper)
 		result, err := db.Query("SELECT id, name FROM users")
 		require.NoError(t, err)
-		defer result.Close()
+		defer func() { _ = result.Close() }() // Best-effort close in test
 
 		// Verify expectations
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -864,7 +864,7 @@ func TestPostgresDatabase_Mock_Execute(t *testing.T) {
 	t.Run("INSERT query with affected rows", func(t *testing.T) {
 		db, mock, err := sqlmock.New()
 		require.NoError(t, err)
-		defer db.Close()
+		defer func() { _ = db.Close() }() // Best-effort close in test
 
 		mock.ExpectExec("INSERT INTO users").
 			WillReturnResult(sqlmock.NewResult(1, 1))
@@ -882,7 +882,7 @@ func TestPostgresDatabase_Mock_Execute(t *testing.T) {
 	t.Run("query error", func(t *testing.T) {
 		db, mock, err := sqlmock.New()
 		require.NoError(t, err)
-		defer db.Close()
+		defer func() { _ = db.Close() }() // Best-effort close in test
 
 		expectedErr := errors.New("syntax error")
 		mock.ExpectQuery("SELECT (.+) FROM invalid").
@@ -900,7 +900,7 @@ func TestPostgresDatabase_Mock_Transaction(t *testing.T) {
 	t.Run("successful commit", func(t *testing.T) {
 		db, mock, err := sqlmock.New()
 		require.NoError(t, err)
-		defer db.Close()
+		defer func() { _ = db.Close() }() // Best-effort close in test
 
 		mock.ExpectBegin()
 		mock.ExpectExec("UPDATE users").
@@ -922,7 +922,7 @@ func TestPostgresDatabase_Mock_Transaction(t *testing.T) {
 	t.Run("rollback on error", func(t *testing.T) {
 		db, mock, err := sqlmock.New()
 		require.NoError(t, err)
-		defer db.Close()
+		defer func() { _ = db.Close() }() // Best-effort close in test
 
 		mock.ExpectBegin()
 		mock.ExpectExec("UPDATE users").
@@ -946,7 +946,7 @@ func TestPostgresDatabase_ByteArrayConversion(t *testing.T) {
 	// Tests that byte arrays from PostgreSQL are converted to strings
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }() // Best-effort close in test
 
 	// PostgreSQL often returns text as []byte
 	rows := sqlmock.NewRows([]string{"text_col"}).
@@ -956,7 +956,7 @@ func TestPostgresDatabase_ByteArrayConversion(t *testing.T) {
 
 	result, err := db.Query("SELECT text_col FROM test")
 	require.NoError(t, err)
-	defer result.Close()
+	defer func() { _ = result.Close() }() // Best-effort close in test
 
 	// Scan the result
 	result.Next()
@@ -975,7 +975,7 @@ func TestPostgresDatabase_ParameterizedQuery(t *testing.T) {
 	// PostgreSQL uses $1, $2, etc. for parameters
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }() // Best-effort close in test
 
 	rows := sqlmock.NewRows([]string{"id", "name"}).
 		AddRow(1, "Alice")
@@ -986,7 +986,7 @@ func TestPostgresDatabase_ParameterizedQuery(t *testing.T) {
 
 	result, err := db.Query("SELECT id, name FROM users WHERE id = $1 AND name = $2", 1, "Alice")
 	require.NoError(t, err)
-	defer result.Close()
+	defer func() { _ = result.Close() }() // Best-effort close in test
 
 	assert.True(t, result.Next())
 	assert.NoError(t, mock.ExpectationsWereMet())
@@ -997,7 +997,7 @@ func TestPostgresDatabase_SchemaIntrospection(t *testing.T) {
 	t.Run("GetSchemas filters system schemas", func(t *testing.T) {
 		db, mock, err := sqlmock.New()
 		require.NoError(t, err)
-		defer db.Close()
+		defer func() { _ = db.Close() }() // Best-effort close in test
 
 		rows := sqlmock.NewRows([]string{"schema_name"}).
 			AddRow("public").
@@ -1013,7 +1013,7 @@ func TestPostgresDatabase_SchemaIntrospection(t *testing.T) {
 			WHERE schema_name NOT IN ('information_schema', 'pg_catalog', 'pg_toast')
 			ORDER BY schema_name`)
 		require.NoError(t, err)
-		defer result.Close()
+		defer func() { _ = result.Close() }() // Best-effort close in test
 
 		schemas := []string{}
 		for result.Next() {

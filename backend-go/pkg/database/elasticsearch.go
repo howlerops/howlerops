@@ -172,7 +172,11 @@ func (es *ElasticsearchDatabase) Ping(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to ping Elasticsearch: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			es.logger.WithError(err).Error("Failed to close response body")
+		}
+	}()
 
 	if resp.StatusCode >= 400 {
 		body, _ := io.ReadAll(resp.Body)
@@ -197,7 +201,7 @@ func (es *ElasticsearchDatabase) GetConnectionInfo(ctx context.Context) (map[str
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { if err := resp.Body.Close(); err != nil { es.logger.WithError(err).Error("Failed to close response body") } }()
 
 	if resp.StatusCode >= 400 {
 		return nil, fmt.Errorf("failed to get connection info: status %d", resp.StatusCode)
@@ -262,7 +266,7 @@ func (es *ElasticsearchDatabase) Execute(ctx context.Context, query string, args
 			Duration: time.Since(start),
 		}, err
 	}
-	defer resp.Body.Close()
+	defer func() { if err := resp.Body.Close(); err != nil { es.logger.WithError(err).Error("Failed to close response body") } }()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -371,7 +375,7 @@ func (es *ElasticsearchDatabase) ExecuteStream(ctx context.Context, query string
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { if err := resp.Body.Close(); err != nil { es.logger.WithError(err).Error("Failed to close response body") } }()
 
 	if resp.StatusCode >= 400 {
 		body, _ := io.ReadAll(resp.Body)
@@ -476,7 +480,7 @@ func (es *ElasticsearchDatabase) ExplainQuery(ctx context.Context, query string,
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() { if err := resp.Body.Close(); err != nil { es.logger.WithError(err).Error("Failed to close response body") } }()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -538,7 +542,7 @@ func (es *ElasticsearchDatabase) GetTables(ctx context.Context, schema string) (
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { if err := resp.Body.Close(); err != nil { es.logger.WithError(err).Error("Failed to close response body") } }()
 
 	if resp.StatusCode >= 400 {
 		body, _ := io.ReadAll(resp.Body)
@@ -635,7 +639,7 @@ func (es *ElasticsearchDatabase) GetTableStructure(ctx context.Context, schema, 
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { if err := resp.Body.Close(); err != nil { es.logger.WithError(err).Error("Failed to close response body") } }()
 
 	if resp.StatusCode >= 400 {
 		body, _ := io.ReadAll(resp.Body)

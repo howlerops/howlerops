@@ -134,7 +134,7 @@ func InitializeSchema(db *sql.DB, logger *logrus.Logger) error {
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }() // Best-effort rollback
 
 	for i, stmt := range statements {
 		stmt = strings.TrimSpace(stmt)

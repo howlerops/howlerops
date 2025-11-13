@@ -668,8 +668,8 @@ func (s *TursoStore) ListConflicts(ctx context.Context, userID string, resolved 
 			return nil, fmt.Errorf("failed to scan conflict: %w", err)
 		}
 
-		json.Unmarshal([]byte(localJSON), &conflict.LocalVersion)
-		json.Unmarshal([]byte(remoteJSON), &conflict.RemoteVersion)
+		_ = json.Unmarshal([]byte(localJSON), &conflict.LocalVersion)   // Best-effort unmarshal
+		_ = json.Unmarshal([]byte(remoteJSON), &conflict.RemoteVersion) // Best-effort unmarshal
 
 		if resolvedAt.Valid {
 			conflict.ResolvedAt = &resolvedAt.Time
@@ -898,10 +898,10 @@ func (s *TursoStore) ListAccessibleQueries(ctx context.Context, userID string, o
 			sq.OrganizationID = &orgID
 		}
 		if tagsJSON.Valid && tagsJSON.String != "" {
-			json.Unmarshal([]byte(tagsJSON.String), &sq.Tags)
+			_ = json.Unmarshal([]byte(tagsJSON.String), &sq.Tags) // Best-effort unmarshal
 		}
 		if metadataJSON.Valid && metadataJSON.String != "" {
-			json.Unmarshal([]byte(metadataJSON.String), &sq.Metadata)
+			_ = json.Unmarshal([]byte(metadataJSON.String), &sq.Metadata) // Best-effort unmarshal
 		}
 
 		queries = append(queries, sq)

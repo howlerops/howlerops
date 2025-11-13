@@ -220,7 +220,7 @@ func applyMigration(db *sql.DB, m Migration, logger *logrus.Logger) error {
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }() // Best-effort rollback
 
 	// Execute migration SQL
 	logger.WithField("version", m.Version).Debug("Executing migration SQL")
@@ -296,7 +296,7 @@ func applyMigration003(db *sql.DB, logger *logrus.Logger) error {
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }() // Best-effort rollback
 
 	// Add columns to connection_templates if they don't exist
 	if exists, _ := columnExists("connection_templates", "organization_id"); !exists {

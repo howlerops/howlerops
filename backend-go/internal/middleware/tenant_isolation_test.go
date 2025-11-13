@@ -222,7 +222,7 @@ func TestDataIsolation(t *testing.T) {
 
 	result, err := db.QueryContext(ctx, fullQuery, args...)
 	assert.NoError(t, err)
-	defer result.Close()
+	defer func() { _ = result.Close() }() // Best-effort close in test
 
 	// Verify data is returned
 	assert.True(t, result.Next())

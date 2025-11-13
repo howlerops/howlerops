@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/google/uuid"
@@ -129,7 +130,11 @@ func (s *store) GetChangeHistory(ctx context.Context, tableName, recordID string
 	if err != nil {
 		return nil, fmt.Errorf("query change history: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Printf("Failed to close rows: %v", err)
+		}
+	}()
 
 	history := &ChangeHistory{
 		TableName: tableName,
@@ -183,7 +188,11 @@ func (s *store) GetFieldHistory(ctx context.Context, tableName, recordID, fieldN
 	if err != nil {
 		return nil, fmt.Errorf("query field history: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Printf("Failed to close rows: %v", err)
+		}
+	}()
 
 	var changes []FieldChange
 	for rows.Next() {
@@ -239,7 +248,11 @@ func (s *store) GetPIIAccessLogs(ctx context.Context, userID string, since time.
 	if err != nil {
 		return nil, fmt.Errorf("query pii access: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Printf("Failed to close rows: %v", err)
+		}
+	}()
 
 	var logs []PIIAccessLog
 	for rows.Next() {

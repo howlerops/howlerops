@@ -14,7 +14,7 @@ func TestUpdateConfig(t *testing.T) {
 	t.Skip("TODO: Fix this test - temporarily skipped for deployment")
 	db, mock, err := sqlmock.New()
 	assert.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }() // Best-effort close in test
 
 	store := NewStore(db)
 	service := NewService(store, logrus.New())

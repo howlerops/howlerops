@@ -1,6 +1,7 @@
 package sla
 
 import (
+	"log"
 	"context"
 	"fmt"
 	"sort"
@@ -246,7 +247,7 @@ func (m *Monitor) calculateAllOrgSLAs(ctx context.Context, date time.Time) {
 		m.logger.WithError(err).Error("Failed to get organization IDs")
 		return
 	}
-	defer rows.Close()
+	defer func() { if err := rows.Close(); err != nil { log.Printf("Failed to close rows: %v", err) } }()
 
 	var orgIDs []string
 	for rows.Next() {

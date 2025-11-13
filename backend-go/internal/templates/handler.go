@@ -81,7 +81,10 @@ func (h *Handler) CreateTemplate(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(template)
+	if err := json.NewEncoder(w).Encode(template); err != nil {
+		h.logger.WithError(err).Error("Failed to encode JSON response")
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	}
 }
 
 // ListTemplates lists templates with filters
@@ -132,10 +135,13 @@ func (h *Handler) ListTemplates(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"templates": templates,
 		"count":     len(templates),
-	})
+	}); err != nil {
+		h.logger.WithError(err).Error("Failed to encode JSON response")
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	}
 }
 
 // GetTemplate retrieves a template by ID
@@ -160,7 +166,10 @@ func (h *Handler) GetTemplate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(template)
+	if err := json.NewEncoder(w).Encode(template); err != nil {
+		h.logger.WithError(err).Error("Failed to encode JSON response")
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	}
 }
 
 // UpdateTemplate updates a template

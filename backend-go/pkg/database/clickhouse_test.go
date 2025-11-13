@@ -113,7 +113,7 @@ func TestClickHouseDatabase_GetDatabaseType(t *testing.T) {
 	if err != nil {
 		t.Skip("Cannot connect to test database")
 	}
-	defer db.Disconnect()
+	defer func() { _ = db.Disconnect() }() // Best-effort close in test
 
 	dbType := db.GetDatabaseType()
 	assert.Equal(t, database.ClickHouse, dbType)
@@ -128,7 +128,7 @@ func TestClickHouseDatabase_QuoteIdentifier(t *testing.T) {
 	if err != nil {
 		t.Skip("Cannot connect to test database")
 	}
-	defer db.Disconnect()
+	defer func() { _ = db.Disconnect() }() // Best-effort close in test
 
 	tests := []struct {
 		name       string
@@ -184,7 +184,7 @@ func TestClickHouseDatabase_GetDataTypeMappings(t *testing.T) {
 	if err != nil {
 		t.Skip("Cannot connect to test database")
 	}
-	defer db.Disconnect()
+	defer func() { _ = db.Disconnect() }() // Best-effort close in test
 
 	mappings := db.GetDataTypeMappings()
 
@@ -280,7 +280,7 @@ func TestClickHouseDatabase_UpdateRow(t *testing.T) {
 	if err != nil {
 		t.Skip("Cannot connect to test database")
 	}
-	defer db.Disconnect()
+	defer func() { _ = db.Disconnect() }() // Best-effort close in test
 
 	ctx := context.Background()
 	params := database.UpdateRowParams{
@@ -310,7 +310,7 @@ func TestClickHouseDatabase_ComputeEditableMetadata(t *testing.T) {
 	if err != nil {
 		t.Skip("Cannot connect to test database")
 	}
-	defer db.Disconnect()
+	defer func() { _ = db.Disconnect() }() // Best-effort close in test
 
 	ctx := context.Background()
 	metadata, err := db.ComputeEditableMetadata(ctx, "SELECT * FROM users", []string{"id", "name"})
@@ -330,7 +330,7 @@ func TestClickHouseDatabase_BeginTransaction(t *testing.T) {
 	if err != nil {
 		t.Skip("Cannot connect to test database")
 	}
-	defer db.Disconnect()
+	defer func() { _ = db.Disconnect() }() // Best-effort close in test
 
 	ctx := context.Background()
 	tx, err := db.BeginTransaction(ctx)
@@ -1069,7 +1069,7 @@ func TestClickHouseDatabase_Integration_SimpleWorkflow(t *testing.T) {
 	if err != nil {
 		t.Skip("Cannot connect to test database")
 	}
-	defer db.Disconnect()
+	defer func() { _ = db.Disconnect() }() // Best-effort close in test
 
 	ctx := context.Background()
 
@@ -1119,7 +1119,7 @@ func TestClickHouseDatabase_Integration_CreateAndQuery(t *testing.T) {
 	if err != nil {
 		t.Skip("Cannot connect to test database")
 	}
-	defer db.Disconnect()
+	defer func() { _ = db.Disconnect() }() // Best-effort close in test
 
 	ctx := context.Background()
 
@@ -1249,7 +1249,7 @@ func TestClickHouseDatabase_ByteArrayConversion(t *testing.T) {
 	// Tests that byte arrays from ClickHouse are converted to strings
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }() // Best-effort close in test
 
 	// ClickHouse may return strings as []byte
 	rows := sqlmock.NewRows([]string{"text_col"}).
@@ -1336,7 +1336,7 @@ func TestClickHouseDatabase_SchemaIntrospection(t *testing.T) {
 			WHERE database = ?
 			ORDER BY name`, "default")
 		require.NoError(t, err)
-		defer result.Close()
+		defer func() { _ = result.Close() }() // Best-effort close in test
 
 		tables := []struct {
 			database   string
@@ -1428,7 +1428,7 @@ func BenchmarkClickHouseDatabase_QuoteIdentifier(b *testing.B) {
 	if err != nil {
 		b.Skip("Cannot create database instance")
 	}
-	defer db.Disconnect()
+	defer func() { _ = db.Disconnect() }() // Best-effort close in test
 
 	identifiers := []string{
 		"users",
@@ -1454,7 +1454,7 @@ func BenchmarkClickHouseDatabase_GetDataTypeMappings(b *testing.B) {
 	if err != nil {
 		b.Skip("Cannot create database instance")
 	}
-	defer db.Disconnect()
+	defer func() { _ = db.Disconnect() }() // Best-effort close in test
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

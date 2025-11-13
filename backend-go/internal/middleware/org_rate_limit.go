@@ -142,7 +142,9 @@ func (r *OrgRateLimiter) sendRateLimitResponse(w http.ResponseWriter, limit rate
 		"reset_at": "%s"
 	}`, int(time.Until(resetTime).Seconds()), resetTime.Format(time.RFC3339))
 
-	w.Write([]byte(response))
+	if _, err := w.Write([]byte(response)); err != nil {
+		r.logger.WithError(err).Error("Failed to write rate limit response")
+	}
 }
 
 // CleanupStaleLimit ers removes limiters for inactive organizations

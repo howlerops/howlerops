@@ -245,7 +245,7 @@ func (s *IPWhitelistService) AddIP(ctx context.Context, entry *IPWhitelistEntry)
 
 	// Log security event
 	if s.eventLogger != nil {
-		s.eventLogger.LogSecurityEvent(
+		_ = s.eventLogger.LogSecurityEvent( // Best-effort security logging
 			ctx,
 			"ip_whitelist_added",
 			entry.CreatedBy,
@@ -270,7 +270,7 @@ func (s *IPWhitelistService) RemoveIP(ctx context.Context, id, userID, orgID str
 
 	// Log security event
 	if s.eventLogger != nil {
-		s.eventLogger.LogSecurityEvent(
+		_ = s.eventLogger.LogSecurityEvent( // Best-effort security logging
 			ctx,
 			"ip_whitelist_removed",
 			userID,

@@ -160,7 +160,7 @@ func TestShouldCheckForUpdate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }() // Best-effort cleanup in test
 
 	u := NewUpdater(tmpDir)
 
@@ -198,7 +198,7 @@ func TestRecordUpdateCheck(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }() // Best-effort cleanup in test
 
 	u := NewUpdater(tmpDir)
 
@@ -229,7 +229,7 @@ func TestFetchLatestRelease_Error(t *testing.T) {
 	// Create mock server that returns error
 	server := newTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("Internal Server Error"))
+		_, _ = w.Write([]byte("Internal Server Error")) // Best-effort write in test
 	}))
 	defer server.Close()
 
@@ -247,7 +247,7 @@ func TestFetchLatestRelease_InvalidJSON(t *testing.T) {
 	// Create mock server that returns invalid JSON
 	server := newTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte("invalid json"))
+		_, _ = w.Write([]byte("invalid json")) // Best-effort write in test
 	}))
 	defer server.Close()
 
@@ -265,7 +265,7 @@ func TestDownloadChecksum(t *testing.T) {
 	// Create mock server
 	expectedHash := "abc123def456789"
 	server := newTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(expectedHash + "  filename.bin\n"))
+		_, _ = w.Write([]byte(expectedHash + "  filename.bin\n")) // Best-effort write in test
 	}))
 	defer server.Close()
 
@@ -288,7 +288,7 @@ func TestCopyFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }() // Best-effort cleanup in test
 
 	// Create source file
 	srcPath := filepath.Join(tmpDir, "source.txt")

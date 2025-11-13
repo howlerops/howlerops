@@ -37,7 +37,7 @@ func (suite *IntegrationTestSuite) SetupTest() {
 // TearDownTest runs after each test
 func (suite *IntegrationTestSuite) TearDownTest() {
 	if suite.testDB != nil {
-		suite.testDB.Close()
+		_ = suite.testDB.Close() // Best-effort close in test
 	}
 }
 
@@ -491,15 +491,15 @@ func TestIntegrationTestSuite(t *testing.T) {
 func TestInvitationFlow_CompleteJourney(t *testing.T) {
 	// This test demonstrates the complete invitation journey
 	testDB := testutil.SetupTestDB(t)
-	defer testDB.Close()
+	defer func() { _ = testDB.Close() }() // Best-effort close in test
 
 	repo := testutil.NewSQLiteRepository(testDB.DB)
 	svc := organization.NewService(repo, testDB.Logger)
 	ctx := context.Background()
 
 	// Setup: Create users
-	testDB.InsertTestUser(ctx, "owner1", "owner@test.com", "owner", "pass")
-	testDB.InsertTestUser(ctx, "member1", "member@test.com", "member", "pass")
+	_ = testDB.InsertTestUser(ctx, "owner1", "owner@test.com", "owner", "pass")   // Best-effort test setup
+	_ = testDB.InsertTestUser(ctx, "member1", "member@test.com", "member", "pass") // Best-effort test setup
 
 	// Step 1: Create organization
 	orgInput := testutil.CreateTestOrganizationInput("Complete Journey Co", "End to end test")
