@@ -224,7 +224,7 @@ INNER JOIN embeddings e ON d.id = e.document_id
 	if err != nil {
 		return nil, fmt.Errorf("failed to query documents: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }() // Best-effort close
 
 	results := []*Document{}
 	for rows.Next() {
@@ -312,7 +312,7 @@ WHERE content LIKE ?`)
 	if err != nil {
 		return nil, fmt.Errorf("failed to search documents by text: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }() // Best-effort close
 
 	var results []*Document
 	for rows.Next() {
@@ -479,7 +479,7 @@ func (s *MySQLVectorStore) ListCollections(ctx context.Context) ([]string, error
 	if err != nil {
 		return nil, fmt.Errorf("failed to list collections: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }() // Best-effort close
 
 	var names []string
 	for rows.Next() {

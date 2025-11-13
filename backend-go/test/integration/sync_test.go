@@ -145,7 +145,7 @@ func (s *SyncTestSuite) authenticate(t *testing.T) string {
 
 	resp, err := s.client.Do(req)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }() // Best-effort close in test
 
 	var authResp struct {
 		Token string `json:"token"`
@@ -192,7 +192,7 @@ func (s *SyncTestSuite) testUpload(t *testing.T, token string) {
 
 	resp, err := s.client.Do(req)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }() // Best-effort close in test
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
@@ -215,7 +215,7 @@ func (s *SyncTestSuite) testDownload(t *testing.T, token string) {
 
 	resp, err := s.client.Do(req)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }() // Best-effort close in test
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
@@ -236,7 +236,7 @@ func (s *SyncTestSuite) testListConflicts(t *testing.T, token string) {
 
 	resp, err := s.client.Do(req)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }() // Best-effort close in test
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
@@ -264,7 +264,7 @@ func (s *SyncTestSuite) testUploadWithoutAuth(t *testing.T) {
 
 	resp, err := s.client.Do(req)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }() // Best-effort close in test
 
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 }
@@ -275,7 +275,7 @@ func (s *SyncTestSuite) testDownloadWithoutAuth(t *testing.T) {
 
 	resp, err := s.client.Do(req)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }() // Best-effort close in test
 
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 }
@@ -305,7 +305,7 @@ func TestSyncValidation(t *testing.T) {
 
 		resp, err := suite.client.Do(req)
 		require.NoError(t, err)
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }() // Best-effort close in test
 
 		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 	})
@@ -327,7 +327,7 @@ func TestSyncValidation(t *testing.T) {
 
 		resp, err := suite.client.Do(req)
 		require.NoError(t, err)
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }() // Best-effort close in test
 
 		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 	})
@@ -339,7 +339,7 @@ func TestSyncValidation(t *testing.T) {
 
 		resp, err := suite.client.Do(req)
 		require.NoError(t, err)
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }() // Best-effort close in test
 
 		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 	})
@@ -351,7 +351,7 @@ func TestSyncValidation(t *testing.T) {
 
 		resp, err := suite.client.Do(req)
 		require.NoError(t, err)
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }() // Best-effort close in test
 
 		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 	})
@@ -384,7 +384,7 @@ func TestSyncConflictResolution(t *testing.T) {
 
 		resp, err := suite.client.Do(req)
 		require.NoError(t, err)
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }() // Best-effort close in test
 
 		// May return 404 if conflict doesn't exist, which is acceptable for this test
 		assert.True(t, resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusNotFound)
@@ -405,7 +405,7 @@ func TestSyncConflictResolution(t *testing.T) {
 
 		resp, err := suite.client.Do(req)
 		require.NoError(t, err)
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }() // Best-effort close in test
 
 		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 	})
@@ -454,7 +454,7 @@ func TestSyncLargePayload(t *testing.T) {
 
 	resp, err := suite.client.Do(req)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }() // Best-effort close in test
 
 	// Should handle large payloads successfully
 	assert.True(t, resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusRequestEntityTooLarge)

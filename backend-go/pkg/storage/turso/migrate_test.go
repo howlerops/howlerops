@@ -311,7 +311,7 @@ func TestVisibilityConstraint(t *testing.T) {
 func TestOrganizationForeignKey(t *testing.T) {
 	t.Skip("TODO: Fix this test - temporarily skipped for deployment")
 	db, logger := setupMigrationTestDB(t)
-	defer db.Close()
+	defer func() { _ = db.Close() }() // Best-effort close in test
 
 	// Initialize schema and run migrations
 	err := InitializeSchema(db, logger)
@@ -358,7 +358,7 @@ func TestOrganizationForeignKey(t *testing.T) {
 func TestCascadeDelete(t *testing.T) {
 	t.Skip("TODO: Fix this test - temporarily skipped for deployment")
 	db, logger := setupMigrationTestDB(t)
-	defer db.Close()
+	defer func() { _ = db.Close() }() // Best-effort close in test
 
 	// Initialize schema and run migrations
 	err := InitializeSchema(db, logger)

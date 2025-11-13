@@ -198,7 +198,7 @@ func testMigrationTable(db *sql.DB, logger *logrus.Logger) error {
 	if err != nil {
 		return fmt.Errorf("failed to get table info: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }() // Best-effort close
 
 	for rows.Next() {
 		var cid int
@@ -230,7 +230,7 @@ func testConnectionTemplatesSchema(db *sql.DB, logger *logrus.Logger) error {
 	if err != nil {
 		return fmt.Errorf("failed to get table info: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }() // Best-effort close
 
 	for rows.Next() {
 		var cid int
@@ -263,7 +263,7 @@ func testSavedQueriesSchema(db *sql.DB, logger *logrus.Logger) error {
 	if err != nil {
 		return fmt.Errorf("failed to get table info: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }() // Best-effort close
 
 	for rows.Next() {
 		var cid int
@@ -334,7 +334,7 @@ func testForeignKeys(db *sql.DB, logger *logrus.Logger) error {
 	if err != nil {
 		return fmt.Errorf("failed to check foreign keys: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }() // Best-effort close
 
 	violations := 0
 	for rows.Next() {
@@ -501,7 +501,7 @@ func testSchemaComparison(logger *logrus.Logger) error {
 func getColumns(db *sql.DB, table string) map[string]bool {
 	columns := make(map[string]bool)
 	rows, _ := db.Query(fmt.Sprintf("PRAGMA table_info(%s)", table))
-	defer rows.Close()
+	defer func() { _ = rows.Close() }() // Best-effort close
 
 	for rows.Next() {
 		var cid int

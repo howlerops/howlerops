@@ -94,7 +94,7 @@ func (r *SQLiteRepository) GetByUserID(ctx context.Context, userID string) ([]*o
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }() // Best-effort close in test
 
 	var orgs []*organization.Organization
 	for rows.Next() {
@@ -209,7 +209,7 @@ func (r *SQLiteRepository) GetMembers(ctx context.Context, orgID string) ([]*org
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }() // Best-effort close in test
 
 	var members []*organization.OrganizationMember
 	for rows.Next() {
@@ -352,7 +352,7 @@ func (r *SQLiteRepository) GetInvitationsByOrg(ctx context.Context, orgID string
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }() // Best-effort close in test
 
 	var invitations []*organization.OrganizationInvitation
 	for rows.Next() {
@@ -385,7 +385,7 @@ func (r *SQLiteRepository) GetInvitationsByEmail(ctx context.Context, email stri
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }() // Best-effort close in test
 
 	var invitations []*organization.OrganizationInvitation
 	for rows.Next() {
@@ -461,7 +461,7 @@ func (r *SQLiteRepository) GetAuditLogs(ctx context.Context, orgID string, limit
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }() // Best-effort close in test
 
 	var logs []*organization.AuditLog
 	for rows.Next() {

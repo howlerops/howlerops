@@ -606,22 +606,22 @@ func (h *Handler) UnshareConnection(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) GetAccessibleConnections(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"connections": []map[string]string{},
-	})
+	}) // Best-effort encode in test mock
 }
 
 func (h *Handler) UpdateVisibility(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
+	_ = json.NewEncoder(w).Encode(map[string]string{"status": "success"}) // Best-effort encode in test mock
 }
 
 func (h *Handler) CreateConnection(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]string{"id": "new-conn-id"})
+	_ = json.NewEncoder(w).Encode(map[string]string{"id": "new-conn-id"}) // Best-effort encode in test mock
 }
 
 func (h *Handler) DeleteConnection(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"status": "deleted"})
+	_ = json.NewEncoder(w).Encode(map[string]string{"status": "deleted"}) // Best-effort encode in test mock
 }

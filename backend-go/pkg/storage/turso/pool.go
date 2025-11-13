@@ -82,7 +82,9 @@ func NewOptimizedPool(config *PoolConfig, logger *logrus.Logger) (*ConnectionPoo
 	defer cancel()
 
 	if err := db.PingContext(ctx); err != nil {
-		db.Close()
+		if closeErr := db.Close(); closeErr != nil {
+			logger.Errorf("Failed to close database after ping failure: %v", closeErr)
+		}
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 

@@ -319,7 +319,7 @@ func (s *store) queryToMaps(ctx context.Context, query string, args ...interface
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }() // Best-effort close
 
 	columns, err := rows.Columns()
 	if err != nil {

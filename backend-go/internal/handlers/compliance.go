@@ -358,9 +358,9 @@ func (h *ComplianceHandler) RestoreBackup(w http.ResponseWriter, r *http.Request
 	}
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{
+	_ = json.NewEncoder(w).Encode(map[string]string{
 		"message": "Restore initiated - application restart required",
-	})
+	}) // Best-effort encode
 }
 
 // DeleteBackup deletes a backup
@@ -387,7 +387,7 @@ func (h *ComplianceHandler) GetBackupStats(w http.ResponseWriter, r *http.Reques
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(stats)
+	_ = json.NewEncoder(w).Encode(stats) // Best-effort encode
 }
 
 // GetChangeHistory retrieves change history for a record
@@ -404,7 +404,7 @@ func (h *ComplianceHandler) GetChangeHistory(w http.ResponseWriter, r *http.Requ
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(history)
+	_ = json.NewEncoder(w).Encode(history) // Best-effort encode
 }
 
 // GetFieldHistory retrieves change history for a specific field
@@ -422,7 +422,7 @@ func (h *ComplianceHandler) GetFieldHistory(w http.ResponseWriter, r *http.Reque
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(history)
+	_ = json.NewEncoder(w).Encode(history) // Best-effort encode
 }
 
 // ScanForPII scans data for PII
@@ -446,7 +446,7 @@ func (h *ComplianceHandler) ScanForPII(w http.ResponseWriter, r *http.Request) {
 	result.ScannedAt = time.Now()
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
+	_ = json.NewEncoder(w).Encode(result) // Best-effort encode
 }
 
 // ListPIIFields lists registered PII fields
@@ -459,7 +459,7 @@ func (h *ComplianceHandler) ListPIIFields(w http.ResponseWriter, r *http.Request
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(fields)
+	_ = json.NewEncoder(w).Encode(fields) // Best-effort encode
 }
 
 // RegisterPIIField registers a field as containing PII

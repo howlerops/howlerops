@@ -469,7 +469,7 @@ func (s *LocalSQLiteStorage) GetConnections(ctx context.Context, filters *Connec
 	if err != nil {
 		return nil, fmt.Errorf("failed to query connections: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }() // Best-effort close
 
 	var connections []*Connection
 	for rows.Next() {

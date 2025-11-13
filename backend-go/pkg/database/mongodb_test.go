@@ -401,7 +401,7 @@ func TestMongoDBDatabase_GetConnectionInfo(t *testing.T) {
 		if err != nil {
 			t.Skipf("MongoDB not available: %v", err)
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Nanosecond)
 		defer cancel()
@@ -428,7 +428,7 @@ func TestMongoDBDatabase_Execute_Select(t *testing.T) {
 		if err != nil {
 			t.Skipf("MongoDB not available: %v", err)
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 		skipIfNoMongoDB(t, db)
 
 		// This requires a collection to exist - will likely fail but shouldn't panic
@@ -444,7 +444,7 @@ func TestMongoDBDatabase_Execute_Select(t *testing.T) {
 		if err != nil {
 			t.Skipf("MongoDB not available: %v", err)
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 		skipIfNoMongoDB(t, db)
 
 		// Try a MongoDB-specific query
@@ -461,7 +461,7 @@ func TestMongoDBDatabase_Execute_Select(t *testing.T) {
 		if err != nil {
 			t.Skipf("MongoDB not available: %v", err)
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 		skipIfNoMongoDB(t, db)
 
 		result, err := db.Execute(ctx, "INVALID QUERY FORMAT")
@@ -477,7 +477,7 @@ func TestMongoDBDatabase_Execute_Select(t *testing.T) {
 			t.Skipf("MongoDB not available: %v", err)
 		}
 
-		db.Disconnect()
+		_ = db.Disconnect() // Best-effort disconnect in test
 
 		result, err := db.Execute(ctx, "SELECT * FROM test")
 		assert.Error(t, err)
@@ -491,7 +491,7 @@ func TestMongoDBDatabase_Execute_Select(t *testing.T) {
 		if err != nil {
 			t.Skipf("MongoDB not available: %v", err)
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
@@ -516,7 +516,7 @@ func TestMongoDBDatabase_ExecuteStream(t *testing.T) {
 			t.Skipf("MongoDB not available: %v", err)
 		}
 
-		db.Disconnect()
+		_ = db.Disconnect() // Best-effort disconnect in test
 
 		callback := func(batch [][]interface{}) error {
 			return nil
@@ -533,7 +533,7 @@ func TestMongoDBDatabase_ExecuteStream(t *testing.T) {
 		if err != nil {
 			t.Skipf("MongoDB not available: %v", err)
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 		skipIfNoMongoDB(t, db)
 
 		callback := func(batch [][]interface{}) error {
@@ -551,7 +551,7 @@ func TestMongoDBDatabase_ExecuteStream(t *testing.T) {
 		if err != nil {
 			t.Skipf("MongoDB not available: %v", err)
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 		skipIfNoMongoDB(t, db)
 
 		callback := func(batch [][]interface{}) error {
@@ -577,7 +577,7 @@ func TestMongoDBDatabase_ExplainQuery(t *testing.T) {
 			t.Skipf("MongoDB not available: %v", err)
 		}
 
-		db.Disconnect()
+		_ = db.Disconnect() // Best-effort disconnect in test
 
 		_, err = db.ExplainQuery(ctx, "SELECT * FROM test")
 		assert.Error(t, err)
@@ -590,7 +590,7 @@ func TestMongoDBDatabase_ExplainQuery(t *testing.T) {
 		if err != nil {
 			t.Skipf("MongoDB not available: %v", err)
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 		skipIfNoMongoDB(t, db)
 
 		_, err = db.ExplainQuery(ctx, "INSERT INTO test VALUES (1)")
@@ -604,7 +604,7 @@ func TestMongoDBDatabase_ExplainQuery(t *testing.T) {
 		if err != nil {
 			t.Skipf("MongoDB not available: %v", err)
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 		skipIfNoMongoDB(t, db)
 
 		_, err = db.ExplainQuery(ctx, "SELECT * FROM")
@@ -625,7 +625,7 @@ func TestMongoDBDatabase_GetSchemas(t *testing.T) {
 		if err != nil {
 			t.Skipf("MongoDB not available: %v", err)
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 		skipIfNoMongoDB(t, db)
 
 		schemas, err := db.GetSchemas(ctx)
@@ -641,7 +641,7 @@ func TestMongoDBDatabase_GetSchemas(t *testing.T) {
 			t.Skipf("MongoDB not available: %v", err)
 		}
 
-		db.Disconnect()
+		_ = db.Disconnect() // Best-effort disconnect in test
 
 		_, err = db.GetSchemas(ctx)
 		assert.Error(t, err)
@@ -660,7 +660,7 @@ func TestMongoDBDatabase_GetTables(t *testing.T) {
 		if err != nil {
 			t.Skipf("MongoDB not available: %v", err)
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 		skipIfNoMongoDB(t, db)
 
 		tables, err := db.GetTables(ctx, "")
@@ -675,7 +675,7 @@ func TestMongoDBDatabase_GetTables(t *testing.T) {
 		if err != nil {
 			t.Skipf("MongoDB not available: %v", err)
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 		skipIfNoMongoDB(t, db)
 
 		tables, err := db.GetTables(ctx, "testdb")
@@ -690,7 +690,7 @@ func TestMongoDBDatabase_GetTables(t *testing.T) {
 			t.Skipf("MongoDB not available: %v", err)
 		}
 
-		db.Disconnect()
+		_ = db.Disconnect() // Best-effort disconnect in test
 
 		_, err = db.GetTables(ctx, "testdb")
 		assert.Error(t, err)
@@ -703,7 +703,7 @@ func TestMongoDBDatabase_GetTables(t *testing.T) {
 		if err != nil {
 			t.Skipf("MongoDB not available: %v", err)
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 		skipIfNoMongoDB(t, db)
 
 		tables, err := db.GetTables(ctx, "testdb")
@@ -727,7 +727,7 @@ func TestMongoDBDatabase_GetTableStructure(t *testing.T) {
 		if err != nil {
 			t.Skipf("MongoDB not available: %v", err)
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 		skipIfNoMongoDB(t, db)
 
 		// This will fail if collection doesn't exist, but shouldn't panic
@@ -745,7 +745,7 @@ func TestMongoDBDatabase_GetTableStructure(t *testing.T) {
 			t.Skipf("MongoDB not available: %v", err)
 		}
 
-		db.Disconnect()
+		_ = db.Disconnect() // Best-effort disconnect in test
 
 		_, err = db.GetTableStructure(ctx, "testdb", "test")
 		assert.Error(t, err)
@@ -758,7 +758,7 @@ func TestMongoDBDatabase_GetTableStructure(t *testing.T) {
 		if err != nil {
 			t.Skipf("MongoDB not available: %v", err)
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 		skipIfNoMongoDB(t, db)
 
 		structure, err := db.GetTableStructure(ctx, "testdb", "test_collection")

@@ -474,9 +474,9 @@ func RecoveryMiddleware(logger *logrus.Logger) func(http.Handler) http.Handler {
 
 					// Return 500 error
 					w.WriteHeader(http.StatusInternalServerError)
-					json.NewEncoder(w).Encode(map[string]string{
+					_ = json.NewEncoder(w).Encode(map[string]string{
 						"error": "Internal server error",
-					})
+					}) // Best-effort encode
 				}
 			}()
 

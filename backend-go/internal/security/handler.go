@@ -267,7 +267,7 @@ func (h *Handler) EnableTwoFactor(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(setup)
+	_ = json.NewEncoder(w).Encode(setup) // Best-effort encode
 }
 
 // ConfirmTwoFactor confirms and enables 2FA
@@ -288,9 +288,9 @@ func (h *Handler) ConfirmTwoFactor(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{
+	_ = json.NewEncoder(w).Encode(map[string]string{
 		"message": "Two-factor authentication enabled successfully",
-	})
+	}) // Best-effort encode
 }
 
 // DisableTwoFactor disables 2FA
@@ -311,9 +311,9 @@ func (h *Handler) DisableTwoFactor(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{
+	_ = json.NewEncoder(w).Encode(map[string]string{
 		"message": "Two-factor authentication disabled",
-	})
+	}) // Best-effort encode
 }
 
 // ValidateTwoFactor validates a 2FA code
@@ -334,9 +334,9 @@ func (h *Handler) ValidateTwoFactor(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]bool{
+	_ = json.NewEncoder(w).Encode(map[string]bool{
 		"valid": true,
-	})
+	}) // Best-effort encode
 }
 
 // RegenerateBackupCodes regenerates 2FA backup codes
@@ -350,10 +350,10 @@ func (h *Handler) RegenerateBackupCodes(w http.ResponseWriter, r *http.Request) 
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"backup_codes": codes,
 		"created_at":   time.Now(),
-	})
+	}) // Best-effort encode
 }
 
 // GetTwoFactorStatus returns the 2FA status
@@ -367,7 +367,7 @@ func (h *Handler) GetTwoFactorStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(status)
+	_ = json.NewEncoder(w).Encode(status) // Best-effort encode
 }
 
 // API Key Endpoints
@@ -389,7 +389,7 @@ func (h *Handler) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response) // Best-effort encode
 }
 
 // ListAPIKeys lists API keys for the user
@@ -403,7 +403,7 @@ func (h *Handler) ListAPIKeys(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(keys)
+	_ = json.NewEncoder(w).Encode(keys) // Best-effort encode
 }
 
 // GetAPIKey retrieves API key details
@@ -419,7 +419,7 @@ func (h *Handler) GetAPIKey(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(apiKey)
+	_ = json.NewEncoder(w).Encode(apiKey) // Best-effort encode
 }
 
 // RevokeAPIKey revokes an API key
@@ -457,7 +457,7 @@ func (h *Handler) ListSecurityEvents(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(events)
+	_ = json.NewEncoder(w).Encode(events) // Best-effort encode
 }
 
 // Helper functions

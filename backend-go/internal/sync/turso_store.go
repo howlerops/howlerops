@@ -959,7 +959,7 @@ func (s *TursoStore) ListSyncLogs(ctx context.Context, userID string, limit int)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list sync logs: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }() // Best-effort close
 
 	var logs []SyncLog
 	for rows.Next() {

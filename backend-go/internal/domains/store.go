@@ -119,7 +119,7 @@ func (s *Store) ListByOrganization(ctx context.Context, orgID string) ([]*Domain
 	if err != nil {
 		return nil, fmt.Errorf("query domains: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }() // Best-effort close
 
 	var domains []*DomainVerification
 	for rows.Next() {

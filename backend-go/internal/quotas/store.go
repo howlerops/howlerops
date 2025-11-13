@@ -250,7 +250,9 @@ func (s *Store) GetUsageHistory(ctx context.Context, orgID string, days int) ([]
 	if err != nil {
 		return nil, fmt.Errorf("query usage history: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close() // Best-effort close
+	}()
 
 	var usageList []*OrganizationUsage
 	for rows.Next() {

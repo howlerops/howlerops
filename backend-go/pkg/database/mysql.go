@@ -147,7 +147,11 @@ func (m *MySQLDatabase) executeSelect(ctx context.Context, db *sql.DB, query str
 			Duration: time.Since(start),
 		}, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			m.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	// Get column information
 	columns, err := rows.Columns()
@@ -507,7 +511,9 @@ func (m *MySQLDatabase) ExecuteStream(ctx context.Context, query string, batchSi
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close() // Best-effort close
+	}()
 
 	columns, err := rows.Columns()
 	if err != nil {
@@ -589,7 +595,7 @@ func (m *MySQLDatabase) GetSchemas(ctx context.Context) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }() // Best-effort close
 
 	var schemas []string
 	for rows.Next() {
@@ -628,7 +634,7 @@ func (m *MySQLDatabase) GetTables(ctx context.Context, schema string) ([]TableIn
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }() // Best-effort close
 
 	var tables []TableInfo
 	for rows.Next() {
@@ -741,7 +747,7 @@ func (m *MySQLDatabase) getTableColumns(ctx context.Context, db *sql.DB, schema,
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }() // Best-effort close
 
 	var columns []ColumnInfo
 	for rows.Next() {

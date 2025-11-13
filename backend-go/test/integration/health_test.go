@@ -361,7 +361,7 @@ func TestHealthCheckUnderLoad(t *testing.T) {
 		} else {
 			failureCount++
 		}
-		resp.Body.Close()
+		_ = resp.Body.Close() // Best-effort close in test
 
 		time.Sleep(100 * time.Millisecond)
 	}
