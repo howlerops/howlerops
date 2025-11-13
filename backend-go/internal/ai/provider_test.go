@@ -687,7 +687,7 @@ func TestDefaultProviderFactory_CreateProvider_AllProviderTypes(t *testing.T) {
 // TestGenerateOptionFunction verifies GenerateOption is a function type
 func TestGenerateOptionFunction(t *testing.T) {
 	// Verify that GenerateOption is indeed a function type
-	var opt ai.GenerateOption = ai.WithModel("test")
+	opt := ai.WithModel("test")
 
 	assert.NotNil(t, opt)
 	assert.IsType(t, ai.GenerateOption(nil), opt)

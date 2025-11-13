@@ -133,7 +133,9 @@ func (h *EnterpriseHandlers) GetBrandedCSS(w http.ResponseWriter, r *http.Reques
 
 	w.Header().Set("Content-Type", "text/css")
 	w.Header().Set("Cache-Control", "public, max-age=3600") // Cache for 1 hour
-	w.Write([]byte(css))
+	if _, err := w.Write([]byte(css)); err != nil {
+		h.logger.WithError(err).Error("Failed to write CSS response")
+	}
 }
 
 // Custom domains handlers
@@ -348,7 +350,9 @@ func (h *EnterpriseHandlers) ExportUsageData(w http.ResponseWriter, r *http.Requ
 
 	w.Header().Set("Content-Type", "text/csv")
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=usage-%s.csv", time.Now().Format("2006-01-02")))
-	w.Write([]byte(csv))
+	if _, err := w.Write([]byte(csv)); err != nil {
+		h.logger.WithError(err).Error("Failed to write CSV response")
+	}
 }
 
 // SLA handlers

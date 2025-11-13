@@ -50,9 +50,9 @@ func HTTPAuthMiddleware(authMiddleware *AuthMiddleware, logger *logrus.Logger) f
 
 			// Add user information to request context
 			ctx := r.Context()
-			ctx = context.WithValue(ctx, "user_id", claims.UserID)
-			ctx = context.WithValue(ctx, "username", claims.Username)
-			ctx = context.WithValue(ctx, "role", claims.Role)
+			ctx = context.WithValue(ctx, UserIDKey, claims.UserID)
+			ctx = context.WithValue(ctx, UsernameKey, claims.Username)
+			ctx = context.WithValue(ctx, RoleKey, claims.Role)
 
 			// Create new request with updated context
 			r = r.WithContext(ctx)
@@ -113,9 +113,9 @@ func OptionalHTTPAuthMiddleware(authMiddleware *AuthMiddleware, logger *logrus.L
 
 			// Add user information to request context
 			ctx := r.Context()
-			ctx = context.WithValue(ctx, "user_id", claims.UserID)
-			ctx = context.WithValue(ctx, "username", claims.Username)
-			ctx = context.WithValue(ctx, "role", claims.Role)
+			ctx = context.WithValue(ctx, UserIDKey, claims.UserID)
+			ctx = context.WithValue(ctx, UsernameKey, claims.Username)
+			ctx = context.WithValue(ctx, RoleKey, claims.Role)
 
 			// Create new request with updated context
 			r = r.WithContext(ctx)

@@ -10,6 +10,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
+	"github.com/sql-studio/backend-go/internal/middleware"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -147,9 +148,9 @@ func createAuthenticatedRequest(method, url string, body interface{}) *http.Requ
 	req.Header.Set("Content-Type", "application/json")
 
 	// Add user context (simulating auth middleware)
-	ctx := context.WithValue(req.Context(), "user_id", "test-user-123")
-	ctx = context.WithValue(ctx, "username", "testuser")
-	ctx = context.WithValue(ctx, "role", "user")
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, "test-user-123")
+	ctx = context.WithValue(ctx, middleware.UsernameKey, "testuser")
+	ctx = context.WithValue(ctx, middleware.RoleKey, "user")
 
 	return req.WithContext(ctx)
 }

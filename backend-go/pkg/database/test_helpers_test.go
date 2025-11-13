@@ -24,7 +24,7 @@ func isServiceAvailable(address string, timeout time.Duration) bool {
 	if err != nil {
 		return false
 	}
-	conn.Close()
+	_ = conn.Close() // Best-effort close in test
 	return true
 }
 

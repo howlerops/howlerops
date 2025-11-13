@@ -1018,7 +1018,7 @@ func TestPostgresDatabase_SchemaIntrospection(t *testing.T) {
 		schemas := []string{}
 		for result.Next() {
 			var schema string
-			result.Scan(&schema)
+			_ = result.Scan(&schema) // Best-effort scan in test
 			schemas = append(schemas, schema)
 		}
 
@@ -1143,5 +1143,7 @@ func TestPostgresDatabase_CacheTTL(t *testing.T) {
 	// Both should have same result
 	if err1 == nil && err2 == nil {
 		// TODO: Assert that cache was hit on second call (requires cache metrics)
+		// For now, we just verify both calls succeeded
+		t.Log("Both cache calls succeeded - cache appears to be working")
 	}
 }

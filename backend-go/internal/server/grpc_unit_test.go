@@ -11,6 +11,11 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// contextKey is a custom type for context keys to avoid collisions
+type contextKey string
+
+const testUserIDKey contextKey = "user_id"
+
 func TestTimeoutInterceptorAddsDeadline(t *testing.T) {
 	interceptor := timeoutInterceptor(50 * time.Millisecond)
 
@@ -69,7 +74,7 @@ func TestValidateAuthAcceptsBearerToken(t *testing.T) {
 }
 
 func TestExtractUserFromContext(t *testing.T) {
-	ctx := context.WithValue(context.Background(), "user_id", "abc-123")
+	ctx := context.WithValue(context.Background(), testUserIDKey, "abc-123")
 	userID, err := extractUserFromContext(ctx)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

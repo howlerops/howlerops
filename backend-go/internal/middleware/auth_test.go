@@ -17,6 +17,7 @@ import (
 	"github.com/sql-studio/backend-go/internal/middleware"
 )
 
+
 // TestNewAuthMiddleware tests the AuthMiddleware constructor
 func TestNewAuthMiddleware(t *testing.T) {
 	logger := newSilentLogger()
@@ -680,9 +681,9 @@ func TestValidateRefreshToken_InvalidSignature(t *testing.T) {
 // TestExtractUserFromContext_Success tests successful user extraction from context
 func TestExtractUserFromContext_Success(t *testing.T) {
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, "user_id", "user123")
-	ctx = context.WithValue(ctx, "username", "testuser")
-	ctx = context.WithValue(ctx, "role", "admin")
+	ctx = context.WithValue(ctx, middleware.UserIDKey, "user123")
+	ctx = context.WithValue(ctx, middleware.UsernameKey, "testuser")
+	ctx = context.WithValue(ctx, middleware.RoleKey, "admin")
 
 	userID, username, role, err := middleware.ExtractUserFromContext(ctx)
 
@@ -695,8 +696,8 @@ func TestExtractUserFromContext_Success(t *testing.T) {
 // TestExtractUserFromContext_MissingUserID tests extraction with missing user ID
 func TestExtractUserFromContext_MissingUserID(t *testing.T) {
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, "username", "testuser")
-	ctx = context.WithValue(ctx, "role", "admin")
+	ctx = context.WithValue(ctx, middleware.UsernameKey, "testuser")
+	ctx = context.WithValue(ctx, middleware.RoleKey, "admin")
 
 	userID, username, role, err := middleware.ExtractUserFromContext(ctx)
 
@@ -710,9 +711,9 @@ func TestExtractUserFromContext_MissingUserID(t *testing.T) {
 // TestExtractUserFromContext_EmptyUserID tests extraction with empty user ID
 func TestExtractUserFromContext_EmptyUserID(t *testing.T) {
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, "user_id", "")
-	ctx = context.WithValue(ctx, "username", "testuser")
-	ctx = context.WithValue(ctx, "role", "admin")
+	ctx = context.WithValue(ctx, middleware.UserIDKey, "")
+	ctx = context.WithValue(ctx, middleware.UsernameKey, "testuser")
+	ctx = context.WithValue(ctx, middleware.RoleKey, "admin")
 
 	userID, username, role, err := middleware.ExtractUserFromContext(ctx)
 
@@ -725,8 +726,8 @@ func TestExtractUserFromContext_EmptyUserID(t *testing.T) {
 // TestExtractUserFromContext_MissingUsername tests extraction with missing username
 func TestExtractUserFromContext_MissingUsername(t *testing.T) {
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, "user_id", "user123")
-	ctx = context.WithValue(ctx, "role", "admin")
+	ctx = context.WithValue(ctx, middleware.UserIDKey,"user123")
+	ctx = context.WithValue(ctx, middleware.RoleKey,"admin")
 
 	userID, username, role, err := middleware.ExtractUserFromContext(ctx)
 
@@ -739,8 +740,8 @@ func TestExtractUserFromContext_MissingUsername(t *testing.T) {
 // TestExtractUserFromContext_MissingRole tests extraction with missing role
 func TestExtractUserFromContext_MissingRole(t *testing.T) {
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, "user_id", "user123")
-	ctx = context.WithValue(ctx, "username", "testuser")
+	ctx = context.WithValue(ctx, middleware.UserIDKey,"user123")
+	ctx = context.WithValue(ctx, middleware.UsernameKey,"testuser")
 
 	userID, username, role, err := middleware.ExtractUserFromContext(ctx)
 
@@ -753,9 +754,9 @@ func TestExtractUserFromContext_MissingRole(t *testing.T) {
 // TestExtractUserFromContext_WrongTypeUserID tests extraction with wrong type for user ID
 func TestExtractUserFromContext_WrongTypeUserID(t *testing.T) {
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, "user_id", 123)
-	ctx = context.WithValue(ctx, "username", "testuser")
-	ctx = context.WithValue(ctx, "role", "admin")
+	ctx = context.WithValue(ctx, middleware.UserIDKey,123)
+	ctx = context.WithValue(ctx, middleware.UsernameKey,"testuser")
+	ctx = context.WithValue(ctx, middleware.RoleKey,"admin")
 
 	userID, username, role, err := middleware.ExtractUserFromContext(ctx)
 
@@ -768,9 +769,9 @@ func TestExtractUserFromContext_WrongTypeUserID(t *testing.T) {
 // TestRequireRole_Success tests successful role check
 func TestRequireRole_Success(t *testing.T) {
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, "user_id", "user123")
-	ctx = context.WithValue(ctx, "username", "testuser")
-	ctx = context.WithValue(ctx, "role", "admin")
+	ctx = context.WithValue(ctx, middleware.UserIDKey,"user123")
+	ctx = context.WithValue(ctx, middleware.UsernameKey,"testuser")
+	ctx = context.WithValue(ctx, middleware.RoleKey,"admin")
 
 	err := middleware.RequireRole(ctx, "admin")
 
@@ -780,9 +781,9 @@ func TestRequireRole_Success(t *testing.T) {
 // TestRequireRole_AdminBypass tests that admin role bypasses other role checks
 func TestRequireRole_AdminBypass(t *testing.T) {
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, "user_id", "user123")
-	ctx = context.WithValue(ctx, "username", "testuser")
-	ctx = context.WithValue(ctx, "role", "admin")
+	ctx = context.WithValue(ctx, middleware.UserIDKey,"user123")
+	ctx = context.WithValue(ctx, middleware.UsernameKey,"testuser")
+	ctx = context.WithValue(ctx, middleware.RoleKey,"admin")
 
 	err := middleware.RequireRole(ctx, "user")
 
@@ -792,9 +793,9 @@ func TestRequireRole_AdminBypass(t *testing.T) {
 // TestRequireRole_InsufficientPermissions tests role check with insufficient permissions
 func TestRequireRole_InsufficientPermissions(t *testing.T) {
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, "user_id", "user123")
-	ctx = context.WithValue(ctx, "username", "testuser")
-	ctx = context.WithValue(ctx, "role", "user")
+	ctx = context.WithValue(ctx, middleware.UserIDKey,"user123")
+	ctx = context.WithValue(ctx, middleware.UsernameKey,"testuser")
+	ctx = context.WithValue(ctx, middleware.RoleKey,"user")
 
 	err := middleware.RequireRole(ctx, "admin")
 
@@ -815,9 +816,9 @@ func TestRequireRole_UnauthenticatedUser(t *testing.T) {
 // TestRequireAdmin_Success tests successful admin check
 func TestRequireAdmin_Success(t *testing.T) {
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, "user_id", "user123")
-	ctx = context.WithValue(ctx, "username", "testuser")
-	ctx = context.WithValue(ctx, "role", "admin")
+	ctx = context.WithValue(ctx, middleware.UserIDKey,"user123")
+	ctx = context.WithValue(ctx, middleware.UsernameKey,"testuser")
+	ctx = context.WithValue(ctx, middleware.RoleKey,"admin")
 
 	err := middleware.RequireAdmin(ctx)
 
@@ -827,9 +828,9 @@ func TestRequireAdmin_Success(t *testing.T) {
 // TestRequireAdmin_NonAdminUser tests admin check with non-admin user
 func TestRequireAdmin_NonAdminUser(t *testing.T) {
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, "user_id", "user123")
-	ctx = context.WithValue(ctx, "username", "testuser")
-	ctx = context.WithValue(ctx, "role", "user")
+	ctx = context.WithValue(ctx, middleware.UserIDKey,"user123")
+	ctx = context.WithValue(ctx, middleware.UsernameKey,"testuser")
+	ctx = context.WithValue(ctx, middleware.RoleKey,"user")
 
 	err := middleware.RequireAdmin(ctx)
 
@@ -973,9 +974,9 @@ func TestSetTokenInContext_EmptyToken(t *testing.T) {
 // TestGetUserContext_Success tests successful user context retrieval
 func TestGetUserContext_Success(t *testing.T) {
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, "user_id", "user123")
-	ctx = context.WithValue(ctx, "username", "testuser")
-	ctx = context.WithValue(ctx, "role", "admin")
+	ctx = context.WithValue(ctx, middleware.UserIDKey,"user123")
+	ctx = context.WithValue(ctx, middleware.UsernameKey,"testuser")
+	ctx = context.WithValue(ctx, middleware.RoleKey,"admin")
 
 	userContext, err := middleware.GetUserContext(ctx)
 
@@ -999,7 +1000,7 @@ func TestGetUserContext_MissingUserID(t *testing.T) {
 // TestGetUserContext_PartialData tests user context retrieval with partial data
 func TestGetUserContext_PartialData(t *testing.T) {
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, "user_id", "user123")
+	ctx = context.WithValue(ctx, middleware.UserIDKey,"user123")
 
 	userContext, err := middleware.GetUserContext(ctx)
 

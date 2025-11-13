@@ -198,6 +198,9 @@ func (s *Service) DisableSSO(ctx context.Context, orgID string) error {
 // generateStateToken generates a random state token for CSRF protection
 func generateStateToken() string {
 	b := make([]byte, 32)
-	rand.Read(b)
+	if _, err := rand.Read(b); err != nil {
+		// This should never happen with crypto/rand, but handle it anyway
+		panic(fmt.Sprintf("failed to generate random token: %v", err))
+	}
 	return base64.URLEncoding.EncodeToString(b)
 }

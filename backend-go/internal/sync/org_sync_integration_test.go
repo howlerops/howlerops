@@ -187,7 +187,7 @@ func TestAccessibleConnectionsFiltering(t *testing.T) {
 		Visibility: "personal",
 		UpdatedAt:  now,
 	}
-	store.SaveConnection(ctx, userA, conn1)
+	_ = store.SaveConnection(ctx, userA, conn1) // Best-effort in test
 
 	conn2 := &ConnectionTemplate{
 		ID:             uuid.New().String(),
@@ -197,7 +197,7 @@ func TestAccessibleConnectionsFiltering(t *testing.T) {
 		Visibility:     "shared",
 		UpdatedAt:      now,
 	}
-	store.SaveConnection(ctx, userA, conn2)
+	_ = store.SaveConnection(ctx, userA, conn2) // Best-effort in test
 
 	conn3 := &ConnectionTemplate{
 		ID:             uuid.New().String(),
@@ -207,7 +207,7 @@ func TestAccessibleConnectionsFiltering(t *testing.T) {
 		Visibility:     "shared",
 		UpdatedAt:      now,
 	}
-	store.SaveConnection(ctx, userB, conn3)
+	_ = store.SaveConnection(ctx, userB, conn3) // Best-effort in test
 
 	// Test: User A with access to Org1
 	connections, err := store.ListAccessibleConnections(ctx, userA, []string{org1}, yesterday)
@@ -245,7 +245,7 @@ func TestAccessibleQueriesFiltering(t *testing.T) {
 		Visibility: "personal",
 		UpdatedAt:  now,
 	}
-	store.SaveQuery(ctx, userA, query1)
+	_ = store.SaveQuery(ctx, userA, query1) // Best-effort in test
 
 	query2 := &SavedQuery{
 		ID:             uuid.New().String(),
@@ -256,7 +256,7 @@ func TestAccessibleQueriesFiltering(t *testing.T) {
 		Visibility:     "shared",
 		UpdatedAt:      now,
 	}
-	store.SaveQuery(ctx, userA, query2)
+	_ = store.SaveQuery(ctx, userA, query2) // Best-effort in test
 
 	query3 := &SavedQuery{
 		ID:         uuid.New().String(),
@@ -266,7 +266,7 @@ func TestAccessibleQueriesFiltering(t *testing.T) {
 		Visibility: "personal",
 		UpdatedAt:  now,
 	}
-	store.SaveQuery(ctx, userB, query3)
+	_ = store.SaveQuery(ctx, userB, query3) // Best-effort in test
 
 	// Test: User A with access to Org1
 	queries, err := store.ListAccessibleQueries(ctx, userA, []string{org1}, yesterday)

@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/sql-studio/backend-go/internal/connections"
+	"github.com/sql-studio/backend-go/internal/middleware"
 	"github.com/sql-studio/backend-go/internal/organization"
 	"github.com/sql-studio/backend-go/pkg/storage/turso"
 )
@@ -193,7 +194,7 @@ func TestShareConnectionEndpoint(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 
 	// Add user context
-	ctx := context.WithValue(req.Context(), "user_id", "user-admin")
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, "user-admin")
 	req = req.WithContext(ctx)
 
 	// Mock expectations
@@ -247,7 +248,7 @@ func TestShareConnectionEndpoint_Unauthorized(t *testing.T) {
 	req := httptest.NewRequest("POST", "/api/connections/conn-123/share", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 
-	ctx := context.WithValue(req.Context(), "user_id", "user-member")
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, "user-member")
 	req = req.WithContext(ctx)
 
 	// Connection owned by different user
@@ -278,7 +279,7 @@ func TestGetOrgConnectionsEndpoint(t *testing.T) {
 	router.HandleFunc("/api/organizations/{orgId}/connections", handler.GetOrganizationConnections).Methods("GET")
 
 	req := httptest.NewRequest("GET", "/api/organizations/org-123/connections", nil)
-	ctx := context.WithValue(req.Context(), "user_id", "user-member")
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, "user-member")
 	req = req.WithContext(ctx)
 
 	// Mock data
@@ -330,7 +331,7 @@ func TestGetOrgConnectionsEndpoint_NotMember(t *testing.T) {
 	router.HandleFunc("/api/organizations/{orgId}/connections", handler.GetOrganizationConnections).Methods("GET")
 
 	req := httptest.NewRequest("GET", "/api/organizations/org-123/connections", nil)
-	ctx := context.WithValue(req.Context(), "user_id", "user-outsider")
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, "user-outsider")
 	req = req.WithContext(ctx)
 
 	// User is NOT a member
@@ -354,7 +355,7 @@ func TestUnshareConnectionEndpoint(t *testing.T) {
 	router.HandleFunc("/api/connections/{id}/unshare", handler.UnshareConnection).Methods("POST")
 
 	req := httptest.NewRequest("POST", "/api/connections/conn-123/unshare", nil)
-	ctx := context.WithValue(req.Context(), "user_id", "user-owner")
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, "user-owner")
 	req = req.WithContext(ctx)
 
 	orgID := "org-test"
@@ -395,7 +396,7 @@ func TestGetAccessibleConnectionsEndpoint(t *testing.T) {
 	router.HandleFunc("/api/connections", handler.GetAccessibleConnections).Methods("GET")
 
 	req := httptest.NewRequest("GET", "/api/connections", nil)
-	ctx := context.WithValue(req.Context(), "user_id", "user-test")
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, "user-test")
 	req = req.WithContext(ctx)
 
 	connections := []*turso.Connection{
@@ -483,7 +484,7 @@ func TestCreateConnectionEndpoint_WithOrg(t *testing.T) {
 
 	req := httptest.NewRequest("POST", "/api/connections", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
-	ctx := context.WithValue(req.Context(), "user_id", "user-admin")
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, "user-admin")
 	req = req.WithContext(ctx)
 
 	member := &organization.OrganizationMember{
@@ -515,7 +516,7 @@ func TestDeleteConnectionEndpoint(t *testing.T) {
 	router.HandleFunc("/api/connections/{id}", handler.DeleteConnection).Methods("DELETE")
 
 	req := httptest.NewRequest("DELETE", "/api/connections/conn-123", nil)
-	ctx := context.WithValue(req.Context(), "user_id", "user-owner")
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, "user-owner")
 	req = req.WithContext(ctx)
 
 	conn := &turso.Connection{
@@ -551,7 +552,7 @@ func TestAPIValidation_MissingOrganizationID(t *testing.T) {
 
 	req := httptest.NewRequest("POST", "/api/connections/conn-123/share", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
-	ctx := context.WithValue(req.Context(), "user_id", "user-test")
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, "user-test")
 	req = req.WithContext(ctx)
 
 	// Execute

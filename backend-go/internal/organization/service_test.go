@@ -1308,7 +1308,7 @@ func TestService_NilContext(t *testing.T) {
 	}
 
 	// Most Go functions will panic with nil context, but let's ensure they handle it gracefully
-	_, err := service.CreateOrganization(nil, "user-1", input)
+	_, err := service.CreateOrganization(context.TODO(), "user-1", input)
 	assert.Error(t, err)
 }
 

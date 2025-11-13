@@ -223,6 +223,7 @@ func (cb *ContextBuilder) BuildContext(ctx context.Context, query string, connec
 
 	// Wait for all goroutines to complete
 	completed := 0
+WAIT_LOOP:
 	for completed < 5 {
 		select {
 		case <-doneChan:
@@ -232,7 +233,7 @@ func (cb *ContextBuilder) BuildContext(ctx context.Context, query string, connec
 			completed++
 		case <-time.After(5 * time.Second):
 			cb.logger.Warn("Context building timeout")
-			break
+			break WAIT_LOOP
 		}
 	}
 

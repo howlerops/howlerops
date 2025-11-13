@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/test/bufconn"
 )
 
@@ -32,12 +33,12 @@ func NewTestGRPCServer(t *testing.T) (*grpc.Server, *bufconn.Listener) {
 func NewTestGRPCClient(t *testing.T, listener *bufconn.Listener) *grpc.ClientConn {
 	t.Helper()
 
-	conn, err := grpc.Dial(
+	conn, err := grpc.NewClient(
 		"bufnet",
 		grpc.WithContextDialer(func(ctx context.Context, _ string) (net.Conn, error) {
 			return listener.Dial()
 		}),
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {
 		t.Fatalf("failed to create test gRPC client: %v", err)

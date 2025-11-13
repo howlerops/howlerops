@@ -831,13 +831,13 @@ func ExampleMySQLDatabase_BeginTransaction() {
 
 	_, err = tx.Execute(ctx, "INSERT INTO users (name) VALUES (?)", "Alice")
 	if err != nil {
-		tx.Rollback()
+		_ = tx.Rollback() // Best-effort rollback in test
 		panic(err)
 	}
 
 	_, err = tx.Execute(ctx, "INSERT INTO users (name) VALUES (?)", "Bob")
 	if err != nil {
-		tx.Rollback()
+		_ = tx.Rollback() // Best-effort rollback in test
 		panic(err)
 	}
 

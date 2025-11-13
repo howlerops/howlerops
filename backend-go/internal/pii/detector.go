@@ -78,10 +78,8 @@ func (d *Detector) ScanQueryResults(ctx context.Context, results []map[string]in
 		return scanResult, nil
 	}
 
-	// Get field names from first row
-	var fieldNames []string
-	for field := range results[0] {
-		fieldNames = append(fieldNames, field)
+	// Count total fields from first row
+	for range results[0] {
 		scanResult.TotalFields++
 	}
 

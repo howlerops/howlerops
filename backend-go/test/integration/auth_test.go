@@ -209,7 +209,7 @@ func (s *AuthTestSuite) testLoginWithInvalidPassword(t *testing.T, user SignupRe
 
 	resp, err := s.client.Do(req)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }() // Best-effort close in test
 
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 
@@ -237,7 +237,7 @@ func (s *AuthTestSuite) testTokenRefresh(t *testing.T, user SignupRequest) {
 
 	resp, err := s.client.Do(req)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }() // Best-effort close in test
 
 	var authResp AuthResponse
 	err = json.NewDecoder(resp.Body).Decode(&authResp)
@@ -257,7 +257,7 @@ func (s *AuthTestSuite) testTokenRefresh(t *testing.T, user SignupRequest) {
 
 	resp, err = s.client.Do(req)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }() // Best-effort close in test
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
@@ -286,7 +286,7 @@ func (s *AuthTestSuite) testProtectedEndpoint(t *testing.T, user SignupRequest) 
 
 	resp, err := s.client.Do(req)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }() // Best-effort close in test
 
 	var authResp AuthResponse
 	err = json.NewDecoder(resp.Body).Decode(&authResp)
@@ -298,7 +298,7 @@ func (s *AuthTestSuite) testProtectedEndpoint(t *testing.T, user SignupRequest) 
 
 	resp, err = s.client.Do(req)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }() // Best-effort close in test
 
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 
@@ -309,7 +309,7 @@ func (s *AuthTestSuite) testProtectedEndpoint(t *testing.T, user SignupRequest) 
 
 	resp, err = s.client.Do(req)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }() // Best-effort close in test
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }
@@ -330,7 +330,7 @@ func (s *AuthTestSuite) testLogout(t *testing.T, user SignupRequest) {
 
 	resp, err := s.client.Do(req)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }() // Best-effort close in test
 
 	var authResp AuthResponse
 	err = json.NewDecoder(resp.Body).Decode(&authResp)
@@ -343,7 +343,7 @@ func (s *AuthTestSuite) testLogout(t *testing.T, user SignupRequest) {
 
 	resp, err = s.client.Do(req)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }() // Best-effort close in test
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
@@ -354,7 +354,7 @@ func (s *AuthTestSuite) testLogout(t *testing.T, user SignupRequest) {
 
 	resp, err = s.client.Do(req)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }() // Best-effort close in test
 
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 }
@@ -460,7 +460,7 @@ func TestAuthValidation(t *testing.T) {
 
 			resp, err := suite.client.Do(req)
 			require.NoError(t, err)
-			defer resp.Body.Close()
+			defer func() { _ = resp.Body.Close() }() // Best-effort close in test
 
 			assert.Equal(t, tt.wantStatus, resp.StatusCode)
 		})

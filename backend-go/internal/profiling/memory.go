@@ -286,13 +286,19 @@ func (p *MemoryProfiler) SnapshotHandler(w http.ResponseWriter, r *http.Request)
 func (p *MemoryProfiler) HeapHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("Content-Disposition", `attachment; filename="heap.pprof"`)
-	pprof.WriteHeapProfile(w)
+	if err := pprof.WriteHeapProfile(w); err != nil {
+		p.logger.WithError(err).Error("Failed to write heap profile")
+		http.Error(w, "Failed to generate heap profile", http.StatusInternalServerError)
+	}
 }
 
 // GoroutineHandler serves goroutine profile
 func (p *MemoryProfiler) GoroutineHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
-	pprof.Lookup("goroutine").WriteTo(w, 2)
+	if err := pprof.Lookup("goroutine").WriteTo(w, 2); err != nil {
+		p.logger.WithError(err).Error("Failed to write goroutine profile")
+		http.Error(w, "Failed to generate goroutine profile", http.StatusInternalServerError)
+	}
 }
 
 // ForceGC forces garbage collection

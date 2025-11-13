@@ -250,7 +250,11 @@ func (s *TursoStore) ListConnections(ctx context.Context, userID string, since t
 	if err != nil {
 		return nil, fmt.Errorf("failed to list connections: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			s.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	var connections []ConnectionTemplate
 	for rows.Next() {
@@ -387,10 +391,14 @@ func (s *TursoStore) GetSavedQuery(ctx context.Context, userID, queryID string) 
 		sq.ConnectionID = connectionID.String
 	}
 	if tagsJSON.Valid && tagsJSON.String != "" {
-		json.Unmarshal([]byte(tagsJSON.String), &sq.Tags)
+		if err := json.Unmarshal([]byte(tagsJSON.String), &sq.Tags); err != nil {
+			s.logger.WithError(err).Warn("Failed to unmarshal tags JSON")
+		}
 	}
 	if metadataJSON.Valid && metadataJSON.String != "" {
-		json.Unmarshal([]byte(metadataJSON.String), &sq.Metadata)
+		if err := json.Unmarshal([]byte(metadataJSON.String), &sq.Metadata); err != nil {
+			s.logger.WithError(err).Warn("Failed to unmarshal metadata JSON")
+		}
 	}
 
 	return &sq, nil
@@ -410,7 +418,11 @@ func (s *TursoStore) ListSavedQueries(ctx context.Context, userID string, since 
 	if err != nil {
 		return nil, fmt.Errorf("failed to list saved queries: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			s.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	var queries []SavedQuery
 	for rows.Next() {
@@ -432,10 +444,14 @@ func (s *TursoStore) ListSavedQueries(ctx context.Context, userID string, since 
 			sq.ConnectionID = connectionID.String
 		}
 		if tagsJSON.Valid && tagsJSON.String != "" {
-			json.Unmarshal([]byte(tagsJSON.String), &sq.Tags)
+			if err := json.Unmarshal([]byte(tagsJSON.String), &sq.Tags); err != nil {
+				s.logger.WithError(err).Warn("Failed to unmarshal tags JSON")
+			}
 		}
 		if metadataJSON.Valid && metadataJSON.String != "" {
-			json.Unmarshal([]byte(metadataJSON.String), &sq.Metadata)
+			if err := json.Unmarshal([]byte(metadataJSON.String), &sq.Metadata); err != nil {
+				s.logger.WithError(err).Warn("Failed to unmarshal metadata JSON")
+			}
 		}
 
 		queries = append(queries, sq)
@@ -502,7 +518,11 @@ func (s *TursoStore) ListQueryHistory(ctx context.Context, userID string, since 
 	if err != nil {
 		return nil, fmt.Errorf("failed to list query history: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			s.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	var history []QueryHistory
 	for rows.Next() {

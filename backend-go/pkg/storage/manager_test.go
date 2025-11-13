@@ -126,7 +126,7 @@ func TestNewManager_TeamMode_FallsBackToSolo_DisabledTeamConfig(t *testing.T) {
 func TestNewManager_TeamMode_FallsBackToSolo_NotYetImplemented(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "howlerops-manager-test-*")
 	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }() // Best-effort cleanup in test
 
 	config := createTestConfig(tmpDir, "test-user", storage.ModeTeam)
 	config.Team = &storage.TursoConfig{
@@ -154,7 +154,7 @@ func TestNewManager_TeamMode_FallsBackToSolo_NotYetImplemented(t *testing.T) {
 func TestNewManager_MissingUserID(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "howlerops-manager-test-*")
 	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }() // Best-effort cleanup in test
 
 	config := createTestConfig(tmpDir, "", storage.ModeSolo)
 
@@ -169,7 +169,7 @@ func TestNewManager_MissingUserID(t *testing.T) {
 func TestNewManager_InvalidMode(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "howlerops-manager-test-*")
 	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }() // Best-effort cleanup in test
 
 	config := createTestConfig(tmpDir, "test-user", storage.Mode("invalid"))
 
@@ -556,7 +556,7 @@ func TestManager_GetUserID(t *testing.T) {
 
 func TestManager_Close_Success(t *testing.T) {
 	manager, tmpDir, _ := setupTestManager(t, storage.ModeSolo)
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }() // Best-effort cleanup in test
 
 	err := manager.Close()
 	assert.NoError(t, err)
@@ -564,7 +564,7 @@ func TestManager_Close_Success(t *testing.T) {
 
 func TestManager_Close_CanBeCalledMultipleTimes(t *testing.T) {
 	manager, tmpDir, _ := setupTestManager(t, storage.ModeSolo)
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }() // Best-effort cleanup in test
 
 	// First close
 	err := manager.Close()
@@ -640,7 +640,7 @@ func TestManager_MultipleOperations(t *testing.T) {
 
 func TestManager_OperationsAfterClose(t *testing.T) {
 	manager, tmpDir, _ := setupTestManager(t, storage.ModeSolo)
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }() // Best-effort cleanup in test
 
 	ctx := context.Background()
 

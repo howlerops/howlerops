@@ -182,7 +182,9 @@ func (h *Handler) HandleResolveConflict(w http.ResponseWriter, r *http.Request) 
 func (h *Handler) respondJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(data)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		h.logger.WithError(err).Error("Failed to encode JSON response")
+	}
 }
 
 // respondError sends an error response
@@ -316,7 +318,9 @@ func (h *AuthHandler) HandleResetPassword(w http.ResponseWriter, r *http.Request
 func (h *AuthHandler) respondJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(data)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		h.logger.WithError(err).Error("Failed to encode JSON response")
+	}
 }
 
 func (h *AuthHandler) respondError(w http.ResponseWriter, status int, message string) {

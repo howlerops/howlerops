@@ -134,7 +134,9 @@ func (s *Service) performExport(request *DataExportRequest) {
 	userData, err := s.collectUserData(ctx, request.UserID)
 	if err != nil {
 		logger.WithError(err).Error("Failed to collect user data")
-		s.store.UpdateRequestFailed(ctx, request.ID, err.Error())
+		if updateErr := s.store.UpdateRequestFailed(ctx, request.ID, err.Error()); updateErr != nil {
+			logger.WithError(updateErr).Error("Failed to update request status")
+		}
 		return
 	}
 
@@ -142,14 +144,18 @@ func (s *Service) performExport(request *DataExportRequest) {
 	jsonData, err := json.MarshalIndent(userData, "", "  ")
 	if err != nil {
 		logger.WithError(err).Error("Failed to marshal user data")
-		s.store.UpdateRequestFailed(ctx, request.ID, "Failed to serialize data")
+		if updateErr := s.store.UpdateRequestFailed(ctx, request.ID, "Failed to serialize data"); updateErr != nil {
+			logger.WithError(updateErr).Error("Failed to update request status")
+		}
 		return
 	}
 
 	// Ensure export directory exists
 	if err := os.MkdirAll(s.exportPath, 0750); err != nil {
 		logger.WithError(err).Error("Failed to create export directory")
-		s.store.UpdateRequestFailed(ctx, request.ID, "Failed to create export directory")
+		if updateErr := s.store.UpdateRequestFailed(ctx, request.ID, "Failed to create export directory"); updateErr != nil {
+			logger.WithError(updateErr).Error("Failed to update request status")
+		}
 		return
 	}
 

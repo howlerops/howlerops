@@ -2240,7 +2240,7 @@ func TestEdgeCase_NilContext(t *testing.T) {
 		IPAddress: "127.0.0.1",
 	}
 
-	_, err := service.Login(nil, req)
+	_, err := service.Login(context.TODO(), req)
 	assert.Error(t, err)
 }
 

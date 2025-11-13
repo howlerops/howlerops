@@ -409,7 +409,11 @@ func (s *SQLiteVectorStore) BatchIndexDocuments(ctx context.Context, docs []*Doc
 	if err != nil {
 		return fmt.Errorf("failed to prepare document statement: %w", err)
 	}
-	defer docStmt.Close()
+	defer func() {
+		if err := docStmt.Close(); err != nil {
+			s.logger.WithError(err).Error("Failed to close document statement")
+		}
+	}()
 
 	embStmt, err := tx.PrepareContext(ctx, `
 		INSERT INTO embeddings (document_id, embedding, dimension)
@@ -421,7 +425,11 @@ func (s *SQLiteVectorStore) BatchIndexDocuments(ctx context.Context, docs []*Doc
 	if err != nil {
 		return fmt.Errorf("failed to prepare embedding statement: %w", err)
 	}
-	defer embStmt.Close()
+	defer func() {
+		if err := embStmt.Close(); err != nil {
+			s.logger.WithError(err).Error("Failed to close embedding statement")
+		}
+	}()
 
 	// Insert documents
 	for _, doc := range docs {

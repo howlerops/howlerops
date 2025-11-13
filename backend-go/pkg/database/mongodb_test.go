@@ -825,7 +825,7 @@ func TestMongoDBDatabase_BeginTransaction(t *testing.T) {
 			assert.Error(t, err)
 		} else {
 			assert.NotNil(t, tx)
-			tx.Rollback()
+			_ = tx.Rollback() // Best-effort rollback in test
 		}
 	})
 

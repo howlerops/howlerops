@@ -46,7 +46,7 @@ func TestNewClickHouseDatabase(t *testing.T) {
 		} else {
 			assert.NotNil(t, db)
 			assert.Equal(t, database.ClickHouse, db.GetDatabaseType())
-			defer db.Disconnect()
+			defer func() { _ = db.Disconnect() }() // Best-effort close in test
 		}
 	})
 
@@ -60,7 +60,7 @@ func TestNewClickHouseDatabase(t *testing.T) {
 			t.Logf("Connection failed (expected in test environment): %v", err)
 		} else {
 			assert.NotNil(t, db)
-			defer db.Disconnect()
+			defer func() { _ = db.Disconnect() }() // Best-effort close in test
 		}
 	})
 
@@ -75,7 +75,7 @@ func TestNewClickHouseDatabase(t *testing.T) {
 			t.Logf("Connection failed (expected in test environment): %v", err)
 		} else {
 			assert.NotNil(t, db)
-			defer db.Disconnect()
+			defer func() { _ = db.Disconnect() }() // Best-effort close in test
 		}
 	})
 
@@ -352,7 +352,7 @@ func TestClickHouseDatabase_Execute(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort close in test
 
 		ctx := context.Background()
 		query := "SELECT 1 as test_col"
@@ -374,7 +374,7 @@ func TestClickHouseDatabase_Execute(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort close in test
 
 		ctx := context.Background()
 		query := "WITH cte AS (SELECT 1) SELECT * FROM cte"
@@ -394,7 +394,7 @@ func TestClickHouseDatabase_Execute(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort close in test
 
 		ctx := context.Background()
 		query := "SHOW DATABASES"
@@ -414,7 +414,7 @@ func TestClickHouseDatabase_Execute(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort close in test
 
 		ctx := context.Background()
 		query := "DESCRIBE TABLE system.tables"
@@ -438,7 +438,7 @@ func TestClickHouseDatabase_ExecuteStream(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort close in test
 
 		ctx := context.Background()
 		query := "SELECT number FROM numbers(10)"
@@ -466,7 +466,7 @@ func TestClickHouseDatabase_ExecuteStream(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort close in test
 
 		ctx := context.Background()
 		query := "SELECT number FROM numbers(10)"
@@ -492,7 +492,7 @@ func TestClickHouseDatabase_ExecuteStream(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort close in test
 
 		ctx := context.Background()
 		query := "SELECT 'hello' as text_col"
@@ -531,7 +531,7 @@ func TestClickHouseDatabase_GetSchemas(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort close in test
 
 		ctx := context.Background()
 		schemas, err := db.GetSchemas(ctx)
@@ -554,7 +554,7 @@ func TestClickHouseDatabase_GetSchemas(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort close in test
 
 		ctx := context.Background()
 		schemas, err := db.GetSchemas(ctx)
@@ -579,7 +579,7 @@ func TestClickHouseDatabase_GetTables(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort close in test
 
 		ctx := context.Background()
 		tables, err := db.GetTables(ctx, "default")
@@ -607,7 +607,7 @@ func TestClickHouseDatabase_GetTables(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort close in test
 
 		ctx := context.Background()
 		tables, err := db.GetTables(ctx, "system")
@@ -629,7 +629,7 @@ func TestClickHouseDatabase_GetTables(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort close in test
 
 		ctx := context.Background()
 		tables, err := db.GetTables(ctx, "default")
@@ -654,7 +654,7 @@ func TestClickHouseDatabase_GetTableStructure(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort close in test
 
 		ctx := context.Background()
 		structure, err := db.GetTableStructure(ctx, "system", "tables")
@@ -678,7 +678,7 @@ func TestClickHouseDatabase_GetTableStructure(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort close in test
 
 		ctx := context.Background()
 		structure, err := db.GetTableStructure(ctx, "system", "tables")
@@ -703,7 +703,7 @@ func TestClickHouseDatabase_GetTableStructure(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort close in test
 
 		ctx := context.Background()
 		structure, err := db.GetTableStructure(ctx, "system", "tables")
@@ -730,7 +730,7 @@ func TestClickHouseDatabase_GetTableStructure(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort close in test
 
 		ctx := context.Background()
 		structure, err := db.GetTableStructure(ctx, "system", "tables")
@@ -755,7 +755,7 @@ func TestClickHouseDatabase_GetTableStructure(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort close in test
 
 		ctx := context.Background()
 		structure, err := db.GetTableStructure(ctx, "system", "tables")
@@ -780,7 +780,7 @@ func TestClickHouseDatabase_GetConnectionInfo(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort close in test
 
 		ctx := context.Background()
 		info, err := db.GetConnectionInfo(ctx)
@@ -815,7 +815,7 @@ func TestClickHouseDatabase_GetConnectionInfo(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort close in test
 
 		ctx := context.Background()
 		info, err := db.GetConnectionInfo(ctx)
@@ -839,7 +839,7 @@ func TestClickHouseDatabase_ExplainQuery(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort close in test
 
 		ctx := context.Background()
 		plan, err := db.ExplainQuery(ctx, "SELECT 1")
@@ -857,7 +857,7 @@ func TestClickHouseDatabase_ExplainQuery(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort close in test
 
 		ctx := context.Background()
 		plan, err := db.ExplainQuery(ctx, "SELECT * FROM system.tables")
@@ -875,7 +875,7 @@ func TestClickHouseDatabase_ExplainQuery(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort close in test
 
 		ctx := context.Background()
 		query := "SELECT number FROM numbers(10)"
@@ -899,7 +899,7 @@ func TestClickHouseDatabase_Ping(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort close in test
 
 		ctx := context.Background()
 		err = db.Ping(ctx)
@@ -916,7 +916,7 @@ func TestClickHouseDatabase_Ping(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort close in test
 
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 		defer cancel()
@@ -939,7 +939,7 @@ func TestClickHouseDatabase_Connect(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort close in test
 
 		ctx := context.Background()
 		newConfig := newTestClickHouseConfig()
@@ -959,7 +959,7 @@ func TestClickHouseDatabase_Connect(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort close in test
 
 		ctx := context.Background()
 
@@ -978,7 +978,7 @@ func TestClickHouseDatabase_Connect(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort close in test
 
 		ctx := context.Background()
 
@@ -1043,7 +1043,7 @@ func TestClickHouseDatabase_GetConnectionStats(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort close in test
 
 		stats := db.GetConnectionStats()
 
@@ -1192,7 +1192,7 @@ func TestClickHouseDatabase_Mock_Execute(t *testing.T) {
 	t.Run("SELECT query with results", func(t *testing.T) {
 		db, mock, err := sqlmock.New()
 		require.NoError(t, err)
-		defer db.Close()
+		defer func() { _ = db.Close() }() // Best-effort close in test
 
 		// Mock a simple SELECT
 		rows := sqlmock.NewRows([]string{"id", "name"}).
@@ -1204,7 +1204,7 @@ func TestClickHouseDatabase_Mock_Execute(t *testing.T) {
 		// Direct database query (not through our wrapper)
 		result, err := db.Query("SELECT id, name FROM users")
 		require.NoError(t, err)
-		defer result.Close()
+		defer func() { _ = result.Close() }() // Best-effort close in test
 
 		// Verify expectations
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -1213,7 +1213,7 @@ func TestClickHouseDatabase_Mock_Execute(t *testing.T) {
 	t.Run("INSERT query with affected rows", func(t *testing.T) {
 		db, mock, err := sqlmock.New()
 		require.NoError(t, err)
-		defer db.Close()
+		defer func() { _ = db.Close() }() // Best-effort close in test
 
 		mock.ExpectExec("INSERT INTO users").
 			WillReturnResult(sqlmock.NewResult(0, 1))
@@ -1231,7 +1231,7 @@ func TestClickHouseDatabase_Mock_Execute(t *testing.T) {
 	t.Run("query error", func(t *testing.T) {
 		db, mock, err := sqlmock.New()
 		require.NoError(t, err)
-		defer db.Close()
+		defer func() { _ = db.Close() }() // Best-effort close in test
 
 		expectedErr := errors.New("syntax error")
 		mock.ExpectQuery("SELECT (.+) FROM invalid").
@@ -1259,7 +1259,7 @@ func TestClickHouseDatabase_ByteArrayConversion(t *testing.T) {
 
 	result, err := db.Query("SELECT text_col FROM test")
 	require.NoError(t, err)
-	defer result.Close()
+	defer func() { _ = result.Close() }() // Best-effort close in test
 
 	// Scan the result
 	result.Next()
@@ -1279,7 +1279,7 @@ func TestClickHouseDatabase_SchemaIntrospection(t *testing.T) {
 	t.Run("GetSchemas filters system databases", func(t *testing.T) {
 		db, mock, err := sqlmock.New()
 		require.NoError(t, err)
-		defer db.Close()
+		defer func() { _ = db.Close() }() // Best-effort close in test
 
 		rows := sqlmock.NewRows([]string{"name"}).
 			AddRow("default").
@@ -1295,12 +1295,12 @@ func TestClickHouseDatabase_SchemaIntrospection(t *testing.T) {
 			WHERE name NOT IN ('system', 'INFORMATION_SCHEMA', 'information_schema')
 			ORDER BY name`)
 		require.NoError(t, err)
-		defer result.Close()
+		defer func() { _ = result.Close() }() // Best-effort close in test
 
 		schemas := []string{}
 		for result.Next() {
 			var schema string
-			result.Scan(&schema)
+			_ = result.Scan(&schema) // Best-effort scan in test
 			schemas = append(schemas, schema)
 		}
 
@@ -1314,7 +1314,7 @@ func TestClickHouseDatabase_SchemaIntrospection(t *testing.T) {
 	t.Run("GetTables includes engine metadata", func(t *testing.T) {
 		db, mock, err := sqlmock.New()
 		require.NoError(t, err)
-		defer db.Close()
+		defer func() { _ = db.Close() }() // Best-effort close in test
 
 		rows := sqlmock.NewRows([]string{"database", "name", "engine", "comment", "total_rows", "total_bytes"}).
 			AddRow("default", "users", "MergeTree", "", 1000, 50000).
@@ -1356,7 +1356,7 @@ func TestClickHouseDatabase_SchemaIntrospection(t *testing.T) {
 				totalRows  int64
 				totalBytes int64
 			}
-			result.Scan(&table.database, &table.name, &table.engine, &table.comment, &table.totalRows, &table.totalBytes)
+			_ = result.Scan(&table.database, &table.name, &table.engine, &table.comment, &table.totalRows, &table.totalBytes) // Best-effort scan in test
 			tables = append(tables, table)
 		}
 
@@ -1378,7 +1378,7 @@ func TestClickHouseDatabase_ErrorHandling(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort close in test
 
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel() // Cancel immediately
@@ -1406,7 +1406,7 @@ func TestClickHouseDatabase_ErrorHandling(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort close in test
 
 		ctx := context.Background()
 		_, err = db.Execute(ctx, "INVALID SQL QUERY")

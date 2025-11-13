@@ -205,7 +205,7 @@ func (s *TwoFactorService) ValidateCode(ctx context.Context, userID, code string
 
 	// Log failed attempt
 	if s.eventLogger != nil {
-		s.eventLogger.LogSecurityEvent(ctx, "2fa_validation_failed", userID, "", "", "", nil)
+		_ = s.eventLogger.LogSecurityEvent(ctx, "2fa_validation_failed", userID, "", "", "", nil) // Best-effort logging
 	}
 
 	return fmt.Errorf("invalid verification code")
@@ -222,7 +222,7 @@ func (s *TwoFactorService) DisableTwoFactor(ctx context.Context, userID, current
 
 	// Log security event
 	if s.eventLogger != nil {
-		s.eventLogger.LogSecurityEvent(ctx, "2fa_disabled", userID, "", "", "", nil)
+		_ = s.eventLogger.LogSecurityEvent(ctx, "2fa_disabled", userID, "", "", "", nil) // Best-effort logging
 	}
 
 	s.logger.WithField("user_id", userID).Info("2FA disabled")
@@ -252,7 +252,7 @@ func (s *TwoFactorService) RegenerateBackupCodes(ctx context.Context, userID str
 
 	// Log security event
 	if s.eventLogger != nil {
-		s.eventLogger.LogSecurityEvent(ctx, "2fa_backup_codes_regenerated", userID, "", "", "", nil)
+		_ = s.eventLogger.LogSecurityEvent(ctx, "2fa_backup_codes_regenerated", userID, "", "", "", nil) // Best-effort logging
 	}
 
 	return backupCodes, nil

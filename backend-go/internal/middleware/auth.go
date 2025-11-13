@@ -15,6 +15,18 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// ContextKey is a custom type for context keys to avoid collisions
+type ContextKey string
+
+const (
+	// UserIDKey is the context key for user ID
+	UserIDKey ContextKey = "user_id"
+	// UsernameKey is the context key for username
+	UsernameKey ContextKey = "username"
+	// RoleKey is the context key for role
+	RoleKey ContextKey = "role"
+)
+
 // AuthMiddleware handles JWT authentication
 type AuthMiddleware struct {
 	jwtSecret []byte
@@ -102,9 +114,9 @@ func (a *AuthMiddleware) authenticate(ctx context.Context) (context.Context, err
 	}
 
 	// Add user information to context
-	newCtx := context.WithValue(ctx, "user_id", claims.UserID)
-	newCtx = context.WithValue(newCtx, "username", claims.Username)
-	newCtx = context.WithValue(newCtx, "role", claims.Role)
+	newCtx := context.WithValue(ctx, UserIDKey, claims.UserID)
+	newCtx = context.WithValue(newCtx, UsernameKey, claims.Username)
+	newCtx = context.WithValue(newCtx, RoleKey, claims.Role)
 
 	return newCtx, nil
 }
@@ -223,17 +235,17 @@ func (a *AuthMiddleware) ValidateRefreshToken(tokenString string) (string, error
 
 // ExtractUserFromContext extracts user information from context
 func ExtractUserFromContext(ctx context.Context) (string, string, string, error) {
-	userID, ok := ctx.Value("user_id").(string)
+	userID, ok := ctx.Value(UserIDKey).(string)
 	if !ok || userID == "" {
 		return "", "", "", fmt.Errorf("user ID not found in context")
 	}
 
-	username, ok := ctx.Value("username").(string)
+	username, ok := ctx.Value(UsernameKey).(string)
 	if !ok {
 		username = ""
 	}
 
-	role, ok := ctx.Value("role").(string)
+	role, ok := ctx.Value(RoleKey).(string)
 	if !ok {
 		role = ""
 	}

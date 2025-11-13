@@ -264,8 +264,9 @@ func (h *Handler) GetPopularTemplates(w http.ResponseWriter, r *http.Request) {
 	// Parse limit (TODO: use when implementing service)
 	_ = 10
 	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
-		if _, err := strconv.Atoi(limitStr); err == nil {
+		if parsedLimit, err := strconv.Atoi(limitStr); err == nil {
 			// TODO: Use parsed limit value when template service is implemented
+			_ = parsedLimit
 		}
 	}
 

@@ -92,7 +92,7 @@ func TestTenantIsolationMiddleware(t *testing.T) {
 			// Create request with user context
 			req := httptest.NewRequest("GET", "/test", nil)
 			if tt.userID != "" {
-				ctx := context.WithValue(req.Context(), "user_id", tt.userID)
+				ctx := context.WithValue(req.Context(), UserIDKey, tt.userID)
 				req = req.WithContext(ctx)
 			}
 
@@ -258,7 +258,7 @@ func BenchmarkTenantIsolation(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		req := httptest.NewRequest("GET", "/test", nil)
-		ctx := context.WithValue(req.Context(), "user_id", "user-123")
+		ctx := context.WithValue(req.Context(), UserIDKey, "user-123")
 		req = req.WithContext(ctx)
 
 		rr := httptest.NewRecorder()

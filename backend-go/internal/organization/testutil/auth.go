@@ -6,6 +6,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+	"github.com/sql-studio/backend-go/internal/middleware"
 )
 
 // MockJWTSecret is the secret used for test JWT tokens
@@ -32,16 +33,21 @@ func GenerateTestJWTDefault(userID, username string) (string, error) {
 	return GenerateTestJWT(userID, username, "user", 24*time.Hour)
 }
 
+// contextKey is a custom type for context keys to avoid collisions
+type contextKey string
+
+const userEmailKey contextKey = "user_email"
+
 // CreateAuthContext creates a context with user authentication
 func CreateAuthContext(userID string) context.Context {
 	ctx := context.Background()
-	return context.WithValue(ctx, "user_id", userID)
+	return context.WithValue(ctx, middleware.UserIDKey, userID)
 }
 
 // CreateAuthContextWithEmail creates a context with user authentication and email
 func CreateAuthContextWithEmail(userID, email string) context.Context {
-	ctx := context.WithValue(context.Background(), "user_id", userID)
-	return context.WithValue(ctx, "user_email", email)
+	ctx := context.WithValue(context.Background(), middleware.UserIDKey, userID)
+	return context.WithValue(ctx, userEmailKey, email)
 }
 
 // TestAuthContext is a helper struct for creating authenticated contexts
@@ -71,10 +77,10 @@ func (t *TestAuthContext) WithRole(role string) *TestAuthContext {
 // ToContext converts to a context.Context with values
 func (t *TestAuthContext) ToContext() context.Context {
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, "user_id", t.UserID)
-	ctx = context.WithValue(ctx, "user_email", t.Email)
-	ctx = context.WithValue(ctx, "username", t.Username)
-	ctx = context.WithValue(ctx, "role", t.Role)
+	ctx = context.WithValue(ctx, middleware.UserIDKey, t.UserID)
+	ctx = context.WithValue(ctx, userEmailKey, t.Email)
+	ctx = context.WithValue(ctx, middleware.UsernameKey, t.Username)
+	ctx = context.WithValue(ctx, middleware.RoleKey, t.Role)
 	return ctx
 }
 
