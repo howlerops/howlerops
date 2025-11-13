@@ -324,7 +324,7 @@ func (s *QueryStore) queryQueries(ctx context.Context, querySQL string, args ...
 	if err != nil {
 		return nil, fmt.Errorf("failed to query saved queries: %w", err)
 	}
-	defer rows.Close()
+	defer func() { if err := rows.Close(); err != nil { s.logger.WithError(err).Error("Failed to close rows") } }()
 
 	var queries []*SavedQuery
 	for rows.Next() {

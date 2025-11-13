@@ -113,7 +113,7 @@ func TestNewTiDBDatabase(t *testing.T) {
 					// If somehow successful, verify it's a TiDB instance
 					assert.NotNil(t, db)
 					assert.Equal(t, database.TiDB, db.GetDatabaseType())
-					db.Disconnect()
+					defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 				}
 			}
 		})
@@ -135,7 +135,7 @@ func TestTiDBDatabase_GetDatabaseType(t *testing.T) {
 
 	// Even if connection fails, the type should be set
 	if err == nil && db != nil {
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 		assert.Equal(t, database.TiDB, db.GetDatabaseType())
 	}
 }
@@ -154,7 +154,7 @@ func TestTiDBDatabase_InheritsMySQLMethods(t *testing.T) {
 	db, err := database.NewTiDBDatabase(config, logger)
 
 	if err == nil && db != nil {
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 		// Test QuoteIdentifier (inherited from MySQL)
 		t.Run("QuoteIdentifier", func(t *testing.T) {
@@ -392,7 +392,7 @@ func TestTiDBDatabase_GetDataTypeMappings_TiDBSpecific(t *testing.T) {
 	db, err := database.NewTiDBDatabase(config, logger)
 
 	if err == nil && db != nil {
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 		mappings := db.GetDataTypeMappings()
 
@@ -666,7 +666,7 @@ func ExampleNewTiDBDatabase() {
 	if err != nil {
 		panic(err)
 	}
-	defer db.Disconnect()
+	defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 	ctx := context.Background()
 
@@ -699,7 +699,7 @@ func ExampleTiDBDatabase_IsTiFlashAvailable() {
 	if err != nil {
 		panic(err)
 	}
-	defer db.Disconnect()
+	defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 	ctx := context.Background()
 
@@ -729,7 +729,7 @@ func ExampleTiDBDatabase_GetTiKVRegionInfo() {
 	if err != nil {
 		panic(err)
 	}
-	defer db.Disconnect()
+	defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 	ctx := context.Background()
 
@@ -761,7 +761,7 @@ func BenchmarkTiDBDatabase_GetDataTypeMappings(b *testing.B) {
 	if err != nil || db == nil {
 		b.Skip("Cannot create TiDB database instance")
 	}
-	defer db.Disconnect()
+	defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

@@ -798,7 +798,11 @@ func (s *SQLiteVectorStore) ListCollections(ctx context.Context) ([]string, erro
 	if err != nil {
 		return nil, fmt.Errorf("failed to list collections: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			s.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	var names []string
 	for rows.Next() {

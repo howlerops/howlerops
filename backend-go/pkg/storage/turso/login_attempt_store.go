@@ -82,7 +82,11 @@ func (s *TursoLoginAttemptStore) GetAttempts(ctx context.Context, ip, username s
 	if err != nil {
 		return nil, fmt.Errorf("failed to query login attempts: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			s.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	var attempts []*auth.LoginAttempt
 

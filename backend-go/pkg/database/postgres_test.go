@@ -48,7 +48,7 @@ func TestNewPostgresDatabase(t *testing.T) {
 		} else {
 			assert.NotNil(t, db)
 			assert.Equal(t, database.PostgreSQL, db.GetDatabaseType())
-			defer db.Disconnect()
+			defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 		}
 	})
 
@@ -77,7 +77,7 @@ func TestPostgresDatabase_GetDatabaseType(t *testing.T) {
 	if err != nil {
 		t.Skip("Cannot connect to test database")
 	}
-	defer db.Disconnect()
+	defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 	dbType := db.GetDatabaseType()
 	assert.Equal(t, database.PostgreSQL, dbType)
@@ -91,7 +91,7 @@ func TestPostgresDatabase_QuoteIdentifier(t *testing.T) {
 	if err != nil {
 		t.Skip("Cannot connect to test database")
 	}
-	defer db.Disconnect()
+	defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 	tests := []struct {
 		name       string
@@ -131,7 +131,7 @@ func TestPostgresDatabase_GetDataTypeMappings(t *testing.T) {
 	if err != nil {
 		t.Skip("Cannot connect to test database")
 	}
-	defer db.Disconnect()
+	defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 	mappings := db.GetDataTypeMappings()
 
@@ -162,7 +162,7 @@ func TestPostgresDatabase_UpdateRow(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 		ctx := context.Background()
 		params := database.UpdateRowParams{
@@ -187,7 +187,7 @@ func TestPostgresDatabase_UpdateRow(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 		ctx := context.Background()
 		params := database.UpdateRowParams{
@@ -212,7 +212,7 @@ func TestPostgresDatabase_UpdateRow(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 		ctx := context.Background()
 		params := database.UpdateRowParams{
@@ -240,7 +240,7 @@ func TestPostgresDatabase_ComputeEditableMetadata(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 		ctx := context.Background()
 		metadata, err := db.ComputeEditableMetadata(ctx, "", []string{"id", "name"})
@@ -259,7 +259,7 @@ func TestPostgresDatabase_ComputeEditableMetadata(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 		ctx := context.Background()
 		// Complex query with JOIN
@@ -280,7 +280,7 @@ func TestPostgresDatabase_ComputeEditableMetadata(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 		ctx := context.Background()
 		query := "SELECT id, name FROM users"
@@ -304,7 +304,7 @@ func TestPostgresDatabase_Execute(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 		ctx := context.Background()
 		query := "SELECT 1 as test_col"
@@ -326,7 +326,7 @@ func TestPostgresDatabase_Execute(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 		ctx := context.Background()
 		query := "WITH cte AS (SELECT 1) SELECT * FROM cte"
@@ -349,7 +349,7 @@ func TestPostgresDatabase_ExecuteStream(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 		ctx := context.Background()
 		query := "SELECT generate_series(1, 10) as num"
@@ -377,7 +377,7 @@ func TestPostgresDatabase_ExecuteStream(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 		ctx := context.Background()
 		query := "SELECT generate_series(1, 10) as num"
@@ -405,7 +405,7 @@ func TestPostgresDatabase_GetSchemas(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 		ctx := context.Background()
 		schemas, err := db.GetSchemas(ctx)
@@ -430,7 +430,7 @@ func TestPostgresDatabase_GetTables(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 		ctx := context.Background()
 		tables, err := db.GetTables(ctx, "public")
@@ -456,7 +456,7 @@ func TestPostgresDatabase_GetTableStructure(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 		ctx := context.Background()
 
@@ -483,7 +483,7 @@ func TestPostgresDatabase_GetTableStructure(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 		ctx := context.Background()
 		structure, err := db.GetTableStructure(ctx, "public", "test_table")
@@ -507,7 +507,7 @@ func TestPostgresDatabase_BeginTransaction(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 		ctx := context.Background()
 		tx, err := db.BeginTransaction(ctx)
@@ -527,7 +527,7 @@ func TestPostgresDatabase_BeginTransaction(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 		ctx := context.Background()
 		tx, err := db.BeginTransaction(ctx)
@@ -550,7 +550,7 @@ func TestPostgresDatabase_BeginTransaction(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 		ctx := context.Background()
 		tx, err := db.BeginTransaction(ctx)
@@ -569,7 +569,7 @@ func TestPostgresDatabase_BeginTransaction(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 		ctx := context.Background()
 		tx, err := db.BeginTransaction(ctx)
@@ -590,7 +590,7 @@ func TestPostgresDatabase_GetConnectionInfo(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 		ctx := context.Background()
 		info, err := db.GetConnectionInfo(ctx)
@@ -616,7 +616,7 @@ func TestPostgresDatabase_ExplainQuery(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 		ctx := context.Background()
 		plan, err := db.ExplainQuery(ctx, "SELECT 1")
@@ -638,7 +638,7 @@ func TestPostgresDatabase_Ping(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 		ctx := context.Background()
 		err = db.Ping(ctx)
@@ -655,7 +655,7 @@ func TestPostgresDatabase_Ping(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 		defer cancel()
@@ -676,7 +676,7 @@ func TestPostgresDatabase_Connect(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 		ctx := context.Background()
 		newConfig := newTestPostgresConfig()
@@ -696,7 +696,7 @@ func TestPostgresDatabase_Connect(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 		ctx := context.Background()
 
@@ -732,7 +732,7 @@ func TestPostgresDatabase_Disconnect(t *testing.T) {
 		}
 
 		// Disconnect once
-		db.Disconnect()
+		_ = db.Disconnect() // Best-effort disconnect in test
 
 		// Disconnect again - should not panic
 		err = db.Disconnect()
@@ -749,7 +749,7 @@ func TestPostgresDatabase_GetConnectionStats(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 		stats := db.GetConnectionStats()
 
@@ -775,7 +775,7 @@ func TestPostgresDatabase_Integration_SimpleWorkflow(t *testing.T) {
 	if err != nil {
 		t.Skip("Cannot connect to test database")
 	}
-	defer db.Disconnect()
+	defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 	ctx := context.Background()
 
@@ -814,7 +814,7 @@ func TestPostgresDatabase_Integration_Transaction(t *testing.T) {
 	if err != nil {
 		t.Skip("Cannot connect to test database")
 	}
-	defer db.Disconnect()
+	defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 	ctx := context.Background()
 
@@ -1036,7 +1036,7 @@ func TestPostgresDatabase_ErrorHandling(t *testing.T) {
 		if err != nil {
 			t.Skip("Cannot connect to test database")
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel() // Cancel immediately
@@ -1095,7 +1095,7 @@ func TestPostgresDatabase_ConcurrentCacheAccess(t *testing.T) {
 	if err != nil {
 		t.Skip("Cannot connect to test database")
 	}
-	defer db.Disconnect()
+	defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 	ctx := context.Background()
 
@@ -1129,7 +1129,7 @@ func TestPostgresDatabase_CacheTTL(t *testing.T) {
 	if err != nil {
 		t.Skip("Cannot connect to test database")
 	}
-	defer db.Disconnect()
+	defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 	// Cache should be fresh for 10 minutes
 	ctx := context.Background()

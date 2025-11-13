@@ -276,7 +276,11 @@ func (m *QueryMetrics) GetTopQueries(ctx context.Context, orgID *string, limit i
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			m.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	var topQueries []*TopQuery
 	for rows.Next() {
@@ -319,7 +323,11 @@ func (m *QueryMetrics) calculatePercentiles(ctx context.Context, sqlHash string)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			m.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	var times []float64
 	for rows.Next() {

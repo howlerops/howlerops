@@ -48,7 +48,7 @@ func TestMigrationTableCreation(t *testing.T) {
 	// Verify table structure
 	rows, err := db.Query("PRAGMA table_info(schema_migrations)")
 	require.NoError(t, err)
-	defer rows.Close()
+	defer func() { _ = rows.Close() }() // Best-effort close in test
 
 	columns := make(map[string]string)
 	for rows.Next() {
@@ -425,7 +425,7 @@ func TestCascadeDelete(t *testing.T) {
 func getTableColumns(t *testing.T, db *sql.DB, tableName string) []string {
 	rows, err := db.Query(fmt.Sprintf("PRAGMA table_info(%s)", tableName))
 	require.NoError(t, err)
-	defer rows.Close()
+	defer func() { _ = rows.Close() }() // Best-effort close in test
 
 	var columns []string
 	for rows.Next() {
@@ -443,7 +443,7 @@ func getTableColumns(t *testing.T, db *sql.DB, tableName string) []string {
 func getIndexes(t *testing.T, db *sql.DB, tableName string) []string {
 	rows, err := db.Query("SELECT name FROM sqlite_master WHERE type='index' AND tbl_name=?", tableName)
 	require.NoError(t, err)
-	defer rows.Close()
+	defer func() { _ = rows.Close() }() // Best-effort close in test
 
 	var indexes []string
 	for rows.Next() {

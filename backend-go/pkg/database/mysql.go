@@ -811,7 +811,11 @@ func (m *MySQLDatabase) getTableIndexes(ctx context.Context, db *sql.DB, schema,
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			m.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	var indexes []IndexInfo
 	for rows.Next() {
@@ -857,7 +861,11 @@ func (m *MySQLDatabase) getTableForeignKeys(ctx context.Context, db *sql.DB, sch
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			m.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	var foreignKeys []ForeignKeyInfo
 	for rows.Next() {
@@ -919,7 +927,11 @@ func (m *MySQLDatabase) ListDatabases(ctx context.Context) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			m.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	var databases []string
 	for rows.Next() {
@@ -1461,7 +1473,7 @@ func (t *MySQLTransaction) executeSelect(ctx context.Context, query string, args
 			Duration: time.Since(start),
 		}, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }() // Best-effort close in transaction
 
 	columns, err := rows.Columns()
 	if err != nil {

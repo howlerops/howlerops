@@ -1083,7 +1083,7 @@ func TestMongoDBDatabase_ConnectionURIBuilding(t *testing.T) {
 			assert.Error(t, err)
 		} else {
 			assert.NotNil(t, db)
-			db.Disconnect()
+			defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 		}
 	})
 
@@ -1099,7 +1099,7 @@ func TestMongoDBDatabase_ConnectionURIBuilding(t *testing.T) {
 		// Expected to fail since host doesn't exist
 		assert.Error(t, err)
 		if db != nil {
-			db.Disconnect()
+			defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 		}
 	})
 
@@ -1120,7 +1120,7 @@ func TestMongoDBDatabase_ConnectionURIBuilding(t *testing.T) {
 			assert.Error(t, err)
 		} else {
 			assert.NotNil(t, db)
-			db.Disconnect()
+			defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 		}
 	})
 
@@ -1156,7 +1156,7 @@ func TestMongoDBDatabase_EdgeCases(t *testing.T) {
 		if err != nil {
 			t.Skipf("MongoDB not available: %v", err)
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 		skipIfNoMongoDB(t, db)
 
 		result, err := db.Execute(ctx, "")
@@ -1170,7 +1170,7 @@ func TestMongoDBDatabase_EdgeCases(t *testing.T) {
 		if err != nil {
 			t.Skipf("MongoDB not available: %v", err)
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 		skipIfNoMongoDB(t, db)
 
 		result, err := db.Execute(ctx, "   \n\t  ")
@@ -1184,7 +1184,7 @@ func TestMongoDBDatabase_EdgeCases(t *testing.T) {
 		if err != nil {
 			t.Skipf("MongoDB not available: %v", err)
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 		skipIfNoMongoDB(t, db)
 
 		result, err := db.Execute(ctx, `{"find": invalid json}`)
@@ -1207,7 +1207,7 @@ func TestMongoDBDatabase_EdgeCases(t *testing.T) {
 			assert.Error(t, err)
 		} else {
 			assert.NotNil(t, db)
-			db.Disconnect()
+			defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 		}
 	})
 
@@ -1227,7 +1227,7 @@ func TestMongoDBDatabase_EdgeCases(t *testing.T) {
 			assert.Error(t, err)
 		} else {
 			assert.NotNil(t, db)
-			db.Disconnect()
+			defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 		}
 	})
 
@@ -1237,7 +1237,7 @@ func TestMongoDBDatabase_EdgeCases(t *testing.T) {
 		if err != nil {
 			t.Skipf("MongoDB not available: %v", err)
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 		skipIfNoMongoDB(t, db)
 
 		longName := "collection_with_very_long_name_that_exceeds_normal_expectations_but_should_still_be_handled"
@@ -1264,7 +1264,7 @@ func TestMongoDBDatabase_EdgeCases(t *testing.T) {
 			assert.Error(t, err)
 		} else {
 			assert.NotNil(t, db)
-			db.Disconnect()
+			defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 		}
 	})
 
@@ -1274,7 +1274,7 @@ func TestMongoDBDatabase_EdgeCases(t *testing.T) {
 		if err != nil {
 			t.Skipf("MongoDB not available: %v", err)
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 		skipIfNoMongoDB(t, db)
 
 		// Test thread-safety with concurrent pings
@@ -1305,7 +1305,7 @@ func TestMongoDBDatabase_BSONTypeHandling(t *testing.T) {
 		if err != nil {
 			t.Skipf("MongoDB not available: %v", err)
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 		mappings := db.GetDataTypeMappings()
 

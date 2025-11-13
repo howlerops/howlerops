@@ -123,7 +123,7 @@ func GetMigrationStatus(db *sql.DB) ([]MigrationStatus, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to query migrations: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }() // Best-effort close
 
 	for rows.Next() {
 		var version int
@@ -274,7 +274,7 @@ func applyMigration003(db *sql.DB, logger *logrus.Logger) error {
 		if err != nil {
 			return false, err
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }() // Best-effort close
 
 		for rows.Next() {
 			var cid int

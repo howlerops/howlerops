@@ -147,7 +147,11 @@ func (p *PostgresDatabase) executeSelect(ctx context.Context, db *sql.DB, query 
 			Duration: time.Since(start),
 		}, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			p.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	// Get column information
 	columns, err := rows.Columns()
@@ -873,7 +877,11 @@ func (p *PostgresDatabase) ExecuteStream(ctx context.Context, query string, batc
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			p.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	columns, err := rows.Columns()
 	if err != nil {
@@ -956,7 +964,11 @@ func (p *PostgresDatabase) ListDatabases(ctx context.Context) ([]string, error) 
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			p.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	var databases []string
 	for rows.Next() {
@@ -999,7 +1011,11 @@ func (p *PostgresDatabase) GetSchemas(ctx context.Context) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			p.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	var schemas []string
 	for rows.Next() {
@@ -1039,7 +1055,11 @@ func (p *PostgresDatabase) GetTables(ctx context.Context, schema string) ([]Tabl
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			p.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	var tables []TableInfo
 	for rows.Next() {
@@ -1163,7 +1183,11 @@ func (p *PostgresDatabase) getTableColumns(ctx context.Context, db *sql.DB, sche
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			p.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	var columns []ColumnInfo
 	for rows.Next() {
@@ -1232,7 +1256,11 @@ func (p *PostgresDatabase) getTableIndexes(ctx context.Context, db *sql.DB, sche
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			p.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	var indexes []IndexInfo
 	for rows.Next() {
@@ -1285,7 +1313,11 @@ func (p *PostgresDatabase) getTableForeignKeys(ctx context.Context, db *sql.DB, 
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			p.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	var foreignKeys []ForeignKeyInfo
 	for rows.Next() {
@@ -1399,7 +1431,7 @@ func (t *PostgresTransaction) executeSelect(ctx context.Context, query string, a
 			Duration: time.Since(start),
 		}, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }() // Best-effort close in transaction
 
 	columns, err := rows.Columns()
 	if err != nil {

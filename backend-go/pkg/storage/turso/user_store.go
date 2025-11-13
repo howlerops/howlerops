@@ -341,7 +341,7 @@ func (s *TursoUserStore) ListUsers(ctx context.Context, limit, offset int) ([]*a
 	if err != nil {
 		return nil, fmt.Errorf("failed to query users: %w", err)
 	}
-	defer rows.Close()
+	defer func() { if err := rows.Close(); err != nil { s.logger.WithError(err).Error("Failed to close rows") } }()
 
 	var users []*auth.User
 

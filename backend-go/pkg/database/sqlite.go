@@ -145,7 +145,11 @@ func (s *SQLiteDatabase) executeSelect(ctx context.Context, db *sql.DB, query st
 			Duration: time.Since(start),
 		}, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			s.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	// Get column information
 	columns, err := rows.Columns()
@@ -422,7 +426,11 @@ func (s *SQLiteDatabase) ExecuteStream(ctx context.Context, query string, batchS
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			s.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	columns, err := rows.Columns()
 	if err != nil {
@@ -475,7 +483,11 @@ func (s *SQLiteDatabase) ExplainQuery(ctx context.Context, query string, args ..
 	if err != nil {
 		return "", fmt.Errorf("failed to explain query: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			s.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	var plan strings.Builder
 	for rows.Next() {
@@ -517,7 +529,11 @@ func (s *SQLiteDatabase) GetTables(ctx context.Context, schema string) ([]TableI
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			s.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	var tables []TableInfo
 	for rows.Next() {
@@ -620,7 +636,11 @@ func (s *SQLiteDatabase) getTableColumns(ctx context.Context, db *sql.DB, table 
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			s.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	var columns []ColumnInfo
 	for rows.Next() {
@@ -661,7 +681,11 @@ func (s *SQLiteDatabase) getTableIndexes(ctx context.Context, db *sql.DB, table 
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			s.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	var indexes []IndexInfo
 	for rows.Next() {
@@ -718,7 +742,11 @@ func (s *SQLiteDatabase) getTableForeignKeys(ctx context.Context, db *sql.DB, ta
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			s.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	fkMap := make(map[int]*ForeignKeyInfo)
 
@@ -874,7 +902,7 @@ func (t *SQLiteTransaction) executeSelect(ctx context.Context, query string, arg
 			Duration: time.Since(start),
 		}, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }() // Best-effort close in transaction
 
 	columns, err := rows.Columns()
 	if err != nil {

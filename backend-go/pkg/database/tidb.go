@@ -93,7 +93,11 @@ func (t *TiDBDatabase) GetSchemas(ctx context.Context) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			t.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	var schemas []string
 	for rows.Next() {
@@ -132,7 +136,11 @@ func (t *TiDBDatabase) GetTables(ctx context.Context, schema string) ([]TableInf
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			t.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	var tables []TableInfo
 	for rows.Next() {
@@ -193,7 +201,11 @@ func (t *TiDBDatabase) ExplainQuery(ctx context.Context, query string, args ...i
 	if err != nil {
 		return "", fmt.Errorf("failed to explain query: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			t.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	var plan strings.Builder
 	columns, _ := rows.Columns()

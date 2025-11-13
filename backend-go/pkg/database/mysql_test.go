@@ -119,7 +119,7 @@ func TestNewMySQLDatabase(t *testing.T) {
 				} else {
 					// If somehow successful, cleanup
 					assert.NotNil(t, db)
-					db.Disconnect()
+					defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 				}
 			}
 		})
@@ -141,7 +141,7 @@ func TestMySQLDatabase_GetDatabaseType(t *testing.T) {
 
 	// Even if connection fails, the type should be set
 	if err == nil && db != nil {
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 		assert.Equal(t, database.MySQL, db.GetDatabaseType())
 	}
 }
@@ -192,7 +192,7 @@ func TestMySQLDatabase_QuoteIdentifier(t *testing.T) {
 	db, err := database.NewMySQLDatabase(config, logger)
 
 	if err == nil && db != nil {
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
@@ -217,7 +217,7 @@ func TestMySQLDatabase_GetDataTypeMappings(t *testing.T) {
 	db, err := database.NewMySQLDatabase(config, logger)
 
 	if err == nil && db != nil {
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 		mappings := db.GetDataTypeMappings()
 
@@ -642,7 +642,7 @@ func BenchmarkMySQLDatabase_QuoteIdentifier(b *testing.B) {
 	if err != nil || db == nil {
 		b.Skip("Cannot create database instance")
 	}
-	defer db.Disconnect()
+	defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 	identifiers := []string{
 		"users",
@@ -766,7 +766,7 @@ func ExampleMySQLDatabase_Execute_select() {
 	if err != nil {
 		panic(err)
 	}
-	defer db.Disconnect()
+	defer func() { _ = db.Disconnect() }() // Best-effort disconnect in example
 
 	ctx := context.Background()
 	result, err := db.Execute(ctx, "SELECT * FROM users WHERE active = ?", true)
@@ -792,7 +792,7 @@ func ExampleMySQLDatabase_Execute_insert() {
 	if err != nil {
 		panic(err)
 	}
-	defer db.Disconnect()
+	defer func() { _ = db.Disconnect() }() // Best-effort disconnect in example
 
 	ctx := context.Background()
 	result, err := db.Execute(ctx,
@@ -821,7 +821,7 @@ func ExampleMySQLDatabase_BeginTransaction() {
 	if err != nil {
 		panic(err)
 	}
-	defer db.Disconnect()
+	defer func() { _ = db.Disconnect() }() // Best-effort disconnect in example
 
 	ctx := context.Background()
 	tx, err := db.BeginTransaction(ctx)
@@ -862,7 +862,7 @@ func ExampleMySQLDatabase_GetTableStructure() {
 	if err != nil {
 		panic(err)
 	}
-	defer db.Disconnect()
+	defer func() { _ = db.Disconnect() }() // Best-effort disconnect in example
 
 	ctx := context.Background()
 	structure, err := db.GetTableStructure(ctx, "myapp", "users")
