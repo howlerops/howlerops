@@ -88,6 +88,7 @@ jobs:
           JWT_SECRET: "test-secret-key-for-ci-testing-only-minimum-32-characters-required"
           ENVIRONMENT: "test"
           LOG_LEVEL: "debug"
+          OLLAMA_ENDPOINT: "http://localhost:11434"
         run: |
           ./server &
           echo $! > server.pid
