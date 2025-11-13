@@ -83,7 +83,8 @@ linters-settings:
     # Disable specific analyzers
     disable:
       - fieldalignment  # Too strict for most use cases
-      - shadow         # Variable shadowing - style issue, not a bug
+      - shadow          # Variable shadowing - style issue, not a bug
+      - unusedwrite     # Unused field writes - style issue, not a bug
 
   # gocyclo - Cyclomatic complexity
   gocyclo:
