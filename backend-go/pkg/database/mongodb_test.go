@@ -967,7 +967,7 @@ func TestMongoDBDatabase_GetConnectionStats(t *testing.T) {
 		if err != nil {
 			t.Skipf("MongoDB not available: %v", err)
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 		stats := db.GetConnectionStats()
 		assert.NotNil(t, stats)
@@ -1020,7 +1020,7 @@ func TestMongoDBDatabase_QuoteIdentifier(t *testing.T) {
 			if err != nil {
 				t.Skipf("MongoDB not available: %v", err)
 			}
-			defer db.Disconnect()
+			defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 			result := db.QuoteIdentifier(tt.identifier)
 			assert.Equal(t, tt.want, result)
@@ -1038,7 +1038,7 @@ func TestMongoDBDatabase_GetDataTypeMappings(t *testing.T) {
 		if err != nil {
 			t.Skipf("MongoDB not available: %v", err)
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 		mappings := db.GetDataTypeMappings()
 		assert.NotNil(t, mappings)

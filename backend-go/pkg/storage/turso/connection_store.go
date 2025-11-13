@@ -317,7 +317,11 @@ func (s *ConnectionStore) queryConnections(ctx context.Context, query string, ar
 	if err != nil {
 		return nil, fmt.Errorf("failed to query connections: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			s.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	var connections []*Connection
 	for rows.Next() {

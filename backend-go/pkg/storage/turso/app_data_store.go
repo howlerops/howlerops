@@ -408,7 +408,11 @@ func (s *TursoAppDataStore) GetSavedQueries(ctx context.Context, userID string, 
 	if err != nil {
 		return nil, fmt.Errorf("failed to query saved queries: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			s.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	var queries []*SavedQuerySync
 
@@ -596,7 +600,11 @@ func (s *TursoAppDataStore) GetQueryHistory(ctx context.Context, userID string, 
 	if err != nil {
 		return nil, fmt.Errorf("failed to query history: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			s.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	var history []*QueryHistorySync
 
