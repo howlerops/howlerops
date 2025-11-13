@@ -775,7 +775,7 @@ func TestMongoDBDatabase_GetTableStructure(t *testing.T) {
 		if err != nil {
 			t.Skipf("MongoDB not available: %v", err)
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 		skipIfNoMongoDB(t, db)
 
 		// First call
@@ -803,7 +803,7 @@ func TestMongoDBDatabase_BeginTransaction(t *testing.T) {
 			t.Skipf("MongoDB not available: %v", err)
 		}
 
-		db.Disconnect()
+		_ = db.Disconnect() // Best-effort disconnect in test
 
 		_, err = db.BeginTransaction(ctx)
 		assert.Error(t, err)
@@ -816,7 +816,7 @@ func TestMongoDBDatabase_BeginTransaction(t *testing.T) {
 		if err != nil {
 			t.Skipf("MongoDB not available: %v", err)
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 		skipIfNoMongoDB(t, db)
 
 		tx, err := db.BeginTransaction(ctx)
@@ -835,7 +835,7 @@ func TestMongoDBDatabase_BeginTransaction(t *testing.T) {
 		if err != nil {
 			t.Skipf("MongoDB not available: %v", err)
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 		skipIfNoMongoDB(t, db)
 
 		tx, err := db.BeginTransaction(ctx)
@@ -853,7 +853,7 @@ func TestMongoDBDatabase_BeginTransaction(t *testing.T) {
 		if err != nil {
 			t.Skipf("MongoDB not available: %v", err)
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 		skipIfNoMongoDB(t, db)
 
 		tx, err := db.BeginTransaction(ctx)
@@ -879,7 +879,7 @@ func TestMongoDBDatabase_UpdateRow(t *testing.T) {
 		if err != nil {
 			t.Skipf("MongoDB not available: %v", err)
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 		params := database.UpdateRowParams{
 			Schema: "testdb",
@@ -912,7 +912,7 @@ func TestMongoDBDatabase_ComputeEditableMetadata(t *testing.T) {
 		if err != nil {
 			t.Skipf("MongoDB not available: %v", err)
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 		columns := []string{"_id", "name", "value"}
 		metadata, err := db.ComputeEditableMetadata(ctx, "SELECT * FROM test_collection", columns)
@@ -929,7 +929,7 @@ func TestMongoDBDatabase_ComputeEditableMetadata(t *testing.T) {
 		if err != nil {
 			t.Skipf("MongoDB not available: %v", err)
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 		metadata, err := db.ComputeEditableMetadata(ctx, "SELECT * FROM test", []string{})
 		require.NoError(t, err)
@@ -950,7 +950,7 @@ func TestMongoDBDatabase_GetDatabaseType(t *testing.T) {
 		if err != nil {
 			t.Skipf("MongoDB not available: %v", err)
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 		dbType := db.GetDatabaseType()
 		assert.Equal(t, database.MongoDB, dbType)

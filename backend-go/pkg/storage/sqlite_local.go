@@ -629,7 +629,11 @@ func (s *LocalSQLiteStorage) GetQueries(ctx context.Context, filters *QueryFilte
 	if err != nil {
 		return nil, fmt.Errorf("failed to query saved queries: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			s.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	var queries []*SavedQuery
 	for rows.Next() {
@@ -733,7 +737,11 @@ func (s *LocalSQLiteStorage) GetQueryHistory(ctx context.Context, filters *Histo
 	if err != nil {
 		return nil, fmt.Errorf("failed to query history: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			s.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	var history []*QueryHistory
 	for rows.Next() {

@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -438,5 +439,8 @@ func (h *EnterpriseHandlers) DownloadSLAReport(w http.ResponseWriter, r *http.Re
 func respondJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(data)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		// Logger not available in this helper, use log package
+		log.Printf("Failed to encode JSON response: %v", err)
+	}
 }

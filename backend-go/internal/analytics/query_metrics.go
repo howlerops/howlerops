@@ -161,7 +161,11 @@ func (m *QueryMetrics) GetSlowQueries(ctx context.Context, thresholdMs int64, li
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			m.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	var executions []*QueryExecution
 	for rows.Next() {

@@ -667,7 +667,11 @@ func (s *DashboardService) getPerformanceStats(ctx context.Context, orgID *strin
 
 	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err == nil {
-		defer rows.Close()
+		defer func() {
+			if err := rows.Close(); err != nil {
+				s.logger.WithError(err).Error("Failed to close rows")
+			}
+		}()
 
 		var times []float64
 		for rows.Next() {
@@ -724,7 +728,11 @@ func (s *DashboardService) getResponseTrend(ctx context.Context, orgID *string, 
 	if err != nil {
 		return nil
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			s.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	var points []TimeSeriesPoint
 	for rows.Next() {

@@ -280,7 +280,11 @@ func (s *SQLiteVectorStore) Initialize(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to load collections: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			s.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	for rows.Next() {
 		var name, distance string
@@ -507,7 +511,11 @@ func (s *SQLiteVectorStore) SearchSimilar(ctx context.Context, embedding []float
 	if err != nil {
 		return nil, fmt.Errorf("failed to query documents: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			s.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	// Calculate similarities
 	type docWithScore struct {
@@ -601,7 +609,11 @@ func (s *SQLiteVectorStore) SearchByText(ctx context.Context, query string, k in
 	if err != nil {
 		return nil, fmt.Errorf("failed to search text: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			s.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	var docs []*Document
 	for rows.Next() {

@@ -483,9 +483,11 @@ func (h *ComplianceHandler) RegisterPIIField(w http.ResponseWriter, r *http.Requ
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]string{
+	if err := json.NewEncoder(w).Encode(map[string]string{
 		"message": "PII field registered successfully",
-	})
+	}); err != nil {
+		h.logger.WithError(err).Error("Failed to encode JSON response")
+	}
 }
 
 // VerifyPIIField verifies a PII field
@@ -497,7 +499,9 @@ func (h *ComplianceHandler) VerifyPIIField(w http.ResponseWriter, r *http.Reques
 	_ = fieldID
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{
+	if err := json.NewEncoder(w).Encode(map[string]string{
 		"message": "PII field verified",
-	})
+	}); err != nil {
+		h.logger.WithError(err).Error("Failed to encode JSON response")
+	}
 }

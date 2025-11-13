@@ -191,7 +191,11 @@ func (s *SyntheticViewStorage) ListSyntheticViews() ([]ViewSummary, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to list synthetic views: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			s.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	var views []ViewSummary
 	for rows.Next() {
