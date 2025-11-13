@@ -78,7 +78,7 @@ func TestNewMongoDBDatabase(t *testing.T) {
 		} else {
 			assert.NotNil(t, db)
 			assert.Equal(t, database.MongoDB, db.GetDatabaseType())
-			_ = db.Disconnect() // Best-effort disconnect in test
+			defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 		}
 	})
 
@@ -91,7 +91,7 @@ func TestNewMongoDBDatabase(t *testing.T) {
 			assert.Error(t, err)
 		} else {
 			assert.NotNil(t, db)
-			_ = db.Disconnect() // Best-effort disconnect in test
+			defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 		}
 	})
 
@@ -104,7 +104,7 @@ func TestNewMongoDBDatabase(t *testing.T) {
 			assert.Error(t, err)
 		} else {
 			assert.NotNil(t, db)
-			_ = db.Disconnect() // Best-effort disconnect in test
+			defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 		}
 	})
 
@@ -302,7 +302,7 @@ func TestMongoDBDatabase_Ping(t *testing.T) {
 		if err != nil {
 			t.Skipf("MongoDB not available: %v", err)
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 		err = db.Ping(ctx)
 		assert.NoError(t, err)
@@ -314,7 +314,7 @@ func TestMongoDBDatabase_Ping(t *testing.T) {
 		if err != nil {
 			t.Skipf("MongoDB not available: %v", err)
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Nanosecond)
 		defer cancel()
@@ -331,7 +331,7 @@ func TestMongoDBDatabase_Ping(t *testing.T) {
 			t.Skipf("MongoDB not available: %v", err)
 		}
 
-		db.Disconnect()
+		_ = db.Disconnect() // Best-effort disconnect in test
 
 		err = db.Ping(ctx)
 		assert.Error(t, err)
@@ -344,7 +344,7 @@ func TestMongoDBDatabase_Ping(t *testing.T) {
 		if err != nil {
 			t.Skipf("MongoDB not available: %v", err)
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel() // Cancel immediately
@@ -367,7 +367,7 @@ func TestMongoDBDatabase_GetConnectionInfo(t *testing.T) {
 		if err != nil {
 			t.Skipf("MongoDB not available: %v", err)
 		}
-		defer db.Disconnect()
+		defer func() { _ = db.Disconnect() }() // Best-effort disconnect in test
 
 		info, err := db.GetConnectionInfo(ctx)
 		require.NoError(t, err)
@@ -388,7 +388,7 @@ func TestMongoDBDatabase_GetConnectionInfo(t *testing.T) {
 			t.Skipf("MongoDB not available: %v", err)
 		}
 
-		db.Disconnect()
+		_ = db.Disconnect() // Best-effort disconnect in test
 
 		_, err = db.GetConnectionInfo(ctx)
 		assert.Error(t, err)

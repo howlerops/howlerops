@@ -56,11 +56,7 @@ func TestHealthCheck(t *testing.T) {
 
 	resp, err := suite.client.Do(req)
 	require.NoError(t, err)
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			t.Logf("Failed to close response body: %v", err)
-		}
-	}()
+	defer func() { _ = resp.Body.Close() }() // Best-effort close in test
 
 	// Health check should always return 200
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
@@ -88,11 +84,7 @@ func TestHealthCheckResponseTime(t *testing.T) {
 
 	resp, err := suite.client.Do(req)
 	require.NoError(t, err)
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			t.Logf("Failed to close response body: %v", err)
-		}
-	}()
+	defer func() { _ = resp.Body.Close() }() // Best-effort close in test
 
 	duration := time.Since(start)
 
@@ -125,7 +117,7 @@ func TestHealthCheckReliability(t *testing.T) {
 				results <- false
 				return
 			}
-			defer resp.Body.Close()
+			defer func() { _ = resp.Body.Close() }() // Best-effort close in test
 
 			results <- resp.StatusCode == http.StatusOK
 		}()
@@ -163,7 +155,7 @@ func TestMetricsEndpoint(t *testing.T) {
 		t.Skip("Metrics endpoint not available (might be disabled or on different port)")
 		return
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }() // Best-effort close in test
 
 	// Metrics should return 200 OK
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
@@ -196,7 +188,7 @@ func TestReadinessProbe(t *testing.T) {
 		if err != nil {
 			continue
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }() // Best-effort close in test
 
 		if resp.StatusCode == http.StatusOK {
 			foundReady = true
@@ -231,7 +223,7 @@ func TestLivenessProbe(t *testing.T) {
 		if err != nil {
 			continue
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }() // Best-effort close in test
 
 		if resp.StatusCode == http.StatusOK {
 			foundLive = true
@@ -257,7 +249,7 @@ func TestCORS(t *testing.T) {
 
 	resp, err := suite.client.Do(req)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }() // Best-effort close in test
 
 	// Should return 200 OK for OPTIONS
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
@@ -293,7 +285,7 @@ func TestServiceDiscovery(t *testing.T) {
 
 			resp, err := suite.client.Do(req)
 			require.NoError(t, err)
-			defer resp.Body.Close()
+			defer func() { _ = resp.Body.Close() }() // Best-effort close in test
 
 			assert.Equal(t, expectedStatus, resp.StatusCode,
 				"Endpoint %s returned unexpected status", endpoint)
@@ -313,7 +305,7 @@ func TestServerHeaders(t *testing.T) {
 
 	resp, err := suite.client.Do(req)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }() // Best-effort close in test
 
 	// Check for security headers
 	headers := map[string]string{

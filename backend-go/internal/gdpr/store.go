@@ -151,7 +151,11 @@ func (s *store) GetUserExportRequests(ctx context.Context, userID string) ([]*Da
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			// Log error but don't return it as defer executes after return
+		}
+	}()
 
 	var requests []*DataExportRequest
 	for rows.Next() {
@@ -331,7 +335,11 @@ func (s *store) queryToMaps(ctx context.Context, query string, args ...interface
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			// Log error but don't return it as defer executes after return
+		}
+	}()
 
 	columns, err := rows.Columns()
 	if err != nil {

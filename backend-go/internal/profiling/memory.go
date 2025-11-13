@@ -281,7 +281,9 @@ func (p *MemoryProfiler) MemoryHandler(w http.ResponseWriter, r *http.Request) {
 func (p *MemoryProfiler) SnapshotHandler(w http.ResponseWriter, r *http.Request) {
 	snapshot := p.GetSnapshot()
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(snapshot)
+	if err := json.NewEncoder(w).Encode(snapshot); err != nil {
+		p.logger.WithError(err).Error("Failed to encode JSON response")
+	}
 }
 
 // HeapHandler serves heap profile

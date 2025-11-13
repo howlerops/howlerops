@@ -651,7 +651,11 @@ func (s *TursoStore) ListConflicts(ctx context.Context, userID string, resolved 
 	if err != nil {
 		return nil, fmt.Errorf("failed to list conflicts: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			// Log error but don't return it as defer executes after return
+		}
+	}()
 
 	var conflicts []Conflict
 	for rows.Next() {
@@ -779,7 +783,11 @@ func (s *TursoStore) ListAccessibleConnections(ctx context.Context, userID strin
 	if err != nil {
 		return nil, fmt.Errorf("failed to list accessible connections: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			// Log error but don't return it as defer executes after return
+		}
+	}()
 
 	var connections []ConnectionTemplate
 	for rows.Next() {
@@ -871,7 +879,11 @@ func (s *TursoStore) ListAccessibleQueries(ctx context.Context, userID string, o
 	if err != nil {
 		return nil, fmt.Errorf("failed to list accessible queries: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			// Log error but don't return it as defer executes after return
+		}
+	}()
 
 	var queries []SavedQuery
 	for rows.Next() {

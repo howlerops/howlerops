@@ -13,7 +13,7 @@ import (
 func TestCheckQuota(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	assert.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }() // Best-effort close in test
 
 	store := NewStore(db)
 	service := NewService(store, logrus.New())
@@ -137,7 +137,7 @@ func TestCheckQuota(t *testing.T) {
 func TestIncrementUsage(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	assert.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }() // Best-effort close in test
 
 	store := NewStore(db)
 	service := NewService(store, logrus.New())
@@ -163,7 +163,7 @@ func TestIncrementUsage(t *testing.T) {
 func TestUpdateQuota(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	assert.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }() // Best-effort close in test
 
 	store := NewStore(db)
 	service := NewService(store, logrus.New())
@@ -208,7 +208,7 @@ func TestUpdateQuota(t *testing.T) {
 func TestGetUsageStatistics(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	assert.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }() // Best-effort close in test
 
 	store := NewStore(db)
 	service := NewService(store, logrus.New())
@@ -250,7 +250,7 @@ func TestGetUsageStatistics(t *testing.T) {
 // Benchmark quota checking
 func BenchmarkCheckQuota(b *testing.B) {
 	db, mock, _ := sqlmock.New()
-	defer db.Close()
+	defer func() { _ = db.Close() }() // Best-effort close in test
 
 	store := NewStore(db)
 	service := NewService(store, logrus.New())

@@ -179,7 +179,9 @@ func (h *ComplianceHandler) GetRetentionStats(w http.ResponseWriter, r *http.Req
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(stats)
+	if err := json.NewEncoder(w).Encode(stats); err != nil {
+		h.logger.WithError(err).Error("Failed to encode JSON response")
+	}
 }
 
 // RequestDataExport creates a GDPR data export request
@@ -200,7 +202,9 @@ func (h *ComplianceHandler) RequestDataExport(w http.ResponseWriter, r *http.Req
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusAccepted)
-	json.NewEncoder(w).Encode(request)
+	if err := json.NewEncoder(w).Encode(request); err != nil {
+		h.logger.WithError(err).Error("Failed to encode JSON response")
+	}
 }
 
 // GetExportRequest retrieves an export request
@@ -216,7 +220,9 @@ func (h *ComplianceHandler) GetExportRequest(w http.ResponseWriter, r *http.Requ
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(request)
+	if err := json.NewEncoder(w).Encode(request); err != nil {
+		h.logger.WithError(err).Error("Failed to encode JSON response")
+	}
 }
 
 // RequestDataDeletion creates a GDPR data deletion request
@@ -237,7 +243,9 @@ func (h *ComplianceHandler) RequestDataDeletion(w http.ResponseWriter, r *http.R
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusAccepted)
-	json.NewEncoder(w).Encode(request)
+	if err := json.NewEncoder(w).Encode(request); err != nil {
+		h.logger.WithError(err).Error("Failed to encode JSON response")
+	}
 }
 
 // GetUserGDPRRequests retrieves all GDPR requests for a user
@@ -257,7 +265,9 @@ func (h *ComplianceHandler) GetUserGDPRRequests(w http.ResponseWriter, r *http.R
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(requests)
+	if err := json.NewEncoder(w).Encode(requests); err != nil {
+		h.logger.WithError(err).Error("Failed to encode JSON response")
+	}
 }
 
 // CreateBackup creates a database backup
@@ -280,7 +290,9 @@ func (h *ComplianceHandler) CreateBackup(w http.ResponseWriter, r *http.Request)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusAccepted)
-	json.NewEncoder(w).Encode(backupRecord)
+	if err := json.NewEncoder(w).Encode(backupRecord); err != nil {
+		h.logger.WithError(err).Error("Failed to encode JSON response")
+	}
 }
 
 // ListBackups lists database backups
@@ -301,7 +313,9 @@ func (h *ComplianceHandler) ListBackups(w http.ResponseWriter, r *http.Request) 
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(backups)
+	if err := json.NewEncoder(w).Encode(backups); err != nil {
+		h.logger.WithError(err).Error("Failed to encode JSON response")
+	}
 }
 
 // GetBackup retrieves a backup
@@ -317,7 +331,9 @@ func (h *ComplianceHandler) GetBackup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(backupRecord)
+	if err := json.NewEncoder(w).Encode(backupRecord); err != nil {
+		h.logger.WithError(err).Error("Failed to encode JSON response")
+	}
 }
 
 // RestoreBackup restores from a backup

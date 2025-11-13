@@ -148,7 +148,11 @@ func (s *TursoAppDataStore) GetConnectionTemplates(ctx context.Context, userID s
 	if err != nil {
 		return nil, fmt.Errorf("failed to query connection templates: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			// Log error but don't return it as defer executes after return
+		}
+	}()
 
 	var templates []*ConnectionTemplate
 

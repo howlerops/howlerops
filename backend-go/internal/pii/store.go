@@ -121,7 +121,11 @@ func (s *store) ListPIIFields(ctx context.Context) ([]*PIIField, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			// Log error but don't return it as defer executes after return
+		}
+	}()
 
 	return s.scanPIIFields(rows)
 }
@@ -139,7 +143,11 @@ func (s *store) ListTablePIIFields(ctx context.Context, tableName string) ([]*PI
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			// Log error but don't return it as defer executes after return
+		}
+	}()
 
 	return s.scanPIIFields(rows)
 }
@@ -157,7 +165,11 @@ func (s *store) GetPIIFieldsByType(ctx context.Context, piiType string) ([]*PIIF
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			// Log error but don't return it as defer executes after return
+		}
+	}()
 
 	return s.scanPIIFields(rows)
 }

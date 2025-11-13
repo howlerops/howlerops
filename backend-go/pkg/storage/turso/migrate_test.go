@@ -132,7 +132,7 @@ func TestRunMigrationsIdempotency(t *testing.T) {
 // TestMigration003AppliesCorrectly tests that migration 003 applies the correct schema changes
 func TestMigration003AppliesCorrectly(t *testing.T) {
 	db, logger := setupMigrationTestDB(t)
-	defer db.Close()
+	defer func() { _ = db.Close() }() // Best-effort close in test
 
 	// Initialize schema
 	err := InitializeSchema(db, logger)
@@ -175,7 +175,7 @@ func TestMigration003AppliesCorrectly(t *testing.T) {
 // TestMigration003DataMigration tests that existing data is migrated correctly
 func TestMigration003DataMigration(t *testing.T) {
 	db, logger := setupMigrationTestDB(t)
-	defer db.Close()
+	defer func() { _ = db.Close() }() // Best-effort close in test
 
 	// Initialize schema
 	err := InitializeSchema(db, logger)
@@ -229,7 +229,7 @@ func TestMigration003DataMigration(t *testing.T) {
 // TestGetMigrationStatus tests retrieving migration status
 func TestGetMigrationStatus(t *testing.T) {
 	db, logger := setupMigrationTestDB(t)
-	defer db.Close()
+	defer func() { _ = db.Close() }() // Best-effort close in test
 
 	// Initialize schema
 	err := InitializeSchema(db, logger)
@@ -266,7 +266,7 @@ func TestGetMigrationStatus(t *testing.T) {
 // TestVisibilityConstraint tests the visibility CHECK constraint
 func TestVisibilityConstraint(t *testing.T) {
 	db, logger := setupMigrationTestDB(t)
-	defer db.Close()
+	defer func() { _ = db.Close() }() // Best-effort close in test
 
 	// Initialize schema and run migrations
 	err := InitializeSchema(db, logger)
