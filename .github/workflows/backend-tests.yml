@@ -77,21 +77,17 @@ jobs:
         working-directory: backend-go
         run: go mod download
 
-      - name: Set up test environment
-        working-directory: backend-go
-        run: |
-          # Use file-based SQLite for tests
-          export TURSO_URL="file:./test.db"
-          export JWT_SECRET="test-secret-key-for-ci-testing-only-minimum-32-characters-required"
-          export ENVIRONMENT="test"
-          export LOG_LEVEL="debug"
-
       - name: Build server
         working-directory: backend-go
         run: go build -o server cmd/server/main.go
 
       - name: Start server in background
         working-directory: backend-go
+        env:
+          TURSO_URL: "file:./test.db"
+          JWT_SECRET: "test-secret-key-for-ci-testing-only-minimum-32-characters-required"
+          ENVIRONMENT: "test"
+          LOG_LEVEL: "debug"
         run: |
           ./server &
           echo $! > server.pid
