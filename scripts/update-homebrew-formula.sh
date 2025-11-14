@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 #######################################################################################
-# Homebrew Formula Update Script for SQL Studio
+# Homebrew Formula Update Script for HowlerOps
 #
 # This script automates updating the Homebrew formula when a new release is created.
 # It fetches the latest release, calculates checksums, and updates the formula file.
@@ -36,7 +36,7 @@ NC='\033[0m' # No Color
 # Configuration
 GITHUB_REPO="sql-studio/sql-studio"
 HOMEBREW_TAP_REPO="${HOMEBREW_TAP_REPO:-sql-studio/homebrew-tap}"
-FORMULA_NAME="sql-studio"
+FORMULA_NAME="howlerops"
 DRY_RUN="${DRY_RUN:-false}"
 
 # Temporary directory for downloads
@@ -175,12 +175,12 @@ update_formula_file() {
 # typed: false
 # frozen_string_literal: true
 
-# SQL Studio Homebrew Formula
-# This formula allows users to install SQL Studio via Homebrew
-# Usage: brew install sql-studio/tap/sql-studio
+# HowlerOps Homebrew Formula
+# This formula allows users to install HowlerOps via Homebrew
+# Usage: brew install sql-studio/tap/howlerops
 
-class SqlStudio < Formula
-  desc "Modern SQL database client with cloud sync capabilities"
+class Howlerops < Formula
+  desc "Native HowlerOps desktop SQL client"
   homepage "https://github.com/sql-studio/sql-studio"
   version "$version_number"
   license "MIT"
@@ -197,54 +197,25 @@ class SqlStudio < Formula
     sha256 "$arm64_sha"
   end
 
-  # Installation steps
   def install
-    # Install the binary to Homebrew's bin directory
-    bin.install "sql-studio"
-
-    # Generate and install shell completions if available
-    if File.exist?("completions")
-      bash_completion.install "completions/sql-studio.bash" if File.exist?("completions/sql-studio.bash")
-      fish_completion.install "completions/sql-studio.fish" if File.exist?("completions/sql-studio.fish")
-      zsh_completion.install "completions/_sql-studio" if File.exist?("completions/_sql-studio")
-    end
-
-    # Install man pages if available
-    man1.install Dir["man/*.1"] if Dir.exist?("man")
+    prefix.install "howlerops.app"
+    bin.install_symlink "\#{prefix}/howlerops.app/Contents/MacOS/howlerops" => "howlerops"
   end
 
-  # Post-installation message
   def caveats
     <<~EOS
-      SQL Studio has been installed successfully!
+      HowlerOps.app was installed to:
+        \#{prefix}/howlerops.app
 
-      To get started, run:
-        sql-studio
-
-      For help and documentation, visit:
-        https://github.com/sql-studio/sql-studio
-
-      To check the version:
-        sql-studio --version
-
-      Note: SQL Studio stores its configuration in:
-        ~/.config/sql-studio/
+      Launch the application with:
+        open -a HowlerOps
+      Or start it from the terminal:
+        howlerops
     EOS
   end
 
-  # Test block to verify installation
   test do
-    # Verify the binary exists and is executable
-    assert_predicate bin/"sql-studio", :exist?
-    assert_predicate bin/"sql-studio", :executable?
-
-    # Test version command
-    version_output = shell_output("#{bin}/sql-studio --version")
-    assert_match version.to_s, version_output
-
-    # Verify the binary runs without errors for help command
-    help_output = shell_output("#{bin}/sql-studio --help")
-    assert_match "SQL Studio", help_output
+    system "#{bin}/howlerops", "--help"
   end
 end
 EOF
@@ -311,28 +282,28 @@ validate_release_assets() {
 
     log_info "Validating release assets..."
 
-    # Check for required assets
+    local universal_asset
+    universal_asset=$(echo "$release_data" | jq -r '.assets[] | select(.name | contains("howlerops-darwin-universal")) | .name' | head -n 1)
+
+    if [ -n "$universal_asset" ]; then
+        log_success "Found universal macOS desktop asset: $universal_asset"
+        return
+    fi
+
     local amd64_asset
     local arm64_asset
 
-    amd64_asset=$(echo "$release_data" | jq -r '.assets[] | select(.name | contains("darwin-amd64")) | .browser_download_url' | head -n 1)
-    arm64_asset=$(echo "$release_data" | jq -r '.assets[] | select(.name | contains("darwin-arm64")) | .browser_download_url' | head -n 1)
+    amd64_asset=$(echo "$release_data" | jq -r '.assets[] | select(.name | contains("howlerops-darwin-amd64")) | .name' | head -n 1)
+    arm64_asset=$(echo "$release_data" | jq -r '.assets[] | select(.name | contains("howlerops-darwin-arm64")) | .name' | head -n 1)
 
-    if [ -z "$amd64_asset" ]; then
-        log_error "AMD64 (Intel) asset not found in release"
+    if [ -z "$amd64_asset" ] || [ -z "$arm64_asset" ]; then
+        log_error "Required macOS desktop assets not found in release"
         log_info "Available assets:"
         echo "$release_data" | jq -r '.assets[].name'
         exit 1
     fi
 
-    if [ -z "$arm64_asset" ]; then
-        log_error "ARM64 (Apple Silicon) asset not found in release"
-        log_info "Available assets:"
-        echo "$release_data" | jq -r '.assets[].name'
-        exit 1
-    fi
-
-    log_success "All required assets found"
+    log_success "Found architecture-specific macOS desktop assets"
 }
 
 #######################################################################################
@@ -342,7 +313,7 @@ validate_release_assets() {
 main() {
     local version="${1:-latest}"
 
-    log_info "Starting Homebrew formula update for SQL Studio"
+    log_info "Starting Homebrew formula update for HowlerOps"
     log_info "Target version: $version"
     log_info "Homebrew tap: $HOMEBREW_TAP_REPO"
 
@@ -377,17 +348,39 @@ main() {
     # Extract download URLs
     local amd64_url
     local arm64_url
-    amd64_url=$(echo "$release_data" | jq -r '.assets[] | select(.name | contains("darwin-amd64")) | .browser_download_url' | head -n 1)
-    arm64_url=$(echo "$release_data" | jq -r '.assets[] | select(.name | contains("darwin-arm64")) | .browser_download_url' | head -n 1)
+    local amd64_archive_name
+    local arm64_archive_name
 
-    log_info "AMD64 URL: $amd64_url"
-    log_info "ARM64 URL: $arm64_url"
+    local universal_archive
+    universal_archive=$(echo "$release_data" | jq -r '.assets[] | select(.name | contains("howlerops-darwin-universal")) | .name' | head -n 1)
+
+    if [ -n "$universal_archive" ]; then
+        amd64_archive_name="$universal_archive"
+        arm64_archive_name="$universal_archive"
+
+        amd64_url=$(echo "$release_data" | jq -r --arg name "$universal_archive" '.assets[] | select(.name == $name) | .browser_download_url' | head -n 1)
+        arm64_url="$amd64_url"
+    else
+        amd64_archive_name=$(echo "$release_data" | jq -r '.assets[] | select(.name | contains("howlerops-darwin-amd64")) | .name' | head -n 1)
+        arm64_archive_name=$(echo "$release_data" | jq -r '.assets[] | select(.name | contains("howlerops-darwin-arm64")) | .name' | head -n 1)
+
+        amd64_url=$(echo "$release_data" | jq -r --arg name "$amd64_archive_name" '.assets[] | select(.name == $name) | .browser_download_url' | head -n 1)
+        arm64_url=$(echo "$release_data" | jq -r --arg name "$arm64_archive_name" '.assets[] | select(.name == $name) | .browser_download_url' | head -n 1)
+    fi
+
+    log_info "macOS Intel URL: $amd64_url"
+    log_info "macOS Apple Silicon URL: $arm64_url"
 
     # Download and calculate checksums
     local amd64_sha
     local arm64_sha
-    amd64_sha=$(download_and_checksum "$amd64_url" "sql-studio-darwin-amd64.tar.gz")
-    arm64_sha=$(download_and_checksum "$arm64_url" "sql-studio-darwin-arm64.tar.gz")
+    amd64_sha=$(download_and_checksum "$amd64_url" "$amd64_archive_name")
+
+    if [ "$arm64_url" = "$amd64_url" ]; then
+        arm64_sha="$amd64_sha"
+    else
+        arm64_sha=$(download_and_checksum "$arm64_url" "$arm64_archive_name")
+    fi
 
     log_success "AMD64 SHA256: $amd64_sha"
     log_success "ARM64 SHA256: $arm64_sha"
@@ -406,7 +399,7 @@ main() {
     commit_and_push_formula "$tap_dir" "$tag_name"
 
     log_success "Homebrew formula update completed successfully!"
-    log_info "Users can now install SQL Studio $release_version with:"
+    log_info "Users can now install HowlerOps $release_version with:"
     log_info "  brew update && brew upgrade $FORMULA_NAME"
 
     if [ "$DRY_RUN" = "true" ]; then
@@ -417,7 +410,7 @@ main() {
 # Show usage if help requested
 if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
     cat << EOF
-Homebrew Formula Update Script for SQL Studio
+Homebrew Formula Update Script for HowlerOps
 
 Usage:
   $0 [VERSION]

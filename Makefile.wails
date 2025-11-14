@@ -5,7 +5,7 @@
 .DEFAULT_GOAL := help
 
 # Application info
-APP_NAME := sql-studio
+APP_NAME := howlerops
 VERSION := 1.0.0
 BUILD_DIR := build
 DIST_DIR := dist
@@ -72,17 +72,17 @@ package: build-all ## Package applications for distribution
 	# Package macOS
 	@if [ -f "$(BUILD_DIR)/darwin/amd64/$(APP_NAME)" ]; then \
 		echo "Packaging macOS (Intel)..."; \
-		cd $(BUILD_DIR)/darwin/amd64 && zip -r ../../../$(DIST_DIR)/$(APP_NAME)-$(VERSION)-darwin-amd64.zip $(APP_NAME); \
+		cd $(BUILD_DIR)/darwin/amd64 && tar -czf ../../../$(DIST_DIR)/$(APP_NAME)-$(VERSION)-darwin-amd64.tar.gz $(APP_NAME); \
 	fi
 	@if [ -f "$(BUILD_DIR)/darwin/arm64/$(APP_NAME)" ]; then \
 		echo "Packaging macOS (Apple Silicon)..."; \
-		cd $(BUILD_DIR)/darwin/arm64 && zip -r ../../../$(DIST_DIR)/$(APP_NAME)-$(VERSION)-darwin-arm64.zip $(APP_NAME); \
+		cd $(BUILD_DIR)/darwin/arm64 && tar -czf ../../../$(DIST_DIR)/$(APP_NAME)-$(VERSION)-darwin-arm64.tar.gz $(APP_NAME); \
 	fi
 
 	# Package Windows
 	@if [ -f "$(BUILD_DIR)/windows/amd64/$(APP_NAME).exe" ]; then \
 		echo "Packaging Windows..."; \
-		cd $(BUILD_DIR)/windows/amd64 && zip -r ../../../$(DIST_DIR)/$(APP_NAME)-$(VERSION)-windows-amd64.zip $(APP_NAME).exe; \
+		cd $(BUILD_DIR)/windows/amd64 && tar -czf ../../../$(DIST_DIR)/$(APP_NAME)-$(VERSION)-windows-amd64.tar.gz $(APP_NAME).exe; \
 	fi
 
 	# Package Linux

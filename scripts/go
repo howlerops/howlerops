@@ -1,5 +1,5 @@
 #!/bin/bash
-set -euo pipefail
+set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 LOG_FILE="${REPO_DIR}/go-wrapper.log"
@@ -13,7 +13,7 @@ timestamp() {
 }
 
 echo "$(timestamp) go $@" >> "$LOG_FILE"
-"$REAL_GO" "$@"
-STATUS=$?
+STATUS=0
+"$REAL_GO" "$@" || STATUS=$?
 echo "$(timestamp) exit $STATUS" >> "$LOG_FILE"
 exit $STATUS

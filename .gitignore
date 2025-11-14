@@ -118,6 +118,7 @@ docker-compose.override.yml
 # Local configuration
 config/local.yaml
 config/production.yaml
+.home/
 
 # Runtime caches
 .cache/

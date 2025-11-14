@@ -1,20 +1,20 @@
-# SQL Studio Homebrew Tap
+# HowlerOps Homebrew Tap
 
-Official Homebrew tap for [SQL Studio](https://github.com/sql-studio/sql-studio).
+Official Homebrew tap for the HowlerOps desktop client.
 
 ## Installation
 
-Install SQL Studio using Homebrew:
+Install HowlerOps using Homebrew:
 
 ```bash
-brew install sql-studio/tap/sql-studio
+brew install sql-studio/tap/howlerops
 ```
 
 Or tap first, then install:
 
 ```bash
 brew tap sql-studio/tap
-brew install sql-studio
+brew install howlerops
 ```
 
 ## Updating
@@ -23,15 +23,15 @@ Update to the latest version:
 
 ```bash
 brew update
-brew upgrade sql-studio
+brew upgrade howlerops
 ```
 
 ## Uninstalling
 
-Remove SQL Studio:
+Remove HowlerOps:
 
 ```bash
-brew uninstall sql-studio
+brew uninstall howlerops
 brew untap sql-studio/tap
 ```
 
@@ -40,9 +40,9 @@ brew untap sql-studio/tap
 - macOS Intel (x86_64)
 - macOS Apple Silicon (ARM64)
 
-## About SQL Studio
+## About HowlerOps
 
-SQL Studio is a modern SQL database client with cloud sync capabilities. For more information, visit:
+HowlerOps is a modern SQL database client with cloud sync capabilities. For more information, visit:
 
 - **Homepage**: https://github.com/sql-studio/sql-studio
 - **Documentation**: https://github.com/sql-studio/sql-studio/blob/main/README.md
@@ -50,7 +50,7 @@ SQL Studio is a modern SQL database client with cloud sync capabilities. For mor
 
 ## Formula Maintenance
 
-This tap is automatically updated via GitHub Actions when new releases are created. The formula is maintained by the SQL Studio team.
+This tap is automatically updated via GitHub Actions when new releases are created. The formula is maintained by the HowlerOps team.
 
 For detailed information about the tap setup and maintenance, see [HOMEBREW.md](https://github.com/sql-studio/sql-studio/blob/main/HOMEBREW.md) in the main repository.
 

@@ -1,5 +1,5 @@
 #!/bin/sh
-# SQL Studio Universal Installer
+# HowlerOps Universal Installer
 # Inspired by rustup, deno, and bun installation best practices
 #
 # Usage:
@@ -19,6 +19,9 @@ set -e
 # ============================================================================
 
 GITHUB_REPO="sql-studio/sql-studio"
+PRODUCT_NAME="HowlerOps"
+BINARY_BASENAME="howlerops"
+APP_BUNDLE_NAME="HowlerOps.app"
 INSTALL_DIR="${INSTALL_DIR:-}"
 VERSION="${VERSION:-latest}"
 VERBOSE="${VERBOSE:-0}"
@@ -303,37 +306,87 @@ determine_install_dir() {
         return
     fi
 
-    # Prefer ~/.local/bin (no sudo required)
-    local local_bin="$HOME/.local/bin"
-    if [ -d "$local_bin" ] || mkdir -p "$local_bin" 2>/dev/null; then
-        echo "$local_bin"
-        return
-    fi
+    case "$PLATFORM_OS" in
+        darwin)
+            local user_apps="$HOME/Applications"
+            if [ -d "$user_apps" ] || mkdir -p "$user_apps" 2>/dev/null; then
+                echo "$user_apps"
+                return
+            fi
 
-    # Fall back to /usr/local/bin (requires sudo)
-    if [ -w "/usr/local/bin" ]; then
-        echo "/usr/local/bin"
-        return
-    fi
+            if [ -w "/Applications" ]; then
+                echo "/Applications"
+                return
+            fi
 
-    # Check if user can sudo
-    if command_exists sudo && sudo -n true 2>/dev/null; then
-        echo "/usr/local/bin"
-        return
-    fi
+            if command_exists sudo && sudo -n true 2>/dev/null; then
+                echo "/Applications"
+                return
+            fi
+            ;;
+        *)
+            local local_bin="$HOME/.local/bin"
+            if [ -d "$local_bin" ] || mkdir -p "$local_bin" 2>/dev/null; then
+                echo "$local_bin"
+                return
+            fi
+
+            if [ -w "/usr/local/bin" ]; then
+                echo "/usr/local/bin"
+                return
+            fi
+
+            if command_exists sudo && sudo -n true 2>/dev/null; then
+                echo "/usr/local/bin"
+                return
+            fi
+            ;;
+    esac
 
     fail "Cannot determine installation directory. Please specify with --install-dir"
 }
 
-install_binary() {
-    local archive="$1"
+install_macos_app() {
+    local source_dir="$1"
     local install_dir="$2"
 
-    log "Installing to ${BOLD}${install_dir}${RESET}..."
-
-    if dry_run "Would install to $install_dir"; then
-        return 0
+    if [ ! -d "$install_dir" ]; then
+        log_verbose "Creating installation directory: $install_dir"
+        if ! mkdir -p "$install_dir" 2>/dev/null; then
+            log_verbose "Trying with sudo..."
+            sudo mkdir -p "$install_dir" || fail "Failed to create installation directory"
+        fi
     fi
+
+    local app_source
+    app_source="$(find "$source_dir" -maxdepth 1 -type d -name "${BINARY_BASENAME}.app" | head -n 1)"
+
+    if [ -z "$app_source" ] || [ ! -d "$app_source" ]; then
+        fail "Application bundle not found in archive"
+    fi
+
+    local target="$install_dir/$APP_BUNDLE_NAME"
+
+    if [ -d "$target" ] && [ "$FORCE" -eq 0 ]; then
+        fail "HowlerOps is already installed at $target. Use --force to overwrite."
+    fi
+
+    log_verbose "Copying application bundle to $target"
+    if ! rm -rf "$target" 2>/dev/null; then
+        sudo rm -rf "$target" 2>/dev/null || true
+    fi
+
+    if ! cp -R "$app_source" "$target" 2>/dev/null; then
+        log_verbose "Trying with sudo..."
+        sudo cp -R "$app_source" "$target" || fail "Failed to install application bundle"
+    fi
+
+    log_success "Application installed to $target"
+}
+
+install_cli_binary() {
+    local source_dir="$1"
+    local install_dir="$2"
 
     # Create install directory if it doesn't exist
     if [ ! -d "$install_dir" ]; then
@@ -344,28 +397,19 @@ install_binary() {
         fi
     fi
 
-    # Extract archive to temp location
-    local temp_extract
-    temp_extract="$(mktemp -d)"
-    log_verbose "Extracting to temporary directory: $temp_extract"
-
-    tar -xzf "$archive" -C "$temp_extract" || fail "Failed to extract archive"
-
     # Find the binary in the extracted files
     local binary
-    binary="$(find "$temp_extract" -type f -name "sql-studio*" ! -name "*.tar.gz" | head -n 1)"
+    binary="$(find "$source_dir" -type f -name "${BINARY_BASENAME}*" ! -name "*.tar.gz" | head -n 1)"
 
     if [ -z "$binary" ] || [ ! -f "$binary" ]; then
-        rm -rf "$temp_extract"
         fail "Binary not found in archive"
     fi
 
-    local target="$install_dir/sql-studio"
+    local target="$install_dir/$BINARY_BASENAME"
 
     # Check if already installed
     if [ -f "$target" ] && [ "$FORCE" -eq 0 ]; then
-        rm -rf "$temp_extract"
-        fail "SQL Studio is already installed at $target. Use --force to overwrite."
+        fail "HowlerOps is already installed at $target. Use --force to overwrite."
     fi
 
     # Install binary
@@ -378,10 +422,34 @@ install_binary() {
         chmod +x "$target" || fail "Failed to make binary executable"
     fi
 
+    log_success "Binary installed successfully"
+}
+
+install_payload() {
+    local archive="$1"
+    local install_dir="$2"
+
+    log "Installing to ${BOLD}${install_dir}${RESET}..."
+
+    if dry_run "Would install to $install_dir"; then
+        return 0
+    fi
+
+    # Extract archive to temp location
+    local temp_extract
+    temp_extract="$(mktemp -d)"
+    log_verbose "Extracting to temporary directory: $temp_extract"
+
+    tar -xzf "$archive" -C "$temp_extract" || fail "Failed to extract archive"
+
+    if [ "$PLATFORM_OS" = "darwin" ]; then
+        install_macos_app "$temp_extract" "$install_dir"
+    else
+        install_cli_binary "$temp_extract" "$install_dir"
+    fi
+
     # Clean up
     rm -rf "$temp_extract"
-
-    log_success "Binary installed successfully"
 }
 
 # ============================================================================
@@ -470,7 +538,7 @@ update_path() {
     profile="$(get_shell_profile "$shell")"
 
     log ""
-    log "To add SQL Studio to your PATH, run:"
+    log "To add HowlerOps to your PATH, run:"
     log ""
 
     if [ "$shell" = "fish" ]; then
@@ -505,7 +573,7 @@ cleanup() {
 main() {
     echo ""
     echo "${BOLD}${BLUE}╔═══════════════════════════════════════╗${RESET}"
-    echo "${BOLD}${BLUE}║    SQL Studio Universal Installer    ║${RESET}"
+    echo "${BOLD}${BLUE}║    HowlerOps Universal Installer    ║${RESET}"
     echo "${BOLD}${BLUE}╚═══════════════════════════════════════╝${RESET}"
     echo ""
 
@@ -535,7 +603,7 @@ main() {
                 ;;
             -h|--help)
                 cat <<EOF
-SQL Studio Universal Installer
+HowlerOps Universal Installer
 
 Usage:
   curl -fsSL https://raw.githubusercontent.com/sql-studio/sql-studio/main/install.sh | sh
@@ -580,6 +648,9 @@ EOF
     # Detect platform
     local platform
     platform="$(get_platform)"
+    PLATFORM="$platform"
+    PLATFORM_OS="${platform%%-*}"
+    PLATFORM_ARCH="${platform#*-}"
     log "Detected platform: ${BOLD}${platform}${RESET}"
 
     # Check dependencies
@@ -593,10 +664,14 @@ EOF
     install_dir="$(determine_install_dir)"
     log "Installation directory: ${BOLD}${install_dir}${RESET}"
 
-    # Construct binary name and URLs
-    local binary_name="sql-studio-${platform}"
+    # Construct archive name and URLs
+    local archive_name="${BINARY_BASENAME}-${platform}"
+    if [ "$PLATFORM_OS" = "darwin" ]; then
+        archive_name="${BINARY_BASENAME}-darwin-universal"
+    fi
+
     local base_url="https://github.com/${GITHUB_REPO}/releases/download/${VERSION}"
-    local archive_url="${base_url}/${binary_name}.tar.gz"
+    local archive_url="${base_url}/${archive_name}.tar.gz"
     local checksums_url="${base_url}/checksums.txt"
 
     log_verbose "Archive URL: $archive_url"
@@ -611,43 +686,57 @@ EOF
     local checksums="${temp_dir}/checksums.txt"
 
     # Download archive
-    log "Downloading SQL Studio ${VERSION}..."
+    log "Downloading HowlerOps ${VERSION}..."
     if ! download_file "$archive_url" "$archive"; then
-        fail "Failed to download SQL Studio. Please check:\n  - Version ${VERSION} exists\n  - Platform ${platform} is supported\n  - Network connection is working"
+        fail "Failed to download HowlerOps. Please check:\n  - Version ${VERSION} exists\n  - Platform ${platform} is supported\n  - Network connection is working"
     fi
 
     # Download checksums
     log_verbose "Downloading checksums..."
     if download_file "$checksums_url" "$checksums" 2>/dev/null; then
-        verify_checksum "$archive" "$checksums" "$binary_name"
+        verify_checksum "$archive" "$checksums" "$archive_name"
     else
         log_warn "Could not download checksums.txt, skipping verification"
     fi
 
     # Install binary
-    install_binary "$archive" "$install_dir"
+    install_payload "$archive" "$install_dir"
 
     # Check PATH and provide instructions if needed
-    update_path "$install_dir"
+    if [ "$PLATFORM_OS" != "darwin" ]; then
+        update_path "$install_dir"
+    fi
 
     # Get installed version
     local installed_version
-    if [ "$DRY_RUN" -eq 0 ] && [ -x "$install_dir/sql-studio" ]; then
-        installed_version="$("$install_dir/sql-studio" --version 2>/dev/null || echo "$VERSION")"
-    else
+    if [ "$PLATFORM_OS" = "darwin" ]; then
         installed_version="$VERSION"
+    else
+        if [ "$DRY_RUN" -eq 0 ] && [ -x "$install_dir/$BINARY_BASENAME" ]; then
+            installed_version="$("$install_dir/$BINARY_BASENAME" --version 2>/dev/null || echo "$VERSION")"
+        else
+            installed_version="$VERSION"
+        fi
     fi
 
     # Success message
     echo ""
-    echo "${GREEN}${BOLD}✓ SQL Studio has been installed successfully!${RESET}"
+    echo "${GREEN}${BOLD}✓ ${PRODUCT_NAME} has been installed successfully!${RESET}"
     echo ""
-    echo "  Location: ${CYAN}$install_dir/sql-studio${RESET}"
+    if [ "$PLATFORM_OS" = "darwin" ]; then
+        echo "  Location: ${CYAN}$install_dir/$APP_BUNDLE_NAME${RESET}"
+    else
+        echo "  Location: ${CYAN}$install_dir/$BINARY_BASENAME${RESET}"
+    fi
     echo "  Version:  ${CYAN}$installed_version${RESET}"
     echo ""
     echo "${BOLD}Get started:${RESET}"
-    echo "  ${CYAN}sql-studio --help${RESET}"
-    echo "  ${CYAN}sql-studio version${RESET}"
+    if [ "$PLATFORM_OS" = "darwin" ]; then
+        echo "  ${CYAN}open -a \"${PRODUCT_NAME}\"${RESET}"
+    else
+        echo "  ${CYAN}$BINARY_BASENAME --help${RESET}"
+        echo "  ${CYAN}$BINARY_BASENAME version${RESET}"
+    fi
     echo ""
     echo "${BOLD}Documentation:${RESET} ${CYAN}https://docs.sqlstudio.io${RESET}"
     echo ""

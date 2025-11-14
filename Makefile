@@ -1,10 +1,12 @@
 # HowlerOps Makefile
 
 # Variables
-GO := go
+export GOCACHE := $(CURDIR)/.gocache
+GO := $(CURDIR)/scripts/go
 NPM := npm
-export PATH := $(shell go env GOPATH)/bin:$(PATH)
-WAILS := wails
+export PATH := $(CURDIR)/scripts:$(shell go env GOPATH)/bin:$(PATH)
+WAILS_BIN := wails
+WAILS := $(WAILS_BIN)
 BINARY_NAME := howlerops
 BUILD_DIR := ./build/bin
 FRONTEND_DIR := ./frontend

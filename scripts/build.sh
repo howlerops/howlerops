@@ -38,6 +38,8 @@ DIST_DIR="dist"
 VERSION=$(grep '"productVersion"' wails.json | cut -d'"' -f4 || echo "1.0.0")
 BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 COMMIT_HASH=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+GO_CACHE_DIR="${GOCACHE:-$(pwd)/.gocache}"
+export GOCACHE="$GO_CACHE_DIR"
 
 # Default values
 PLATFORM="current"
@@ -226,13 +228,13 @@ create_packages() {
 
         if [[ -d "$BUILD_DIR/darwin/amd64" ]]; then
             cd "$BUILD_DIR/darwin/amd64"
-            zip -r "../../../$DIST_DIR/sql-studio-$VERSION-darwin-amd64.zip" ./*
+            tar -czf "../../../$DIST_DIR/howlerops-$VERSION-darwin-amd64.tar.gz" ./*
             cd - > /dev/null
         fi
 
         if [[ -d "$BUILD_DIR/darwin/arm64" ]]; then
             cd "$BUILD_DIR/darwin/arm64"
-            zip -r "../../../$DIST_DIR/sql-studio-$VERSION-darwin-arm64.zip" ./*
+            tar -czf "../../../$DIST_DIR/howlerops-$VERSION-darwin-arm64.tar.gz" ./*
             cd - > /dev/null
         fi
     fi
@@ -241,7 +243,7 @@ create_packages() {
     if [[ -d "$BUILD_DIR/windows/amd64" ]]; then
         print_status "Packaging Windows builds..."
         cd "$BUILD_DIR/windows/amd64"
-        zip -r "../../../$DIST_DIR/sql-studio-$VERSION-windows-amd64.zip" ./*
+        tar -czf "../../../$DIST_DIR/howlerops-$VERSION-windows-amd64.tar.gz" ./*
         cd - > /dev/null
     fi
 
@@ -249,7 +251,7 @@ create_packages() {
     if [[ -d "$BUILD_DIR/linux/amd64" ]]; then
         print_status "Packaging Linux builds..."
         cd "$BUILD_DIR/linux/amd64"
-        tar -czf "../../../$DIST_DIR/sql-studio-$VERSION-linux-amd64.tar.gz" ./*
+        tar -czf "../../../$DIST_DIR/howlerops-$VERSION-linux-amd64.tar.gz" ./*
         cd - > /dev/null
     fi
 
@@ -269,7 +271,7 @@ show_summary() {
 
     if [[ -d "$BUILD_DIR" ]]; then
         echo "Build outputs:"
-        find "$BUILD_DIR" -name "sql-studio*" -o -name "*.exe" -o -name "*.app" | while read -r file; do
+        find "$BUILD_DIR" -name "howlerops*" -o -name "*.exe" -o -name "*.app" | while read -r file; do
             echo "  - $file"
         done
     fi
