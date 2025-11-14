@@ -10,6 +10,8 @@ export function AddKeyboardBinding(arg1:string,arg2:services.KeyboardAction):Pro
 
 export function CancelQueryStream(arg1:string):Promise<void>;
 
+export function CheckForUpdates():Promise<main.UpdateInfo>;
+
 export function ClearAIMemorySessions():Promise<void>;
 
 export function ClearRecentFiles():Promise<void>;
@@ -78,6 +80,8 @@ export function GetConnectionIDs():Promise<Array<string>>;
 
 export function GetConnectionStats():Promise<Record<string, database.PoolStats>>;
 
+export function GetCurrentVersion():Promise<string>;
+
 export function GetDarkIcon():Promise<Array<number>>;
 
 export function GetDatabaseTypeInfo(arg1:string):Promise<Record<string, any>>;
@@ -143,6 +147,8 @@ export function ListConnections():Promise<Array<string>>;
 export function ListSyntheticViews():Promise<Array<main.SyntheticViewSummary>>;
 
 export function LoadAIMemorySessions():Promise<Array<main.AIMemorySessionPayload>>;
+
+export function OpenDownloadPage():Promise<void>;
 
 export function OpenFileDialog():Promise<string>;
 

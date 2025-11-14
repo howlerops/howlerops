@@ -10,6 +10,10 @@ export function CancelQueryStream(arg1) {
   return window['go']['main']['App']['CancelQueryStream'](arg1);
 }
 
+export function CheckForUpdates() {
+  return window['go']['main']['App']['CheckForUpdates']();
+}
+
 export function ClearAIMemorySessions() {
   return window['go']['main']['App']['ClearAIMemorySessions']();
 }
@@ -146,6 +150,10 @@ export function GetConnectionStats() {
   return window['go']['main']['App']['GetConnectionStats']();
 }
 
+export function GetCurrentVersion() {
+  return window['go']['main']['App']['GetCurrentVersion']();
+}
+
 export function GetDarkIcon() {
   return window['go']['main']['App']['GetDarkIcon']();
 }
@@ -276,6 +284,10 @@ export function ListSyntheticViews() {
 
 export function LoadAIMemorySessions() {
   return window['go']['main']['App']['LoadAIMemorySessions']();
+}
+
+export function OpenDownloadPage() {
+  return window['go']['main']['App']['OpenDownloadPage']();
 }
 
 export function OpenFileDialog() {

@@ -48,6 +48,7 @@ type App struct {
 	credentialService *services.CredentialService
 	aiService         *ai.Service
 	aiConfig          *ai.RuntimeConfig
+	updateChecker     *UpdateChecker
 	embeddingService  rag.EmbeddingService
 	duckdbEngine      *duckdb.Engine
 	syntheticViews    *storage.SyntheticViewStorage
@@ -481,6 +482,7 @@ func NewApp() *App {
 	fileService := services.NewFileService(logger)
 	keyboardService := services.NewKeyboardService(logger)
 	credentialService := services.NewCredentialService(logger)
+	updateChecker := NewUpdateChecker()
 
 	return &App{
 		logger:            logger,
@@ -489,6 +491,7 @@ func NewApp() *App {
 		keyboardService:   keyboardService,
 		credentialService: credentialService,
 		aiConfig:          ai.DefaultRuntimeConfig(),
+		updateChecker:     updateChecker,
 	}
 }
 
@@ -516,6 +519,7 @@ func (a *App) OnStartup(ctx context.Context) {
 	a.fileService.SetContext(ctx)
 	a.keyboardService.SetContext(ctx)
 	a.credentialService.SetContext(ctx)
+	a.updateChecker.ctx = ctx
 
 	// Initialize storage manager
 	if err := a.initializeStorageManager(ctx); err != nil {
@@ -4484,4 +4488,37 @@ func (a *App) GetSyntheticSchema() (map[string]interface{}, error) {
 	}
 
 	return schema, nil
+}
+
+// =============================================================================
+// Update Checker Methods
+// =============================================================================
+
+// CheckForUpdates checks if a new version is available
+func (a *App) CheckForUpdates() (*UpdateInfo, error) {
+	a.logger.Info("Checking for updates...")
+	info, err := a.updateChecker.CheckForUpdates()
+	if err != nil {
+		a.logger.WithError(err).Error("Failed to check for updates")
+		return nil, err
+	}
+
+	a.logger.WithFields(logrus.Fields{
+		"current": info.CurrentVersion,
+		"latest":  info.LatestVersion,
+		"available": info.Available,
+	}).Info("Update check complete")
+
+	return info, nil
+}
+
+// GetCurrentVersion returns the current application version
+func (a *App) GetCurrentVersion() string {
+	return a.updateChecker.GetCurrentVersion()
+}
+
+// OpenDownloadPage opens the download page in the default browser
+func (a *App) OpenDownloadPage() error {
+	a.logger.Info("Opening download page...")
+	return a.updateChecker.OpenDownloadPage()
 }

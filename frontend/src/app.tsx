@@ -15,6 +15,7 @@ import { initializeConnectionStore } from './store/connection-store'
 import { Loader2 } from 'lucide-react'
 import { ProtectedRoute } from './components/auth/protected-route'
 import { shouldEnforceHostedAuth } from './lib/environment'
+import { UpdateNotification } from './components/update-notification'
 
 // Lazy load pages for code splitting
 const Dashboard = lazy(() => import('./pages/dashboard').then(m => ({ default: m.Dashboard })))
@@ -121,6 +122,7 @@ function App() {
           </Router>
           <ReactQueryDevtools initialIsOpen={false} />
           <Toaster />
+          <UpdateNotification />
         </ThemeProvider>
       </QueryClientProvider>
     </ErrorBoundary>
