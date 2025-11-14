@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { CheckForUpdates, OpenDownloadPage, GetCurrentVersion } from '../../generated/go/main/App';
+import { CheckForUpdates, OpenDownloadPage, GetCurrentVersion } from '../../wailsjs/go/main/App';
 
 export interface UpdateInfo {
   available: boolean;
