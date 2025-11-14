@@ -34,8 +34,8 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-GITHUB_REPO="sql-studio/sql-studio"
-HOMEBREW_TAP_REPO="${HOMEBREW_TAP_REPO:-sql-studio/homebrew-tap}"
+GITHUB_REPO="jbeck018/howlerops"
+HOMEBREW_TAP_REPO="${HOMEBREW_TAP_REPO:-jbeck018/homebrew-howlerops}"
 FORMULA_NAME="howlerops"
 DRY_RUN="${DRY_RUN:-false}"
 
@@ -159,68 +159,43 @@ download_and_checksum() {
 
 update_formula_file() {
     local version=$1
-    local amd64_url=$2
-    local amd64_sha=$3
-    local arm64_url=$4
-    local arm64_sha=$5
-    local formula_path=$6
+    local universal_url=$2
+    local universal_sha=$3
+    local formula_path=$4
 
-    log_info "Updating formula file at $formula_path..."
+    log_info "Updating cask file at $formula_path..."
 
-    # Remove 'v' prefix from version for formula
+    # Remove 'v' prefix from version for cask
     local version_number="${version#v}"
 
-    # Create updated formula content
+    # Create updated cask content
     cat > "$formula_path" << EOF
-# typed: false
-# frozen_string_literal: true
-
-# HowlerOps Homebrew Formula
-# This formula allows users to install HowlerOps via Homebrew
-# Usage: brew install sql-studio/tap/howlerops
-
-class Howlerops < Formula
-  desc "Native HowlerOps desktop SQL client"
-  homepage "https://github.com/sql-studio/sql-studio"
+cask "howlerops" do
   version "$version_number"
-  license "MIT"
+  sha256 "$universal_sha"
 
-  # Intel (x86_64) binary
-  on_intel do
-    url "$amd64_url"
-    sha256 "$amd64_sha"
+  url "https://github.com/${GITHUB_REPO}/releases/download/v#{version}/howlerops-darwin-universal.zip"
+  name "HowlerOps"
+  desc "Powerful SQL client with AI capabilities"
+  homepage "https://github.com/${GITHUB_REPO}"
+
+  livecheck do
+    url :url
+    strategy :github_latest
   end
 
-  # Apple Silicon (ARM64) binary
-  on_arm do
-    url "$arm64_url"
-    sha256 "$arm64_sha"
-  end
+  app "howlerops.app"
 
-  def install
-    prefix.install "howlerops.app"
-    bin.install_symlink "\#{prefix}/howlerops.app/Contents/MacOS/howlerops" => "howlerops"
-  end
-
-  def caveats
-    <<~EOS
-      HowlerOps.app was installed to:
-        \#{prefix}/howlerops.app
-
-      Launch the application with:
-        open -a HowlerOps
-      Or start it from the terminal:
-        howlerops
-    EOS
-  end
-
-  test do
-    system "#{bin}/howlerops", "--help"
-  end
+  zap trash: [
+    "~/Library/Application Support/howlerops",
+    "~/Library/Caches/howlerops",
+    "~/Library/Preferences/com.howlerops.app.plist",
+    "~/Library/Saved Application State/com.howlerops.app.savedState",
+  ]
 end
 EOF
 
-    log_success "Formula file updated successfully"
+    log_success "Cask file updated successfully"
 }
 
 clone_tap_repository() {
@@ -252,16 +227,16 @@ commit_and_push_formula() {
     fi
 
     # Check if there are changes
-    if ! git diff --quiet Formula/"$FORMULA_NAME".rb; then
+    if ! git diff --quiet Casks/"$FORMULA_NAME".rb; then
         log_info "Committing changes..."
 
-        git add Formula/"$FORMULA_NAME".rb
-        git commit -m "Update $FORMULA_NAME to $version
+        git add Casks/"$FORMULA_NAME".rb
+        git commit -m "chore: update $FORMULA_NAME to $version
 
 Automated update via GitHub Actions
 - Updated version to $version
-- Updated download URLs
-- Updated SHA256 checksums for both architectures"
+- Updated download URL
+- Updated SHA256 checksum for universal binary"
 
         if [ "$DRY_RUN" = "true" ]; then
             log_warning "DRY RUN: Would push changes to repository"
@@ -273,7 +248,7 @@ Automated update via GitHub Actions
             log_success "Changes pushed successfully"
         fi
     else
-        log_info "No changes detected in formula file"
+        log_info "No changes detected in cask file"
     fi
 }
 
@@ -345,55 +320,37 @@ main() {
     # Validate release assets
     validate_release_assets "$release_data"
 
-    # Extract download URLs
-    local amd64_url
-    local arm64_url
-    local amd64_archive_name
-    local arm64_archive_name
-
+    # Extract download URL for universal binary
     local universal_archive
-    universal_archive=$(echo "$release_data" | jq -r '.assets[] | select(.name | contains("howlerops-darwin-universal")) | .name' | head -n 1)
+    local universal_url
+    universal_archive=$(echo "$release_data" | jq -r '.assets[] | select(.name | contains("howlerops-darwin-universal.zip")) | .name' | head -n 1)
 
-    if [ -n "$universal_archive" ]; then
-        amd64_archive_name="$universal_archive"
-        arm64_archive_name="$universal_archive"
-
-        amd64_url=$(echo "$release_data" | jq -r --arg name "$universal_archive" '.assets[] | select(.name == $name) | .browser_download_url' | head -n 1)
-        arm64_url="$amd64_url"
-    else
-        amd64_archive_name=$(echo "$release_data" | jq -r '.assets[] | select(.name | contains("howlerops-darwin-amd64")) | .name' | head -n 1)
-        arm64_archive_name=$(echo "$release_data" | jq -r '.assets[] | select(.name | contains("howlerops-darwin-arm64")) | .name' | head -n 1)
-
-        amd64_url=$(echo "$release_data" | jq -r --arg name "$amd64_archive_name" '.assets[] | select(.name == $name) | .browser_download_url' | head -n 1)
-        arm64_url=$(echo "$release_data" | jq -r --arg name "$arm64_archive_name" '.assets[] | select(.name == $name) | .browser_download_url' | head -n 1)
+    if [ -z "$universal_archive" ]; then
+        log_error "Universal macOS binary not found in release assets"
+        log_info "Available assets:"
+        echo "$release_data" | jq -r '.assets[].name'
+        exit 1
     fi
 
-    log_info "macOS Intel URL: $amd64_url"
-    log_info "macOS Apple Silicon URL: $arm64_url"
+    universal_url=$(echo "$release_data" | jq -r --arg name "$universal_archive" '.assets[] | select(.name == $name) | .browser_download_url' | head -n 1)
 
-    # Download and calculate checksums
-    local amd64_sha
-    local arm64_sha
-    amd64_sha=$(download_and_checksum "$amd64_url" "$amd64_archive_name")
+    log_info "macOS Universal Binary URL: $universal_url"
 
-    if [ "$arm64_url" = "$amd64_url" ]; then
-        arm64_sha="$amd64_sha"
-    else
-        arm64_sha=$(download_and_checksum "$arm64_url" "$arm64_archive_name")
-    fi
+    # Download and calculate checksum
+    local universal_sha
+    universal_sha=$(download_and_checksum "$universal_url" "$universal_archive")
 
-    log_success "AMD64 SHA256: $amd64_sha"
-    log_success "ARM64 SHA256: $arm64_sha"
+    log_success "Universal Binary SHA256: $universal_sha"
 
     # Clone tap repository
     local tap_dir
     tap_dir=$(clone_tap_repository)
 
-    # Create Formula directory if it doesn't exist
-    mkdir -p "$tap_dir/Formula"
+    # Create Casks directory if it doesn't exist
+    mkdir -p "$tap_dir/Casks"
 
-    # Update formula file
-    update_formula_file "$tag_name" "$amd64_url" "$amd64_sha" "$arm64_url" "$arm64_sha" "$tap_dir/Formula/$FORMULA_NAME.rb"
+    # Update cask file
+    update_formula_file "$tag_name" "$universal_url" "$universal_sha" "$tap_dir/Casks/$FORMULA_NAME.rb"
 
     # Commit and push changes
     commit_and_push_formula "$tap_dir" "$tag_name"
