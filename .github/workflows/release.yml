@@ -127,7 +127,7 @@ jobs:
 
             **Quick Install (Recommended):**
             ```bash
-            curl -fsSL https://raw.githubusercontent.com/sql-studio/sql-studio/main/install.sh | sh
+            curl -fsSL https://raw.githubusercontent.com/jbeck018/howlerops/main/install.sh | sh
             ```
 
             **Manual Download:**
@@ -507,6 +507,8 @@ jobs:
     name: Build Docker Image
     runs-on: ubuntu-latest
     needs: [create-release, build-binaries]
+    # Skip this job if GCP secrets are not configured
+    if: ${{ secrets.GCP_SA_KEY != '' && secrets.GCP_PROJECT_ID != '' }}
 
     permissions:
       contents: read
@@ -628,6 +630,8 @@ jobs:
     name: Update Homebrew Formula
     runs-on: ubuntu-latest
     needs: [create-release, build-binaries, build-howlerops, validate-release]
+    # Skip this job if Homebrew token is not configured
+    if: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
 
     permissions:
       contents: read
