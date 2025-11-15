@@ -74,7 +74,7 @@ steps:
       # Environment variables
       - "--set-env-vars=ENVIRONMENT=production,LOG_FORMAT=json,LOG_LEVEL=info"
       # Secrets from Secret Manager
-      - "--set-secrets=TURSO_URL=turso-url:latest,TURSO_AUTH_TOKEN=turso-auth-token:latest,RESEND_API_KEY=resend-api-key:latest,JWT_SECRET=jwt-secret:latest"
+      - "--set-secrets=TURSO_URL=turso-url:latest,TURSO_AUTH_TOKEN=turso-auth-token:latest,RESEND_API_KEY=resend-api-key:latest,JWT_SECRET=jwt-secret:latest,GOOGLE_CLIENT_ID=google-oauth-client-id:latest,GOOGLE_CLIENT_SECRET=google-oauth-client-secret:latest,GH_CLIENT_ID=github-oauth-client-id:latest,GH_CLIENT_SECRET=github-oauth-client-secret:latest"
       # Service account (create with limited permissions)
       - "--service-account=howlerops-backend@$PROJECT_ID.iam.gserviceaccount.com"
       # VPC Connector (if needed for private resources)
