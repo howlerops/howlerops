@@ -53,6 +53,11 @@ func (m *mockDatabase) Execute(ctx context.Context, query string, args ...interf
 	}, nil
 }
 
+func (m *mockDatabase) ExecuteWithOptions(ctx context.Context, query string, opts *QueryOptions, args ...interface{}) (*QueryResult, error) {
+	// Delegate to Execute for test purposes
+	return m.Execute(ctx, query, args...)
+}
+
 // Stub implementations for other Database interface methods
 func (m *mockDatabase) Connect(ctx context.Context, config ConnectionConfig) error {
 	return nil

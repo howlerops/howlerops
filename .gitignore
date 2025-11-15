@@ -141,7 +141,7 @@ config/production.yaml
 ehthumbs.db
 Thumbs.db
 
-# Package manager lock files
-package-lock.json
+# Package manager lock files - keeping package-lock.json for reproducible builds
+# package-lock.json  # REMOVED: We want to commit this for reproducible builds in CI/CD
 yarn.lock
 pnpm-lock.yaml
