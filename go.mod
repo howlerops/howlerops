@@ -1,6 +1,6 @@
 module github.com/jbeck018/howlerops
 
-go 1.24.0
+go 1.23
 
 require (
 	github.com/creack/pty v1.1.24
