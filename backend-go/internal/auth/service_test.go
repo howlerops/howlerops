@@ -15,6 +15,7 @@ import (
 
 	"github.com/sql-studio/backend-go/internal/auth"
 	"github.com/sql-studio/backend-go/internal/middleware"
+	"github.com/sql-studio/backend-go/pkg/crypto"
 )
 
 // mockUserStore implements auth.UserStore for testing
@@ -165,6 +166,34 @@ func (m *mockLoginAttemptStore) CleanupOldAttempts(ctx context.Context, before t
 	return nil
 }
 
+// mockMasterKeyStore implements auth.MasterKeyStore for testing
+type mockMasterKeyStore struct {
+	storeMasterKeyFunc  func(ctx context.Context, userID string, encryptedKey *crypto.EncryptedMasterKey) error
+	getMasterKeyFunc    func(ctx context.Context, userID string) (*crypto.EncryptedMasterKey, error)
+	deleteMasterKeyFunc func(ctx context.Context, userID string) error
+}
+
+func (m *mockMasterKeyStore) StoreMasterKey(ctx context.Context, userID string, encryptedKey *crypto.EncryptedMasterKey) error {
+	if m.storeMasterKeyFunc != nil {
+		return m.storeMasterKeyFunc(ctx, userID, encryptedKey)
+	}
+	return nil
+}
+
+func (m *mockMasterKeyStore) GetMasterKey(ctx context.Context, userID string) (*crypto.EncryptedMasterKey, error) {
+	if m.getMasterKeyFunc != nil {
+		return m.getMasterKeyFunc(ctx, userID)
+	}
+	return nil, nil
+}
+
+func (m *mockMasterKeyStore) DeleteMasterKey(ctx context.Context, userID string) error {
+	if m.deleteMasterKeyFunc != nil {
+		return m.deleteMasterKeyFunc(ctx, userID)
+	}
+	return nil
+}
+
 // Helper functions
 func newTestLogger() *logrus.Logger {
 	logger := logrus.New()
@@ -200,7 +229,7 @@ func TestNewService(t *testing.T) {
 	config := newTestConfig()
 	logger := newTestLogger()
 
-	service := auth.NewService(userStore, sessionStore, attemptStore, authMiddleware, config, logger)
+	service := auth.NewService(userStore, sessionStore, attemptStore, &mockMasterKeyStore{}, authMiddleware, config, logger)
 
 	assert.NotNil(t, service)
 }
@@ -223,7 +252,7 @@ func TestNewService_NilStores(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			service := auth.NewService(tt.userStore, tt.sessionStore, tt.attemptStore, authMiddleware, config, logger)
+			service := auth.NewService(tt.userStore, tt.sessionStore, tt.attemptStore, &mockMasterKeyStore{}, authMiddleware, config, logger)
 			assert.NotNil(t, service)
 		})
 	}
@@ -236,7 +265,7 @@ func TestNewService_NilAuthMiddleware(t *testing.T) {
 	config := newTestConfig()
 	logger := newTestLogger()
 
-	service := auth.NewService(userStore, sessionStore, attemptStore, nil, config, logger)
+	service := auth.NewService(userStore, sessionStore, attemptStore, &mockMasterKeyStore{}, nil, config, logger)
 
 	assert.NotNil(t, service)
 }
@@ -274,7 +303,7 @@ func TestLogin_Success(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(userStore, sessionStore, attemptStore, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(userStore, sessionStore, attemptStore, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	req := &auth.LoginRequest{
 		Username:  "testuser",
@@ -310,7 +339,7 @@ func TestLogin_InvalidUsername(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(userStore, sessionStore, attemptStore, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(userStore, sessionStore, attemptStore, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	req := &auth.LoginRequest{
 		Username:  "nonexistent",
@@ -350,7 +379,7 @@ func TestLogin_InvalidPassword(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(userStore, sessionStore, attemptStore, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(userStore, sessionStore, attemptStore, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	req := &auth.LoginRequest{
 		Username:  "testuser",
@@ -390,7 +419,7 @@ func TestLogin_InactiveUser(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(userStore, sessionStore, attemptStore, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(userStore, sessionStore, attemptStore, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	req := &auth.LoginRequest{
 		Username:  "testuser",
@@ -422,7 +451,7 @@ func TestLogin_AccountLocked(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, attemptStore, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, attemptStore, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	req := &auth.LoginRequest{
 		Username:  "testuser",
@@ -464,7 +493,7 @@ func TestLogin_SessionCreationError(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(userStore, sessionStore, attemptStore, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(userStore, sessionStore, attemptStore, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	req := &auth.LoginRequest{
 		Username:  "testuser",
@@ -509,7 +538,7 @@ func TestLogin_UserUpdateError(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(userStore, sessionStore, attemptStore, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(userStore, sessionStore, attemptStore, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	req := &auth.LoginRequest{
 		Username:  "testuser",
@@ -531,7 +560,7 @@ func TestLogin_AttemptStoreError(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, attemptStore, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, attemptStore, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	req := &auth.LoginRequest{
 		Username:  "testuser",
@@ -576,7 +605,7 @@ func TestLogin_RememberMe(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(userStore, sessionStore, attemptStore, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(userStore, sessionStore, attemptStore, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	req := &auth.LoginRequest{
 		Username:   "testuser",
@@ -622,7 +651,7 @@ func TestLogin_PasswordComparison(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(userStore, sessionStore, attemptStore, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(userStore, sessionStore, attemptStore, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	req := &auth.LoginRequest{
 		Username:  "testuser",
@@ -669,7 +698,7 @@ func TestLogin_TokenGeneration(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(userStore, sessionStore, attemptStore, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(userStore, sessionStore, attemptStore, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	req := &auth.LoginRequest{
 		Username:  "testuser",
@@ -720,7 +749,7 @@ func TestLogin_SessionFields(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(userStore, sessionStore, attemptStore, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(userStore, sessionStore, attemptStore, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	req := &auth.LoginRequest{
 		Username:  "testuser",
@@ -764,7 +793,7 @@ func TestLogin_LastLoginUpdate(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(userStore, sessionStore, attemptStore, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(userStore, sessionStore, attemptStore, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	req := &auth.LoginRequest{
 		Username:  "testuser",
@@ -812,7 +841,7 @@ func TestLogin_SuccessfulAttemptRecorded(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(userStore, sessionStore, attemptStore, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(userStore, sessionStore, attemptStore, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	req := &auth.LoginRequest{
 		Username:  "testuser",
@@ -837,7 +866,7 @@ func TestLogout_Success(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(&mockUserStore{}, sessionStore, &mockLoginAttemptStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(&mockUserStore{}, sessionStore, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	err := service.Logout(context.Background(), "test-token")
 
@@ -851,7 +880,7 @@ func TestLogout_SessionNotFound(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(&mockUserStore{}, sessionStore, &mockLoginAttemptStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(&mockUserStore{}, sessionStore, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	err := service.Logout(context.Background(), "nonexistent-token")
 
@@ -867,7 +896,7 @@ func TestLogout_EmptyToken(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(&mockUserStore{}, sessionStore, &mockLoginAttemptStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(&mockUserStore{}, sessionStore, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	err := service.Logout(context.Background(), "")
 
@@ -881,7 +910,7 @@ func TestLogout_DatabaseError(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(&mockUserStore{}, sessionStore, &mockLoginAttemptStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(&mockUserStore{}, sessionStore, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	err := service.Logout(context.Background(), "test-token")
 
@@ -911,7 +940,7 @@ func TestRefreshToken_Success(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(userStore, sessionStore, &mockLoginAttemptStore{}, authMiddleware, newTestConfig(), newTestLogger())
+	service := auth.NewService(userStore, sessionStore, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, authMiddleware, newTestConfig(), newTestLogger())
 
 	resp, err := service.RefreshToken(context.Background(), refreshToken)
 
@@ -921,7 +950,7 @@ func TestRefreshToken_Success(t *testing.T) {
 }
 
 func TestRefreshToken_InvalidToken(t *testing.T) {
-	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, &mockLoginAttemptStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	resp, err := service.RefreshToken(context.Background(), "invalid-token")
 
@@ -934,7 +963,7 @@ func TestRefreshToken_ExpiredToken(t *testing.T) {
 	authMiddleware := newTestAuthMiddleware()
 	refreshToken, _ := authMiddleware.GenerateRefreshToken("user-1", -time.Hour)
 
-	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, &mockLoginAttemptStore{}, authMiddleware, newTestConfig(), newTestLogger())
+	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, authMiddleware, newTestConfig(), newTestLogger())
 
 	resp, err := service.RefreshToken(context.Background(), refreshToken)
 
@@ -956,7 +985,7 @@ func TestRefreshToken_InactiveUser(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(userStore, &mockSessionStore{}, &mockLoginAttemptStore{}, authMiddleware, newTestConfig(), newTestLogger())
+	service := auth.NewService(userStore, &mockSessionStore{}, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, authMiddleware, newTestConfig(), newTestLogger())
 
 	resp, err := service.RefreshToken(context.Background(), refreshToken)
 
@@ -975,7 +1004,7 @@ func TestRefreshToken_UserNotFound(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(userStore, &mockSessionStore{}, &mockLoginAttemptStore{}, authMiddleware, newTestConfig(), newTestLogger())
+	service := auth.NewService(userStore, &mockSessionStore{}, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, authMiddleware, newTestConfig(), newTestLogger())
 
 	resp, err := service.RefreshToken(context.Background(), refreshToken)
 
@@ -998,7 +1027,7 @@ func TestRefreshToken_SessionNotFound(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(userStore, &mockSessionStore{}, &mockLoginAttemptStore{}, authMiddleware, newTestConfig(), newTestLogger())
+	service := auth.NewService(userStore, &mockSessionStore{}, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, authMiddleware, newTestConfig(), newTestLogger())
 
 	resp, err := service.RefreshToken(context.Background(), refreshToken)
 
@@ -1027,7 +1056,7 @@ func TestRefreshToken_UpdateSessionError(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(userStore, sessionStore, &mockLoginAttemptStore{}, authMiddleware, newTestConfig(), newTestLogger())
+	service := auth.NewService(userStore, sessionStore, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, authMiddleware, newTestConfig(), newTestLogger())
 
 	resp, err := service.RefreshToken(context.Background(), refreshToken)
 
@@ -1036,7 +1065,7 @@ func TestRefreshToken_UpdateSessionError(t *testing.T) {
 }
 
 func TestRefreshToken_EmptyToken(t *testing.T) {
-	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, &mockLoginAttemptStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	resp, err := service.RefreshToken(context.Background(), "")
 
@@ -1057,7 +1086,7 @@ func TestGetProfile_Success(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(userStore, &mockSessionStore{}, &mockLoginAttemptStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(userStore, &mockSessionStore{}, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	user, err := service.GetProfile(context.Background(), "user-1")
 
@@ -1075,7 +1104,7 @@ func TestGetProfile_UserNotFound(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(userStore, &mockSessionStore{}, &mockLoginAttemptStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(userStore, &mockSessionStore{}, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	user, err := service.GetProfile(context.Background(), "nonexistent")
 
@@ -1094,7 +1123,7 @@ func TestGetProfile_EmptyUserID(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(userStore, &mockSessionStore{}, &mockLoginAttemptStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(userStore, &mockSessionStore{}, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	user, err := service.GetProfile(context.Background(), "")
 
@@ -1109,7 +1138,7 @@ func TestGetProfile_DatabaseError(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(userStore, &mockSessionStore{}, &mockLoginAttemptStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(userStore, &mockSessionStore{}, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	user, err := service.GetProfile(context.Background(), "user-1")
 
@@ -1146,7 +1175,7 @@ func TestVerifyToken_Success(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(userStore, sessionStore, &mockLoginAttemptStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(userStore, sessionStore, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	user, err := service.VerifyToken(context.Background(), "test-token")
 
@@ -1162,7 +1191,7 @@ func TestVerifyToken_SessionNotFound(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(&mockUserStore{}, sessionStore, &mockLoginAttemptStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(&mockUserStore{}, sessionStore, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	user, err := service.VerifyToken(context.Background(), "invalid-token")
 
@@ -1184,7 +1213,7 @@ func TestVerifyToken_ExpiredSession(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(&mockUserStore{}, sessionStore, &mockLoginAttemptStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(&mockUserStore{}, sessionStore, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	user, err := service.VerifyToken(context.Background(), "expired-token")
 
@@ -1206,7 +1235,7 @@ func TestVerifyToken_InactiveSession(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(&mockUserStore{}, sessionStore, &mockLoginAttemptStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(&mockUserStore{}, sessionStore, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	user, err := service.VerifyToken(context.Background(), "inactive-token")
 
@@ -1238,7 +1267,7 @@ func TestVerifyToken_InactiveUser(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(userStore, sessionStore, &mockLoginAttemptStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(userStore, sessionStore, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	user, err := service.VerifyToken(context.Background(), "test-token")
 
@@ -1266,7 +1295,7 @@ func TestVerifyToken_UserNotFound(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(userStore, sessionStore, &mockLoginAttemptStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(userStore, sessionStore, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	user, err := service.VerifyToken(context.Background(), "test-token")
 
@@ -1302,7 +1331,7 @@ func TestVerifyToken_UpdateSessionError(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(userStore, sessionStore, &mockLoginAttemptStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(userStore, sessionStore, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	user, err := service.VerifyToken(context.Background(), "test-token")
 
@@ -1341,7 +1370,7 @@ func TestVerifyToken_LastAccessUpdated(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(userStore, sessionStore, &mockLoginAttemptStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(userStore, sessionStore, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	_, err := service.VerifyToken(context.Background(), "test-token")
 	require.NoError(t, err)
@@ -1359,7 +1388,7 @@ func TestCreateUser_Success(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(userStore, &mockSessionStore{}, &mockLoginAttemptStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(userStore, &mockSessionStore{}, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	user := &auth.User{
 		Username: "newuser",
@@ -1389,7 +1418,7 @@ func TestCreateUser_PasswordHashing(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(userStore, &mockSessionStore{}, &mockLoginAttemptStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(userStore, &mockSessionStore{}, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	user := &auth.User{
 		Username: "newuser",
@@ -1411,7 +1440,7 @@ func TestCreateUser_StoreError(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(userStore, &mockSessionStore{}, &mockLoginAttemptStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(userStore, &mockSessionStore{}, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	user := &auth.User{
 		Username: "newuser",
@@ -1432,7 +1461,7 @@ func TestCreateUser_MetadataInitialization(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(userStore, &mockSessionStore{}, &mockLoginAttemptStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(userStore, &mockSessionStore{}, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	user := &auth.User{
 		Username: "newuser",
@@ -1454,7 +1483,7 @@ func TestCreateUser_ExistingMetadata(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(userStore, &mockSessionStore{}, &mockLoginAttemptStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(userStore, &mockSessionStore{}, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	user := &auth.User{
 		Username: "newuser",
@@ -1481,7 +1510,7 @@ func TestCreateUser_TimestampsSet(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(userStore, &mockSessionStore{}, &mockLoginAttemptStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(userStore, &mockSessionStore{}, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	user := &auth.User{
 		Username: "newuser",
@@ -1515,7 +1544,7 @@ func TestChangePassword_Success(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(userStore, &mockSessionStore{}, &mockLoginAttemptStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(userStore, &mockSessionStore{}, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	err := service.ChangePassword(context.Background(), "user-1", oldPassword, "newpassword")
 
@@ -1538,7 +1567,7 @@ func TestChangePassword_WrongOldPassword(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(userStore, &mockSessionStore{}, &mockLoginAttemptStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(userStore, &mockSessionStore{}, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	err := service.ChangePassword(context.Background(), "user-1", "wrongpassword", "newpassword")
 
@@ -1553,7 +1582,7 @@ func TestChangePassword_UserNotFound(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(userStore, &mockSessionStore{}, &mockLoginAttemptStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(userStore, &mockSessionStore{}, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	err := service.ChangePassword(context.Background(), "nonexistent", "oldpass", "newpass")
 
@@ -1577,7 +1606,7 @@ func TestChangePassword_UpdateError(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(userStore, &mockSessionStore{}, &mockLoginAttemptStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(userStore, &mockSessionStore{}, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	err := service.ChangePassword(context.Background(), "user-1", oldPassword, "newpassword")
 
@@ -1601,7 +1630,7 @@ func TestChangePassword_SamePassword(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(userStore, &mockSessionStore{}, &mockLoginAttemptStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(userStore, &mockSessionStore{}, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	err := service.ChangePassword(context.Background(), "user-1", password, password)
 
@@ -1627,7 +1656,7 @@ func TestChangePassword_UpdatedAtSet(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(userStore, &mockSessionStore{}, &mockLoginAttemptStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(userStore, &mockSessionStore{}, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	err := service.ChangePassword(context.Background(), "user-1", oldPassword, "newpassword")
 
@@ -1651,7 +1680,7 @@ func TestChangePassword_EmptyNewPassword(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(userStore, &mockSessionStore{}, &mockLoginAttemptStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(userStore, &mockSessionStore{}, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	err := service.ChangePassword(context.Background(), "user-1", oldPassword, "")
 
@@ -1672,7 +1701,7 @@ func TestAccountLockout_NotLocked(t *testing.T) {
 	config := newTestConfig()
 	config.MaxLoginAttempts = 5
 
-	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, attemptStore, newTestAuthMiddleware(), config, newTestLogger())
+	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, attemptStore, &mockMasterKeyStore{}, newTestAuthMiddleware(), config, newTestLogger())
 
 	req := &auth.LoginRequest{
 		Username:  "testuser",
@@ -1699,7 +1728,7 @@ func TestAccountLockout_Locked(t *testing.T) {
 	config := newTestConfig()
 	config.MaxLoginAttempts = 5
 
-	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, attemptStore, newTestAuthMiddleware(), config, newTestLogger())
+	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, attemptStore, &mockMasterKeyStore{}, newTestAuthMiddleware(), config, newTestLogger())
 
 	req := &auth.LoginRequest{
 		Username:  "testuser",
@@ -1727,7 +1756,7 @@ func TestAccountLockout_MixedAttempts(t *testing.T) {
 	config := newTestConfig()
 	config.MaxLoginAttempts = 5
 
-	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, attemptStore, newTestAuthMiddleware(), config, newTestLogger())
+	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, attemptStore, &mockMasterKeyStore{}, newTestAuthMiddleware(), config, newTestLogger())
 
 	req := &auth.LoginRequest{
 		Username:  "testuser",
@@ -1754,7 +1783,7 @@ func TestAccountLockout_ExactThreshold(t *testing.T) {
 	config := newTestConfig()
 	config.MaxLoginAttempts = 3
 
-	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, attemptStore, newTestAuthMiddleware(), config, newTestLogger())
+	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, attemptStore, &mockMasterKeyStore{}, newTestAuthMiddleware(), config, newTestLogger())
 
 	req := &auth.LoginRequest{
 		Username:  "testuser",
@@ -1781,7 +1810,7 @@ func TestAccountLockout_BelowThreshold(t *testing.T) {
 	config := newTestConfig()
 	config.MaxLoginAttempts = 3
 
-	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, attemptStore, newTestAuthMiddleware(), config, newTestLogger())
+	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, attemptStore, &mockMasterKeyStore{}, newTestAuthMiddleware(), config, newTestLogger())
 
 	req := &auth.LoginRequest{
 		Username:  "testuser",
@@ -1801,7 +1830,7 @@ func TestAccountLockout_WindowExpired(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, attemptStore, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, attemptStore, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	req := &auth.LoginRequest{
 		Username:  "testuser",
@@ -1825,7 +1854,7 @@ func TestAccountLockout_ChecksIPAndUsername(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, attemptStore, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, attemptStore, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	req := &auth.LoginRequest{
 		Username:  "testuser",
@@ -1852,7 +1881,7 @@ func TestAccountLockout_TimeWindow(t *testing.T) {
 	config := newTestConfig()
 	config.LockoutDuration = 30 * time.Minute
 
-	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, attemptStore, newTestAuthMiddleware(), config, newTestLogger())
+	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, attemptStore, &mockMasterKeyStore{}, newTestAuthMiddleware(), config, newTestLogger())
 
 	req := &auth.LoginRequest{
 		Username:  "testuser",
@@ -1873,7 +1902,7 @@ func TestCleanupExpiredSessions_Success(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(&mockUserStore{}, sessionStore, &mockLoginAttemptStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(&mockUserStore{}, sessionStore, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	err := service.CleanupExpiredSessions(context.Background())
 
@@ -1887,7 +1916,7 @@ func TestCleanupExpiredSessions_Error(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(&mockUserStore{}, sessionStore, &mockLoginAttemptStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(&mockUserStore{}, sessionStore, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	err := service.CleanupExpiredSessions(context.Background())
 
@@ -1902,7 +1931,7 @@ func TestCleanupOldLoginAttempts_Success(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, attemptStore, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, attemptStore, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	err := service.CleanupOldLoginAttempts(context.Background())
 
@@ -1916,7 +1945,7 @@ func TestCleanupOldLoginAttempts_Error(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, attemptStore, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, attemptStore, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	err := service.CleanupOldLoginAttempts(context.Background())
 
@@ -1933,7 +1962,7 @@ func TestCleanupOldLoginAttempts_TimeWindow(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, attemptStore, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, attemptStore, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	now := time.Now()
 	err := service.CleanupOldLoginAttempts(context.Background())
@@ -1950,7 +1979,7 @@ func TestCleanupOldLoginAttempts_ContextCancellation(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, attemptStore, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, attemptStore, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -1962,7 +1991,7 @@ func TestCleanupOldLoginAttempts_ContextCancellation(t *testing.T) {
 
 // TestGenerateAPIKey tests API key generation
 func TestGenerateAPIKey_Success(t *testing.T) {
-	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, &mockLoginAttemptStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	apiKey, err := service.GenerateAPIKey(context.Background(), "user-1")
 
@@ -1972,7 +2001,7 @@ func TestGenerateAPIKey_Success(t *testing.T) {
 }
 
 func TestGenerateAPIKey_Uniqueness(t *testing.T) {
-	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, &mockLoginAttemptStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	keys := make(map[string]bool)
 	for i := 0; i < 100; i++ {
@@ -1984,7 +2013,7 @@ func TestGenerateAPIKey_Uniqueness(t *testing.T) {
 }
 
 func TestGenerateAPIKey_HexEncoding(t *testing.T) {
-	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, &mockLoginAttemptStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	apiKey, err := service.GenerateAPIKey(context.Background(), "user-1")
 
@@ -1995,7 +2024,7 @@ func TestGenerateAPIKey_HexEncoding(t *testing.T) {
 }
 
 func TestGenerateAPIKey_DifferentUsers(t *testing.T) {
-	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, &mockLoginAttemptStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	key1, err1 := service.GenerateAPIKey(context.Background(), "user-1")
 	key2, err2 := service.GenerateAPIKey(context.Background(), "user-2")
@@ -2006,7 +2035,7 @@ func TestGenerateAPIKey_DifferentUsers(t *testing.T) {
 }
 
 func TestGenerateAPIKey_EmptyUserID(t *testing.T) {
-	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, &mockLoginAttemptStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	apiKey, err := service.GenerateAPIKey(context.Background(), "")
 
@@ -2016,7 +2045,7 @@ func TestGenerateAPIKey_EmptyUserID(t *testing.T) {
 
 // TestValidateAPIKey tests API key validation
 func TestValidateAPIKey_NotImplemented(t *testing.T) {
-	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, &mockLoginAttemptStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	user, err := service.ValidateAPIKey(context.Background(), "test-api-key")
 
@@ -2026,7 +2055,7 @@ func TestValidateAPIKey_NotImplemented(t *testing.T) {
 }
 
 func TestValidateAPIKey_EmptyKey(t *testing.T) {
-	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, &mockLoginAttemptStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	user, err := service.ValidateAPIKey(context.Background(), "")
 
@@ -2035,7 +2064,7 @@ func TestValidateAPIKey_EmptyKey(t *testing.T) {
 }
 
 func TestValidateAPIKey_InvalidKey(t *testing.T) {
-	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, &mockLoginAttemptStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	user, err := service.ValidateAPIKey(context.Background(), "invalid-key")
 
@@ -2073,7 +2102,7 @@ func TestConcurrency_Login(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(userStore, sessionStore, attemptStore, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(userStore, sessionStore, attemptStore, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	var wg sync.WaitGroup
 	numGoroutines := 10
@@ -2104,7 +2133,7 @@ func TestConcurrency_CreateUser(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(userStore, &mockSessionStore{}, &mockLoginAttemptStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(userStore, &mockSessionStore{}, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	var wg sync.WaitGroup
 	numGoroutines := 10
@@ -2152,7 +2181,7 @@ func TestConcurrency_VerifyToken(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(userStore, sessionStore, &mockLoginAttemptStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(userStore, sessionStore, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	var wg sync.WaitGroup
 	numGoroutines := 10
@@ -2186,7 +2215,7 @@ func TestConcurrency_ChangePassword(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(userStore, &mockSessionStore{}, &mockLoginAttemptStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(userStore, &mockSessionStore{}, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	var wg sync.WaitGroup
 	numGoroutines := 10
@@ -2204,7 +2233,7 @@ func TestConcurrency_ChangePassword(t *testing.T) {
 }
 
 func TestConcurrency_GenerateAPIKey(t *testing.T) {
-	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, &mockLoginAttemptStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	var wg sync.WaitGroup
 	numGoroutines := 50
@@ -2232,7 +2261,7 @@ func TestConcurrency_GenerateAPIKey(t *testing.T) {
 
 // TestEdgeCases tests various edge cases
 func TestEdgeCase_NilContext(t *testing.T) {
-	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, &mockLoginAttemptStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	req := &auth.LoginRequest{
 		Username:  "testuser",
@@ -2251,7 +2280,7 @@ func TestEdgeCase_EmptyLoginRequest(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, attemptStore, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, attemptStore, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	req := &auth.LoginRequest{}
 
@@ -2275,7 +2304,7 @@ func TestEdgeCase_VeryLongUsername(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(userStore, &mockSessionStore{}, attemptStore, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(userStore, &mockSessionStore{}, attemptStore, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	req := &auth.LoginRequest{
 		Username:  longUsername,
@@ -2298,7 +2327,7 @@ func TestEdgeCase_VeryLongPassword(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(userStore, &mockSessionStore{}, &mockLoginAttemptStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(userStore, &mockSessionStore{}, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	user := &auth.User{
 		Username: "testuser",
@@ -2325,7 +2354,7 @@ func TestEdgeCase_SpecialCharactersInUsername(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(userStore, &mockSessionStore{}, attemptStore, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(userStore, &mockSessionStore{}, attemptStore, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	req := &auth.LoginRequest{
 		Username:  specialUsername,
@@ -2368,7 +2397,7 @@ func TestEdgeCase_UnicodePassword(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(userStore, sessionStore, attemptStore, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+	service := auth.NewService(userStore, sessionStore, attemptStore, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
 
 	req := &auth.LoginRequest{
 		Username:  "testuser",
@@ -2394,7 +2423,7 @@ func TestEdgeCase_ZeroBcryptCost(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(userStore, &mockSessionStore{}, &mockLoginAttemptStore{}, newTestAuthMiddleware(), config, newTestLogger())
+	service := auth.NewService(userStore, &mockSessionStore{}, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, newTestAuthMiddleware(), config, newTestLogger())
 
 	user := &auth.User{
 		Username: "testuser",
@@ -2416,7 +2445,7 @@ func TestEdgeCase_NegativeMaxLoginAttempts(t *testing.T) {
 		},
 	}
 
-	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, attemptStore, newTestAuthMiddleware(), config, newTestLogger())
+	service := auth.NewService(&mockUserStore{}, &mockSessionStore{}, attemptStore, &mockMasterKeyStore{}, newTestAuthMiddleware(), config, newTestLogger())
 
 	req := &auth.LoginRequest{
 		Username:  "testuser",
