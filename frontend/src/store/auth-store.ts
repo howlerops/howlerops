@@ -6,6 +6,8 @@
  *
  * Features:
  * - Sign up, sign in, sign out
+ * - OAuth authentication (Google, GitHub)
+ * - Biometric authentication (WebAuthn)
  * - Automatic token refresh
  * - Persistent authentication state
  * - Integration with tier store
@@ -16,6 +18,8 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { importMasterKeyFromBase64 } from '@/lib/crypto/encryption'
+import type { AuthSuccessEvent, AuthRestoredEvent } from '@/types/wails-auth'
+import { callWails, subscribeToWailsEvent } from '@/lib/wails-guard'
 
 export interface User {
   id: string
@@ -45,9 +49,12 @@ interface AuthState {
   // Actions
   signUp: (username: string, email: string, password: string) => Promise<void>
   signIn: (username: string, password: string) => Promise<void>
+  signInWithOAuth: (provider: 'google' | 'github') => Promise<void>
+  signInWithBiometric: () => Promise<void>
   signOut: () => Promise<void>
   refreshToken: () => Promise<boolean>
   clearError: () => void
+  checkStoredAuth: () => Promise<void>
 
   // Master key management
   getMasterKey: () => CryptoKey | null
@@ -191,6 +198,95 @@ export const useAuthStore = create<AuthState>()(
             isLoading: false,
           })
           throw error
+        }
+      },
+
+      // Sign in with OAuth
+      signInWithOAuth: async (provider: 'google' | 'github') => {
+        set({ isLoading: true, error: null })
+
+        try {
+          // Get OAuth URL from backend
+          const { authUrl } = await callWails((app) => app.GetOAuthURL!(provider))
+
+          // Open system browser for authentication
+          window.open(authUrl, '_blank')
+
+          // Note: Authentication completion handled by auth:success event listener
+        } catch (error) {
+          set({
+            error: error instanceof Error ? error.message : 'OAuth login failed',
+            isLoading: false,
+          })
+          throw error
+        }
+      },
+
+      // Sign in with biometric authentication
+      signInWithBiometric: async () => {
+        set({ isLoading: true, error: null })
+
+        try {
+          const { parsePublicKeyRequestOptions, serializeCredentialAssertion } = await import(
+            '@/lib/utils/webauthn'
+          )
+
+          // Get WebAuthn challenge from backend
+          const optionsJSON = await callWails((app) => app.StartWebAuthnAuthentication!())
+          const options = parsePublicKeyRequestOptions(optionsJSON)
+
+          // Trigger browser's native biometric prompt
+          const credential = await navigator.credentials.get({
+            publicKey: options,
+          })
+
+          if (!credential || credential.type !== 'public-key') {
+            throw new Error('Invalid credential type')
+          }
+
+          // Send credential to backend for verification
+          const assertionJSON = serializeCredentialAssertion(credential as PublicKeyCredential)
+          const token = await callWails((app) => app.FinishWebAuthnAuthentication!(assertionJSON))
+
+          if (!token) {
+            throw new Error('Authentication failed')
+          }
+
+          // Set authenticated state
+          set({
+            tokens: {
+              access_token: token,
+              refresh_token: '', // WebAuthn doesn't provide refresh token
+              expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
+            },
+            isAuthenticated: true,
+            isLoading: false,
+          })
+        } catch (error) {
+          set({
+            error: error instanceof Error ? error.message : 'Biometric authentication failed',
+            isLoading: false,
+          })
+          throw error
+        }
+      },
+
+      // Check for stored authentication on app startup
+      checkStoredAuth: async () => {
+        try {
+          // Check for OAuth tokens in backend
+          const providers: Array<'google' | 'github'> = ['google', 'github']
+
+          for (const provider of providers) {
+            const hasToken = await callWails((app) => app.CheckStoredToken!(provider))
+            if (hasToken) {
+              console.log(`Found stored ${provider} token`)
+              // Token will be restored via auth:restored event
+              break
+            }
+          }
+        } catch (error) {
+          console.error('Failed to check stored auth:', error)
         }
       },
 
@@ -379,10 +475,68 @@ export const getAuthHeader = (): Record<string, string> => {
  * Initialize auth store on app startup
  */
 export const initializeAuthStore = () => {
-  const { isAuthenticated, refreshToken } = useAuthStore.getState()
+  const { isAuthenticated, refreshToken, checkStoredAuth } = useAuthStore.getState()
+
+  // Set up event listeners for OAuth authentication
+  if (typeof window !== 'undefined' && window.runtime) {
+    try {
+      // Listen for successful OAuth authentication
+      subscribeToWailsEvent('auth:success', (data: AuthSuccessEvent) => {
+        console.log('OAuth authentication successful:', data)
+
+        useAuthStore.setState({
+          user: {
+            id: data.user.id,
+            username: data.user.name || data.user.email,
+            email: data.user.email,
+            role: 'user',
+            created_at: new Date().toISOString(),
+          },
+          tokens: {
+            access_token: data.token,
+            refresh_token: '', // OAuth tokens stored in backend keyring
+            expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
+          },
+          isAuthenticated: true,
+          isLoading: false,
+          error: null,
+        })
+      })
+
+      // Listen for OAuth authentication errors
+      subscribeToWailsEvent('auth:error', (message: string) => {
+        console.error('OAuth authentication error:', message)
+
+        useAuthStore.setState({
+          error: message,
+          isLoading: false,
+        })
+      })
+
+      // Listen for restored authentication on app startup
+      subscribeToWailsEvent('auth:restored', (data: AuthRestoredEvent) => {
+        console.log('Authentication restored from keyring')
+
+        useAuthStore.setState({
+          tokens: {
+            access_token: data.token,
+            refresh_token: '',
+            expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+          },
+          isAuthenticated: true,
+          isLoading: false,
+        })
+      })
+    } catch (err) {
+      console.error('Failed to subscribe to Wails auth events:', err)
+    }
+  }
 
   if (isAuthenticated) {
     // Validate token on startup
     refreshToken()
+  } else {
+    // Check for stored OAuth tokens
+    checkStoredAuth()
   }
 }

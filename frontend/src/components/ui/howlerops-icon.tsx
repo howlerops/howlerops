@@ -1,4 +1,7 @@
 import React from 'react';
+import iconLight from '@/assets/howlerops-icon-light.png';
+import iconDark from '@/assets/howlerops-icon-dark.png';
+import iconDefault from '@/assets/howlerops-icon.png';
 
 interface HowlerOpsIconProps {
   size?: number;
@@ -11,17 +14,16 @@ export const HowlerOpsIcon: React.FC<HowlerOpsIconProps> = ({
   className = '',
   variant = 'icon'
 }) => {
-  // Use PNG icons for better quality and consistency
   const getIconSrc = () => {
     switch (variant) {
       case 'light':
-        return '/src/assets/howlerops-icon-light.png';
+        return iconLight;
       case 'dark':
-        return '/src/assets/howlerops-icon-dark.png';
+        return iconDark;
       case 'logo':
-        return '/src/assets/howlerops-icon.png';
+        return iconDefault;
       default:
-        return '/src/assets/howlerops-icon.png';
+        return iconDefault;
     }
   };
 

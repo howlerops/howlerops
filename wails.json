@@ -64,6 +64,14 @@
       "com.apple.security.files.user-selected.read-write": true,
       "com.apple.security.files.downloads.read-write": true
     },
+    "info": {
+      "CFBundleURLTypes": [
+        {
+          "CFBundleURLName": "HowlerOps OAuth Callback",
+          "CFBundleURLSchemes": ["howlerops"]
+        }
+      ]
+    },
     "dmg": {
       "title": "HowlerOps",
       "size": {

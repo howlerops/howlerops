@@ -1,24 +1,9 @@
 /**
  * Wails Runtime Utilities
  * Provides utilities for checking and waiting for Wails runtime availability
+ *
+ * Note: Window interface extensions are defined in @/types/wails-auth.d.ts
  */
-
-// Extend Window interface to include Wails runtime
-declare global {
-  interface Window {
-    go?: {
-      main?: {
-        App?: {
-          GetTableStructure?: () => Promise<unknown>;
-          [key: string]: unknown;
-        };
-        [key: string]: unknown;
-      };
-      version?: string;
-      [key: string]: unknown;
-    };
-  }
-}
 
 // Check if Wails runtime is ready
 export function isWailsReady(): boolean {

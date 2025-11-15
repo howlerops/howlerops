@@ -64,8 +64,8 @@ export function AuthPage() {
   return (
     <div className="min-h-screen bg-muted/40 flex flex-col items-center justify-center px-4 py-8">
       {/* Brand Header */}
-      <div className="mb-8 text-center space-y-2">
-        <HowlerOpsIcon size={80} variant="icon" className="mx-auto" />
+      <div className="mb-8 flex items-center justify-center gap-3">
+        <HowlerOpsIcon size={80} variant="icon" />
         <h1 className="text-lg font-medium text-muted-foreground">HowlerOps</h1>
       </div>
 
