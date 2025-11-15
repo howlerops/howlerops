@@ -1,7 +1,7 @@
 /**
  * Tier Management System
  *
- * Central export for SQL Studio's tier management functionality.
+ * Central export for Howlerops's tier management functionality.
  * This module provides a complete solution for managing the 3-tier product structure.
  *
  * @module lib/tiers

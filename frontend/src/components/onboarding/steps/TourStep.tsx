@@ -1,5 +1,5 @@
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Sidebar,
   FileText,
@@ -7,12 +7,12 @@ import {
   Settings,
   Play,
   ArrowRight,
-} from "lucide-react"
-import { cn } from "@/lib/utils"
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface TourStepProps {
-  onNext: () => void
-  onBack: () => void
+  onNext: () => void;
+  onBack: () => void;
 }
 
 const tourPoints = [
@@ -51,33 +51,33 @@ const tourPoints = [
     description: "Customize your experience and manage your account",
     position: "right",
   },
-]
+];
 
 export function TourStep({ onNext, onBack }: TourStepProps) {
-  const [currentPoint, setCurrentPoint] = useState(0)
-  const point = tourPoints[currentPoint]
-  const Icon = point.icon
+  const [currentPoint, setCurrentPoint] = useState(0);
+  const point = tourPoints[currentPoint];
+  const Icon = point.icon;
 
   const handleNext = () => {
     if (currentPoint < tourPoints.length - 1) {
-      setCurrentPoint(currentPoint + 1)
+      setCurrentPoint(currentPoint + 1);
     } else {
-      onNext()
+      onNext();
     }
-  }
+  };
 
   const handlePrevious = () => {
     if (currentPoint > 0) {
-      setCurrentPoint(currentPoint - 1)
+      setCurrentPoint(currentPoint - 1);
     }
-  }
+  };
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 py-8">
       <div className="text-center space-y-2">
         <h2 className="text-2xl font-bold">Quick Tour</h2>
         <p className="text-muted-foreground">
-          Let's explore the main features of SQL Studio
+          Let's explore the main features of Howlerops
         </p>
       </div>
 
@@ -177,5 +177,5 @@ export function TourStep({ onNext, onBack }: TourStepProps) {
         </Button>
       </div>
     </div>
-  )
+  );
 }

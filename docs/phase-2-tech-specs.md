@@ -25,7 +25,7 @@ Detailed technical specifications for Phase 2 implementation, covering authentic
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                       SQL Studio Client                         │
+│                       Howlerops Client                         │
 │  ┌──────────────────────────────────────────────────────────┐   │
 │  │              Frontend (React)                            │   │
 │  │  ┌────────────┐  ┌────────────┐  ┌────────────┐        │   │
@@ -44,7 +44,7 @@ Detailed technical specifications for Phase 2 implementation, covering authentic
                              │ HTTPS
                              ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                  SQL Studio Backend (Go)                        │
+│                  Howlerops Backend (Go)                        │
 │  ┌──────────────────────────────────────────────────────────┐   │
 │  │                    Auth Service                          │   │
 │  │  ┌────────────┐  ┌────────────┐  ┌────────────┐        │   │
@@ -141,7 +141,7 @@ User                  Frontend              Backend           Supabase
   │   GitHub Login Page   │                    │                 │
   │<──────────────────────┼────────────────────┼─────────────────┤
   │                       │                    │                 │
-  │  Authorize SQL Studio │                    │                 │
+  │  Authorize Howlerops │                    │                 │
   ├──────────────────────>│                    │                 │
   │                       │ Callback + code    │                 │
   │                       │<───────────────────┼─────────────────┤

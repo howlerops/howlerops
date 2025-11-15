@@ -1,32 +1,32 @@
-# Prometheus Configuration for SQL Studio
-# This configuration scrapes metrics from the SQL Studio backend, Kubernetes infrastructure,
+# Prometheus Configuration for Howlerops
+# This configuration scrapes metrics from the Howlerops backend, Kubernetes infrastructure,
 # and other monitoring targets.
 
 global:
-  scrape_interval: 15s      # Scrape targets every 15 seconds
-  evaluation_interval: 15s   # Evaluate rules every 15 seconds
+  scrape_interval: 15s # Scrape targets every 15 seconds
+  evaluation_interval: 15s # Evaluate rules every 15 seconds
   external_labels:
-    cluster: 'sql-studio-production'
-    environment: 'production'
+    cluster: "sql-studio-production"
+    environment: "production"
 
 # Alertmanager configuration
 alerting:
   alertmanagers:
     - static_configs:
         - targets:
-            - 'alertmanager:9093'
+            - "alertmanager:9093"
 
 # Load rules once and periodically evaluate them
 rule_files:
-  - '/etc/prometheus/alerts.yml'
-  - '/etc/prometheus/recording-rules.yml'
+  - "/etc/prometheus/alerts.yml"
+  - "/etc/prometheus/recording-rules.yml"
 
 # Scrape configurations
 scrape_configs:
   # ============================================================================
-  # SQL Studio Backend Application Metrics
+  # Howlerops Backend Application Metrics
   # ============================================================================
-  - job_name: 'sql-studio-backend'
+  - job_name: "sql-studio-backend"
     kubernetes_sd_configs:
       - role: pod
         namespaces:
@@ -60,9 +60,9 @@ scrape_configs:
         target_label: node
 
   # ============================================================================
-  # SQL Studio Frontend (NGINX metrics)
+  # Howlerops Frontend (NGINX metrics)
   # ============================================================================
-  - job_name: 'sql-studio-frontend'
+  - job_name: "sql-studio-frontend"
     kubernetes_sd_configs:
       - role: pod
         namespaces:
@@ -78,7 +78,7 @@ scrape_configs:
 
       - source_labels: [__meta_kubernetes_pod_ip]
         target_label: __address__
-        replacement: $1:9113  # nginx-prometheus-exporter port
+        replacement: $1:9113 # nginx-prometheus-exporter port
 
       - source_labels: [__meta_kubernetes_namespace]
         target_label: namespace
@@ -89,7 +89,7 @@ scrape_configs:
   # ============================================================================
   # Kubernetes Nodes (kubelet metrics)
   # ============================================================================
-  - job_name: 'kubernetes-nodes'
+  - job_name: "kubernetes-nodes"
     scheme: https
     tls_config:
       ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
@@ -111,7 +111,7 @@ scrape_configs:
   # ============================================================================
   # Kubernetes Pods (cAdvisor metrics)
   # ============================================================================
-  - job_name: 'kubernetes-pods'
+  - job_name: "kubernetes-pods"
     kubernetes_sd_configs:
       - role: pod
     relabel_configs:
@@ -151,7 +151,7 @@ scrape_configs:
   # ============================================================================
   # Kubernetes API Server
   # ============================================================================
-  - job_name: 'kubernetes-apiservers'
+  - job_name: "kubernetes-apiservers"
     scheme: https
     tls_config:
       ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
@@ -159,21 +159,27 @@ scrape_configs:
     kubernetes_sd_configs:
       - role: endpoints
     relabel_configs:
-      - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+      - source_labels:
+          [
+            __meta_kubernetes_namespace,
+            __meta_kubernetes_service_name,
+            __meta_kubernetes_endpoint_port_name,
+          ]
         action: keep
         regex: default;kubernetes;https
 
   # ============================================================================
   # Kubernetes Services
   # ============================================================================
-  - job_name: 'kubernetes-services'
+  - job_name: "kubernetes-services"
     kubernetes_sd_configs:
       - role: service
     metrics_path: /probe
     params:
       module: [http_2xx]
     relabel_configs:
-      - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_probe]
+      - source_labels:
+          [__meta_kubernetes_service_annotation_prometheus_io_probe]
         action: keep
         regex: true
 
@@ -198,10 +204,10 @@ scrape_configs:
   # ============================================================================
   # PostgreSQL Exporter (if using PostgreSQL for metadata)
   # ============================================================================
-  - job_name: 'postgres-exporter'
+  - job_name: "postgres-exporter"
     static_configs:
       - targets:
-          - 'postgres-exporter:9187'
+          - "postgres-exporter:9187"
     relabel_configs:
       - source_labels: [__address__]
         target_label: instance
@@ -209,10 +215,10 @@ scrape_configs:
   # ============================================================================
   # Redis Exporter (if using Redis for caching)
   # ============================================================================
-  - job_name: 'redis-exporter'
+  - job_name: "redis-exporter"
     static_configs:
       - targets:
-          - 'redis-exporter:9121'
+          - "redis-exporter:9121"
     relabel_configs:
       - source_labels: [__address__]
         target_label: instance
@@ -220,7 +226,7 @@ scrape_configs:
   # ============================================================================
   # Node Exporter (for host metrics)
   # ============================================================================
-  - job_name: 'node-exporter'
+  - job_name: "node-exporter"
     kubernetes_sd_configs:
       - role: node
     relabel_configs:
@@ -235,47 +241,47 @@ scrape_configs:
   # ============================================================================
   # Prometheus Self-Monitoring
   # ============================================================================
-  - job_name: 'prometheus'
+  - job_name: "prometheus"
     static_configs:
       - targets:
-          - 'localhost:9090'
+          - "localhost:9090"
 
   # ============================================================================
   # Grafana Metrics
   # ============================================================================
-  - job_name: 'grafana'
+  - job_name: "grafana"
     static_configs:
       - targets:
-          - 'grafana:3000'
+          - "grafana:3000"
 
   # ============================================================================
   # AlertManager
   # ============================================================================
-  - job_name: 'alertmanager'
+  - job_name: "alertmanager"
     static_configs:
       - targets:
-          - 'alertmanager:9093'
+          - "alertmanager:9093"
 
   # ============================================================================
   # Blackbox Exporter (for external probes)
   # ============================================================================
-  - job_name: 'blackbox-exporter'
+  - job_name: "blackbox-exporter"
     static_configs:
       - targets:
-          - 'blackbox-exporter:9115'
+          - "blackbox-exporter:9115"
 
   # ============================================================================
   # External Endpoints (synthetic monitoring)
   # ============================================================================
-  - job_name: 'blackbox-http'
+  - job_name: "blackbox-http"
     metrics_path: /probe
     params:
       module: [http_2xx]
     static_configs:
       - targets:
-        - https://sqlstudio.example.com
-        - https://sqlstudio.example.com/health
-        - https://api.sqlstudio.example.com/health
+          - https://sqlstudio.example.com
+          - https://sqlstudio.example.com/health
+          - https://api.sqlstudio.example.com/health
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target
@@ -289,14 +295,14 @@ scrape_configs:
   # ============================================================================
   # SSL Certificate Expiry Monitoring
   # ============================================================================
-  - job_name: 'blackbox-ssl'
+  - job_name: "blackbox-ssl"
     metrics_path: /probe
     params:
       module: [http_2xx]
     static_configs:
       - targets:
-        - https://sqlstudio.example.com:443
-        - https://api.sqlstudio.example.com:443
+          - https://sqlstudio.example.com:443
+          - https://api.sqlstudio.example.com:443
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target

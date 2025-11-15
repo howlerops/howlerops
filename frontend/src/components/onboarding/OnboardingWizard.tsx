@@ -1,28 +1,28 @@
-import { useState, useEffect } from "react"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
-import { Progress } from "@/components/ui/progress"
-import { Button } from "@/components/ui/button"
-import { X } from "lucide-react"
-import { WelcomeStep } from "./steps/WelcomeStep"
-import { ProfileStep } from "./steps/ProfileStep"
-import { ConnectionStep } from "./steps/ConnectionStep"
-import { TourStep } from "./steps/TourStep"
-import { FirstQueryStep } from "./steps/FirstQueryStep"
-import { FeaturesStep } from "./steps/FeaturesStep"
-import { PathStep } from "./steps/PathStep"
+import { useState, useEffect } from "react";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
+import { X } from "lucide-react";
+import { WelcomeStep } from "./steps/WelcomeStep";
+import { ProfileStep } from "./steps/ProfileStep";
+import { ConnectionStep } from "./steps/ConnectionStep";
+import { TourStep } from "./steps/TourStep";
+import { FirstQueryStep } from "./steps/FirstQueryStep";
+import { FeaturesStep } from "./steps/FeaturesStep";
+import { PathStep } from "./steps/PathStep";
 import {
   OnboardingState,
   UserProfile,
   ONBOARDING_STEPS,
-} from "@/types/onboarding"
-import { onboardingTracker } from "@/lib/analytics/onboarding-tracking"
+} from "@/types/onboarding";
+import { onboardingTracker } from "@/lib/analytics/onboarding-tracking";
 
-const STORAGE_KEY = "sql-studio-onboarding"
+const STORAGE_KEY = "sql-studio-onboarding";
 
 interface OnboardingWizardProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onComplete?: (path: string) => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onComplete?: (path: string) => void;
 }
 
 export function OnboardingWizard({
@@ -30,102 +30,102 @@ export function OnboardingWizard({
   onOpenChange,
   onComplete,
 }: OnboardingWizardProps) {
-  const [currentStep, setCurrentStep] = useState(0)
+  const [currentStep, setCurrentStep] = useState(0);
   const [state, setState] = useState<OnboardingState>({
     isComplete: false,
     currentStep: 0,
     completedSteps: [],
     skippedSteps: [],
     startedAt: new Date().toISOString(),
-  })
+  });
 
   // Load saved progress on mount
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY)
+    const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       try {
-        const parsed = JSON.parse(saved)
-        setState(parsed)
-        setCurrentStep(parsed.currentStep)
+        const parsed = JSON.parse(saved);
+        setState(parsed);
+        setCurrentStep(parsed.currentStep);
       } catch (error) {
-        console.error("Failed to load onboarding progress:", error)
+        console.error("Failed to load onboarding progress:", error);
       }
     } else {
       // Track onboarding start
-      onboardingTracker.trackOnboardingStarted()
+      onboardingTracker.trackOnboardingStarted();
     }
-  }, [])
+  }, []);
 
   // Save progress whenever state changes
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
-  }, [state])
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }, [state]);
 
-  const totalSteps = ONBOARDING_STEPS.length
-  const progress = ((currentStep + 1) / totalSteps) * 100
+  const totalSteps = ONBOARDING_STEPS.length;
+  const progress = ((currentStep + 1) / totalSteps) * 100;
 
   const handleNext = () => {
-    const stepName = ONBOARDING_STEPS[currentStep]
-    onboardingTracker.trackOnboardingStepCompleted(currentStep + 1, stepName)
+    const stepName = ONBOARDING_STEPS[currentStep];
+    onboardingTracker.trackOnboardingStepCompleted(currentStep + 1, stepName);
 
     setState((prev) => ({
       ...prev,
       currentStep: currentStep + 1,
       completedSteps: [...prev.completedSteps, currentStep],
-    }))
-    setCurrentStep((prev) => prev + 1)
-  }
+    }));
+    setCurrentStep((prev) => prev + 1);
+  };
 
   const handleBack = () => {
-    setCurrentStep((prev) => Math.max(0, prev - 1))
+    setCurrentStep((prev) => Math.max(0, prev - 1));
     setState((prev) => ({
       ...prev,
       currentStep: Math.max(0, currentStep - 1),
-    }))
-  }
+    }));
+  };
 
   const handleSkip = () => {
-    const stepName = ONBOARDING_STEPS[currentStep]
-    onboardingTracker.trackOnboardingStepSkipped(currentStep + 1, stepName)
+    const stepName = ONBOARDING_STEPS[currentStep];
+    onboardingTracker.trackOnboardingStepSkipped(currentStep + 1, stepName);
 
     setState((prev) => ({
       ...prev,
       skippedSteps: [...prev.skippedSteps, currentStep],
-    }))
-    handleNext()
-  }
+    }));
+    handleNext();
+  };
 
   const handleProfileComplete = (profile: UserProfile) => {
-    setState((prev) => ({ ...prev, profile }))
-    handleNext()
-  }
+    setState((prev) => ({ ...prev, profile }));
+    handleNext();
+  };
 
   const handleComplete = (path: string) => {
     const startTime = state.startedAt
       ? new Date(state.startedAt).getTime()
-      : Date.now()
-    const duration = Date.now() - startTime
+      : Date.now();
+    const duration = Date.now() - startTime;
 
-    onboardingTracker.trackOnboardingCompleted(duration)
+    onboardingTracker.trackOnboardingCompleted(duration);
 
     const completedState: OnboardingState = {
       ...state,
       isComplete: true,
       completedAt: new Date().toISOString(),
-    }
+    };
 
-    setState(completedState)
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(completedState))
+    setState(completedState);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(completedState));
 
-    onOpenChange(false)
-    onComplete?.(path)
-  }
+    onOpenChange(false);
+    onComplete?.(path);
+  };
 
   const handleClose = () => {
-    const stepName = ONBOARDING_STEPS[currentStep]
-    onboardingTracker.trackOnboardingAbandoned(currentStep + 1, stepName)
-    onOpenChange(false)
-  }
+    const stepName = ONBOARDING_STEPS[currentStep];
+    onboardingTracker.trackOnboardingAbandoned(currentStep + 1, stepName);
+    onOpenChange(false);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -134,7 +134,7 @@ export function OnboardingWizard({
         <div className="sticky top-0 z-10 bg-background border-b border-border px-6 py-4">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
-              <h1 className="text-xl font-semibold">Welcome to SQL Studio</h1>
+              <h1 className="text-xl font-semibold">Welcome to Howlerops</h1>
               <span className="text-sm text-muted-foreground">
                 Step {currentStep + 1} of {totalSteps}
               </span>
@@ -185,5 +185,5 @@ export function OnboardingWizard({
         </div>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

@@ -1,4 +1,4 @@
-# Synthetic Monitoring Configuration for SQL Studio
+# Synthetic Monitoring Configuration for Howlerops
 # External uptime checks from multiple regions
 
 apiVersion: v1
@@ -85,39 +85,39 @@ spec:
         app: blackbox-exporter
     spec:
       containers:
-      - name: blackbox-exporter
-        image: prom/blackbox-exporter:v0.24.0
-        args:
-          - '--config.file=/config/blackbox.yml'
-        ports:
-        - containerPort: 9115
-          name: http
-        volumeMounts:
-        - name: config
-          mountPath: /config
-        resources:
-          limits:
-            memory: 128Mi
-            cpu: 100m
-          requests:
-            memory: 64Mi
-            cpu: 50m
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: 9115
-          initialDelaySeconds: 30
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /health
-            port: 9115
-          initialDelaySeconds: 5
-          periodSeconds: 5
+        - name: blackbox-exporter
+          image: prom/blackbox-exporter:v0.24.0
+          args:
+            - "--config.file=/config/blackbox.yml"
+          ports:
+            - containerPort: 9115
+              name: http
+          volumeMounts:
+            - name: config
+              mountPath: /config
+          resources:
+            limits:
+              memory: 128Mi
+              cpu: 100m
+            requests:
+              memory: 64Mi
+              cpu: 50m
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 9115
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 9115
+            initialDelaySeconds: 5
+            periodSeconds: 5
       volumes:
-      - name: config
-        configMap:
-          name: blackbox-exporter-config
+        - name: config
+          configMap:
+            name: blackbox-exporter-config
 
 ---
 # Blackbox Exporter Service
@@ -130,9 +130,9 @@ metadata:
     app: blackbox-exporter
 spec:
   ports:
-  - name: http
-    port: 9115
-    targetPort: 9115
+    - name: http
+      port: 9115
+      targetPort: 9115
   selector:
     app: blackbox-exporter
   type: ClusterIP
@@ -149,8 +149,8 @@ spec:
     matchLabels:
       app: blackbox-exporter
   endpoints:
-  - port: http
-    path: /metrics
+    - port: http
+      path: /metrics
 
 ---
 # Probe definitions for specific endpoints
@@ -166,7 +166,7 @@ spec:
   targets:
     staticConfig:
       static:
-      - https://sqlstudio.example.com
+        - https://sqlstudio.example.com
   interval: 60s
   timeout: 10s
 
@@ -183,7 +183,7 @@ spec:
   targets:
     staticConfig:
       static:
-      - https://api.sqlstudio.example.com/health
+        - https://api.sqlstudio.example.com/health
   interval: 30s
   timeout: 5s
 
@@ -200,7 +200,7 @@ spec:
   targets:
     staticConfig:
       static:
-      - https://api.sqlstudio.example.com/health/ready
+        - https://api.sqlstudio.example.com/health/ready
   interval: 30s
   timeout: 5s
 
@@ -239,35 +239,35 @@ metadata:
   name: synthetic-smoke-tests
   namespace: monitoring
 spec:
-  schedule: "*/5 * * * *"  # Every 5 minutes
+  schedule: "*/5 * * * *" # Every 5 minutes
   jobTemplate:
     spec:
       template:
         spec:
           containers:
-          - name: smoke-tests
-            image: curlimages/curl:latest
-            command:
-            - /bin/sh
-            - -c
-            - |
-              # Homepage check
-              if ! curl -f -s -o /dev/null -w "%{http_code}" https://sqlstudio.example.com | grep -q 200; then
-                echo "ERROR: Homepage is down"
-                exit 1
-              fi
+            - name: smoke-tests
+              image: curlimages/curl:latest
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  # Homepage check
+                  if ! curl -f -s -o /dev/null -w "%{http_code}" https://sqlstudio.example.com | grep -q 200; then
+                    echo "ERROR: Homepage is down"
+                    exit 1
+                  fi
 
-              # API health check
-              if ! curl -f -s -o /dev/null -w "%{http_code}" https://api.sqlstudio.example.com/health | grep -q 200; then
-                echo "ERROR: API health check failed"
-                exit 1
-              fi
+                  # API health check
+                  if ! curl -f -s -o /dev/null -w "%{http_code}" https://api.sqlstudio.example.com/health | grep -q 200; then
+                    echo "ERROR: API health check failed"
+                    exit 1
+                  fi
 
-              # API ready check
-              if ! curl -f -s -o /dev/null -w "%{http_code}" https://api.sqlstudio.example.com/health/ready | grep -q 200; then
-                echo "ERROR: API not ready"
-                exit 1
-              fi
+                  # API ready check
+                  if ! curl -f -s -o /dev/null -w "%{http_code}" https://api.sqlstudio.example.com/health/ready | grep -q 200; then
+                    echo "ERROR: API not ready"
+                    exit 1
+                  fi
 
-              echo "All smoke tests passed"
+                  echo "All smoke tests passed"
           restartPolicy: OnFailure

@@ -1,4 +1,4 @@
-# Prometheus Alert Rules for SQL Studio
+# Prometheus Alert Rules for Howlerops
 # Defines alerting conditions for various operational issues
 
 groups:

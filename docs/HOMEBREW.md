@@ -1,10 +1,10 @@
-# Homebrew Tap for SQL Studio
+# Homebrew Tap for Howlerops
 
-This document describes the Homebrew tap setup for SQL Studio, allowing macOS users to install SQL Studio via Homebrew.
+This document describes the Homebrew tap setup for Howlerops, allowing macOS users to install Howlerops via Homebrew.
 
 ## Overview
 
-SQL Studio is distributed via a custom Homebrew tap that supports both Intel (x86_64) and Apple Silicon (ARM64) macOS architectures.
+Howlerops is distributed via a custom Homebrew tap that supports both Intel (x86_64) and Apple Silicon (ARM64) macOS architectures.
 
 **Tap Repository**: `https://github.com/sql-studio/homebrew-tap`
 
@@ -32,7 +32,7 @@ SQL Studio is distributed via a custom Homebrew tap that supports both Intel (x8
    sql-studio --version
    ```
 
-3. **Run SQL Studio**:
+3. **Run Howlerops**:
    ```bash
    sql-studio
    ```
@@ -47,7 +47,7 @@ brew upgrade sql-studio
 
 ### Uninstalling
 
-To remove SQL Studio:
+To remove Howlerops:
 ```bash
 brew uninstall sql-studio
 brew untap sql-studio/tap
@@ -61,7 +61,7 @@ brew untap sql-studio/tap
    - Repository name: `homebrew-tap`
    - Organization/User: `sql-studio`
    - Full URL: `https://github.com/sql-studio/homebrew-tap`
-   - Description: "Homebrew tap for SQL Studio"
+   - Description: "Homebrew tap for Howlerops"
 
 2. **Initialize the repository**:
    ```bash
@@ -77,9 +77,9 @@ brew untap sql-studio/tap
 
    # Add README
    cat > README.md << 'EOF'
-   # SQL Studio Homebrew Tap
+   # Howlerops Homebrew Tap
 
-   Official Homebrew tap for [SQL Studio](https://github.com/sql-studio/sql-studio).
+   Official Homebrew tap for [Howlerops](https://github.com/sql-studio/sql-studio).
 
    ## Installation
 
@@ -96,7 +96,7 @@ brew untap sql-studio/tap
 
    ## About
 
-   SQL Studio is a modern SQL database client with cloud sync capabilities.
+   Howlerops is a modern SQL database client with cloud sync capabilities.
    EOF
 
    # Commit and push
@@ -116,7 +116,7 @@ The formula is automatically updated via GitHub Actions when a new release is cr
 
 #### Automatic Updates (Recommended)
 
-The main SQL Studio repository includes a GitHub Actions workflow that:
+The main Howlerops repository includes a GitHub Actions workflow that:
 1. Detects new releases
 2. Downloads release artifacts
 3. Calculates SHA256 checksums
@@ -281,13 +281,13 @@ jobs:
 
 - Homebrew documentation: https://docs.brew.sh/Formula-Cookbook
 - Homebrew Ruby style guide: https://docs.brew.sh/Formula-Cookbook#ruby-style-guide
-- SQL Studio issues: https://github.com/sql-studio/sql-studio/issues
+- Howlerops issues: https://github.com/sql-studio/sql-studio/issues
 
 ## Formula Versioning Strategy
 
 ### Version Numbering
 
-SQL Studio follows semantic versioning (MAJOR.MINOR.PATCH):
+Howlerops follows semantic versioning (MAJOR.MINOR.PATCH):
 - **MAJOR**: Breaking changes
 - **MINOR**: New features, backward compatible
 - **PATCH**: Bug fixes, backward compatible
@@ -319,7 +319,7 @@ When deprecating old versions:
 
 ### Adding Completion Scripts
 
-If SQL Studio provides shell completions:
+If Howlerops provides shell completions:
 
 ```ruby
 def install
@@ -343,7 +343,7 @@ end
 
 ### Service Management
 
-If SQL Studio includes a background service:
+If Howlerops includes a background service:
 
 ```ruby
 service do
@@ -385,7 +385,7 @@ For major changes, please open an issue first to discuss the proposed changes.
 
 ## License
 
-The SQL Studio Homebrew formula is licensed under the MIT License, consistent with the main SQL Studio project.
+The Howlerops Homebrew formula is licensed under the MIT License, consistent with the main Howlerops project.
 
 ## Contact
 
@@ -396,4 +396,4 @@ The SQL Studio Homebrew formula is licensed under the MIT License, consistent wi
 ---
 
 **Last Updated**: 2025-10-23
-**Maintained By**: SQL Studio Team
+**Maintained By**: Howlerops Team

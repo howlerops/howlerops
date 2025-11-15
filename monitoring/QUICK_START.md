@@ -1,13 +1,13 @@
 # Monitoring Quick Start Guide
 
-Get SQL Studio monitoring up and running in 15 minutes.
+Get Howlerops monitoring up and running in 15 minutes.
 
 ## Prerequisites
 
 - Kubernetes cluster running
 - kubectl configured
 - Helm 3 installed
-- SQL Studio backend deployed
+- Howlerops backend deployed
 
 ## Step 1: Deploy Monitoring Stack (5 minutes)
 

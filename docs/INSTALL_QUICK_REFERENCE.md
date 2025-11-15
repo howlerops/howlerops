@@ -1,4 +1,4 @@
-# SQL Studio Installation - Quick Reference
+# Howlerops Installation - Quick Reference
 
 ## One-Line Install
 
@@ -27,7 +27,7 @@ sql-studio --version
 # View help
 sql-studio --help
 
-# Run SQL Studio
+# Run Howlerops
 sql-studio
 ```
 

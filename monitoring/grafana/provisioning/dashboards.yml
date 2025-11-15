@@ -4,10 +4,10 @@
 apiVersion: 1
 
 providers:
-  # SQL Studio Application Dashboards
-  - name: 'SQL Studio'
+  # Howlerops Application Dashboards
+  - name: "Howlerops"
     orgId: 1
-    folder: 'SQL Studio'
+    folder: "Howlerops"
     type: file
     disableDeletion: false
     updateIntervalSeconds: 10
@@ -17,9 +17,9 @@ providers:
       foldersFromFilesStructure: true
 
   # Default dashboards folder
-  - name: 'default'
+  - name: "default"
     orgId: 1
-    folder: ''
+    folder: ""
     type: file
     disableDeletion: false
     updateIntervalSeconds: 10

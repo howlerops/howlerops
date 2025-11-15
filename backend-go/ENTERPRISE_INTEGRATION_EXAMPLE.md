@@ -1,6 +1,6 @@
 # Enterprise Features Integration Example
 
-This guide shows how to integrate all Phase 5 enterprise features into your SQL Studio backend.
+This guide shows how to integrate all Phase 5 enterprise features into your Howlerops backend.
 
 ## Complete Integration Example
 
@@ -610,4 +610,4 @@ backend-go/
 └── ENTERPRISE_INTEGRATION_EXAMPLE.md
 ```
 
-This integration example provides a complete, working reference for implementing all Phase 5 enterprise features in your SQL Studio backend.
+This integration example provides a complete, working reference for implementing all Phase 5 enterprise features in your Howlerops backend.

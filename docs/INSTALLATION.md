@@ -1,10 +1,10 @@
-# SQL Studio Installation Guide
+# Howlerops Installation Guide
 
-SQL Studio provides a universal installation script that works across macOS, Linux, and Windows (Git Bash/WSL).
+Howlerops provides a universal installation script that works across macOS, Linux, and Windows (Git Bash/WSL).
 
 ## Quick Install
 
-The fastest way to install SQL Studio is using our installation script:
+The fastest way to install Howlerops is using our installation script:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/sql-studio/sql-studio/main/install.sh | sh
@@ -151,13 +151,13 @@ sql-studio --version
 # View help
 sql-studio --help
 
-# Run SQL Studio
+# Run Howlerops
 sql-studio
 ```
 
 ## Uninstalling
 
-To remove SQL Studio:
+To remove Howlerops:
 
 ```bash
 # Remove the binary
@@ -241,7 +241,7 @@ For systems without internet access:
 Example GitHub Actions workflow:
 
 ```yaml
-- name: Install SQL Studio
+- name: Install Howlerops
   run: |
     curl -fsSL https://raw.githubusercontent.com/sql-studio/sql-studio/main/install.sh | sh -s -- --version v2.0.0
     echo "$HOME/.local/bin" >> $GITHUB_PATH
@@ -303,4 +303,4 @@ For maximum security:
 
 ## License
 
-SQL Studio is released under the MIT License. See [LICENSE](../LICENSE) for details.
+Howlerops is released under the MIT License. See [LICENSE](../LICENSE) for details.

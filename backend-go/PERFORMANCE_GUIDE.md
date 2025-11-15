@@ -1,8 +1,8 @@
-# SQL Studio Performance Guide
+# Howlerops Performance Guide
 
 ## Overview
 
-This guide covers the performance optimizations, monitoring tools, and best practices implemented in SQL Studio.
+This guide covers the performance optimizations, monitoring tools, and best practices implemented in Howlerops.
 
 ## Performance Metrics Achieved
 

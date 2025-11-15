@@ -1,4 +1,4 @@
-# SQL Studio Social Media Strategy
+# Howlerops Social Media Strategy
 
 ## Platform Focus
 

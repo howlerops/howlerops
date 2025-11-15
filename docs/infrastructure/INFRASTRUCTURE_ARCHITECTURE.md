@@ -1,4 +1,4 @@
-# SQL Studio - Infrastructure Architecture
+# Howlerops - Infrastructure Architecture
 
 Comprehensive overview of the production infrastructure architecture and design decisions.
 

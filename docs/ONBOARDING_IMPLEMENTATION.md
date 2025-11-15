@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document summarizes the comprehensive onboarding and tutorial system implemented for SQL Studio. The system provides a delightful, educational experience that helps users discover and master all features.
+This document summarizes the comprehensive onboarding and tutorial system implemented for Howlerops. The system provides a delightful, educational experience that helps users discover and master all features.
 
 ## Implementation Strategy
 
@@ -232,7 +232,7 @@ import { QuickHelp } from "@/components/docs"
 - Duration displayed
 
 **Planned Videos:**
-1. Getting Started with SQL Studio (3 min)
+1. Getting Started with Howlerops (3 min)
 2. Your First Query (2 min)
 3. Working with Query Templates (4 min)
 4. Team Collaboration Basics (5 min)

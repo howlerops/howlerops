@@ -21,7 +21,7 @@ build:
 
 # Build the CLI tool
 build-cli:
-	@echo "Building SQL Studio CLI..."
+	@echo "Building Howlerops CLI..."
 	@mkdir -p $(BUILD_DIR)
 	go build $(LDFLAGS) -o $(BUILD_DIR)/sqlstudio cmd/sqlstudio/main.go
 	@echo "✓ Built: $(BUILD_DIR)/sqlstudio"
@@ -81,7 +81,7 @@ proto:
 # Setup local development environment
 setup-local-dev:
 	@echo "==================================================================="
-	@echo "Setting up SQL Studio local development environment..."
+	@echo "Setting up Howlerops local development environment..."
 	@echo "==================================================================="
 	@mkdir -p ./data
 	@mkdir -p ./logs
@@ -111,7 +111,7 @@ migrate: setup-local-dev
 # Run the application in development mode
 dev:
 	@echo "==================================================================="
-	@echo "Starting SQL Studio Backend in DEVELOPMENT mode..."
+	@echo "Starting Howlerops Backend in DEVELOPMENT mode..."
 	@echo "==================================================================="
 	@if [ ! -f .env.development ]; then \
 		echo "⚠ .env.development not found. Running setup..."; \
@@ -381,7 +381,7 @@ release:
 # Help
 help:
 	@echo "==================================================================="
-	@echo "SQL Studio Backend - Available Make Targets"
+	@echo "Howlerops Backend - Available Make Targets"
 	@echo "==================================================================="
 	@echo ""
 	@echo "🚀 Quick Start:"
@@ -575,7 +575,7 @@ prod-rollback:
 .PHONY: prod-help
 prod-help:
 	@echo "==================================================================="
-	@echo "SQL Studio Backend - Production Deployment"
+	@echo "Howlerops Backend - Production Deployment"
 	@echo "==================================================================="
 	@echo ""
 	@echo "🚀 Quick Deploy:"

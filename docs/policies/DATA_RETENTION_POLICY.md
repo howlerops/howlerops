@@ -11,12 +11,12 @@
 
 ### 1.1 Purpose
 
-This Data Retention Policy establishes guidelines for retaining and disposing of SQL Studio's business records and data. The policy ensures compliance with legal requirements, optimizes storage costs, and protects sensitive information through proper disposal.
+This Data Retention Policy establishes guidelines for retaining and disposing of Howlerops's business records and data. The policy ensures compliance with legal requirements, optimizes storage costs, and protects sensitive information through proper disposal.
 
 ### 1.2 Scope
 
 This policy applies to:
-- All data created, received, or maintained by SQL Studio
+- All data created, received, or maintained by Howlerops
 - All storage media and formats (electronic and physical)
 - All employees, contractors, and third parties handling our data
 - All systems and applications processing data

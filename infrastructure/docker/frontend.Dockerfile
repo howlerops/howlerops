@@ -1,5 +1,5 @@
 # =============================================================================
-# SQL Studio Frontend - Production Dockerfile
+# Howlerops Frontend - Production Dockerfile
 # =============================================================================
 # Multi-stage build with nginx serving optimized static assets
 # =============================================================================
@@ -36,10 +36,10 @@ RUN npm run build && \
 FROM nginx:1.25-alpine AS production
 
 # Metadata
-LABEL maintainer="SQL Studio Team" \
-      org.opencontainers.image.title="SQL Studio Frontend" \
-      org.opencontainers.image.description="Production SQL Studio frontend" \
-      org.opencontainers.image.vendor="SQL Studio"
+LABEL maintainer="Howlerops Team" \
+      org.opencontainers.image.title="Howlerops Frontend" \
+      org.opencontainers.image.description="Production Howlerops frontend" \
+      org.opencontainers.image.vendor="Howlerops"
 
 # Install runtime dependencies and create non-root user
 RUN apk upgrade --no-cache && \

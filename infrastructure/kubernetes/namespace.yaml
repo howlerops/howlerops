@@ -1,7 +1,7 @@
 # =============================================================================
-# SQL Studio - Namespace Configuration
+# Howlerops - Namespace Configuration
 # =============================================================================
-# Isolated namespace for SQL Studio application with resource quotas
+# Isolated namespace for Howlerops application with resource quotas
 # =============================================================================
 
 apiVersion: v1
@@ -14,7 +14,7 @@ metadata:
     team: platform
     cost-center: engineering
   annotations:
-    description: "SQL Studio application namespace"
+    description: "Howlerops application namespace"
     contact: "platform-team@sql-studio.app"
 
 ---
@@ -30,27 +30,27 @@ metadata:
   labels:
     app: sql-studio
   annotations:
-    description: "Resource limits for SQL Studio namespace"
+    description: "Resource limits for Howlerops namespace"
 spec:
   hard:
     # Compute resources
-    requests.cpu: "4"           # Total CPU requests
-    requests.memory: "8Gi"      # Total memory requests
-    limits.cpu: "8"             # Total CPU limits
-    limits.memory: "16Gi"       # Total memory limits
+    requests.cpu: "4" # Total CPU requests
+    requests.memory: "8Gi" # Total memory requests
+    limits.cpu: "8" # Total CPU limits
+    limits.memory: "16Gi" # Total memory limits
 
     # Storage resources
-    requests.storage: "50Gi"    # Total storage requests
+    requests.storage: "50Gi" # Total storage requests
     persistentvolumeclaims: "10" # Max number of PVCs
 
     # Object counts
-    pods: "50"                  # Max number of pods
-    services: "20"              # Max number of services
-    configmaps: "20"            # Max number of configmaps
-    secrets: "20"               # Max number of secrets
+    pods: "50" # Max number of pods
+    services: "20" # Max number of services
+    configmaps: "20" # Max number of configmaps
+    secrets: "20" # Max number of secrets
     replicationcontrollers: "10"
     services.loadbalancers: "2"
-    services.nodeports: "0"     # No NodePort services
+    services.nodeports: "0" # No NodePort services
 
 ---
 # =============================================================================
@@ -71,26 +71,26 @@ spec:
     # Container limits
     - type: Container
       default:
-        cpu: 500m        # Default CPU limit
-        memory: 512Mi    # Default memory limit
+        cpu: 500m # Default CPU limit
+        memory: 512Mi # Default memory limit
       defaultRequest:
-        cpu: 100m        # Default CPU request
-        memory: 128Mi    # Default memory request
+        cpu: 100m # Default CPU request
+        memory: 128Mi # Default memory request
       max:
-        cpu: "2"         # Max CPU per container
-        memory: 2Gi      # Max memory per container
+        cpu: "2" # Max CPU per container
+        memory: 2Gi # Max memory per container
       min:
-        cpu: 50m         # Min CPU per container
-        memory: 64Mi     # Min memory per container
+        cpu: 50m # Min CPU per container
+        memory: 64Mi # Min memory per container
       maxLimitRequestRatio:
-        cpu: 4           # Max ratio of limit/request
+        cpu: 4 # Max ratio of limit/request
         memory: 4
 
     # Pod limits
     - type: Pod
       max:
-        cpu: "4"         # Max CPU per pod
-        memory: 4Gi      # Max memory per pod
+        cpu: "4" # Max CPU per pod
+        memory: 4Gi # Max memory per pod
       min:
         cpu: 50m
         memory: 64Mi
@@ -98,7 +98,7 @@ spec:
     # PVC limits
     - type: PersistentVolumeClaim
       max:
-        storage: 10Gi    # Max storage per PVC
+        storage: 10Gi # Max storage per PVC
       min:
         storage: 1Gi
 
@@ -154,7 +154,7 @@ metadata:
     environment: staging
     team: platform
   annotations:
-    description: "SQL Studio staging environment"
+    description: "Howlerops staging environment"
 
 ---
 apiVersion: v1

@@ -697,7 +697,7 @@ embedFullWidthRows: false,                 // Don't embed full-width rows
 
 ---
 
-## IMPLEMENTATION RECOMMENDATIONS FOR SQL STUDIO
+## IMPLEMENTATION RECOMMENDATIONS FOR Howlerops
 
 ### 1. **Adopt the Frame Scheduling Pattern**
 Create a similar `AnimationFrameService` that:

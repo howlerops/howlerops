@@ -1,5 +1,5 @@
 # =============================================================================
-# Multi-Stage Production Dockerfile for SQL Studio Backend
+# Multi-Stage Production Dockerfile for Howlerops Backend
 # =============================================================================
 # This Dockerfile builds a production-ready Go backend with:
 # - Multi-stage build for minimal final image size (~25MB)
@@ -17,7 +17,7 @@ FROM golang:1.24-alpine AS builder
 
 # Add security labels for container scanning
 LABEL stage=builder
-LABEL maintainer="SQL Studio Team"
+LABEL maintainer="Howlerops Team"
 
 # Install build dependencies required for CGO and SQLite
 # - git: for go mod download with private repos
@@ -84,10 +84,10 @@ RUN chmod +x sql-studio-backend && \
 FROM alpine:3.20 AS runtime
 
 # Security metadata
-LABEL maintainer="SQL Studio Team" \
-      org.opencontainers.image.title="SQL Studio Backend" \
-      org.opencontainers.image.description="Production-ready SQL Studio backend service" \
-      org.opencontainers.image.vendor="SQL Studio" \
+LABEL maintainer="Howlerops Team" \
+      org.opencontainers.image.title="Howlerops Backend" \
+      org.opencontainers.image.description="Production-ready Howlerops backend service" \
+      org.opencontainers.image.vendor="Howlerops" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.version="${VERSION:-dev}"
 

@@ -380,7 +380,7 @@ These are **not required** but could be added later:
 ## 🙏 Acknowledgments
 
 **Implementation**: AI-Assisted Development  
-**Architecture**: HowlerOps SQL Studio patterns  
+**Architecture**: HowlerOps Howlerops patterns  
 **Performance**: Smart caching + migration detection  
 **UX**: Auto-mode switching  
 

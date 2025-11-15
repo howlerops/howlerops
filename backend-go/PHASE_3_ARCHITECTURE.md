@@ -6,7 +6,7 @@
 
 ## Overview
 
-Phase 3 introduces team collaboration features to SQL Studio, transforming it from an individual-only tool to a team-enabled platform. This architecture maintains backward compatibility with Phase 1 & 2 (Individual tier) while adding organization-level features for team collaboration.
+Phase 3 introduces team collaboration features to Howlerops, transforming it from an individual-only tool to a team-enabled platform. This architecture maintains backward compatibility with Phase 1 & 2 (Individual tier) while adding organization-level features for team collaboration.
 
 **Key Features:**
 - Organizations with RBAC (Owner, Admin, Member, Viewer)

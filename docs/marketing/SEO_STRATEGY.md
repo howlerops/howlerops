@@ -1,4 +1,4 @@
-# SQL Studio SEO Strategy
+# Howlerops SEO Strategy
 
 ## Target Keywords
 

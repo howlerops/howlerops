@@ -1,6 +1,6 @@
-# SQL Studio Testing Guide
+# Howlerops Testing Guide
 
-Complete guide for running tests in the SQL Studio backend and frontend.
+Complete guide for running tests in the Howlerops backend and frontend.
 
 ## Table of Contents
 
@@ -14,7 +14,7 @@ Complete guide for running tests in the SQL Studio backend and frontend.
 
 ## Overview
 
-SQL Studio uses a comprehensive testing strategy covering multiple layers:
+Howlerops uses a comprehensive testing strategy covering multiple layers:
 
 - **Unit Tests**: Test individual components and functions
 - **Integration Tests**: Test service layer with real database

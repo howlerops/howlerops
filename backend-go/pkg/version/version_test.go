@@ -39,8 +39,8 @@ func TestInfo_String(t *testing.T) {
 	str := info.String()
 
 	// Check that all components are present
-	if !strings.Contains(str, "SQL Studio") {
-		t.Error("String should contain 'SQL Studio'")
+	if !strings.Contains(str, "Howlerops") {
+		t.Error("String should contain 'Howlerops'")
 	}
 
 	if !strings.Contains(str, "2.0.0") {

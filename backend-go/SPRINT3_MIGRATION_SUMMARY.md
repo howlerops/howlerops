@@ -88,7 +88,7 @@ Created `/Users/jacob_1/projects/sql-studio/backend-go/scripts/verify_migrations
 **Verification Results:**
 ```
 ╔═══════════════════════════════════════════════════════════╗
-║        SQL Studio Migration Verification Tool            ║
+║        Howlerops Migration Verification Tool            ║
 ╚═══════════════════════════════════════════════════════════╝
 
 [1/9] Schema Initialization       ✅ PASSED

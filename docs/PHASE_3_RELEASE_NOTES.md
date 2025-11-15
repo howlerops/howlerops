@@ -1,4 +1,4 @@
-# SQL Studio Phase 3: Team Collaboration - Release Notes
+# Howlerops Phase 3: Team Collaboration - Release Notes
 
 ## 🎉 Release Overview
 
@@ -6,7 +6,7 @@
 **Release Date**: January 2025
 **Codename**: "Team Edition"
 
-Phase 3 brings comprehensive team collaboration features to SQL Studio, enabling organizations to work together on database connections, queries, and projects. This massive release includes 17 weeks of development across 4 major sprints, introducing Organizations, RBAC, Shared Resources, and Organization-Aware Sync.
+Phase 3 brings comprehensive team collaboration features to Howlerops, enabling organizations to work together on database connections, queries, and projects. This massive release includes 17 weeks of development across 4 major sprints, introducing Organizations, RBAC, Shared Resources, and Organization-Aware Sync.
 
 ---
 
@@ -706,7 +706,7 @@ This release represents 17 weeks of intensive development with contributions acr
 
 ## 🎊 What's Next
 
-Phase 3 lays the foundation for true team collaboration in SQL Studio. With organizations, permissions, and shared resources in place, we're ready to build advanced collaboration features in future phases.
+Phase 3 lays the foundation for true team collaboration in Howlerops. With organizations, permissions, and shared resources in place, we're ready to build advanced collaboration features in future phases.
 
 **Coming in Phase 4:**
 - Real-time collaboration

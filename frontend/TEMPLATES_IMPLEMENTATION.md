@@ -2,7 +2,7 @@
 
 ## Overview
 
-Complete frontend implementation for query templates and scheduled queries in SQL Studio. This provides a full-featured template library, execution engine, and scheduling system with cron-based automation.
+Complete frontend implementation for query templates and scheduled queries in Howlerops. This provides a full-featured template library, execution engine, and scheduling system with cron-based automation.
 
 ## Features Implemented
 
@@ -342,4 +342,4 @@ For issues or questions:
 
 ## License
 
-Part of SQL Studio - MIT License
+Part of Howlerops - MIT License

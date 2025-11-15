@@ -1,6 +1,6 @@
 # Organization API Integration Guide
 
-This document describes how the organization API endpoints are integrated into the SQL Studio backend server and provides examples for testing and using the API.
+This document describes how the organization API endpoints are integrated into the Howlerops backend server and provides examples for testing and using the API.
 
 ## Table of Contents
 

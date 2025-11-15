@@ -1,6 +1,6 @@
-# Turso Storage Implementation for SQL Studio Individual Tier
+# Turso Storage Implementation for Howlerops Individual Tier
 
-Complete Turso cloud database storage layer for SQL Studio's Individual tier backend.
+Complete Turso cloud database storage layer for Howlerops's Individual tier backend.
 
 ## Overview
 
@@ -144,7 +144,7 @@ loginResp, err := authService.Login(ctx, &auth.LoginRequest{
     Password:   "password",
     RememberMe: true,
     IPAddress:  "192.168.1.1",
-    UserAgent:  "SQL Studio/1.0",
+    UserAgent:  "Howlerops/1.0",
 })
 ```
 

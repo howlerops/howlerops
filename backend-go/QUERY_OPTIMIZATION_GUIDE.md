@@ -1,6 +1,6 @@
 # Query Optimization Guide
 
-SQL Studio's intelligent query optimization features help you write better, faster SQL queries through automatic analysis, natural language conversion, and smart autocomplete.
+Howlerops's intelligent query optimization features help you write better, faster SQL queries through automatic analysis, natural language conversion, and smart autocomplete.
 
 ## Table of Contents
 

@@ -1,4 +1,4 @@
-# SQL Studio Upgrade Prompt System - Implementation Summary
+# Howlerops Upgrade Prompt System - Implementation Summary
 
 ## Overview
 
@@ -381,5 +381,5 @@ See working examples at:
 
 ---
 
-**Built with care for SQL Studio**
+**Built with care for Howlerops**
 Philosophy: Gentle nudges, not roadblocks. Users first, always.

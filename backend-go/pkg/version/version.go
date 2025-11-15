@@ -42,7 +42,7 @@ func GetInfo() Info {
 // String returns a formatted version string
 func (i Info) String() string {
 	return fmt.Sprintf(
-		"SQL Studio v%s\nCommit: %s\nBuilt: %s\nGo: %s\nOS/Arch: %s/%s",
+		"Howlerops v%s\nCommit: %s\nBuilt: %s\nGo: %s\nOS/Arch: %s/%s",
 		i.Version,
 		i.Commit,
 		i.BuildDate,

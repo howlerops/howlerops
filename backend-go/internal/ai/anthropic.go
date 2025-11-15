@@ -357,7 +357,7 @@ func (p *anthropicProvider) Chat(ctx context.Context, req *ChatRequest) (*ChatRe
 
 	systemPrompt := req.System
 	if systemPrompt == "" {
-		systemPrompt = "You are a helpful assistant for SQL Studio. Provide thoughtful, concise answers and include actionable guidance when relevant."
+		systemPrompt = "You are a helpful assistant for Howlerops. Provide thoughtful, concise answers and include actionable guidance when relevant."
 	}
 
 	if req.Context != "" {

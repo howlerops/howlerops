@@ -6,7 +6,7 @@
 
 ## 1. ACCEPTANCE OF TERMS
 
-These Terms of Service ("**Terms**") constitute a legally binding agreement between you ("**you**," "**your**," or "**User**") and SQL Studio Inc. ("**SQL Studio**," "**we**," "**us**," or "**our**"), a Delaware corporation, regarding your use of the SQL Studio platform, including our website, applications, APIs, and related services (collectively, the "**Services**").
+These Terms of Service ("**Terms**") constitute a legally binding agreement between you ("**you**," "**your**," or "**User**") and Howlerops Inc. ("**Howlerops**," "**we**," "**us**," or "**our**"), a Delaware corporation, regarding your use of the Howlerops platform, including our website, applications, APIs, and related services (collectively, the "**Services**").
 
 By accessing or using our Services, you agree to be bound by these Terms. If you disagree with any part of these Terms, you do not have permission to access the Services.
 
@@ -26,7 +26,7 @@ Certain features may be subject to additional terms, which will be presented to 
 
 ### 2.1 Service Overview
 
-SQL Studio provides a cloud-based SQL database management platform that enables users to:
+Howlerops provides a cloud-based SQL database management platform that enables users to:
 - Query and manage multiple databases
 - Collaborate on database projects
 - Visualize database schemas and data
@@ -165,7 +165,7 @@ Violations may result in:
 
 ### 5.1 Our Intellectual Property
 
-SQL Studio owns all rights, title, and interest in:
+Howlerops owns all rights, title, and interest in:
 - The Services and underlying technology
 - Our trademarks, logos, and brand elements
 - Documentation and content we create
@@ -377,7 +377,7 @@ You warrant that:
 
 ### 10.1 EXCLUSION OF DAMAGES
 
-**TO THE MAXIMUM EXTENT PERMITTED BY LAW, IN NO EVENT SHALL SQL STUDIO BE LIABLE FOR:**
+**TO THE MAXIMUM EXTENT PERMITTED BY LAW, IN NO EVENT SHALL Howlerops BE LIABLE FOR:**
 - **INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES**
 - **LOST PROFITS, REVENUE, OR BUSINESS OPPORTUNITIES**
 - **LOSS OF DATA OR USE**
@@ -411,7 +411,7 @@ These limitations apply regardless of:
 
 ### 11.1 Your Indemnification
 
-You agree to indemnify, defend, and hold harmless SQL Studio and its officers, directors, employees, and agents from any claims, losses, damages, liabilities, and expenses (including attorney fees) arising from:
+You agree to indemnify, defend, and hold harmless Howlerops and its officers, directors, employees, and agents from any claims, losses, damages, liabilities, and expenses (including attorney fees) arising from:
 
 - Your use of the Services
 - Your Content
@@ -539,7 +539,7 @@ Continued use after modifications constitutes acceptance. If you disagree, stop 
 
 ### 15.3 Entire Agreement
 
-These Terms, including incorporated documents, constitute the entire agreement between you and SQL Studio.
+These Terms, including incorporated documents, constitute the entire agreement between you and Howlerops.
 
 ## 16. GENERAL PROVISIONS
 
@@ -586,7 +586,7 @@ Section headings are for convenience only and do not affect interpretation.
 
 ## 17. CONTACT INFORMATION
 
-SQL Studio Inc.
+Howlerops Inc.
 [COMPANY_ADDRESS]
 
 **General Inquiries**: hello@sqlstudio.com
@@ -598,7 +598,7 @@ SQL Studio Inc.
 ## 18. DEFINITIONS
 
 - **"Content"**: Any data, text, files, information, or materials
-- **"Services"**: SQL Studio platform and related services
+- **"Services"**: Howlerops platform and related services
 - **"User"**: Any individual or entity using the Services
 - **"Your Content"**: Content you upload, submit, or create
 
@@ -618,6 +618,6 @@ Enterprise SLA at: https://sqlstudio.com/sla
 
 ---
 
-**BY USING SQL STUDIO, YOU ACKNOWLEDGE THAT YOU HAVE READ, UNDERSTOOD, AND AGREE TO BE BOUND BY THESE TERMS OF SERVICE.**
+**BY USING Howlerops, YOU ACKNOWLEDGE THAT YOU HAVE READ, UNDERSTOOD, AND AGREE TO BE BOUND BY THESE TERMS OF SERVICE.**
 
 **Effective Date: January 1, 2025**

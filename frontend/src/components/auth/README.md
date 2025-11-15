@@ -1,6 +1,6 @@
 # Authentication System
 
-Complete JWT-based authentication system for SQL Studio frontend that integrates with the Go backend.
+Complete JWT-based authentication system for Howlerops frontend that integrates with the Go backend.
 
 ## Overview
 
@@ -379,4 +379,4 @@ try {
 
 ## License
 
-Part of SQL Studio - see main LICENSE file.
+Part of Howlerops - see main LICENSE file.

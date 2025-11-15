@@ -1,4 +1,4 @@
-# HowlerOps SQL Studio
+# HowlerOps Howlerops
 
 **A powerful, cloud-enabled desktop SQL client with AI-powered features and multi-device sync**
 
@@ -58,7 +58,7 @@
 
 ### Quick Install (Recommended)
 
-Install SQL Studio with a single command:
+Install Howlerops with a single command:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/sql-studio/sql-studio/main/install.sh | sh
@@ -147,7 +147,7 @@ On first launch:
 
 ### Hybrid Cloud Architecture (Phase 2)
 
-SQL Studio uses a **hybrid local-first + cloud sync** architecture for the best of both worlds:
+Howlerops uses a **hybrid local-first + cloud sync** architecture for the best of both worlds:
 
 ```
 ┌─────────────────────────────────────────────────────────┐

@@ -1,7 +1,7 @@
 # =============================================================================
-# Fly.io Production Configuration for SQL Studio Backend
+# Fly.io Production Configuration for Howlerops Backend
 # =============================================================================
-# This configuration deploys the SQL Studio backend to Fly.io with:
+# This configuration deploys the Howlerops backend to Fly.io with:
 # - Auto-scaling from 0 to 10 machines based on traffic
 # - Comprehensive health checks for automatic recovery
 # - Multi-region support for global low latency (optional)
@@ -212,7 +212,7 @@ kill_timeout = "30s"  # Wait 30s for graceful shutdown before SIGKILL
 # =============================================================================
 # Persistent Storage (Optional)
 # =============================================================================
-# IMPORTANT: SQL Studio is designed as stateless with Turso remote database
+# IMPORTANT: Howlerops is designed as stateless with Turso remote database
 # Only uncomment if you need persistent local storage for caching, etc.
 # Note: Volumes persist data across deployments but tie machines to regions
 #
@@ -227,7 +227,7 @@ kill_timeout = "30s"  # Wait 30s for graceful shutdown before SIGKILL
 # Secrets are set via flyctl CLI and NOT committed to this file
 # This is a security best practice
 #
-# Required secrets for SQL Studio:
+# Required secrets for Howlerops:
 #
 #   1. Database credentials:
 #      flyctl secrets set TURSO_URL="libsql://your-db-your-org.turso.io"

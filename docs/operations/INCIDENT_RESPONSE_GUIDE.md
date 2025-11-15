@@ -1,4 +1,4 @@
-# SQL Studio Incident Response Guide
+# Howlerops Incident Response Guide
 
 ## Table of Contents
 1. [Severity Levels](#severity-levels)

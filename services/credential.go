@@ -14,7 +14,7 @@ import (
 
 const (
 	// ServiceName is the name used to identify this application in the keychain
-	ServiceName = "HowlerOps SQL Studio"
+	ServiceName = "HowlerOps Howlerops"
 )
 
 // Sentinel errors for credential operations

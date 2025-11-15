@@ -1,10 +1,10 @@
-# SQL Studio Tier Management System
+# Howlerops Tier Management System
 
-A comprehensive tier detection and management system for SQL Studio's 3-tier product structure. This system provides type-safe tier management, license validation, feature gating, and usage limit enforcement.
+A comprehensive tier detection and management system for Howlerops's 3-tier product structure. This system provides type-safe tier management, license validation, feature gating, and usage limit enforcement.
 
 ## Overview
 
-SQL Studio offers three tiers:
+Howlerops offers three tiers:
 
 - **Local (Free)**: 5 connections, 50 query history, no cloud sync
 - **Individual ($9/mo)**: Unlimited resources, cloud sync, multi-device support
@@ -485,4 +485,4 @@ For issues or questions:
 
 ## License
 
-This tier management system is part of SQL Studio.
+This tier management system is part of Howlerops.

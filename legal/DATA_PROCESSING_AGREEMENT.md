@@ -14,18 +14,18 @@ This Data Processing Agreement ("**DPA**") is entered into between:
 ("**Customer**" or "**Controller**")
 
 **Data Processor:**
-SQL Studio Inc.
+Howlerops Inc.
 [COMPANY_ADDRESS]
 [COMPANY_REGISTRATION_NUMBER]
-("**SQL Studio**" or "**Processor**")
+("**Howlerops**" or "**Processor**")
 
 Each a "**Party**" and collectively the "**Parties**".
 
 ## RECITALS
 
-WHEREAS, Customer has entered into an agreement with SQL Studio for the provision of services ("**Principal Agreement**");
+WHEREAS, Customer has entered into an agreement with Howlerops for the provision of services ("**Principal Agreement**");
 
-WHEREAS, in connection with the Principal Agreement, SQL Studio will process Personal Data on behalf of Customer;
+WHEREAS, in connection with the Principal Agreement, Howlerops will process Personal Data on behalf of Customer;
 
 WHEREAS, the Parties wish to ensure that such processing is carried out in compliance with applicable Data Protection Laws;
 
@@ -63,7 +63,7 @@ For the purposes of this DPA, the following terms shall have the meanings set ou
 
 - **"Standard Contractual Clauses"** or **"SCCs"** means the standard contractual clauses for the transfer of personal data to processors established in third countries approved by the European Commission.
 
-- **"Sub-processor"** means any Processor engaged by SQL Studio to process Personal Data on behalf of Customer.
+- **"Sub-processor"** means any Processor engaged by Howlerops to process Personal Data on behalf of Customer.
 
 - **"Supervisory Authority"** means an independent public authority established by an EU Member State pursuant to the GDPR.
 
@@ -71,14 +71,14 @@ For the purposes of this DPA, the following terms shall have the meanings set ou
 
 ### 2.1 Scope of Processing
 
-This DPA applies to the Processing of Personal Data by SQL Studio:
+This DPA applies to the Processing of Personal Data by Howlerops:
 - In the course of providing the Services under the Principal Agreement
 - Where such Processing is subject to Data Protection Laws
 - For the duration specified in Article 10
 
 ### 2.2 Purpose of Processing
 
-SQL Studio shall process Personal Data only for the following purposes:
+Howlerops shall process Personal Data only for the following purposes:
 - Providing the Services as described in the Principal Agreement
 - Complying with Customer's documented instructions
 - Complying with applicable legal obligations
@@ -495,7 +495,7 @@ Date: [DATE]
 
 ### 5. Purpose of Processing
 
-- Provision of SQL Studio services
+- Provision of Howlerops services
 - Account management
 - Service improvement
 - Security and fraud prevention

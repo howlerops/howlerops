@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 #######################################################################################
-# Homebrew Formula Testing Script for SQL Studio
+# Homebrew Formula Testing Script for Howlerops
 #
 # This script validates the Homebrew formula locally before pushing to the tap.
 # It performs comprehensive testing including syntax validation, installation,
@@ -327,7 +327,7 @@ test_checksums() {
 #######################################################################################
 
 main() {
-    log_info "Starting Homebrew formula testing for SQL Studio"
+    log_info "Starting Homebrew formula testing for Howlerops"
     log_info "Formula: $FORMULA_PATH"
     echo ""
 
@@ -372,7 +372,7 @@ main() {
 # Show usage if help requested
 if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
     cat << EOF
-Homebrew Formula Testing Script for SQL Studio
+Homebrew Formula Testing Script for Howlerops
 
 Usage:
   $0 [FORMULA_PATH]

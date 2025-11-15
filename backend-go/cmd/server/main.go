@@ -247,7 +247,7 @@ func logStartupInfo(cfg *config.Config, logger *logrus.Logger) {
 		"environment": cfg.GetEnv(),
 		"grpc_port":   cfg.Server.GRPCPort,
 		"http_port":   cfg.Server.HTTPPort,
-	}).Info("Starting SQL Studio Backend (Phase 2)")
+	}).Info("Starting Howlerops Backend (Phase 2)")
 }
 
 // initializeDatabase connects to database and runs migrations

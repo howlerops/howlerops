@@ -13,51 +13,51 @@
  * ```
  */
 
-import * as React from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Sparkles, Check, Crown, Zap, Star } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { GradientFeatureBadge } from './feature-badge'
-import type { TierLevel } from '@/types/tiers'
+import * as React from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Sparkles, Check, Crown, Zap, Star } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { GradientFeatureBadge } from "./feature-badge";
+import type { TierLevel } from "@/types/tiers";
 
 interface UpgradeSuccessAnimationProps {
-  tier: TierLevel
-  duration?: number
-  onComplete?: () => void
-  className?: string
+  tier: TierLevel;
+  duration?: number;
+  onComplete?: () => void;
+  className?: string;
 }
 
 const tierConfig = {
   local: {
-    title: 'Welcome!',
-    subtitle: 'Enjoy SQL Studio',
+    title: "Welcome!",
+    subtitle: "Enjoy Howlerops",
     icon: Check,
-    gradient: 'from-gray-500 to-gray-600',
-    emoji: '✨',
+    gradient: "from-gray-500 to-gray-600",
+    emoji: "✨",
   },
   individual: {
-    title: 'Welcome to Pro!',
-    subtitle: 'All features unlocked',
+    title: "Welcome to Pro!",
+    subtitle: "All features unlocked",
     icon: Sparkles,
-    gradient: 'from-purple-500 to-pink-500',
-    emoji: '🎉',
+    gradient: "from-purple-500 to-pink-500",
+    emoji: "🎉",
   },
   team: {
-    title: 'Welcome to Team!',
-    subtitle: 'Your team is ready to collaborate',
+    title: "Welcome to Team!",
+    subtitle: "Your team is ready to collaborate",
     icon: Crown,
-    gradient: 'from-blue-500 to-cyan-500',
-    emoji: '🚀',
+    gradient: "from-blue-500 to-cyan-500",
+    emoji: "🚀",
   },
-}
+};
 
 // Confetti particle component
 function ConfettiParticle({ delay = 0 }: { delay?: number }) {
-  const colors = ['#8b5cf6', '#ec4899', '#3b82f6', '#10b981', '#f59e0b']
-  const randomColor = colors[Math.floor(Math.random() * colors.length)]
-  const randomX = Math.random() * 100 - 50
-  const randomRotation = Math.random() * 360
-  const randomDuration = 2 + Math.random() * 2
+  const colors = ["#8b5cf6", "#ec4899", "#3b82f6", "#10b981", "#f59e0b"];
+  const randomColor = colors[Math.floor(Math.random() * colors.length)];
+  const randomX = Math.random() * 100 - 50;
+  const randomRotation = Math.random() * 360;
+  const randomDuration = 2 + Math.random() * 2;
 
   return (
     <motion.div
@@ -74,16 +74,16 @@ function ConfettiParticle({ delay = 0 }: { delay?: number }) {
       transition={{
         duration: randomDuration,
         delay,
-        ease: 'easeOut',
+        ease: "easeOut",
       }}
     />
-  )
+  );
 }
 
 // Star burst component
 function StarBurst({ delay = 0 }: { delay?: number }) {
-  const randomAngle = Math.random() * 360
-  const randomDistance = 100 + Math.random() * 200
+  const randomAngle = Math.random() * 360;
+  const randomDistance = 100 + Math.random() * 200;
 
   return (
     <motion.div
@@ -98,12 +98,12 @@ function StarBurst({ delay = 0 }: { delay?: number }) {
       transition={{
         duration: 1.5,
         delay,
-        ease: 'easeOut',
+        ease: "easeOut",
       }}
     >
       <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" />
     </motion.div>
-  )
+  );
 }
 
 export function UpgradeSuccessAnimation({
@@ -112,20 +112,20 @@ export function UpgradeSuccessAnimation({
   onComplete,
   className,
 }: UpgradeSuccessAnimationProps) {
-  const [isVisible, setIsVisible] = React.useState(true)
-  const config = tierConfig[tier]
-  const Icon = config.icon
+  const [isVisible, setIsVisible] = React.useState(true);
+  const config = tierConfig[tier];
+  const Icon = config.icon;
 
   React.useEffect(() => {
     const timer = setTimeout(() => {
-      setIsVisible(false)
+      setIsVisible(false);
       setTimeout(() => {
-        onComplete?.()
-      }, 500)
-    }, duration)
+        onComplete?.();
+      }, 500);
+    }, duration);
 
-    return () => clearTimeout(timer)
-  }, [duration, onComplete])
+    return () => clearTimeout(timer);
+  }, [duration, onComplete]);
 
   return (
     <AnimatePresence>
@@ -134,7 +134,10 @@ export function UpgradeSuccessAnimation({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className={cn('fixed inset-0 z-50 flex items-center justify-center', className)}
+          className={cn(
+            "fixed inset-0 z-50 flex items-center justify-center",
+            className
+          )}
         >
           {/* Background overlay */}
           <motion.div
@@ -160,7 +163,7 @@ export function UpgradeSuccessAnimation({
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.9, opacity: 0, y: -20 }}
             transition={{
-              type: 'spring',
+              type: "spring",
               stiffness: 200,
               damping: 20,
             }}
@@ -171,7 +174,7 @@ export function UpgradeSuccessAnimation({
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{
-                type: 'spring',
+                type: "spring",
                 stiffness: 300,
                 damping: 15,
                 delay: 0.2,
@@ -188,10 +191,10 @@ export function UpgradeSuccessAnimation({
                   transition={{
                     duration: 2,
                     repeat: Infinity,
-                    ease: 'easeInOut',
+                    ease: "easeInOut",
                   }}
                   className={cn(
-                    'absolute inset-0 rounded-full blur-2xl bg-gradient-to-br',
+                    "absolute inset-0 rounded-full blur-2xl bg-gradient-to-br",
                     config.gradient
                   )}
                 />
@@ -199,9 +202,9 @@ export function UpgradeSuccessAnimation({
                 {/* Main icon */}
                 <div
                   className={cn(
-                    'relative w-24 h-24 rounded-full bg-gradient-to-br flex items-center justify-center',
+                    "relative w-24 h-24 rounded-full bg-gradient-to-br flex items-center justify-center",
                     config.gradient,
-                    'shadow-2xl'
+                    "shadow-2xl"
                   )}
                 >
                   <Icon className="h-12 w-12 text-white" />
@@ -218,7 +221,7 @@ export function UpgradeSuccessAnimation({
                     transition={{
                       duration: 3,
                       repeat: Infinity,
-                      ease: 'linear',
+                      ease: "linear",
                       delay: i * 0.3,
                     }}
                   >
@@ -233,7 +236,7 @@ export function UpgradeSuccessAnimation({
                       transition={{
                         duration: 1,
                         repeat: Infinity,
-                        ease: 'easeInOut',
+                        ease: "easeInOut",
                       }}
                     />
                   </motion.div>
@@ -246,7 +249,7 @@ export function UpgradeSuccessAnimation({
               initial={{ scale: 0, rotate: -180 }}
               animate={{ scale: 1, rotate: 0 }}
               transition={{
-                type: 'spring',
+                type: "spring",
                 stiffness: 200,
                 damping: 15,
                 delay: 0.3,
@@ -284,7 +287,7 @@ export function UpgradeSuccessAnimation({
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{
-                type: 'spring',
+                type: "spring",
                 stiffness: 300,
                 damping: 15,
                 delay: 0.8,
@@ -304,7 +307,7 @@ export function UpgradeSuccessAnimation({
         </motion.div>
       )}
     </AnimatePresence>
-  )
+  );
 }
 
 /**
@@ -316,20 +319,20 @@ export function UpgradeSuccessToast({
   message,
   onClose,
 }: {
-  tier: TierLevel
-  message?: string
-  onClose?: () => void
+  tier: TierLevel;
+  message?: string;
+  onClose?: () => void;
 }) {
-  const config = tierConfig[tier]
-  const Icon = config.icon
+  const config = tierConfig[tier];
+  const Icon = config.icon;
 
   React.useEffect(() => {
     const timer = setTimeout(() => {
-      onClose?.()
-    }, 3000)
+      onClose?.();
+    }, 3000);
 
-    return () => clearTimeout(timer)
-  }, [onClose])
+    return () => clearTimeout(timer);
+  }, [onClose]);
 
   return (
     <motion.div
@@ -341,7 +344,10 @@ export function UpgradeSuccessToast({
       <div className="relative overflow-hidden rounded-lg border border-border bg-card shadow-2xl">
         {/* Animated background */}
         <motion.div
-          className={cn('absolute inset-0 bg-gradient-to-br opacity-10', config.gradient)}
+          className={cn(
+            "absolute inset-0 bg-gradient-to-br opacity-10",
+            config.gradient
+          )}
           animate={{
             scale: [1, 1.1, 1],
             opacity: [0.1, 0.2, 0.1],
@@ -349,7 +355,7 @@ export function UpgradeSuccessToast({
           transition={{
             duration: 2,
             repeat: Infinity,
-            ease: 'easeInOut',
+            ease: "easeInOut",
           }}
         />
 
@@ -357,7 +363,7 @@ export function UpgradeSuccessToast({
           {/* Icon */}
           <div
             className={cn(
-              'flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br flex items-center justify-center',
+              "flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br flex items-center justify-center",
               config.gradient
             )}
           >
@@ -381,7 +387,7 @@ export function UpgradeSuccessToast({
         </div>
       </div>
     </motion.div>
-  )
+  );
 }
 
 /**
@@ -393,19 +399,19 @@ export function FeatureUnlockAnimation({
   icon: IconComponent,
   onComplete,
 }: {
-  featureName: string
-  icon?: React.ComponentType<{ className?: string }>
-  onComplete?: () => void
+  featureName: string;
+  icon?: React.ComponentType<{ className?: string }>;
+  onComplete?: () => void;
 }) {
-  const Icon = IconComponent || Zap
+  const Icon = IconComponent || Zap;
 
   React.useEffect(() => {
     const timer = setTimeout(() => {
-      onComplete?.()
-    }, 2000)
+      onComplete?.();
+    }, 2000);
 
-    return () => clearTimeout(timer)
-  }, [onComplete])
+    return () => clearTimeout(timer);
+  }, [onComplete]);
 
   return (
     <motion.div
@@ -424,7 +430,7 @@ export function FeatureUnlockAnimation({
           transition={{
             duration: 1.5,
             repeat: Infinity,
-            ease: 'easeInOut',
+            ease: "easeInOut",
           }}
           className="absolute inset-0 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg blur-2xl"
         />
@@ -435,7 +441,7 @@ export function FeatureUnlockAnimation({
             initial={{ scale: 0, rotate: -180 }}
             animate={{ scale: 1, rotate: 0 }}
             transition={{
-              type: 'spring',
+              type: "spring",
               stiffness: 200,
               damping: 15,
             }}
@@ -445,7 +451,9 @@ export function FeatureUnlockAnimation({
               <Icon className="h-6 w-6 text-white" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground mb-1">Feature Unlocked</p>
+              <p className="text-sm text-muted-foreground mb-1">
+                Feature Unlocked
+              </p>
               <p className="font-semibold">{featureName}</p>
             </div>
             <div className="flex items-center gap-1">
@@ -457,5 +465,5 @@ export function FeatureUnlockAnimation({
         </div>
       </div>
     </motion.div>
-  )
+  );
 }

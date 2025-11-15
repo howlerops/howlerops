@@ -1,4 +1,4 @@
-# SQL Studio Sync API Documentation
+# Howlerops Sync API Documentation
 
 ## Base URL
 

@@ -1,6 +1,6 @@
-# SQL Studio Backend - Deployment FAQ
+# Howlerops Backend - Deployment FAQ
 
-**Frequently Asked Questions about deploying and operating SQL Studio backend**
+**Frequently Asked Questions about deploying and operating Howlerops backend**
 
 Last Updated: 2025-10-23
 
@@ -422,7 +422,7 @@ turso db shell sql-studio-prod
 
 **Option 2: Automated (via migration tool)**
 
-SQL Studio includes a migration command (future enhancement):
+Howlerops includes a migration command (future enhancement):
 ```bash
 # Run migrations on deployment
 # Edit cloudbuild.yaml or workflow to add:
@@ -570,7 +570,7 @@ gcloud run services update sql-studio-backend \
 
 **4. Implement lazy initialization**
 - Move heavy initialization to first request
-- Already implemented in SQL Studio
+- Already implemented in Howlerops
 
 **Current cold start time:** ~1-2 seconds (very good for Go apps)
 
@@ -1184,6 +1184,6 @@ flyctl secrets set \
 
 **Document Version:** 1.0.0
 **Last Updated:** 2025-10-23
-**Maintainer:** SQL Studio Team
+**Maintainer:** Howlerops Team
 
 **Have a question not answered here?** Open a GitHub Discussion!

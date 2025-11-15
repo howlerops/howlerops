@@ -10,12 +10,12 @@
 
 ### 1.1 Purpose
 
-This Incident Response Plan (IRP) establishes procedures for detecting, responding to, and recovering from security incidents at SQL Studio. It ensures coordinated, effective responses that minimize impact and comply with legal requirements.
+This Incident Response Plan (IRP) establishes procedures for detecting, responding to, and recovering from security incidents at Howlerops. It ensures coordinated, effective responses that minimize impact and comply with legal requirements.
 
 ### 1.2 Scope
 
 This plan covers all security incidents affecting:
-- SQL Studio infrastructure and systems
+- Howlerops infrastructure and systems
 - Customer data and services
 - Employee systems and data
 - Third-party integrations
@@ -562,7 +562,7 @@ We sincerely apologize for any inconvenience and are committed to protecting you
 
 #### Public Statement Template
 ```
-SQL Studio Security Update
+Howlerops Security Update
 
 We recently identified and addressed a security incident affecting [SCOPE].
 

@@ -1,6 +1,6 @@
 # Feature Guides
 
-Comprehensive guides for all SQL Studio features.
+Comprehensive guides for all Howlerops features.
 
 ## Table of Contents
 

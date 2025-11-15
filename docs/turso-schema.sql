@@ -1,5 +1,5 @@
 -- ============================================================================
--- SQL Studio - Turso Database Schema
+-- Howlerops - Turso Database Schema
 -- ============================================================================
 --
 -- Purpose: Cloud sync for Individual tier ($9/mo)

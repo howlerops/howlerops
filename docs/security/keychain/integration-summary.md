@@ -2,7 +2,7 @@
 
 ## Overview
 
-Successfully added Wails bindings for credential management to the SQL Studio desktop app, enabling secure password storage using OS-native keychain services.
+Successfully added Wails bindings for credential management to the Howlerops desktop app, enabling secure password storage using OS-native keychain services.
 
 ## Implementation Details
 

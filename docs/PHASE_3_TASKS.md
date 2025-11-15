@@ -704,7 +704,7 @@ Create HTML email templates for invitations.
 - [ ] Invitation email template (HTML + text)
 - [ ] Welcome to team email template
 - [ ] Member removed notification template
-- [ ] Templates branded with SQL Studio style
+- [ ] Templates branded with Howlerops style
 - [ ] Templates tested in multiple email clients
 
 ---
@@ -933,7 +933,7 @@ Design email templates for invitation flow.
 **Acceptance Criteria:**
 - [ ] Invitation email designed (HTML mockup)
 - [ ] Welcome email designed
-- [ ] Templates match SQL Studio brand
+- [ ] Templates match Howlerops brand
 - [ ] Templates are mobile-responsive
 - [ ] Design approved by stakeholders
 

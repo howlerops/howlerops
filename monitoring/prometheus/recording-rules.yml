@@ -1,4 +1,4 @@
-# Prometheus Recording Rules for SQL Studio
+# Prometheus Recording Rules for Howlerops
 # Pre-computes frequently used queries to improve dashboard performance
 
 groups:

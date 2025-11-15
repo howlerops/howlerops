@@ -1,6 +1,6 @@
 # Homebrew Tap Repository Setup Guide
 
-This guide walks through creating and configuring the SQL Studio Homebrew tap repository.
+This guide walks through creating and configuring the Howlerops Homebrew tap repository.
 
 ## Prerequisites
 
@@ -13,7 +13,7 @@ This guide walks through creating and configuring the SQL Studio Homebrew tap re
 1. **Create a new repository on GitHub**:
    - Navigate to: https://github.com/organizations/sql-studio/repositories/new
    - Repository name: `homebrew-tap`
-   - Description: "Homebrew tap for SQL Studio"
+   - Description: "Homebrew tap for Howlerops"
    - Visibility: Public
    - Initialize with: README (optional, we'll overwrite it)
    - License: MIT (same as main repository)
@@ -30,7 +30,7 @@ cd homebrew-tap
 # Create the Formula directory
 mkdir -p Formula
 
-# Copy the formula from the main SQL Studio repository
+# Copy the formula from the main Howlerops repository
 cp /path/to/sql-studio/Formula/sql-studio.rb Formula/
 
 # Copy the README
@@ -51,7 +51,7 @@ git push origin main
 ### Repository Details
 
 1. Navigate to: https://github.com/sql-studio/homebrew-tap/settings
-2. Update description: "Homebrew tap for SQL Studio"
+2. Update description: "Homebrew tap for Howlerops"
 3. Update website: "https://github.com/sql-studio/sql-studio"
 4. Add topics:
    - `homebrew`
@@ -80,13 +80,13 @@ git push origin main
 
 ## Step 4: Configure GitHub Secrets in Main Repository
 
-The main SQL Studio repository needs a token to push formula updates to the tap repository.
+The main Howlerops repository needs a token to push formula updates to the tap repository.
 
 ### Generate Personal Access Token
 
 1. Navigate to: https://github.com/settings/tokens
 2. Click "Generate new token" > "Generate new token (classic)"
-3. Token name: `SQL Studio Homebrew Tap Updater`
+3. Token name: `Howlerops Homebrew Tap Updater`
 4. Expiration: No expiration (or 1 year with calendar reminder)
 5. Select scopes:
    - `repo` (Full control of private repositories)
@@ -127,7 +127,7 @@ DRY_RUN=true ./scripts/update-homebrew-formula.sh latest
 # Add the tap
 brew tap sql-studio/tap
 
-# Install SQL Studio
+# Install Howlerops
 brew install sql-studio
 
 # Verify installation
@@ -145,7 +145,7 @@ brew untap sql-studio/tap
 
 ### Create a Test Release
 
-1. In the main SQL Studio repository:
+1. In the main Howlerops repository:
    ```bash
    git tag v2.0.0-test
    git push origin v2.0.0-test
@@ -292,11 +292,11 @@ brew install --verbose sql-studio
 
 For issues with:
 - **Formula installation**: Open issue in homebrew-tap repository
-- **SQL Studio bugs**: Open issue in main repository
+- **Howlerops bugs**: Open issue in main repository
 - **Tap setup**: See HOMEBREW.md or contact maintainers
 
 ---
 
 **Created**: 2025-10-23
 **Last Updated**: 2025-10-23
-**Maintained By**: SQL Studio Team
+**Maintained By**: Howlerops Team

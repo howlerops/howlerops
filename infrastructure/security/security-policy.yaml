@@ -1,5 +1,5 @@
 # =============================================================================
-# SQL Studio - Security Policies
+# Howlerops - Security Policies
 # =============================================================================
 # Comprehensive security configuration for Kubernetes cluster
 # =============================================================================
@@ -14,10 +14,10 @@ kind: PodSecurityPolicy
 metadata:
   name: sql-studio-restricted
   annotations:
-    seccomp.security.alpha.kubernetes.io/allowedProfileNames: 'runtime/default'
-    apparmor.security.beta.kubernetes.io/allowedProfileNames: 'runtime/default'
-    seccomp.security.alpha.kubernetes.io/defaultProfileName: 'runtime/default'
-    apparmor.security.beta.kubernetes.io/defaultProfileName: 'runtime/default'
+    seccomp.security.alpha.kubernetes.io/allowedProfileNames: "runtime/default"
+    apparmor.security.beta.kubernetes.io/allowedProfileNames: "runtime/default"
+    seccomp.security.alpha.kubernetes.io/defaultProfileName: "runtime/default"
+    apparmor.security.beta.kubernetes.io/defaultProfileName: "runtime/default"
 spec:
   # Privileged
   privileged: false
@@ -49,12 +49,12 @@ spec:
 
   # Volumes
   volumes:
-    - 'configMap'
-    - 'emptyDir'
-    - 'projected'
-    - 'secret'
-    - 'downwardAPI'
-    - 'persistentVolumeClaim'
+    - "configMap"
+    - "emptyDir"
+    - "projected"
+    - "secret"
+    - "downwardAPI"
+    - "persistentVolumeClaim"
 
   # Host namespaces
   hostNetwork: false
@@ -387,7 +387,7 @@ spec:
   parameters:
     repos:
       - "gcr.io/YOUR_PROJECT_ID/"
-      - "docker.io/library/"  # Official images only
+      - "docker.io/library/" # Official images only
 
 ---
 # =============================================================================

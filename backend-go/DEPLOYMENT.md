@@ -1,6 +1,6 @@
-# SQL Studio Backend - Deployment Guide
+# Howlerops Backend - Deployment Guide
 
-Complete guide for deploying the SQL Studio Go backend to production environments.
+Complete guide for deploying the Howlerops Go backend to production environments.
 
 ## Table of Contents
 
@@ -21,7 +21,7 @@ Complete guide for deploying the SQL Studio Go backend to production environment
 
 ## Overview
 
-The SQL Studio backend is a Go application that provides:
+The Howlerops backend is a Go application that provides:
 - **HTTP/REST API** on port 8500
 - **gRPC API** on port 9500
 - **Prometheus Metrics** on port 9100
@@ -142,7 +142,7 @@ gcloud services enable \
 
 ```bash
 gcloud iam service-accounts create sql-studio-backend \
-  --display-name="SQL Studio Backend"
+  --display-name="Howlerops Backend"
 
 # Grant necessary roles
 gcloud projects add-iam-policy-binding $GCP_PROJECT_ID \

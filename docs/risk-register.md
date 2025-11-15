@@ -1,8 +1,8 @@
-# SQL Studio Tiered Architecture - Risk Register
+# Howlerops Tiered Architecture - Risk Register
 
 ## Overview
 
-This document tracks all identified risks for the SQL Studio tiered architecture implementation. Risks are categorized by impact, likelihood, and phase, with mitigation strategies and ownership assigned.
+This document tracks all identified risks for the Howlerops tiered architecture implementation. Risks are categorized by impact, likelihood, and phase, with mitigation strategies and ownership assigned.
 
 **Last Updated:** 2025-10-23
 **Review Frequency:** Weekly during active development

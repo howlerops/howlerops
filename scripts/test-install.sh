@@ -52,7 +52,7 @@ run_test() {
 
 echo ""
 echo "=========================================="
-echo "  SQL Studio Installer Test Suite"
+echo "  Howlerops Installer Test Suite"
 echo "=========================================="
 echo ""
 

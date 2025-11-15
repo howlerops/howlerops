@@ -1,4 +1,4 @@
--- Turso Database Schema for SQL Studio Individual Tier
+-- Turso Database Schema for Howlerops Individual Tier
 -- Migration: 001 - Initialize Turso storage tables
 
 -- =============================================================================

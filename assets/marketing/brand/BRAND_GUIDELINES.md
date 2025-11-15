@@ -1,4 +1,4 @@
-# SQL Studio Brand Guidelines
+# Howlerops Brand Guidelines
 
 ## Visual Identity
 

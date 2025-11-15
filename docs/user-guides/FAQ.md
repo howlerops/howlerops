@@ -1,12 +1,12 @@
 # Frequently Asked Questions
 
-Common questions and answers about SQL Studio.
+Common questions and answers about Howlerops.
 
 ## General
 
-### What databases does SQL Studio support?
+### What databases does Howlerops support?
 
-SQL Studio supports:
+Howlerops supports:
 - PostgreSQL (9.6+)
 - MySQL (5.7+)
 - SQLite (3+)
@@ -28,7 +28,7 @@ Yes! Security is our top priority:
 - GDPR compliant
 - Regular security audits
 
-### Can I use SQL Studio offline?
+### Can I use Howlerops offline?
 
 The desktop application works offline for:
 - Local databases (SQLite)
@@ -37,7 +37,7 @@ The desktop application works offline for:
 
 Cloud sync requires internet connection.
 
-### How much does SQL Studio cost?
+### How much does Howlerops cost?
 
 See our [pricing page](https://sqlstudio.com/pricing) for current plans:
 - **Free**: Personal use, unlimited queries
@@ -51,13 +51,13 @@ See our [pricing page](https://sqlstudio.com/pricing) for current plans:
 
 1. Ensure your database allows remote connections
 2. Note the host, port, database name, username, and password
-3. In SQL Studio, create a new connection
+3. In Howlerops, create a new connection
 4. Enter the connection details
 5. Test the connection
 6. Save
 
 For cloud databases, you may need to:
-- Whitelist SQL Studio's IP addresses
+- Whitelist Howlerops's IP addresses
 - Enable SSL/TLS
 - Create a dedicated database user
 
@@ -72,7 +72,7 @@ Common issues:
 
 ### Can I use SSH tunneling?
 
-Yes! SQL Studio supports SSH tunnels:
+Yes! Howlerops supports SSH tunnels:
 1. Enable "Use SSH Tunnel" in connection settings
 2. Enter SSH host, port, username
 3. Choose authentication: Password or SSH key
@@ -342,7 +342,7 @@ Solution:
 
 - Click refresh icon in results panel
 - Clear query cache: Settings > Advanced > Clear Cache
-- Restart SQL Studio
+- Restart Howlerops
 
 ### License/billing issues
 

@@ -1,4 +1,4 @@
-# SQL Studio Backend - Quick Reference
+# Howlerops Backend - Quick Reference
 
 ## Build & Run
 

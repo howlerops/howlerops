@@ -1,5 +1,5 @@
 /**
- * IndexedDB Schema for SQL Studio
+ * IndexedDB Schema for Howlerops
  *
  * Defines the complete database schema including:
  * - Object stores (tables)
@@ -378,7 +378,7 @@ const schemaV1: SchemaVersion = {
   ],
   migrate: async (db: IDBDatabase, transaction: IDBTransaction) => {
     // V1 is initial schema, no migration needed
-    console.log('Initializing SQL Studio database v1', db.name, transaction.mode)
+    console.log('Initializing Howlerops database v1', db.name, transaction.mode)
   },
 }
 

@@ -1,4 +1,4 @@
-# SQL Studio Operational Runbook
+# Howlerops Operational Runbook
 
 ## Table of Contents
 1. [Common Issues](#common-issues)

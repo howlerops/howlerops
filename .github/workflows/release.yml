@@ -1,5 +1,5 @@
 # =============================================================================
-# SQL Studio Backend - Release Workflow
+# Howlerops Backend - Release Workflow
 # =============================================================================
 # This workflow automates the creation of production releases with:
 # - Cross-platform binary builds (macOS, Linux, Windows)
@@ -31,23 +31,23 @@ on:
   # Trigger on version tags (v1.0.0, v2.1.3-beta, etc.)
   push:
     tags:
-      - 'v*'
+      - "v*"
 
   # Allow manual releases with custom version
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version (e.g., 1.0.0)'
+        description: "Release version (e.g., 1.0.0)"
         required: true
         type: string
       prerelease:
-        description: 'Mark as pre-release'
+        description: "Mark as pre-release"
         required: false
         type: boolean
         default: false
 
 env:
-  GO_VERSION: '1.24'
+  GO_VERSION: "1.24"
   # CGO is required for SQLite support
   CGO_ENABLED: 1
 
@@ -114,9 +114,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: v${{ steps.get_version.outputs.version }}
-          release_name: SQL Studio Backend v${{ steps.get_version.outputs.version }}
+          release_name: Howlerops Backend v${{ steps.get_version.outputs.version }}
           body: |
-            ## SQL Studio Backend v${{ steps.get_version.outputs.version }}
+            ## Howlerops Backend v${{ steps.get_version.outputs.version }}
 
             ### Changes
             ${{ steps.changelog.outputs.changelog }}
@@ -403,14 +403,14 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
+          go-version: "1.21"
           cache: true
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
@@ -480,7 +480,7 @@ jobs:
         uses: robinraju/release-downloader@v1
         with:
           tag: v${{ needs.create-release.outputs.version }}
-          fileName: '*.sha256'
+          fileName: "*.sha256"
           out-file-path: checksums
 
       - name: Combine checksums
@@ -550,15 +550,15 @@ jobs:
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: gcr.io/${{ secrets.GCP_PROJECT_ID }}/sql-studio-backend:v${{ needs.create-release.outputs.version }}
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-          severity: 'CRITICAL,HIGH'
+          format: "sarif"
+          output: "trivy-results.sarif"
+          severity: "CRITICAL,HIGH"
 
       - name: Upload Trivy results
         uses: github/codeql-action/upload-sarif@v2
         if: always()
         with:
-          sarif_file: 'trivy-results.sarif'
+          sarif_file: "trivy-results.sarif"
 
   # ---------------------------------------------------------------------------
   # Job 5: Post-Release Validation
@@ -573,7 +573,7 @@ jobs:
         uses: robinraju/release-downloader@v1
         with:
           tag: v${{ needs.create-release.outputs.version }}
-          fileName: '*'
+          fileName: "*"
           out-file-path: release-assets
 
       - name: Verify all artifacts present
@@ -659,7 +659,7 @@ jobs:
       - name: Verify formula update
         run: |
           echo "Homebrew formula updated successfully!"
-          echo "Users can now install SQL Studio v${{ needs.create-release.outputs.version }} with:"
+          echo "Users can now install Howlerops v${{ needs.create-release.outputs.version }} with:"
           echo "  brew update"
           echo "  brew upgrade sql-studio"
 

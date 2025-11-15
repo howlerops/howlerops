@@ -2,7 +2,7 @@
 
 ## Overview
 
-Complete Turso cloud database storage layer for SQL Studio's Individual tier backend has been successfully implemented.
+Complete Turso cloud database storage layer for Howlerops's Individual tier backend has been successfully implemented.
 
 ## Implementation Complete ✅
 

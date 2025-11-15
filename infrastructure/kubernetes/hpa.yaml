@@ -1,5 +1,5 @@
 # =============================================================================
-# SQL Studio - Horizontal Pod Autoscalers
+# Howlerops - Horizontal Pod Autoscalers
 # =============================================================================
 # Auto-scaling configuration for backend and frontend based on:
 # - CPU utilization
@@ -32,26 +32,26 @@ spec:
   # Scaling behavior
   behavior:
     scaleDown:
-      stabilizationWindowSeconds: 300  # Wait 5 minutes before scaling down
+      stabilizationWindowSeconds: 300 # Wait 5 minutes before scaling down
       policies:
         - type: Percent
-          value: 50  # Scale down by max 50% of current pods
+          value: 50 # Scale down by max 50% of current pods
           periodSeconds: 60
         - type: Pods
-          value: 1   # Or remove 1 pod at a time
+          value: 1 # Or remove 1 pod at a time
           periodSeconds: 60
-      selectPolicy: Min  # Choose the policy that scales down the least
+      selectPolicy: Min # Choose the policy that scales down the least
 
     scaleUp:
-      stabilizationWindowSeconds: 0  # Scale up immediately
+      stabilizationWindowSeconds: 0 # Scale up immediately
       policies:
         - type: Percent
-          value: 100  # Can double the number of pods
+          value: 100 # Can double the number of pods
           periodSeconds: 30
         - type: Pods
-          value: 2    # Or add 2 pods at a time
+          value: 2 # Or add 2 pods at a time
           periodSeconds: 30
-      selectPolicy: Max  # Choose the policy that scales up the most
+      selectPolicy: Max # Choose the policy that scales up the most
 
   # Metrics to scale on
   metrics:
@@ -61,7 +61,7 @@ spec:
         name: cpu
         target:
           type: Utilization
-          averageUtilization: 70  # Target 70% CPU usage
+          averageUtilization: 70 # Target 70% CPU usage
 
     # Memory utilization
     - type: Resource
@@ -69,7 +69,7 @@ spec:
         name: memory
         target:
           type: Utilization
-          averageUtilization: 80  # Target 80% memory usage
+          averageUtilization: 80 # Target 80% memory usage
 
     # Custom metric: Requests per second (requires metrics server)
     # Uncomment if you have custom metrics configured
@@ -170,7 +170,7 @@ spec:
 
   # Update policy
   updatePolicy:
-    updateMode: "Off"  # Recommend mode - only provide recommendations
+    updateMode: "Off" # Recommend mode - only provide recommendations
     # Options: "Off", "Initial", "Recreate", "Auto"
 
   # Resource policy

@@ -1,6 +1,6 @@
-# SQL Studio Backend - Local Development Setup Guide
+# Howlerops Backend - Local Development Setup Guide
 
-This guide will help you get the SQL Studio backend running locally in under 5 minutes.
+This guide will help you get the Howlerops backend running locally in under 5 minutes.
 
 ## Prerequisites
 

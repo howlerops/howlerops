@@ -1,10 +1,10 @@
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Progress } from "@/components/ui/progress"
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
 import {
   Play,
   CheckCircle2,
@@ -15,14 +15,14 @@ import {
   Zap,
   Bot,
   TrendingUp,
-} from "lucide-react"
-import { allTutorials } from "./tutorials"
-import { Tutorial, TutorialCategory } from "@/types/tutorial"
-import { cn } from "@/lib/utils"
+} from "lucide-react";
+import { allTutorials } from "./tutorials";
+import { Tutorial, TutorialCategory } from "@/types/tutorial";
+import { cn } from "@/lib/utils";
 
 interface TutorialLibraryProps {
-  onStartTutorial: (tutorial: Tutorial) => void
-  completedTutorials?: string[]
+  onStartTutorial: (tutorial: Tutorial) => void;
+  completedTutorials?: string[];
 }
 
 const categoryIcons: Record<TutorialCategory, React.ElementType> = {
@@ -32,7 +32,7 @@ const categoryIcons: Record<TutorialCategory, React.ElementType> = {
   advanced: TrendingUp,
   ai: Bot,
   optimization: TrendingUp,
-}
+};
 
 const categoryLabels: Record<TutorialCategory, string> = {
   basics: "Basics",
@@ -41,43 +41,44 @@ const categoryLabels: Record<TutorialCategory, string> = {
   advanced: "Advanced",
   ai: "AI Assistant",
   optimization: "Optimization",
-}
+};
 
 const difficultyColors = {
   beginner: "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300",
-  intermediate: "bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300",
+  intermediate:
+    "bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300",
   advanced: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300",
-}
+};
 
 export function TutorialLibrary({
   onStartTutorial,
   completedTutorials = [],
 }: TutorialLibraryProps) {
-  const [searchQuery, setSearchQuery] = useState("")
-  const [selectedCategory, setSelectedCategory] = useState<string>("all")
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
 
   const categories = Array.from(
     new Set(allTutorials.map((t) => t.category))
-  ) as TutorialCategory[]
+  ) as TutorialCategory[];
 
   const filteredTutorials = allTutorials.filter((tutorial) => {
     const matchesSearch =
       tutorial.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      tutorial.description.toLowerCase().includes(searchQuery.toLowerCase())
+      tutorial.description.toLowerCase().includes(searchQuery.toLowerCase());
 
     const matchesCategory =
-      selectedCategory === "all" || tutorial.category === selectedCategory
+      selectedCategory === "all" || tutorial.category === selectedCategory;
 
-    return matchesSearch && matchesCategory
-  })
+    return matchesSearch && matchesCategory;
+  });
 
   const tutorialsByCategory = categories.reduce((acc, category) => {
-    acc[category] = filteredTutorials.filter((t) => t.category === category)
-    return acc
-  }, {} as Record<TutorialCategory, Tutorial[]>)
+    acc[category] = filteredTutorials.filter((t) => t.category === category);
+    return acc;
+  }, {} as Record<TutorialCategory, Tutorial[]>);
 
   const completionPercentage =
-    (completedTutorials.length / allTutorials.length) * 100
+    (completedTutorials.length / allTutorials.length) * 100;
 
   return (
     <div className="space-y-6">
@@ -86,7 +87,7 @@ export function TutorialLibrary({
         <div>
           <h1 className="text-3xl font-bold">Tutorial Library</h1>
           <p className="text-muted-foreground mt-2">
-            Master SQL Studio with our guided tutorials
+            Master Howlerops with our guided tutorials
           </p>
         </div>
 
@@ -121,13 +122,13 @@ export function TutorialLibrary({
         <TabsList className="w-full justify-start overflow-x-auto">
           <TabsTrigger value="all">All Tutorials</TabsTrigger>
           {categories.map((category) => {
-            const Icon = categoryIcons[category]
+            const Icon = categoryIcons[category];
             return (
               <TabsTrigger key={category} value={category} className="gap-2">
                 <Icon className="h-4 w-4" />
                 {categoryLabels[category]}
               </TabsTrigger>
-            )
+            );
           })}
         </TabsList>
 
@@ -170,17 +171,17 @@ export function TutorialLibrary({
         </div>
       )}
     </div>
-  )
+  );
 }
 
 interface TutorialCardProps {
-  tutorial: Tutorial
-  isCompleted: boolean
-  onStart: () => void
+  tutorial: Tutorial;
+  isCompleted: boolean;
+  onStart: () => void;
 }
 
 function TutorialCard({ tutorial, isCompleted, onStart }: TutorialCardProps) {
-  const Icon = categoryIcons[tutorial.category]
+  const Icon = categoryIcons[tutorial.category];
 
   return (
     <Card
@@ -243,5 +244,5 @@ function TutorialCard({ tutorial, isCompleted, onStart }: TutorialCardProps) {
         </Button>
       </div>
     </Card>
-  )
+  );
 }

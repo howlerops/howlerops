@@ -1,4 +1,4 @@
-# SQL Studio Backend - Complete Deployment Guide
+# Howlerops Backend - Complete Deployment Guide
 
 **Platform:** Google Cloud Run
 **Cost:** ~$0-3/month (with free tier)
@@ -427,7 +427,7 @@ gcloud billing accounts list
 # Set up budget alert
 gcloud billing budgets create \
   --billing-account=YOUR_BILLING_ACCOUNT_ID \
-  --display-name="SQL Studio Budget" \
+  --display-name="Howlerops Budget" \
   --budget-amount=5USD \
   --threshold-rule=percent=80 \
   --threshold-rule=percent=100

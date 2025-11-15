@@ -1,6 +1,6 @@
 # IndexedDB Storage Infrastructure
 
-Complete local-first storage system for SQL Studio built on IndexedDB.
+Complete local-first storage system for Howlerops built on IndexedDB.
 
 ## Architecture
 
@@ -480,4 +480,4 @@ const filtered = all.filter(q => q.user_id === 'user-123')
 
 ## License
 
-Part of SQL Studio - see main LICENSE file.
+Part of Howlerops - see main LICENSE file.

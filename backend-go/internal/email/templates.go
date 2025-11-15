@@ -89,14 +89,14 @@ const verificationTemplate = `
 <body>
     <div class="container">
         <div class="header">
-            <div class="logo">SQL Studio</div>
+            <div class="logo">Howlerops</div>
         </div>
 
         <h1>Verify Your Email Address</h1>
 
         <p>Hello,</p>
 
-        <p>Thank you for signing up for SQL Studio! To complete your registration, please verify your email address by clicking the button below:</p>
+        <p>Thank you for signing up for Howlerops! To complete your registration, please verify your email address by clicking the button below:</p>
 
         <div style="text-align: center;">
             <a href="{{.VerificationURL}}" class="button">Verify Email Address</a>
@@ -109,15 +109,15 @@ const verificationTemplate = `
         </div>
 
         <div class="warning">
-            <strong>Important:</strong> This verification link will expire in 24 hours. If you didn't create an account with SQL Studio, you can safely ignore this email.
+            <strong>Important:</strong> This verification link will expire in 24 hours. If you didn't create an account with Howlerops, you can safely ignore this email.
         </div>
 
         <p>If you have any questions or need assistance, please don't hesitate to reach out to our support team.</p>
 
-        <p>Best regards,<br>The SQL Studio Team</p>
+        <p>Best regards,<br>The Howlerops Team</p>
 
         <div class="footer">
-            <p>&copy; {{.Year}} SQL Studio. All rights reserved.</p>
+            <p>&copy; {{.Year}} Howlerops. All rights reserved.</p>
             <p>This is an automated message, please do not reply to this email.</p>
         </div>
     </div>
@@ -223,14 +223,14 @@ const passwordResetTemplate = `
 <body>
     <div class="container">
         <div class="header">
-            <div class="logo">SQL Studio</div>
+            <div class="logo">Howlerops</div>
         </div>
 
         <h1>Reset Your Password</h1>
 
         <p>Hello,</p>
 
-        <p>We received a request to reset the password for your SQL Studio account. Click the button below to create a new password:</p>
+        <p>We received a request to reset the password for your Howlerops account. Click the button below to create a new password:</p>
 
         <div style="text-align: center;">
             <a href="{{.ResetURL}}" class="button">Reset Password</a>
@@ -252,16 +252,16 @@ const passwordResetTemplate = `
                 <li>Is at least 8 characters long</li>
                 <li>Contains uppercase and lowercase letters</li>
                 <li>Includes numbers and special characters</li>
-                <li>Is unique to SQL Studio</li>
+                <li>Is unique to Howlerops</li>
             </ul>
         </div>
 
         <p>If you're having trouble or didn't request this reset, please contact our support team immediately.</p>
 
-        <p>Best regards,<br>The SQL Studio Team</p>
+        <p>Best regards,<br>The Howlerops Team</p>
 
         <div class="footer">
-            <p>&copy; {{.Year}} SQL Studio. All rights reserved.</p>
+            <p>&copy; {{.Year}} Howlerops. All rights reserved.</p>
             <p>This is an automated message, please do not reply to this email.</p>
         </div>
     </div>
@@ -276,7 +276,7 @@ const welcomeTemplate = `
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Welcome to SQL Studio</title>
+    <title>Welcome to Howlerops</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -388,17 +388,17 @@ const welcomeTemplate = `
 <body>
     <div class="container">
         <div class="header">
-            <div class="logo">SQL Studio</div>
+            <div class="logo">Howlerops</div>
         </div>
 
-        <h1>Welcome to SQL Studio! 🎉</h1>
+        <h1>Welcome to Howlerops! 🎉</h1>
 
         <p>Hi {{.Name}},</p>
 
-        <p>We're thrilled to have you on board! SQL Studio is your powerful companion for working with databases, and we can't wait for you to explore all its features.</p>
+        <p>We're thrilled to have you on board! Howlerops is your powerful companion for working with databases, and we can't wait for you to explore all its features.</p>
 
         <div class="features">
-            <h2>What you can do with SQL Studio:</h2>
+            <h2>What you can do with Howlerops:</h2>
 
             <div class="feature-item">
                 <strong>Connect to Multiple Databases</strong> - MySQL, PostgreSQL, SQLite, MongoDB, and more
@@ -427,7 +427,7 @@ const welcomeTemplate = `
 
         <div class="cta-box">
             <h3>Ready to Get Started?</h3>
-            <p>Launch SQL Studio and create your first database connection</p>
+            <p>Launch Howlerops and create your first database connection</p>
             <a href="https://sqlstudio.io/docs/getting-started" class="button-white">View Getting Started Guide</a>
         </div>
 
@@ -441,15 +441,15 @@ const welcomeTemplate = `
             <li><strong>Support:</strong> Email us at support@sqlstudio.io</li>
         </ul>
 
-        <p>We're constantly improving SQL Studio based on user feedback. If you have any suggestions or run into any issues, please don't hesitate to reach out!</p>
+        <p>We're constantly improving Howlerops based on user feedback. If you have any suggestions or run into any issues, please don't hesitate to reach out!</p>
 
         <p>Happy querying!</p>
 
-        <p>Best regards,<br>The SQL Studio Team</p>
+        <p>Best regards,<br>The Howlerops Team</p>
 
         <div class="footer">
-            <p>&copy; {{.Year}} SQL Studio. All rights reserved.</p>
-            <p>You're receiving this email because you created an account at SQL Studio.</p>
+            <p>&copy; {{.Year}} Howlerops. All rights reserved.</p>
+            <p>You're receiving this email because you created an account at Howlerops.</p>
         </div>
     </div>
 </body>
@@ -584,7 +584,7 @@ const organizationInvitationTemplate = `
 <body>
     <div class="container">
         <div class="header">
-            <div class="logo">SQL Studio</div>
+            <div class="logo">Howlerops</div>
         </div>
 
         <h1>You're Invited! 🎉</h1>
@@ -597,7 +597,7 @@ const organizationInvitationTemplate = `
             <strong>{{.InviterName}}</strong> has invited you to join their organization
         </div>
 
-        <p>You've been invited to join <strong>{{.OrgName}}</strong> on SQL Studio as a <span class="role-badge">{{.Role}}</span>.</p>
+        <p>You've been invited to join <strong>{{.OrgName}}</strong> on Howlerops as a <span class="role-badge">{{.Role}}</span>.</p>
 
         <div class="info-box">
             <h3>What you'll get:</h3>
@@ -622,10 +622,10 @@ const organizationInvitationTemplate = `
 
         <p>If you have any questions about this invitation, please contact <strong>{{.InviterName}}</strong> or reach out to our support team.</p>
 
-        <p>Best regards,<br>The SQL Studio Team</p>
+        <p>Best regards,<br>The Howlerops Team</p>
 
         <div class="footer">
-            <p>&copy; {{.Year}} SQL Studio. All rights reserved.</p>
+            <p>&copy; {{.Year}} Howlerops. All rights reserved.</p>
             <p>This is an automated message, please do not reply to this email.</p>
         </div>
     </div>
@@ -774,7 +774,7 @@ const organizationWelcomeTemplate = `
 <body>
     <div class="container">
         <div class="header">
-            <div class="logo">SQL Studio</div>
+            <div class="logo">Howlerops</div>
         </div>
 
         <h1>Welcome! 🎉</h1>
@@ -834,11 +834,11 @@ const organizationWelcomeTemplate = `
 
         <p>Happy collaborating!</p>
 
-        <p>Best regards,<br>The SQL Studio Team</p>
+        <p>Best regards,<br>The Howlerops Team</p>
 
         <div class="footer">
-            <p>&copy; {{.Year}} SQL Studio. All rights reserved.</p>
-            <p>You're receiving this email because you joined {{.OrgName}} on SQL Studio.</p>
+            <p>&copy; {{.Year}} Howlerops. All rights reserved.</p>
+            <p>You're receiving this email because you joined {{.OrgName}} on Howlerops.</p>
         </div>
     </div>
 </body>
@@ -958,7 +958,7 @@ const memberRemovedTemplate = `
 <body>
     <div class="container">
         <div class="header">
-            <div class="logo">SQL Studio</div>
+            <div class="logo">Howlerops</div>
         </div>
 
         <h1>Organization Membership Update</h1>
@@ -969,7 +969,7 @@ const memberRemovedTemplate = `
 
         <p>Hello,</p>
 
-        <p>This is to inform you that you have been removed from the organization <strong>{{.OrgName}}</strong> on SQL Studio.</p>
+        <p>This is to inform you that you have been removed from the organization <strong>{{.OrgName}}</strong> on Howlerops.</p>
 
         <div class="info-box">
             <h3>What this means:</h3>
@@ -979,22 +979,22 @@ const memberRemovedTemplate = `
             <p>• Your personal data and connections remain intact</p>
         </div>
 
-        <p>Your personal SQL Studio account remains active, and all your individual connections, queries, and data are safe and accessible.</p>
+        <p>Your personal Howlerops account remains active, and all your individual connections, queries, and data are safe and accessible.</p>
 
         <div class="cta-box">
             <h3>Want to create your own organization?</h3>
-            <p>You can create and manage your own organizations on SQL Studio</p>
+            <p>You can create and manage your own organizations on Howlerops</p>
             <a href="https://sqlstudio.io/organizations/new" class="button">Create Organization</a>
         </div>
 
         <p>If you believe this was done in error or have questions about this change, please contact the organization administrator or our support team at support@sqlstudio.io.</p>
 
-        <p>Thank you for using SQL Studio.</p>
+        <p>Thank you for using Howlerops.</p>
 
-        <p>Best regards,<br>The SQL Studio Team</p>
+        <p>Best regards,<br>The Howlerops Team</p>
 
         <div class="footer">
-            <p>&copy; {{.Year}} SQL Studio. All rights reserved.</p>
+            <p>&copy; {{.Year}} Howlerops. All rights reserved.</p>
             <p>This is an automated notification. Please do not reply to this email.</p>
         </div>
     </div>

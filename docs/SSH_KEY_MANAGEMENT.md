@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide explains how to manage SSH keys for secure database connections through bastion hosts in SQL Studio. SSH keys provide stronger authentication than passwords and are essential for automated connections.
+This guide explains how to manage SSH keys for secure database connections through bastion hosts in Howlerops. SSH keys provide stronger authentication than passwords and are essential for automated connections.
 
 ## SSH Key Types
 
@@ -151,7 +151,7 @@ ssh-keygen -p -f ~/.ssh/sql-studio-rsa
 ssh-keygen -p -f ~/.ssh/sql-studio-rsa -N ""
 ```
 
-## Using Keys in SQL Studio
+## Using Keys in Howlerops
 
 ### 1. Upload Key File
 1. Open connection manager
@@ -170,7 +170,7 @@ ssh-keygen -p -f ~/.ssh/sql-studio-rsa -N ""
 6. Enter passphrase if key is encrypted
 
 ### 3. Key Validation
-SQL Studio validates keys before storing:
+Howlerops validates keys before storing:
 - **Format validation**: Ensures proper PEM/OpenSSH format
 - **Key type detection**: Identifies RSA, DSA, EC, Ed25519
 - **Encryption check**: Detects if key is passphrase-protected
@@ -199,7 +199,7 @@ cat ~/.ssh/sql-studio-new-ed25519.pub | ssh user@bastion.example.com 'cat >> ~/.
 ssh -i ~/.ssh/sql-studio-new-ed25519 user@bastion.example.com
 ```
 
-### 4. Update SQL Studio
+### 4. Update Howlerops
 1. Update connection with new key
 2. Test connection
 3. Remove old key from bastion host
@@ -266,7 +266,7 @@ ssh user@bastion.example.com
 - Wrong passphrase
 
 **Solutions:**
-- Enter correct passphrase in SQL Studio
+- Enter correct passphrase in Howlerops
 - Or remove passphrase: `ssh-keygen -p -f keyfile -N ""`
 
 ### Debugging Commands
@@ -372,7 +372,7 @@ ssh-add -l
 ssh-add -d ~/.ssh/sql-studio-rsa
 ```
 
-## Integration with SQL Studio
+## Integration with Howlerops
 
 ### Key Import Process
 1. **File upload**: Select private key file
@@ -394,4 +394,4 @@ ssh-add -d ~/.ssh/sql-studio-rsa
 
 ## Conclusion
 
-Proper SSH key management is essential for secure database connections. By following the best practices outlined in this guide, you can ensure that your SSH keys are secure, well-organized, and properly integrated with SQL Studio. Regular key rotation, proper permissions, and secure storage are key to maintaining a secure environment.
+Proper SSH key management is essential for secure database connections. By following the best practices outlined in this guide, you can ensure that your SSH keys are secure, well-organized, and properly integrated with Howlerops. Regular key rotation, proper permissions, and secure storage are key to maintaining a secure environment.

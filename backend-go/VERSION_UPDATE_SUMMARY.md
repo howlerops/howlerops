@@ -22,7 +22,7 @@ version.BuildDate = "2025-10-23T10:00:00Z"
 info := version.GetInfo()
 fmt.Println(info.String())
 // Output:
-// SQL Studio v2.0.0
+// Howlerops v2.0.0
 // Commit: abc123
 // Built: 2025-10-23T10:00:00Z
 // Go: go1.24.5
@@ -210,7 +210,7 @@ make build-cli
 # Test version command
 ./build/sqlstudio version
 # Output:
-# SQL Studio v2.0.0
+# Howlerops v2.0.0
 # Commit: 86b8752
 # Built: 2025-10-23T22:46:03Z
 # Go: go1.24.5
@@ -380,7 +380,7 @@ os.Rename(backupPath, currentExe)  // Restore
 ./sql-studio-backend --version
 
 # Both output:
-# SQL Studio v2.0.0
+# Howlerops v2.0.0
 # Commit: 86b8752
 # Built: 2025-10-23T22:46:03Z
 # Go: go1.24.5

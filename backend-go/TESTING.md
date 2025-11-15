@@ -2,7 +2,7 @@
 
 ## Overview
 
-SQL Studio backend has a comprehensive testing strategy that includes:
+Howlerops backend has a comprehensive testing strategy that includes:
 
 1. **Unit Tests** - Test individual components in isolation
 2. **Integration Tests** - Test API endpoints end-to-end

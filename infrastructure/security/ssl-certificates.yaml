@@ -1,5 +1,5 @@
 # =============================================================================
-# SQL Studio - SSL/TLS Certificate Configuration
+# Howlerops - SSL/TLS Certificate Configuration
 # =============================================================================
 # Automated certificate management using cert-manager
 # =============================================================================
@@ -33,8 +33,8 @@ spec:
             class: nginx
         selector:
           dnsZones:
-            - 'sql-studio.app'
-            - '*.sql-studio.app'
+            - "sql-studio.app"
+            - "*.sql-studio.app"
 
       # DNS-01 challenge (for wildcard certificates)
       - dns01:
@@ -45,8 +45,8 @@ spec:
               key: api-token
         selector:
           dnsZones:
-            - 'sql-studio.app'
-            - '*.sql-studio.app'
+            - "sql-studio.app"
+            - "*.sql-studio.app"
 
 ---
 # =============================================================================
@@ -85,13 +85,13 @@ spec:
   secretName: sql-studio-tls
 
   # Certificate duration
-  duration: 2160h  # 90 days
-  renewBefore: 360h  # 15 days before expiry
+  duration: 2160h # 90 days
+  renewBefore: 360h # 15 days before expiry
 
   # Subject
   subject:
     organizations:
-      - SQL Studio
+      - Howlerops
 
   # Common name
   commonName: sql-studio.app
@@ -231,7 +231,7 @@ metadata:
   name: cert-expiration-check
   namespace: sql-studio
 spec:
-  schedule: "0 0 * * *"  # Daily at midnight
+  schedule: "0 0 * * *" # Daily at midnight
   jobTemplate:
     spec:
       template:

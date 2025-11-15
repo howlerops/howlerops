@@ -1,5 +1,5 @@
 # =============================================================================
-# SQL Studio Backend - Kubernetes Deployment
+# Howlerops Backend - Kubernetes Deployment
 # =============================================================================
 # Production-ready backend deployment with:
 # - High availability (multi-replica)
@@ -21,7 +21,7 @@ metadata:
     tier: api
     version: v1
   annotations:
-    description: "SQL Studio backend API service"
+    description: "Howlerops backend API service"
     deployment.kubernetes.io/revision: "1"
 spec:
   # High availability configuration
@@ -39,8 +39,8 @@ spec:
   strategy:
     type: RollingUpdate
     rollingUpdate:
-      maxSurge: 1        # Can have 1 extra pod during rollout
-      maxUnavailable: 0  # Ensure no downtime during updates
+      maxSurge: 1 # Can have 1 extra pod during rollout
+      maxUnavailable: 0 # Ensure no downtime during updates
 
   # Pod template
   template:
@@ -162,12 +162,12 @@ spec:
           # Resource management
           resources:
             requests:
-              cpu: 100m        # 0.1 CPU cores
-              memory: 256Mi    # 256 MB
+              cpu: 100m # 0.1 CPU cores
+              memory: 256Mi # 256 MB
               ephemeral-storage: 100Mi
             limits:
-              cpu: 500m        # 0.5 CPU cores
-              memory: 1Gi      # 1 GB
+              cpu: 500m # 0.5 CPU cores
+              memory: 1Gi # 1 GB
               ephemeral-storage: 1Gi
 
           # Liveness probe - restart if unhealthy
@@ -176,11 +176,11 @@ spec:
               path: /health
               port: http
               scheme: HTTP
-            initialDelaySeconds: 30  # Wait for app startup
-            periodSeconds: 10        # Check every 10s
-            timeoutSeconds: 5        # Timeout after 5s
-            successThreshold: 1      # 1 success = healthy
-            failureThreshold: 3      # 3 failures = restart pod
+            initialDelaySeconds: 30 # Wait for app startup
+            periodSeconds: 10 # Check every 10s
+            timeoutSeconds: 5 # Timeout after 5s
+            successThreshold: 1 # 1 success = healthy
+            failureThreshold: 3 # 3 failures = restart pod
 
           # Readiness probe - remove from service if not ready
           readinessProbe:
@@ -188,11 +188,11 @@ spec:
               path: /health/ready
               port: http
               scheme: HTTP
-            initialDelaySeconds: 10  # Check sooner than liveness
-            periodSeconds: 5         # Check every 5s
-            timeoutSeconds: 3        # Faster timeout
-            successThreshold: 1      # 1 success = ready
-            failureThreshold: 2      # 2 failures = not ready
+            initialDelaySeconds: 10 # Check sooner than liveness
+            periodSeconds: 5 # Check every 5s
+            timeoutSeconds: 3 # Faster timeout
+            successThreshold: 1 # 1 success = ready
+            failureThreshold: 2 # 2 failures = not ready
 
           # Startup probe - handle slow startup
           startupProbe:
@@ -204,7 +204,7 @@ spec:
             periodSeconds: 5
             timeoutSeconds: 3
             successThreshold: 1
-            failureThreshold: 12     # 60s max startup time (12 * 5s)
+            failureThreshold: 12 # 60s max startup time (12 * 5s)
 
           # Security context for container
           securityContext:
@@ -263,7 +263,7 @@ metadata:
     app: sql-studio
     component: backend
   annotations:
-    description: "Service account for SQL Studio backend"
+    description: "Service account for Howlerops backend"
 
 ---
 # =============================================================================

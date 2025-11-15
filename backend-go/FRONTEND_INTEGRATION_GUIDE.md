@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide shows how to integrate SQL Studio's sync system into your frontend application (React, Electron, etc.).
+This guide shows how to integrate Howlerops's sync system into your frontend application (React, Electron, etc.).
 
 ## TypeScript Client
 

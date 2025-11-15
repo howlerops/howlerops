@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-# Quick Rollback Script for SQL Studio Backend
+# Quick Rollback Script for Howlerops Backend
 # ============================================================================
 # This script provides fast rollback to the previous stable version
 #
@@ -101,7 +101,7 @@ if [[ -z "$GCP_PROJECT" ]]; then
 fi
 
 echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${YELLOW}SQL Studio Backend - Emergency Rollback${NC}"
+echo -e "${YELLOW}Howlerops Backend - Emergency Rollback${NC}"
 echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 

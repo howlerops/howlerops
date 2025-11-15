@@ -1,6 +1,6 @@
-# SQL Studio GitHub Actions Workflows
+# Howlerops GitHub Actions Workflows
 
-This directory contains production-ready CI/CD workflows for SQL Studio's Go backend. The workflows automate testing, building, releasing, and deploying the application.
+This directory contains production-ready CI/CD workflows for Howlerops's Go backend. The workflows automate testing, building, releasing, and deploying the application.
 
 ## Overview
 
@@ -510,4 +510,4 @@ superfly/flyctl-actions/setup-flyctl@master
 ---
 
 **Last Updated:** 2025-10-23
-**Maintained By:** SQL Studio Team
+**Maintained By:** Howlerops Team

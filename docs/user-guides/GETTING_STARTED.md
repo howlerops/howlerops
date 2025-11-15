@@ -1,6 +1,6 @@
-# Getting Started with SQL Studio
+# Getting Started with Howlerops
 
-Welcome to SQL Studio! This guide will help you get up and running quickly.
+Welcome to Howlerops! This guide will help you get up and running quickly.
 
 ## Table of Contents
 
@@ -22,14 +22,14 @@ Simply visit [app.sqlstudio.com](https://app.sqlstudio.com) and sign up for a fr
 #### macOS
 1. Download the `.dmg` file from our [downloads page](https://sqlstudio.com/downloads)
 2. Open the downloaded file
-3. Drag SQL Studio to your Applications folder
-4. Launch SQL Studio from Applications
+3. Drag Howlerops to your Applications folder
+4. Launch Howlerops from Applications
 
 #### Windows
 1. Download the `.exe` installer from our [downloads page](https://sqlstudio.com/downloads)
 2. Run the installer
 3. Follow the installation wizard
-4. Launch SQL Studio from the Start menu
+4. Launch Howlerops from the Start menu
 
 #### Linux
 1. Download the `.AppImage` file from our [downloads page](https://sqlstudio.com/downloads)
@@ -38,7 +38,7 @@ Simply visit [app.sqlstudio.com](https://app.sqlstudio.com) and sign up for a fr
 
 ## First-Time Setup
 
-When you first launch SQL Studio, you'll be guided through an onboarding wizard:
+When you first launch Howlerops, you'll be guided through an onboarding wizard:
 
 1. **Welcome Screen**: Learn about key features
 2. **Profile Setup**: Tell us about your use case and role

@@ -1,5 +1,5 @@
 /**
- * Tier configuration and limits for SQL Studio
+ * Tier configuration and limits for Howlerops
  * Defines features and resource limits for each tier
  */
 

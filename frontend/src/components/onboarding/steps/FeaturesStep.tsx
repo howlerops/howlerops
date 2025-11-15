@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/ui/button";
 import {
   FileText,
   Users,
@@ -7,11 +7,11 @@ import {
   Zap,
   Shield,
   ArrowRight,
-} from "lucide-react"
+} from "lucide-react";
 
 interface FeaturesStepProps {
-  onNext: () => void
-  onBack: () => void
+  onNext: () => void;
+  onBack: () => void;
 }
 
 const features = [
@@ -63,7 +63,7 @@ const features = [
     color: "text-red-500",
     bgColor: "bg-red-50 dark:bg-red-950",
   },
-]
+];
 
 export function FeaturesStep({ onNext, onBack }: FeaturesStepProps) {
   return (
@@ -71,13 +71,13 @@ export function FeaturesStep({ onNext, onBack }: FeaturesStepProps) {
       <div className="text-center space-y-2 mb-8">
         <h2 className="text-2xl font-bold">Discover Powerful Features</h2>
         <p className="text-muted-foreground">
-          SQL Studio is packed with features to supercharge your workflow
+          Howlerops is packed with features to supercharge your workflow
         </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {features.map((feature, index) => {
-          const Icon = feature.icon
+          const Icon = feature.icon;
           return (
             <div
               key={index}
@@ -93,13 +93,13 @@ export function FeaturesStep({ onNext, onBack }: FeaturesStepProps) {
                 {feature.description}
               </p>
             </div>
-          )
+          );
         })}
       </div>
 
       <div className="text-center pt-4">
         <p className="text-sm text-muted-foreground mb-6">
-          And there's much more to explore as you use SQL Studio!
+          And there's much more to explore as you use Howlerops!
         </p>
       </div>
 
@@ -113,5 +113,5 @@ export function FeaturesStep({ onNext, onBack }: FeaturesStepProps) {
         </Button>
       </div>
     </div>
-  )
+  );
 }

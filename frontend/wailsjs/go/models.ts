@@ -281,6 +281,11 @@ export namespace main {
 	    executionTimeMs: number;
 	    limited: boolean;
 	    connectionId?: string;
+	    totalRows?: number;
+	    page?: number;
+	    pageSize?: number;
+	    totalPages?: number;
+	    hasMore?: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new AIQueryAgentResultAttachment(source);
@@ -294,6 +299,11 @@ export namespace main {
 	        this.executionTimeMs = source["executionTimeMs"];
 	        this.limited = source["limited"];
 	        this.connectionId = source["connectionId"];
+	        this.totalRows = source["totalRows"];
+	        this.page = source["page"];
+	        this.pageSize = source["pageSize"];
+	        this.totalPages = source["totalPages"];
+	        this.hasMore = source["hasMore"];
 	    }
 	}
 	export class AIQueryAgentSQLAttachment {
@@ -433,6 +443,8 @@ export namespace main {
 	    temperature?: number;
 	    maxTokens?: number;
 	    maxRows?: number;
+	    page?: number;
+	    pageSize?: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new AIQueryAgentRequest(source);
@@ -453,6 +465,8 @@ export namespace main {
 	        this.temperature = source["temperature"];
 	        this.maxTokens = source["maxTokens"];
 	        this.maxRows = source["maxRows"];
+	        this.page = source["page"];
+	        this.pageSize = source["pageSize"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -1235,6 +1249,7 @@ export namespace main {
 	    limit?: number;
 	    offset?: number;
 	    timeout?: number;
+	    isExport?: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new QueryRequest(source);
@@ -1247,6 +1262,7 @@ export namespace main {
 	        this.limit = source["limit"];
 	        this.offset = source["offset"];
 	        this.timeout = source["timeout"];
+	        this.isExport = source["isExport"];
 	    }
 	}
 	export class QueryResponse {
@@ -1420,6 +1436,12 @@ export namespace main {
 	    executionTimeMs: number;
 	    limited: boolean;
 	    connectionId: string;
+	    totalRows?: number;
+	    page?: number;
+	    pageSize?: number;
+	    totalPages?: number;
+	    hasMore?: boolean;
+	    offset?: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new ReadOnlyQueryResult(source);
@@ -1433,6 +1455,12 @@ export namespace main {
 	        this.executionTimeMs = source["executionTimeMs"];
 	        this.limited = source["limited"];
 	        this.connectionId = source["connectionId"];
+	        this.totalRows = source["totalRows"];
+	        this.page = source["page"];
+	        this.pageSize = source["pageSize"];
+	        this.totalPages = source["totalPages"];
+	        this.hasMore = source["hasMore"];
+	        this.offset = source["offset"];
 	    }
 	}
 	export class ResultData {

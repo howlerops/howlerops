@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-This document outlines the implementation plan for adding multi-database query support to HowlerOps SQL Studio, enabling users to query across multiple database connections in a single query with full autocomplete, visualization, and schema management support.
+This document outlines the implementation plan for adding multi-database query support to HowlerOps Howlerops, enabling users to query across multiple database connections in a single query with full autocomplete, visualization, and schema management support.
 
 ## Core Concept
 

@@ -1,6 +1,6 @@
 # Multi-Tab Sync Integration Guide
 
-Step-by-step guide to integrate multi-tab synchronization into SQL Studio stores.
+Step-by-step guide to integrate multi-tab synchronization into Howlerops stores.
 
 ## Prerequisites
 

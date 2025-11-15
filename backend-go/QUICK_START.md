@@ -1,4 +1,4 @@
-# Quick Start Guide - SQL Studio Sync System
+# Quick Start Guide - Howlerops Sync System
 
 ## 5-Minute Setup
 

@@ -2,7 +2,7 @@
 # =============================================================================
 # Fly.io Deployment Script
 # =============================================================================
-# This script automates the deployment of SQL Studio backend to Fly.io.
+# This script automates the deployment of Howlerops backend to Fly.io.
 # It handles:
 # - Environment validation
 # - Fly.io CLI installation check
@@ -79,7 +79,7 @@ check_command() {
 # Validation
 # -----------------------------------------------------------------------------
 
-log_info "Starting Fly.io deployment for SQL Studio Backend"
+log_info "Starting Fly.io deployment for Howlerops Backend"
 
 # Check required commands
 check_command "flyctl"

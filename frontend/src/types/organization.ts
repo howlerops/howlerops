@@ -1,7 +1,7 @@
 /**
  * Organization System Type Definitions
  *
- * Type-safe interfaces for team collaboration features in SQL Studio.
+ * Type-safe interfaces for team collaboration features in Howlerops.
  * Supports multi-user organizations, role-based access, invitations, and audit logging.
  *
  * @module types/organization

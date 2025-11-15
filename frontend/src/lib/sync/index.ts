@@ -1,7 +1,7 @@
 /**
  * Multi-Tab Synchronization System
  *
- * Comprehensive multi-tab synchronization for SQL Studio using BroadcastChannel API.
+ * Comprehensive multi-tab synchronization for Howlerops using BroadcastChannel API.
  *
  * @module sync
  */

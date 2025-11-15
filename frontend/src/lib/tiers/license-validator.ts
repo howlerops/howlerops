@@ -1,7 +1,7 @@
 /**
  * License Key Validator
  *
- * Validates and parses SQL Studio license keys.
+ * Validates and parses Howlerops license keys.
  *
  * License Key Format: SQL-{TIER}-{UUID}-{CHECKSUM}
  *

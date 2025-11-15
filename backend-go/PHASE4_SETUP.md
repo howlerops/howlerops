@@ -326,4 +326,4 @@ For issues or questions:
 
 **Phase 4 Setup Complete!** 🎉
 
-Your SQL Studio backend now supports query templates and scheduled execution.
+Your Howlerops backend now supports query templates and scheduled execution.

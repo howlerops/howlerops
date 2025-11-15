@@ -1,16 +1,16 @@
 ---
-title: "Introducing SQL Studio: The Modern SQL Editor for Teams"
+title: "Introducing Howlerops: The Modern SQL Editor for Teams"
 date: 2024-01-15
 author: Jacob Thompson
-description: "Discover how SQL Studio is revolutionizing database management with real-time collaboration, AI assistance, and multi-database support."
-keywords: ["sql studio", "database tool", "team collaboration", "sql editor"]
+description: "Discover how Howlerops is revolutionizing database management with real-time collaboration, AI assistance, and multi-database support."
+keywords: ["Howlerops", "database tool", "team collaboration", "sql editor"]
 ---
 
-## Why We Built SQL Studio
+## Why We Built Howlerops
 
 As developers, we've always been frustrated with database management tools that feel stuck in the past. Switching between multiple tools, struggling with collaboration, and wrestling with complex queries - these were our daily challenges.
 
-SQL Studio was born from a simple mission: **Make database work feel effortless and collaborative**.
+Howlerops was born from a simple mission: **Make database work feel effortless and collaborative**.
 
 ## Key Features That Set Us Apart
 

@@ -1,4 +1,4 @@
-# SQL Studio Backend - Quick Deploy Guide
+# Howlerops Backend - Quick Deploy Guide
 
 ## Prerequisites (5 minutes)
 

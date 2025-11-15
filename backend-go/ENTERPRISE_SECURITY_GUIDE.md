@@ -2,7 +2,7 @@
 
 ## Overview
 
-SQL Studio provides enterprise-grade security features to protect your data and ensure compliance with industry standards. This guide covers the implementation and configuration of SSO, IP whitelisting, two-factor authentication, API key management, and security headers.
+Howlerops provides enterprise-grade security features to protect your data and ensure compliance with industry standards. This guide covers the implementation and configuration of SSO, IP whitelisting, two-factor authentication, API key management, and security headers.
 
 ## Table of Contents
 
@@ -185,7 +185,7 @@ Body: { "code": "123456" }
 
 ### Overview
 
-API keys enable secure programmatic access to SQL Studio without exposing user credentials.
+API keys enable secure programmatic access to Howlerops without exposing user credentials.
 
 ### Key Format
 

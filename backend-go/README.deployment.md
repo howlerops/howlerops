@@ -1,6 +1,6 @@
-# SQL Studio Backend - Quick Deployment Guide
+# Howlerops Backend - Quick Deployment Guide
 
-Fast-track deployment guide for SQL Studio Go backend.
+Fast-track deployment guide for Howlerops Go backend.
 
 ## Quick Start (5 minutes)
 
@@ -135,7 +135,7 @@ See [COST_ANALYSIS.md](./COST_ANALYSIS.md) for detailed breakdown.
            │
            ▼
 ┌──────────────────────────┐
-│   SQL Studio Backend     │
+│   Howlerops Backend     │
 │  ┌────────────────────┐  │
 │  │  HTTP API (8500)   │  │
 │  │  gRPC API (9500)   │  │

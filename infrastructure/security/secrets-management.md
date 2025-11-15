@@ -1,4 +1,4 @@
-# SQL Studio - Secrets Management Guide
+# Howlerops - Secrets Management Guide
 
 Comprehensive guide for managing secrets securely in production.
 
@@ -13,7 +13,7 @@ Comprehensive guide for managing secrets securely in production.
 
 ## Overview
 
-SQL Studio uses multiple secret management approaches depending on the deployment environment:
+Howlerops uses multiple secret management approaches depending on the deployment environment:
 
 1. **Kubernetes Secrets** - Built-in Kubernetes secret management
 2. **GCP Secret Manager** - Cloud-native secret management (recommended for GCP)

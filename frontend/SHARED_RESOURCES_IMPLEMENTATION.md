@@ -4,7 +4,7 @@ Complete frontend implementation for sharing database connections and queries wi
 
 ## Overview
 
-This implementation provides a comprehensive UI for managing shared resources in SQL Studio, including:
+This implementation provides a comprehensive UI for managing shared resources in Howlerops, including:
 
 - Sharing/unsharing connections and queries
 - Organization-scoped resource management

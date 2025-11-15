@@ -1,6 +1,6 @@
 # Installation Guide
 
-This guide covers all methods of installing SQL Studio Backend.
+This guide covers all methods of installing Howlerops Backend.
 
 ## Table of Contents
 
@@ -305,7 +305,7 @@ sql-studio --version
 # Create service file
 sudo tee /etc/systemd/system/sql-studio.service > /dev/null <<EOF
 [Unit]
-Description=SQL Studio Backend
+Description=Howlerops Backend
 After=network.target
 
 [Service]
@@ -431,14 +431,14 @@ log:
 
 ## Verification
 
-After installation, verify SQL Studio is working:
+After installation, verify Howlerops is working:
 
 ```bash
 # Check version
 sql-studio --version
 
 # Expected output:
-# SQL Studio Backend
+# Howlerops Backend
 # Version:    2.1.0
 # Commit:     abc1234
 # Build Date: 2025-10-23T10:30:00Z
@@ -634,4 +634,4 @@ vim ~/.sql-studio/config.yaml
 
 ## License
 
-SQL Studio is released under the MIT License. See [LICENSE](LICENSE) for details.
+Howlerops is released under the MIT License. See [LICENSE](LICENSE) for details.

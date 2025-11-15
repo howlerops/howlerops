@@ -1,6 +1,6 @@
 package turso
 
-// This file provides integration examples for SQL Studio backend
+// This file provides integration examples for Howlerops backend
 // DO NOT import this in production - it's documentation only
 
 /*
@@ -75,7 +75,7 @@ func main() {
 	// 6. Set up HTTP handlers
 	setupHTTPHandlers(authService, appDataStore, logger)
 
-	logger.Info("SQL Studio backend started with Turso storage")
+	logger.Info("Howlerops backend started with Turso storage")
 }
 
 func startCleanupTasks(ctx context.Context, sessionStore *turso.TursoSessionStore, attemptStore *turso.TursoLoginAttemptStore, logger *logrus.Logger) {

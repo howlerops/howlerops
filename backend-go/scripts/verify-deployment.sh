@@ -29,7 +29,7 @@ fi
 # Remove trailing slash if present
 SERVICE_URL=${SERVICE_URL%/}
 
-echo -e "${BLUE}🧪 Verifying SQL Studio Backend Deployment${NC}"
+echo -e "${BLUE}🧪 Verifying Howlerops Backend Deployment${NC}"
 echo "=============================================="
 echo "Service URL: $SERVICE_URL"
 echo ""

@@ -1,6 +1,6 @@
 # Database Migrations Guide
 
-This guide explains how database migrations work in SQL Studio and how to create, test, and manage them.
+This guide explains how database migrations work in Howlerops and how to create, test, and manage them.
 
 ## Table of Contents
 
@@ -15,7 +15,7 @@ This guide explains how database migrations work in SQL Studio and how to create
 
 ## Overview
 
-SQL Studio uses a simple, transaction-safe migration system to manage database schema changes. Migrations are:
+Howlerops uses a simple, transaction-safe migration system to manage database schema changes. Migrations are:
 
 - **Versioned**: Each migration has a unique version number
 - **Idempotent**: Safe to run multiple times

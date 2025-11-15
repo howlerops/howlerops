@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, CheckCircle, XCircle, Eye } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Loader2, CheckCircle, XCircle, Eye } from "lucide-react";
 
 interface WhiteLabelConfig {
   organization_id: string;
@@ -42,18 +42,18 @@ export default function WhiteLabelingPage() {
 
   // Form state
   const [formData, setFormData] = useState({
-    logo_url: '',
-    favicon_url: '',
-    primary_color: '#1E40AF',
-    secondary_color: '#64748B',
-    accent_color: '#8B5CF6',
-    company_name: '',
-    support_email: '',
-    custom_css: '',
+    logo_url: "",
+    favicon_url: "",
+    primary_color: "#1E40AF",
+    secondary_color: "#64748B",
+    accent_color: "#8B5CF6",
+    company_name: "",
+    support_email: "",
+    custom_css: "",
     hide_branding: false,
   });
 
-  const organizationId = 'current'; // Replace with actual org ID from context
+  const organizationId = "current"; // Replace with actual org ID from context
 
   useEffect(() => {
     loadConfig();
@@ -63,24 +63,26 @@ export default function WhiteLabelingPage() {
   const loadConfig = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/organizations/${organizationId}/white-label`);
+      const response = await fetch(
+        `/api/organizations/${organizationId}/white-label`
+      );
       if (response.ok) {
         const data = await response.json();
         setConfig(data);
         setFormData({
-          logo_url: data.logo_url || '',
-          favicon_url: data.favicon_url || '',
-          primary_color: data.primary_color || '#1E40AF',
-          secondary_color: data.secondary_color || '#64748B',
-          accent_color: data.accent_color || '#8B5CF6',
-          company_name: data.company_name || '',
-          support_email: data.support_email || '',
-          custom_css: data.custom_css || '',
+          logo_url: data.logo_url || "",
+          favicon_url: data.favicon_url || "",
+          primary_color: data.primary_color || "#1E40AF",
+          secondary_color: data.secondary_color || "#64748B",
+          accent_color: data.accent_color || "#8B5CF6",
+          company_name: data.company_name || "",
+          support_email: data.support_email || "",
+          custom_css: data.custom_css || "",
           hide_branding: data.hide_branding || false,
         });
       }
     } catch {
-      setError('Failed to load white-label configuration');
+      setError("Failed to load white-label configuration");
     } finally {
       setLoading(false);
     }
@@ -88,13 +90,15 @@ export default function WhiteLabelingPage() {
 
   const loadDomains = async () => {
     try {
-      const response = await fetch(`/api/organizations/${organizationId}/domains`);
+      const response = await fetch(
+        `/api/organizations/${organizationId}/domains`
+      );
       if (response.ok) {
         const data = await response.json();
         setDomains(data || []);
       }
     } catch (err) {
-      console.error('Failed to load domains', err);
+      console.error("Failed to load domains", err);
     }
   };
 
@@ -104,23 +108,28 @@ export default function WhiteLabelingPage() {
       setError(null);
       setSuccess(null);
 
-      const response = await fetch(`/api/organizations/${organizationId}/white-label`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
+      const response = await fetch(
+        `/api/organizations/${organizationId}/white-label`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(formData),
+        }
+      );
 
       if (!response.ok) {
-        throw new Error('Failed to save configuration');
+        throw new Error("Failed to save configuration");
       }
 
       const data = await response.json();
       setConfig(data);
-      setSuccess('White-label configuration saved successfully!');
+      setSuccess("White-label configuration saved successfully!");
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save configuration');
+      setError(
+        err instanceof Error ? err.message : "Failed to save configuration"
+      );
     } finally {
       setSaving(false);
     }
@@ -128,22 +137,25 @@ export default function WhiteLabelingPage() {
 
   const handleAddDomain = async (domain: string) => {
     try {
-      const response = await fetch(`/api/organizations/${organizationId}/domains`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ domain }),
-      });
+      const response = await fetch(
+        `/api/organizations/${organizationId}/domains`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ domain }),
+        }
+      );
 
       if (!response.ok) {
-        throw new Error('Failed to add domain');
+        throw new Error("Failed to add domain");
       }
 
       await loadDomains();
-      setSuccess('Domain added! Please follow DNS verification instructions.');
+      setSuccess("Domain added! Please follow DNS verification instructions.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add domain');
+      setError(err instanceof Error ? err.message : "Failed to add domain");
     }
   };
 
@@ -151,17 +163,19 @@ export default function WhiteLabelingPage() {
     try {
       const response = await fetch(
         `/api/organizations/${organizationId}/domains/${domain}/verify`,
-        { method: 'POST' }
+        { method: "POST" }
       );
 
       if (!response.ok) {
-        throw new Error('Domain verification failed. Please check DNS records.');
+        throw new Error(
+          "Domain verification failed. Please check DNS records."
+        );
       }
 
       await loadDomains();
-      setSuccess('Domain verified successfully!');
+      setSuccess("Domain verified successfully!");
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to verify domain');
+      setError(err instanceof Error ? err.message : "Failed to verify domain");
     }
   };
 
@@ -177,7 +191,9 @@ export default function WhiteLabelingPage() {
     <div className="container mx-auto p-6 max-w-6xl">
       <div className="mb-6">
         <h1 className="text-3xl font-bold">White-labeling</h1>
-        <p className="text-gray-600">Customize the appearance and branding of your SQL Studio instance</p>
+        <p className="text-gray-600">
+          Customize the appearance and branding of your Howlerops instance
+        </p>
       </div>
 
       {error && (
@@ -214,7 +230,9 @@ export default function WhiteLabelingPage() {
                   <Input
                     id="company_name"
                     value={formData.company_name}
-                    onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, company_name: e.target.value })
+                    }
                     placeholder="Your Company Name"
                   />
                 </div>
@@ -224,10 +242,14 @@ export default function WhiteLabelingPage() {
                   <Input
                     id="logo_url"
                     value={formData.logo_url}
-                    onChange={(e) => setFormData({ ...formData, logo_url: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, logo_url: e.target.value })
+                    }
                     placeholder="https://example.com/logo.png"
                   />
-                  <p className="text-sm text-gray-500 mt-1">Recommended: PNG or SVG, max 200x50px</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Recommended: PNG or SVG, max 200x50px
+                  </p>
                 </div>
 
                 <div>
@@ -235,10 +257,14 @@ export default function WhiteLabelingPage() {
                   <Input
                     id="favicon_url"
                     value={formData.favicon_url}
-                    onChange={(e) => setFormData({ ...formData, favicon_url: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, favicon_url: e.target.value })
+                    }
                     placeholder="https://example.com/favicon.ico"
                   />
-                  <p className="text-sm text-gray-500 mt-1">Recommended: 32x32px ICO or PNG</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Recommended: 32x32px ICO or PNG
+                  </p>
                 </div>
 
                 <div>
@@ -247,7 +273,12 @@ export default function WhiteLabelingPage() {
                     id="support_email"
                     type="email"
                     value={formData.support_email}
-                    onChange={(e) => setFormData({ ...formData, support_email: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        support_email: e.target.value,
+                      })
+                    }
                     placeholder="support@yourcompany.com"
                   />
                 </div>
@@ -257,10 +288,17 @@ export default function WhiteLabelingPage() {
                     type="checkbox"
                     id="hide_branding"
                     checked={formData.hide_branding}
-                    onChange={(e) => setFormData({ ...formData, hide_branding: e.target.checked })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        hide_branding: e.target.checked,
+                      })
+                    }
                     className="rounded"
                   />
-                  <Label htmlFor="hide_branding">Hide "Powered by SQL Studio" branding</Label>
+                  <Label htmlFor="hide_branding">
+                    Hide "Powered by Howlerops" branding
+                  </Label>
                 </div>
               </CardContent>
             </Card>
@@ -276,13 +314,23 @@ export default function WhiteLabelingPage() {
                     <Input
                       id="primary_color"
                       value={formData.primary_color}
-                      onChange={(e) => setFormData({ ...formData, primary_color: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          primary_color: e.target.value,
+                        })
+                      }
                       placeholder="#1E40AF"
                     />
                     <input
                       type="color"
                       value={formData.primary_color}
-                      onChange={(e) => setFormData({ ...formData, primary_color: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          primary_color: e.target.value,
+                        })
+                      }
                       className="w-12 h-10 rounded border"
                     />
                   </div>
@@ -294,13 +342,23 @@ export default function WhiteLabelingPage() {
                     <Input
                       id="secondary_color"
                       value={formData.secondary_color}
-                      onChange={(e) => setFormData({ ...formData, secondary_color: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          secondary_color: e.target.value,
+                        })
+                      }
                       placeholder="#64748B"
                     />
                     <input
                       type="color"
                       value={formData.secondary_color}
-                      onChange={(e) => setFormData({ ...formData, secondary_color: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          secondary_color: e.target.value,
+                        })
+                      }
                       className="w-12 h-10 rounded border"
                     />
                   </div>
@@ -312,13 +370,23 @@ export default function WhiteLabelingPage() {
                     <Input
                       id="accent_color"
                       value={formData.accent_color}
-                      onChange={(e) => setFormData({ ...formData, accent_color: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          accent_color: e.target.value,
+                        })
+                      }
                       placeholder="#8B5CF6"
                     />
                     <input
                       type="color"
                       value={formData.accent_color}
-                      onChange={(e) => setFormData({ ...formData, accent_color: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          accent_color: e.target.value,
+                        })
+                      }
                       className="w-12 h-10 rounded border"
                     />
                   </div>
@@ -350,9 +418,12 @@ export default function WhiteLabelingPage() {
           </div>
 
           <div className="flex justify-end space-x-2">
-            <Button variant="outline" onClick={() => setShowPreview(!showPreview)}>
+            <Button
+              variant="outline"
+              onClick={() => setShowPreview(!showPreview)}
+            >
               <Eye className="w-4 h-4 mr-2" />
-              {showPreview ? 'Hide Preview' : 'Show Preview'}
+              {showPreview ? "Hide Preview" : "Show Preview"}
             </Button>
             <Button onClick={handleSave} disabled={saving}>
               {saving ? (
@@ -361,7 +432,7 @@ export default function WhiteLabelingPage() {
                   Saving...
                 </>
               ) : (
-                'Save Changes'
+                "Save Changes"
               )}
             </Button>
           </div>
@@ -376,7 +447,10 @@ export default function WhiteLabelingPage() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 {domains.map((domain) => (
-                  <div key={domain.id} className="flex items-center justify-between p-4 border rounded">
+                  <div
+                    key={domain.id}
+                    className="flex items-center justify-between p-4 border rounded"
+                  >
                     <div className="flex-1">
                       <p className="font-medium">{domain.domain}</p>
                       {domain.verified ? (
@@ -388,29 +462,31 @@ export default function WhiteLabelingPage() {
                         <div className="text-sm text-gray-600">
                           <p>Add this DNS record:</p>
                           <code className="text-xs bg-gray-100 p-1 rounded">
-                            {domain.dns_record_type}: {domain.dns_record_name} = {domain.dns_record_value}
+                            {domain.dns_record_type}: {domain.dns_record_name} ={" "}
+                            {domain.dns_record_value}
                           </code>
                         </div>
                       )}
                     </div>
                     {!domain.verified && (
-                      <Button onClick={() => handleVerifyDomain(domain.domain)}>Verify</Button>
+                      <Button onClick={() => handleVerifyDomain(domain.domain)}>
+                        Verify
+                      </Button>
                     )}
                   </div>
                 ))}
               </div>
 
               <div className="flex space-x-2">
-                <Input
-                  id="new_domain"
-                  placeholder="app.yourcompany.com"
-                />
+                <Input id="new_domain" placeholder="app.yourcompany.com" />
                 <Button
                   onClick={() => {
-                    const input = document.getElementById('new_domain') as HTMLInputElement;
+                    const input = document.getElementById(
+                      "new_domain"
+                    ) as HTMLInputElement;
                     if (input.value) {
                       handleAddDomain(input.value);
-                      input.value = '';
+                      input.value = "";
                     }
                   }}
                 >
@@ -430,13 +506,16 @@ export default function WhiteLabelingPage() {
             <CardContent>
               <Textarea
                 value={formData.custom_css}
-                onChange={(e) => setFormData({ ...formData, custom_css: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, custom_css: e.target.value })
+                }
                 placeholder="/* Add custom CSS here */"
                 rows={15}
                 className="font-mono text-sm"
               />
               <p className="text-sm text-gray-500 mt-2">
-                Add custom CSS to further customize the appearance. Use with caution.
+                Add custom CSS to further customize the appearance. Use with
+                caution.
               </p>
               <div className="flex justify-end mt-4">
                 <Button onClick={handleSave} disabled={saving}>
@@ -446,7 +525,7 @@ export default function WhiteLabelingPage() {
                       Saving...
                     </>
                   ) : (
-                    'Save CSS'
+                    "Save CSS"
                   )}
                 </Button>
               </div>
@@ -462,9 +541,12 @@ export default function WhiteLabelingPage() {
             <CardTitle>Live Preview</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="border rounded-lg p-6" style={{
-              backgroundColor: '#ffffff',
-            }}>
+            <div
+              className="border rounded-lg p-6"
+              style={{
+                backgroundColor: "#ffffff",
+              }}
+            >
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center space-x-2">
                   {formData.logo_url ? (
@@ -474,7 +556,7 @@ export default function WhiteLabelingPage() {
                   )}
                 </div>
                 <div className="text-sm text-gray-600">
-                  {formData.company_name || 'Your Company'}
+                  {formData.company_name || "Your Company"}
                 </div>
               </div>
 

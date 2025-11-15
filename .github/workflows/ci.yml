@@ -1,5 +1,5 @@
 # =============================================================================
-# SQL Studio Backend - Continuous Integration Workflow
+# Howlerops Backend - Continuous Integration Workflow
 # =============================================================================
 # This workflow provides fast feedback for developers by running tests and
 # linting on every pull request and push to main branch. It's optimized for
@@ -29,16 +29,16 @@ on:
     branches:
       - main
     paths:
-      - 'backend-go/**'
-      - '.github/workflows/ci.yml'
+      - "backend-go/**"
+      - ".github/workflows/ci.yml"
 
   # Run on pushes to main (after merge)
   push:
     branches:
       - main
     paths:
-      - 'backend-go/**'
-      - '.github/workflows/ci.yml'
+      - "backend-go/**"
+      - ".github/workflows/ci.yml"
 
   # Allow manual triggering
   workflow_dispatch:
@@ -50,8 +50,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GO_VERSION: '1.24'
-  GOLANGCI_LINT_VERSION: 'v1.64.8'  # Built with Go 1.24, supports Go 1.24.5
+  GO_VERSION: "1.24"
+  GOLANGCI_LINT_VERSION: "v1.64.8" # Built with Go 1.24, supports Go 1.24.5
   # CGO is required for SQLite driver (mattn/go-sqlite3)
   CGO_ENABLED: 1
 

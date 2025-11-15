@@ -2,7 +2,7 @@
 # =============================================================================
 # Google Cloud Run Deployment Script
 # =============================================================================
-# This script automates the deployment of SQL Studio backend to GCP Cloud Run.
+# This script automates the deployment of Howlerops backend to GCP Cloud Run.
 # It handles:
 # - Environment validation
 # - Secret management via Secret Manager
@@ -73,7 +73,7 @@ check_command() {
 # Validation
 # -----------------------------------------------------------------------------
 
-log_info "Starting GCP Cloud Run deployment for SQL Studio Backend"
+log_info "Starting GCP Cloud Run deployment for Howlerops Backend"
 
 # Check required commands
 check_command "gcloud"
@@ -151,8 +151,8 @@ log_info "Setting up service account..."
 if ! gcloud iam service-accounts describe "${SERVICE_ACCOUNT_NAME}@${GCP_PROJECT_ID}.iam.gserviceaccount.com" &> /dev/null; then
     log_info "Creating service account: $SERVICE_ACCOUNT_NAME"
     gcloud iam service-accounts create "$SERVICE_ACCOUNT_NAME" \
-        --display-name="SQL Studio Backend Service Account" \
-        --description="Service account for SQL Studio backend running on Cloud Run"
+        --display-name="Howlerops Backend Service Account" \
+        --description="Service account for Howlerops backend running on Cloud Run"
     log_success "Service account created"
 else
     log_info "Service account already exists"

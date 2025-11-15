@@ -1,6 +1,6 @@
 # Enterprise Features Guide
 
-This guide covers the enterprise-grade multi-tenancy and white-labeling features in SQL Studio.
+This guide covers the enterprise-grade multi-tenancy and white-labeling features in Howlerops.
 
 ## Table of Contents
 
@@ -18,7 +18,7 @@ This guide covers the enterprise-grade multi-tenancy and white-labeling features
 
 ### Overview
 
-SQL Studio implements strict tenant isolation to ensure complete data separation between organizations. Every request is scoped to the user's organizations, preventing any data leakage.
+Howlerops implements strict tenant isolation to ensure complete data separation between organizations. Every request is scoped to the user's organizations, preventing any data leakage.
 
 ### Key Components
 
@@ -151,7 +151,7 @@ document.head.appendChild(style);
 | `company_name` | Company name displayed | Text |
 | `support_email` | Support contact email | Email address |
 | `custom_css` | Additional CSS overrides | CSS text |
-| `hide_branding` | Hide "Powered by SQL Studio" | Boolean |
+| `hide_branding` | Hide "Powered by Howlerops" | Boolean |
 
 ---
 

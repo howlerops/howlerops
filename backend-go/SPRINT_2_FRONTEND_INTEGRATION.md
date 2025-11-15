@@ -90,14 +90,14 @@ async function createInvitation(orgId: string, email: string, role: string) {
 ### What Users Will Receive
 
 **1. Invitation Email**
-- Subject: "You're invited to join [OrgName] on SQL Studio"
+- Subject: "You're invited to join [OrgName] on Howlerops"
 - Contains:
   - Organization name
   - Inviter name
   - Role being offered
   - "Accept Invitation" button
   - 7-day expiration notice
-  - SQL Studio branding
+  - Howlerops branding
 
 **2. Welcome Email (after accepting)**
 - Subject: "Welcome to [OrgName]!"
@@ -291,7 +291,7 @@ function InvitationPreview({ orgName, userName }: { orgName: string; userName: s
     <div className="border rounded-lg p-4 bg-gray-50">
       <h3 className="font-semibold mb-2">Email Preview</h3>
       <div className="bg-white p-4 rounded shadow-sm">
-        <div className="text-2xl font-bold text-indigo-600 mb-4">SQL Studio</div>
+        <div className="text-2xl font-bold text-indigo-600 mb-4">Howlerops</div>
         <h1 className="text-xl font-bold mb-4">You're Invited! 🎉</h1>
         <div className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white p-4 rounded mb-4">
           <div className="font-bold text-lg">{orgName}</div>

@@ -6,7 +6,7 @@
 
 ## 1. INTRODUCTION
 
-This Cookie Policy explains how SQL Studio Inc. ("**SQL Studio**," "**we**," "**us**," or "**our**") uses cookies and similar tracking technologies on our website and applications (collectively, our "**Services**"). This policy provides you with clear and comprehensive information about the cookies we use, why we use them, and your choices regarding their use.
+This Cookie Policy explains how Howlerops Inc. ("**Howlerops**," "**we**," "**us**," or "**our**") uses cookies and similar tracking technologies on our website and applications (collectively, our "**Services**"). This policy provides you with clear and comprehensive information about the cookies we use, why we use them, and your choices regarding their use.
 
 By using our Services, you consent to the use of cookies in accordance with this Cookie Policy. If you do not agree to our use of cookies, please adjust your browser settings or do not use our Services.
 
@@ -59,11 +59,11 @@ These cookies are necessary for the website to function and cannot be disabled.
 
 | Cookie Name | Provider | Purpose | Duration | Data Collected |
 |-------------|----------|---------|----------|----------------|
-| session_id | SQL Studio | Maintains user session | Session | Session identifier |
-| auth_token | SQL Studio | Authentication | 7 days | Encrypted token |
-| csrf_token | SQL Studio | Security/CSRF protection | Session | Security token |
-| cookie_consent | SQL Studio | Stores cookie preferences | 1 year | Consent choices |
-| security_check | SQL Studio | Security verification | Session | Verification status |
+| session_id | Howlerops | Maintains user session | Session | Session identifier |
+| auth_token | Howlerops | Authentication | 7 days | Encrypted token |
+| csrf_token | Howlerops | Security/CSRF protection | Session | Security token |
+| cookie_consent | Howlerops | Stores cookie preferences | 1 year | Consent choices |
+| security_check | Howlerops | Security verification | Session | Verification status |
 
 ### 4.2 Functional Cookies
 
@@ -71,11 +71,11 @@ These cookies enable enhanced functionality and personalization.
 
 | Cookie Name | Provider | Purpose | Duration | Data Collected |
 |-------------|----------|---------|----------|----------------|
-| user_preferences | SQL Studio | Stores UI preferences | 1 year | Theme, layout |
-| language | SQL Studio | Language preference | 1 year | Selected language |
-| timezone | SQL Studio | Timezone setting | 1 year | User timezone |
-| recent_databases | SQL Studio | Recent connections | 30 days | Connection list |
-| workspace_state | SQL Studio | Saves workspace layout | 90 days | UI configuration |
+| user_preferences | Howlerops | Stores UI preferences | 1 year | Theme, layout |
+| language | Howlerops | Language preference | 1 year | Selected language |
+| timezone | Howlerops | Timezone setting | 1 year | User timezone |
+| recent_databases | Howlerops | Recent connections | 30 days | Connection list |
+| workspace_state | Howlerops | Saves workspace layout | 90 days | UI configuration |
 
 ### 4.3 Analytics Cookies
 
@@ -340,7 +340,7 @@ For questions about our use of cookies:
 
 **Email**: privacy@sqlstudio.com
 **Data Protection Officer**: dpo@sqlstudio.com
-**Mail**: SQL Studio Inc.
+**Mail**: Howlerops Inc.
 Attn: Privacy Team
 [COMPANY_ADDRESS]
 
@@ -367,4 +367,4 @@ We comply with local cookie laws. Contact us for region-specific information.
 
 **This Cookie Policy is effective as of January 1, 2025.**
 
-By continuing to use SQL Studio after this date, you acknowledge and agree to our use of cookies as described in this policy.
+By continuing to use Howlerops after this date, you acknowledge and agree to our use of cookies as described in this policy.

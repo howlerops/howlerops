@@ -1,12 +1,12 @@
-# SQL Studio Scripts
+# Howlerops Scripts
 
-This directory contains utility scripts for developing, testing, and installing SQL Studio.
+This directory contains utility scripts for developing, testing, and installing Howlerops.
 
 ## Installation Script
 
 ### `install.sh` (in repository root)
 
-Universal installation script for SQL Studio that works across all platforms.
+Universal installation script for Howlerops that works across all platforms.
 
 **Location:** `/install.sh` (also symlinked in this directory for testing)
 
@@ -84,7 +84,7 @@ Comprehensive test suite for the installation script.
 **Example Output:**
 ```
 ==========================================
-  SQL Studio Installer Test Suite
+  Howlerops Installer Test Suite
 ==========================================
 
 [TEST] Script exists and is executable
@@ -162,7 +162,7 @@ The installation script is designed to work seamlessly in CI/CD pipelines.
 ### GitHub Actions
 
 ```yaml
-- name: Install SQL Studio
+- name: Install Howlerops
   run: |
     curl -fsSL https://raw.githubusercontent.com/sql-studio/sql-studio/main/install.sh | sh -s -- --version v2.0.0
     echo "$HOME/.local/bin" >> $GITHUB_PATH
@@ -302,5 +302,5 @@ The installation script follows security best practices:
 
 ## License
 
-All scripts in this directory are part of SQL Studio and released under the MIT License.
+All scripts in this directory are part of Howlerops and released under the MIT License.
 See [LICENSE](../LICENSE) for details.

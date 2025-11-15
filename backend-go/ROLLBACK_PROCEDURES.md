@@ -1,4 +1,4 @@
-# Rollback Procedures for SQL Studio Backend
+# Rollback Procedures for Howlerops Backend
 
 ## Table of Contents
 
@@ -358,7 +358,7 @@ gcloud monitoring time-series list \
 
 ## Service Incident Report
 
-**Service:** SQL Studio Backend
+**Service:** Howlerops Backend
 **Date:** [DATE]
 **Duration:** [START] - [END]
 **Impact:** [DESCRIPTION]

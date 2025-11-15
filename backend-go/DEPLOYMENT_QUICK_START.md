@@ -1,4 +1,4 @@
-# SQL Studio Backend - Quick Start Guide
+# Howlerops Backend - Quick Start Guide
 
 **For experienced developers: Deploy in 5-10 minutes**
 

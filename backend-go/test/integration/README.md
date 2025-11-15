@@ -1,6 +1,6 @@
 # Integration Tests
 
-This directory contains integration tests for the SQL Studio backend API.
+This directory contains integration tests for the Howlerops backend API.
 
 ## Running Tests
 

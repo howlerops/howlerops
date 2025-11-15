@@ -1,5 +1,5 @@
 # =============================================================================
-# golangci-lint Configuration for SQL Studio Backend
+# golangci-lint Configuration for Howlerops Backend
 # =============================================================================
 # This configuration enables comprehensive linting with sensible defaults for
 # production Go applications. It balances code quality with practicality.
@@ -27,13 +27,13 @@ linters:
   # Enable all linters to fix ALL remaining issues
   # Note: Some linters temporarily disabled to unblock deployment
   enable:
-    - govet          # Standard Go vet - type checking and basic checks
-    - ineffassign    # Detects ineffectual assignments (10 issues to fix)
-    - errcheck       # Check for unchecked errors (629 issues)
+    - govet # Standard Go vet - type checking and basic checks
+    - ineffassign # Detects ineffectual assignments (10 issues to fix)
+    - errcheck # Check for unchecked errors (629 issues)
     # - staticcheck  # Temporarily disabled - style/deprecation warnings
     # - unused       # Temporarily disabled - style issue, not a bug
-    - gosec          # Inspects source code for security problems (79 issues)
-    - nilerr         # Finds code that returns nil even if non-nil error check (6 issues)
+    - gosec # Inspects source code for security problems (79 issues)
+    - nilerr # Finds code that returns nil even if non-nil error check (6 issues)
 
 # Linters settings
 linters-settings:
@@ -82,9 +82,9 @@ linters-settings:
 
     # Disable specific analyzers
     disable:
-      - fieldalignment  # Too strict for most use cases
-      - shadow          # Variable shadowing - style issue, not a bug
-      - unusedwrite     # Unused field writes - style issue, not a bug
+      - fieldalignment # Too strict for most use cases
+      - shadow # Variable shadowing - style issue, not a bug
+      - unusedwrite # Unused field writes - style issue, not a bug
 
   # gocyclo - Cyclomatic complexity
   gocyclo:
@@ -105,8 +105,8 @@ linters-settings:
   gosec:
     # Exclude specific rules (by ID)
     excludes:
-      - G104  # Audit errors not checked (covered by errcheck)
-      - G304  # File path from user input (intentional for file operations)
+      - G104 # Audit errors not checked (covered by errcheck)
+      - G304 # File path from user input (intentional for file operations)
 
     # Severity level
     severity: medium
@@ -175,7 +175,7 @@ linters-settings:
 
     # Disable specific checks
     disabled-checks:
-      - ifElseChain      # Too opinionated
+      - ifElseChain # Too opinionated
       - singleCaseSwitch # Sometimes clearer than if
 
   # whitespace - Trailing whitespace
@@ -244,10 +244,10 @@ issues:
         - goconst
         - funlen
         - gocognit
-        - revive          # Unused parameters common in test mocks
-        - gocritic        # Style issues less critical in tests
-        - misspell        # Spelling less critical in tests
-        - prealloc        # Performance less critical in tests
+        - revive # Unused parameters common in test mocks
+        - gocritic # Style issues less critical in tests
+        - misspell # Spelling less critical in tests
+        - prealloc # Performance less critical in tests
 
     # Exclude linters for generated files
     - path: ".*\\.pb\\.go"
@@ -307,7 +307,6 @@ severity:
   #   - linters:
   #       - revive
   #     severity: warning
-
 # =============================================================================
 # Usage Examples
 # =============================================================================

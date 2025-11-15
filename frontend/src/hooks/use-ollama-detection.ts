@@ -56,7 +56,7 @@ export const useOllamaDetection = (autoDetect: boolean = true): OllamaStatus & O
       setStatus(normalized)
       return normalized
     } catch (error) {
-      const message = error instanceof Error ? error.message || 'Unable to reach backend API (is the SQL Studio server running?)' : 'Unknown error'
+      const message = error instanceof Error ? error.message || 'Unable to reach backend API (is the Howlerops server running?)' : 'Unknown error'
       const fallback: OllamaStatus = {
         installed: status.installed,
         running: status.running,

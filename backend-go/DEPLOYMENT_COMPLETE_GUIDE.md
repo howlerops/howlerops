@@ -1,8 +1,8 @@
-# SQL Studio Backend - Complete Deployment Guide
+# Howlerops Backend - Complete Deployment Guide
 
-**A beginner-friendly, step-by-step guide to deploy SQL Studio backend to production**
+**A beginner-friendly, step-by-step guide to deploy Howlerops backend to production**
 
-This guide will walk you through deploying SQL Studio backend from scratch, even if you have zero experience with GCP or Turso. By following this guide, you'll have a production-ready API running in 30-60 minutes.
+This guide will walk you through deploying Howlerops backend from scratch, even if you have zero experience with GCP or Turso. By following this guide, you'll have a production-ready API running in 30-60 minutes.
 
 ---
 
@@ -25,7 +25,7 @@ This guide will walk you through deploying SQL Studio backend from scratch, even
 ## Overview
 
 **What you're deploying:**
-- Go backend API for SQL Studio
+- Go backend API for Howlerops
 - Runs on Google Cloud Run (serverless, auto-scaling)
 - Uses Turso for database (global edge database)
 - Sends emails via Resend (optional but recommended)
@@ -82,7 +82,7 @@ Before you begin, create these accounts (all free to start):
 
 **Sign up:** https://github.com/join
 
-- You'll use this to fork the SQL Studio repository
+- You'll use this to fork the Howlerops repository
 - GitHub Actions (free for public repos, 2,000 minutes/month for private)
 
 ### Required Tools
@@ -707,7 +707,7 @@ curl https://api.yourdomain.com/health
 2. Click "Uptime checks" (left sidebar)
 3. Click "+ CREATE UPTIME CHECK"
 4. Fill in:
-   - **Title:** `SQL Studio Backend Health`
+   - **Title:** `Howlerops Backend Health`
    - **Protocol:** `HTTPS`
    - **Resource Type:** `URL`
    - **Hostname:** Your service URL (without https://)
@@ -725,7 +725,7 @@ curl https://api.yourdomain.com/health
 3. Click "ADD CONDITION"
 4. Select "Uptime Health Check"
 5. Configure:
-   - **Target:** `SQL Studio Backend Health`
+   - **Target:** `Howlerops Backend Health`
    - **Condition:** `Uptime check failed`
 6. Click "ADD"
 7. Click "NEXT"
@@ -1253,13 +1253,13 @@ git push origin v1.1.1
 
 4. **Paid Support (if needed):**
    - GCP: Upgrade to paid support plan
-   - SQL Studio: Contact maintainers for consulting
+   - Howlerops: Contact maintainers for consulting
 
 ---
 
 ## Next Steps
 
-**Congratulations!** You've successfully deployed SQL Studio backend to production.
+**Congratulations!** You've successfully deployed Howlerops backend to production.
 
 **What to do next:**
 
@@ -1292,7 +1292,7 @@ git push origin v1.1.1
    - When to add caching (Redis/Memcached)
    - When to add CDN (Cloudflare/Fastly)
 
-**You're production-ready!** Enjoy your deployed SQL Studio backend!
+**You're production-ready!** Enjoy your deployed Howlerops backend!
 
 ---
 

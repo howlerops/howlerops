@@ -1,5 +1,5 @@
 # =============================================================================
-# SQL Studio - Turso Production Database Configuration
+# Howlerops - Turso Production Database Configuration
 # =============================================================================
 # Production database setup and configuration for Turso (libSQL)
 # =============================================================================
@@ -11,22 +11,22 @@ database:
   driver: libsql
 
   # Primary database location
-  primary_region: ord  # Chicago (closest to us-central1)
+  primary_region: ord # Chicago (closest to us-central1)
 
   # Read replicas (for global distribution)
   replicas:
-    - region: iad  # Washington DC (East US)
+    - region: iad # Washington DC (East US)
       priority: 1
-    - region: sjc  # San Jose (West US)
+    - region: sjc # San Jose (West US)
       priority: 2
-    - region: fra  # Frankfurt (Europe)
+    - region: fra # Frankfurt (Europe)
       priority: 3
-    - region: syd  # Sydney (Asia-Pacific)
+    - region: syd # Sydney (Asia-Pacific)
       priority: 4
 
   # Connection configuration
   connection:
-    url: ${TURSO_URL}  # libsql://your-database.turso.io
+    url: ${TURSO_URL} # libsql://your-database.turso.io
     auth_token: ${TURSO_AUTH_TOKEN}
 
     # Connection pool settings
@@ -56,8 +56,8 @@ database:
   # Sync configuration
   sync:
     enabled: true
-    interval: 5s  # Sync from primary to replicas every 5s
-    mode: async   # async or sync
+    interval: 5s # Sync from primary to replicas every 5s
+    mode: async # async or sync
 
 ---
 # =============================================================================
@@ -68,7 +68,7 @@ backup:
   automatic:
     enabled: true
     frequency: hourly
-    retention: 7d  # Keep backups for 7 days
+    retention: 7d # Keep backups for 7 days
 
   # Point-in-time recovery
   point_in_time_recovery:
@@ -217,7 +217,7 @@ monitoring:
 security:
   # Authentication
   authentication:
-    method: token  # Turso uses auth tokens
+    method: token # Turso uses auth tokens
     token_rotation: monthly
 
   # Encryption
@@ -242,7 +242,7 @@ security:
   # Audit logging
   audit:
     enabled: true
-    log_queries: false  # Don't log query contents (privacy)
+    log_queries: false # Don't log query contents (privacy)
     log_connections: true
     log_errors: true
 
@@ -252,10 +252,10 @@ security:
 # =============================================================================
 disaster_recovery:
   # Recovery Time Objective (RTO)
-  rto: 1h  # Back online within 1 hour
+  rto: 1h # Back online within 1 hour
 
   # Recovery Point Objective (RPO)
-  rpo: 1h  # Accept up to 1 hour of data loss
+  rpo: 1h # Accept up to 1 hour of data loss
 
   # Backup strategy
   backup_strategy:
@@ -383,7 +383,7 @@ application_config:
 # =============================================================================
 cost_optimization:
   # Turso pricing tiers
-  current_tier: pro  # free, pro, or enterprise
+  current_tier: pro # free, pro, or enterprise
 
   # Expected usage
   expected_usage:
@@ -394,8 +394,8 @@ cost_optimization:
 
   # Cost breakdown (estimate)
   estimated_cost:
-    base: $29/month  # Pro tier
-    overage: $0  # Included in pro
+    base: $29/month # Pro tier
+    overage: $0 # Included in pro
     total: $29/month
 
   # Optimization strategies

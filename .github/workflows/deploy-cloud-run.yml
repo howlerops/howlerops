@@ -1,5 +1,5 @@
 # =============================================================================
-# SQL Studio - Cloud Run Deployment Workflow
+# Howlerops - Cloud Run Deployment Workflow
 # =============================================================================
 # Multi-environment deployment to Google Cloud Run:
 # - Production: Deploy on release tags (v1.0.0)
@@ -16,25 +16,25 @@ on:
     branches:
       - main
     tags:
-      - 'v*.*.*'
+      - "v*.*.*"
     paths:
-      - 'backend-go/**'
-      - '.github/workflows/deploy-cloud-run.yml'
+      - "backend-go/**"
+      - ".github/workflows/deploy-cloud-run.yml"
 
   # Preview: Deploy on pull requests
   pull_request:
     branches:
       - main
     paths:
-      - 'backend-go/**'
+      - "backend-go/**"
 
   # Manual trigger
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Deployment environment'
+        description: "Deployment environment"
         required: true
-        default: 'staging'
+        default: "staging"
         type: choice
         options:
           - production
@@ -132,7 +132,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24'
+          go-version: "1.24"
           cache-dependency-path: backend-go/go.sum
 
       - name: Run tests
@@ -196,17 +196,17 @@ jobs:
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: gcr.io/${{ secrets.GCP_PROJECT_ID }}/${{ needs.setup.outputs.service_name }}:${{ needs.setup.outputs.image_tag }}
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-          severity: 'CRITICAL,HIGH'
-          exit-code: '0'
+          format: "sarif"
+          output: "trivy-results.sarif"
+          severity: "CRITICAL,HIGH"
+          exit-code: "0"
         continue-on-error: true
 
       - name: Upload Trivy results to GitHub Security
         uses: github/codeql-action/upload-sarif@v2
         if: always()
         with:
-          sarif_file: 'trivy-results.sarif'
+          sarif_file: "trivy-results.sarif"
         continue-on-error: true
 
   # ===========================================================================

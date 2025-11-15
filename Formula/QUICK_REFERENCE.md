@@ -1,6 +1,6 @@
 # Homebrew Tap Quick Reference
 
-Quick reference guide for common Homebrew tap operations for SQL Studio maintainers.
+Quick reference guide for common Homebrew tap operations for Howlerops maintainers.
 
 ## Table of Contents
 
@@ -26,7 +26,7 @@ brew install sql-studio
 ### Updates
 
 ```bash
-# Update Homebrew and upgrade SQL Studio
+# Update Homebrew and upgrade Howlerops
 brew update
 brew upgrade sql-studio
 
@@ -53,7 +53,7 @@ brew options sql-studio
 ### Uninstallation
 
 ```bash
-# Uninstall SQL Studio
+# Uninstall Howlerops
 brew uninstall sql-studio
 
 # Remove tap
@@ -477,7 +477,7 @@ on:
 - [Homebrew Docs](https://docs.brew.sh/)
 - [Formula Cookbook](https://docs.brew.sh/Formula-Cookbook)
 - [How to Create a Tap](https://docs.brew.sh/How-to-Create-and-Maintain-a-Tap)
-- [SQL Studio HOMEBREW.md](../HOMEBREW.md)
+- [Howlerops HOMEBREW.md](../HOMEBREW.md)
 
 ### Commands for Help
 
@@ -505,4 +505,4 @@ brew help upgrade
 
 **Quick Reference Version**: 1.0
 **Last Updated**: 2025-10-23
-**Maintained By**: SQL Studio Team
+**Maintained By**: Howlerops Team

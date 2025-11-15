@@ -6,7 +6,7 @@
 
 ## Overview
 
-Complete JWT-based authentication system for SQL Studio frontend, fully integrated with the Go backend's auth endpoints.
+Complete JWT-based authentication system for Howlerops frontend, fully integrated with the Go backend's auth endpoints.
 
 ## Files Created
 

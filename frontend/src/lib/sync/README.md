@@ -1,6 +1,6 @@
 # Multi-Tab Synchronization System
 
-Comprehensive multi-tab synchronization for SQL Studio using the BroadcastChannel API.
+Comprehensive multi-tab synchronization for Howlerops using the BroadcastChannel API.
 
 ## Features
 
@@ -569,4 +569,4 @@ See individual module documentation:
 
 ## License
 
-Part of SQL Studio. See main LICENSE file.
+Part of Howlerops. See main LICENSE file.

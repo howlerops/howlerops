@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Load Testing Script for SQL Studio Backend
+# Load Testing Script for Howlerops Backend
 # Tests performance under sustained load
 
 set -e
@@ -27,7 +27,7 @@ RESULT_FILE="$RESULTS_DIR/load_test_${TIMESTAMP}.txt"
 print_banner() {
     echo -e "${BLUE}"
     echo "========================================"
-    echo "   SQL Studio Load Test"
+    echo "   Howlerops Load Test"
     echo "========================================"
     echo -e "${NC}"
     echo "Target:       $BASE_URL"

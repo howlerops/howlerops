@@ -1,5 +1,5 @@
 # =============================================================================
-# SQL Studio - Ingress Configuration
+# Howlerops - Ingress Configuration
 # =============================================================================
 # Production ingress with:
 # - TLS/SSL termination
@@ -163,7 +163,7 @@ metadata:
     # Basic auth for staging (optional)
     nginx.ingress.kubernetes.io/auth-type: basic
     nginx.ingress.kubernetes.io/auth-secret: staging-basic-auth
-    nginx.ingress.kubernetes.io/auth-realm: "SQL Studio Staging"
+    nginx.ingress.kubernetes.io/auth-realm: "Howlerops Staging"
 
 spec:
   tls:

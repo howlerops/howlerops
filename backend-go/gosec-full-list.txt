@@ -428,14 +428,14 @@ const passwordResetTemplate = `
 <body>
     <div class="container">
         <div class="header">
-            <div class="logo">SQL Studio</div>
+            <div class="logo">Howlerops</div>
         </div>
 
         <h1>Reset Your Password</h1>
 
         <p>Hello,</p>
 
-        <p>We received a request to reset the password for your SQL Studio account. Click the button below to create a new password:</p>
+        <p>We received a request to reset the password for your Howlerops account. Click the button below to create a new password:</p>
 
         <div style="text-align: center;">
             <a href="{{.ResetURL}}" class="button">Reset Password</a>
@@ -457,16 +457,16 @@ const passwordResetTemplate = `
                 <li>Is at least 8 characters long</li>
                 <li>Contains uppercase and lowercase letters</li>
                 <li>Includes numbers and special characters</li>
-                <li>Is unique to SQL Studio</li>
+                <li>Is unique to Howlerops</li>
             </ul>
         </div>
 
         <p>If you're having trouble or didn't request this reset, please contact our support team immediately.</p>
 
-        <p>Best regards,<br>The SQL Studio Team</p>
+        <p>Best regards,<br>The Howlerops Team</p>
 
         <div class="footer">
-            <p>&copy; {{.Year}} SQL Studio. All rights reserved.</p>
+            <p>&copy; {{.Year}} Howlerops. All rights reserved.</p>
             <p>This is an automated message, please do not reply to this email.</p>
         </div>
     </div>

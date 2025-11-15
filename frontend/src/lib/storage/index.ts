@@ -1,7 +1,7 @@
 /**
  * Storage Module Index
  *
- * Complete IndexedDB infrastructure for SQL Studio
+ * Complete IndexedDB infrastructure for Howlerops
  *
  * Features:
  * - Type-safe IndexedDB client

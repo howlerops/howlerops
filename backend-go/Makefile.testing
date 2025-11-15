@@ -1,11 +1,11 @@
-# Testing Makefile for SQL Studio Backend
+# Testing Makefile for Howlerops Backend
 # Include this in your main Makefile or use directly
 
 .PHONY: test test-unit test-integration test-smoke test-load test-api test-all test-coverage test-race clean-test-data help
 
 # Default target
 help:
-	@echo "SQL Studio Backend - Testing Commands"
+	@echo "Howlerops Backend - Testing Commands"
 	@echo ""
 	@echo "Unit Tests:"
 	@echo "  make test-unit           - Run all unit tests"

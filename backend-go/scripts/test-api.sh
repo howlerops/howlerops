@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# API Testing Script for SQL Studio Backend
+# API Testing Script for Howlerops Backend
 # Tests all endpoints with color-coded output
 
 set -e
@@ -29,7 +29,7 @@ REFRESH_TOKEN=""
 print_banner() {
     echo -e "${BLUE}"
     echo "========================================"
-    echo "   SQL Studio API Test Suite"
+    echo "   Howlerops API Test Suite"
     echo "========================================"
     echo -e "${NC}"
     echo "Base URL: $BASE_URL"

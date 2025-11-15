@@ -1,5 +1,5 @@
 # =============================================================================
-# SQL Studio - Production Docker Compose
+# Howlerops - Production Docker Compose
 # =============================================================================
 # Production-like local deployment for testing
 # NOT recommended for actual production (use Kubernetes instead)

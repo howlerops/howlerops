@@ -12,22 +12,28 @@
  * - Upgrade options
  */
 
-import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useTierStore } from '@/store/tier-store'
-import { useTierLimit } from '@/hooks/use-tier-limit'
-import { useFeatureGate } from '@/hooks/use-feature-gate'
-import { TierBadge, TierBadgeList } from '@/components/tier-badge'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Progress } from '@/components/ui/progress'
-import { Alert } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
-import { CheckCircle2, XCircle, AlertTriangle, Loader2 } from 'lucide-react'
-import { useConnectionStore } from '@/store/connection-store'
-import { getQueryHistoryRepository } from '@/lib/storage/repositories/query-history-repository'
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useTierStore } from "@/store/tier-store";
+import { useTierLimit } from "@/hooks/use-tier-limit";
+import { useFeatureGate } from "@/hooks/use-feature-gate";
+import { TierBadge, TierBadgeList } from "@/components/tier-badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Alert } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { CheckCircle2, XCircle, AlertTriangle, Loader2 } from "lucide-react";
+import { useConnectionStore } from "@/store/connection-store";
+import { getQueryHistoryRepository } from "@/lib/storage/repositories/query-history-repository";
 
 /**
  * Tier Settings Panel Component
@@ -47,7 +53,7 @@ import { getQueryHistoryRepository } from '@/lib/storage/repositories/query-hist
  * ```
  */
 export function TierSettingsPanel() {
-  const _navigate = useNavigate()
+  const _navigate = useNavigate();
   const {
     currentTier,
     licenseKey,
@@ -56,63 +62,71 @@ export function TierSettingsPanel() {
     deactivateLicense,
     getFeatures,
     getLimits,
-  } = useTierStore()
+  } = useTierStore();
 
-  const { connections } = useConnectionStore()
-  const [queryHistoryCount, setQueryHistoryCount] = useState(0)
-  const [licenseInput, setLicenseInput] = useState('')
-  const [isActivating, setIsActivating] = useState(false)
-  const [activationError, setActivationError] = useState<string | null>(null)
+  const { connections } = useConnectionStore();
+  const [queryHistoryCount, setQueryHistoryCount] = useState(0);
+  const [licenseInput, setLicenseInput] = useState("");
+  const [isActivating, setIsActivating] = useState(false);
+  const [activationError, setActivationError] = useState<string | null>(null);
 
-  const features = getFeatures()
-  const _limits = getLimits()
+  const features = getFeatures();
+  const _limits = getLimits();
 
   // Load query history count
   React.useEffect(() => {
     const loadCount = async () => {
-      const repo = getQueryHistoryRepository()
-      const count = await repo.count()
-      setQueryHistoryCount(count)
-    }
-    loadCount()
-  }, [])
+      const repo = getQueryHistoryRepository();
+      const count = await repo.count();
+      setQueryHistoryCount(count);
+    };
+    loadCount();
+  }, []);
 
   // Usage limits
-  const connectionLimit = useTierLimit('connections', connections.length)
-  const queryHistoryLimit = useTierLimit('queryHistory', queryHistoryCount)
+  const connectionLimit = useTierLimit("connections", connections.length);
+  const queryHistoryLimit = useTierLimit("queryHistory", queryHistoryCount);
 
   // Feature gates
-  const syncGate = useFeatureGate('sync')
-  const teamGate = useFeatureGate('teamSharing')
-  const rbacGate = useFeatureGate('rbac')
+  const syncGate = useFeatureGate("sync");
+  const teamGate = useFeatureGate("teamSharing");
+  const rbacGate = useFeatureGate("rbac");
 
   const handleActivateLicense = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsActivating(true)
-    setActivationError(null)
+    e.preventDefault();
+    setIsActivating(true);
+    setActivationError(null);
 
     try {
-      const result = await activateLicense(licenseInput)
+      const result = await activateLicense(licenseInput);
 
       if (result.success) {
-        setLicenseInput('')
+        setLicenseInput("");
         // Success feedback could be a toast or similar
-        alert(`License activated successfully! Welcome to ${result.tier} tier.`)
+        alert(
+          `License activated successfully! Welcome to ${result.tier} tier.`
+        );
       } else {
-        setActivationError(result.error || 'License activation failed')
+        setActivationError(result.error || "License activation failed");
       }
     } catch (error) {
-      setActivationError(error instanceof Error ? error.message : 'Unknown error')
+      setActivationError(
+        error instanceof Error ? error.message : "Unknown error"
+      );
     } finally {
-      setIsActivating(false)
+      setIsActivating(false);
     }
-  }
+  };
 
   const handleDeactivate = () => {
-    if (confirm('Are you sure you want to deactivate your license? You will be reverted to the Local tier.')) {
-      deactivateLicense()
+    if (
+      confirm(
+        "Are you sure you want to deactivate your license? You will be reverted to the Local tier."
+      )
+    ) {
+      deactivateLicense();
     }
-  }
+  };
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -121,7 +135,7 @@ export function TierSettingsPanel() {
         <CardHeader>
           <CardTitle>Current Plan</CardTitle>
           <CardDescription>
-            Your active SQL Studio tier and license information
+            Your active Howlerops tier and license information
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -159,12 +173,12 @@ export function TierSettingsPanel() {
             </div>
           )}
 
-          {!licenseKey && currentTier === 'local' && (
+          {!licenseKey && currentTier === "local" && (
             <Alert>
               <AlertTriangle className="h-4 w-4" />
               <p className="text-sm">
-                You're on the free Local tier. Upgrade to unlock unlimited connections,
-                cloud sync, and more!
+                You're on the free Local tier. Upgrade to unlock unlimited
+                connections, cloud sync, and more!
               </p>
             </Alert>
           )}
@@ -177,7 +191,7 @@ export function TierSettingsPanel() {
           <CardHeader>
             <CardTitle>Activate License</CardTitle>
             <CardDescription>
-              Enter your license key to upgrade your SQL Studio tier
+              Enter your license key to upgrade your Howlerops tier
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -196,8 +210,13 @@ export function TierSettingsPanel() {
                   <p className="text-sm text-destructive">{activationError}</p>
                 )}
               </div>
-              <Button type="submit" disabled={isActivating || !licenseInput.trim()}>
-                {isActivating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Button
+                type="submit"
+                disabled={isActivating || !licenseInput.trim()}
+              >
+                {isActivating && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
                 Activate License
               </Button>
             </form>
@@ -218,18 +237,20 @@ export function TierSettingsPanel() {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label>Database Connections</Label>
-              <span className="text-sm font-medium">{connectionLimit.displayString}</span>
+              <span className="text-sm font-medium">
+                {connectionLimit.displayString}
+              </span>
             </div>
             {!connectionLimit.isUnlimited && (
               <>
                 <Progress
                   value={connectionLimit.percentage}
                   className={
-                    connectionLimit.colorIndicator === 'red'
-                      ? 'bg-red-100'
-                      : connectionLimit.colorIndicator === 'yellow'
-                        ? 'bg-yellow-100'
-                        : 'bg-green-100'
+                    connectionLimit.colorIndicator === "red"
+                      ? "bg-red-100"
+                      : connectionLimit.colorIndicator === "yellow"
+                      ? "bg-yellow-100"
+                      : "bg-green-100"
                   }
                 />
                 {connectionLimit.isNearLimit && (
@@ -253,29 +274,34 @@ export function TierSettingsPanel() {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label>Query History</Label>
-              <span className="text-sm font-medium">{queryHistoryLimit.displayString}</span>
+              <span className="text-sm font-medium">
+                {queryHistoryLimit.displayString}
+              </span>
             </div>
             {!queryHistoryLimit.isUnlimited && (
               <>
                 <Progress
                   value={queryHistoryLimit.percentage}
                   className={
-                    queryHistoryLimit.colorIndicator === 'red'
-                      ? 'bg-red-100'
-                      : queryHistoryLimit.colorIndicator === 'yellow'
-                        ? 'bg-yellow-100'
-                        : 'bg-green-100'
+                    queryHistoryLimit.colorIndicator === "red"
+                      ? "bg-red-100"
+                      : queryHistoryLimit.colorIndicator === "yellow"
+                      ? "bg-yellow-100"
+                      : "bg-green-100"
                   }
                 />
                 {queryHistoryLimit.isNearLimit && (
                   <p className="text-sm text-orange-600">
-                    ⚠ You're approaching your query history limit. Older queries will be auto-pruned.
+                    ⚠ You're approaching your query history limit. Older queries
+                    will be auto-pruned.
                   </p>
                 )}
               </>
             )}
             {queryHistoryLimit.isUnlimited && (
-              <p className="text-sm text-green-600">✓ Unlimited query history</p>
+              <p className="text-sm text-green-600">
+                ✓ Unlimited query history
+              </p>
             )}
           </div>
         </CardContent>
@@ -300,10 +326,7 @@ export function TierSettingsPanel() {
               name="Multi-Device Support"
               enabled={features.multiDevice}
             />
-            <FeatureRow
-              name="AI Memory Sync"
-              enabled={features.aiMemorySync}
-            />
+            <FeatureRow name="AI Memory Sync" enabled={features.aiMemorySync} />
             <FeatureRow
               name="Team Sharing"
               enabled={features.teamSharing}
@@ -322,10 +345,7 @@ export function TierSettingsPanel() {
               name="Priority Support"
               enabled={features.prioritySupport}
             />
-            <FeatureRow
-              name="Custom Themes"
-              enabled={features.customThemes}
-            />
+            <FeatureRow name="Custom Themes" enabled={features.customThemes} />
           </div>
         </CardContent>
       </Card>
@@ -334,9 +354,7 @@ export function TierSettingsPanel() {
       <Card>
         <CardHeader>
           <CardTitle>Available Plans</CardTitle>
-          <CardDescription>
-            Compare all SQL Studio tiers
-          </CardDescription>
+          <CardDescription>Compare all Howlerops tiers</CardDescription>
         </CardHeader>
         <CardContent>
           <TierBadgeList
@@ -345,23 +363,23 @@ export function TierSettingsPanel() {
             onSelect={(tier) => {
               if (tier !== currentTier) {
                 // Handle upgrade/downgrade navigation
-                console.log('Selected tier:', tier)
+                console.log("Selected tier:", tier);
               }
             }}
           />
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }
 
 /**
  * Feature Row Component
  */
 interface FeatureRowProps {
-  name: string
-  enabled: boolean
-  requiredTier?: string | null
+  name: string;
+  enabled: boolean;
+  requiredTier?: string | null;
 }
 
 function FeatureRow({ name, enabled, requiredTier }: FeatureRowProps) {
@@ -372,7 +390,10 @@ function FeatureRow({ name, enabled, requiredTier }: FeatureRowProps) {
         {enabled ? (
           <>
             <CheckCircle2 className="h-4 w-4 text-green-600" />
-            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+            <Badge
+              variant="outline"
+              className="bg-green-50 text-green-700 border-green-200"
+            >
               Enabled
             </Badge>
           </>
@@ -388,5 +409,5 @@ function FeatureRow({ name, enabled, requiredTier }: FeatureRowProps) {
         )}
       </div>
     </div>
-  )
+  );
 }

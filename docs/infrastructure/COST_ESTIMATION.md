@@ -1,4 +1,4 @@
-# SQL Studio - Infrastructure Cost Estimation
+# Howlerops - Infrastructure Cost Estimation
 
 Detailed breakdown of production infrastructure costs and optimization strategies.
 

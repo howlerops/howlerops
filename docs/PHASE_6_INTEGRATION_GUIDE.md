@@ -1,6 +1,6 @@
 # Phase 6: Quick Integration Guide
 
-This guide helps you integrate the onboarding and tutorial system into SQL Studio.
+This guide helps you integrate the onboarding and tutorial system into Howlerops.
 
 ## Step 1: Install Dependencies
 

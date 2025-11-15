@@ -1,8 +1,8 @@
 #!/bin/bash
 # =============================================================================
-# Google Cloud Platform Deployment Script for SQL Studio Backend
+# Google Cloud Platform Deployment Script for Howlerops Backend
 # =============================================================================
-# This script automates the deployment of SQL Studio backend to GCP Cloud Run
+# This script automates the deployment of Howlerops backend to GCP Cloud Run
 #
 # Prerequisites:
 #   - gcloud CLI installed and authenticated
@@ -158,8 +158,8 @@ setup_service_account() {
     else
         # Create service account
         gcloud iam service-accounts create "${SERVICE_NAME}" \
-            --display-name="SQL Studio Backend Service Account" \
-            --description="Service account for SQL Studio backend running on Cloud Run" \
+            --display-name="Howlerops Backend Service Account" \
+            --description="Service account for Howlerops backend running on Cloud Run" \
             --project="${GCP_PROJECT}"
 
         log_success "Service account created"

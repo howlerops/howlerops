@@ -1,16 +1,16 @@
-import { useState } from "react"
+import { useState } from "react";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
   SheetDescription,
-} from "@/components/ui/sheet"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Separator } from "@/components/ui/separator"
-import { Badge } from "@/components/ui/badge"
+} from "@/components/ui/sheet";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import {
   Search,
   BookOpen,
@@ -22,22 +22,22 @@ import {
   Database,
   Users,
   Settings,
-} from "lucide-react"
-import { onboardingTracker } from "@/lib/analytics/onboarding-tracking"
-import { cn } from "@/lib/utils"
+} from "lucide-react";
+import { onboardingTracker } from "@/lib/analytics/onboarding-tracking";
+import { cn } from "@/lib/utils";
 
 interface HelpPanelProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
 interface HelpArticle {
-  id: string
-  title: string
-  category: string
-  icon: React.ElementType
-  description: string
-  url?: string
+  id: string;
+  title: string;
+  category: string;
+  icon: React.ElementType;
+  description: string;
+  url?: string;
 }
 
 const helpArticles: HelpArticle[] = [
@@ -46,7 +46,7 @@ const helpArticles: HelpArticle[] = [
     title: "Getting Started Guide",
     category: "Basics",
     icon: BookOpen,
-    description: "Learn the fundamentals of SQL Studio",
+    description: "Learn the fundamentals of Howlerops",
   },
   {
     id: "query-editor",
@@ -81,41 +81,41 @@ const helpArticles: HelpArticle[] = [
     title: "Customizing Your Settings",
     category: "Settings",
     icon: Settings,
-    description: "Personalize your SQL Studio experience",
+    description: "Personalize your Howlerops experience",
   },
-]
+];
 
-const popularArticles = helpArticles.slice(0, 4)
+const popularArticles = helpArticles.slice(0, 4);
 
 export function HelpPanel({ open, onOpenChange }: HelpPanelProps) {
-  const [searchQuery, setSearchQuery] = useState("")
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
-  const categories = Array.from(new Set(helpArticles.map((a) => a.category)))
+  const categories = Array.from(new Set(helpArticles.map((a) => a.category)));
 
   const filteredArticles = helpArticles.filter((article) => {
     const matchesSearch =
       searchQuery === "" ||
       article.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      article.description.toLowerCase().includes(searchQuery.toLowerCase())
+      article.description.toLowerCase().includes(searchQuery.toLowerCase());
 
     const matchesCategory =
-      !selectedCategory || article.category === selectedCategory
+      !selectedCategory || article.category === selectedCategory;
 
-    return matchesSearch && matchesCategory
-  })
+    return matchesSearch && matchesCategory;
+  });
 
   const handleSearch = (query: string) => {
-    setSearchQuery(query)
+    setSearchQuery(query);
     if (query) {
-      onboardingTracker.trackHelpSearched(query)
+      onboardingTracker.trackHelpSearched(query);
     }
-  }
+  };
 
   const handleArticleClick = (article: HelpArticle) => {
     // In a real implementation, this would open the article
-    console.log("Opening article:", article.id)
-  }
+    console.log("Opening article:", article.id);
+  };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -123,7 +123,7 @@ export function HelpPanel({ open, onOpenChange }: HelpPanelProps) {
         <SheetHeader className="p-6 pb-4">
           <SheetTitle>Help & Documentation</SheetTitle>
           <SheetDescription>
-            Find answers and learn how to use SQL Studio
+            Find answers and learn how to use Howlerops
           </SheetDescription>
         </SheetHeader>
 
@@ -155,7 +155,9 @@ export function HelpPanel({ open, onOpenChange }: HelpPanelProps) {
                 {categories.map((category) => (
                   <Badge
                     key={category}
-                    variant={selectedCategory === category ? "default" : "outline"}
+                    variant={
+                      selectedCategory === category ? "default" : "outline"
+                    }
                     className="cursor-pointer"
                     onClick={() => setSelectedCategory(category)}
                   >
@@ -223,7 +225,9 @@ export function HelpPanel({ open, onOpenChange }: HelpPanelProps) {
                 <Button
                   variant="outline"
                   className="w-full justify-start gap-2"
-                  onClick={() => window.open("https://community.sqlstudio.com", "_blank")}
+                  onClick={() =>
+                    window.open("https://community.sqlstudio.com", "_blank")
+                  }
                 >
                   <MessageCircle className="h-4 w-4" />
                   Community Forum
@@ -252,16 +256,16 @@ export function HelpPanel({ open, onOpenChange }: HelpPanelProps) {
         </div>
       </SheetContent>
     </Sheet>
-  )
+  );
 }
 
 interface ArticleItemProps {
-  article: HelpArticle
-  onClick: () => void
+  article: HelpArticle;
+  onClick: () => void;
 }
 
 function ArticleItem({ article, onClick }: ArticleItemProps) {
-  const Icon = article.icon
+  const Icon = article.icon;
 
   return (
     <button
@@ -281,5 +285,5 @@ function ArticleItem({ article, onClick }: ArticleItemProps) {
         </p>
       </div>
     </button>
-  )
+  );
 }

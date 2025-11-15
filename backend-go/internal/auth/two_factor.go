@@ -60,7 +60,7 @@ type SecurityEventLogger interface {
 // NewTwoFactorService creates a new 2FA service
 func NewTwoFactorService(store TwoFactorStore, eventLogger SecurityEventLogger, logger *logrus.Logger, issuer string) *TwoFactorService {
 	if issuer == "" {
-		issuer = "SQL Studio"
+		issuer = "Howlerops"
 	}
 	return &TwoFactorService{
 		store:       store,

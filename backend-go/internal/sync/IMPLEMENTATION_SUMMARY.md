@@ -2,7 +2,7 @@
 
 ## Overview
 
-Successfully implemented organization-scoped resource syncing for SQL Studio, enabling teams to share connections and queries while maintaining proper access controls and conflict resolution.
+Successfully implemented organization-scoped resource syncing for Howlerops, enabling teams to share connections and queries while maintaining proper access controls and conflict resolution.
 
 ## Deliverables
 

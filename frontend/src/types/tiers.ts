@@ -1,5 +1,5 @@
 /**
- * Tier system type definitions for SQL Studio
+ * Tier system type definitions for Howlerops
  * Defines the three-tier product structure: Local, Individual, and Team
  */
 

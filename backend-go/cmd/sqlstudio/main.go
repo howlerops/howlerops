@@ -170,7 +170,7 @@ func getConfigDir() (string, error) {
 }
 
 func printUsage() {
-	fmt.Println("SQL Studio - Modern database management tool")
+	fmt.Println("Howlerops - Modern database management tool")
 	fmt.Println()
 	fmt.Println("Usage:")
 	fmt.Println("  sqlstudio <command> [options]")

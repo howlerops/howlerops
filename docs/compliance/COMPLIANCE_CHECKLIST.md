@@ -7,7 +7,7 @@
 
 ## Executive Summary
 
-This master checklist ensures SQL Studio maintains compliance with all applicable regulations, standards, and best practices. Each item should be reviewed quarterly and validated annually through internal or external audit.
+This master checklist ensures Howlerops maintains compliance with all applicable regulations, standards, and best practices. Each item should be reviewed quarterly and validated annually through internal or external audit.
 
 ## 1. SOC 2 COMPLIANCE
 
@@ -436,7 +436,7 @@ This master checklist ensures SQL Studio maintains compliance with all applicabl
 
 ## ATTESTATION
 
-I certify that this compliance checklist has been reviewed and accurately reflects the current state of SQL Studio's compliance program.
+I certify that this compliance checklist has been reviewed and accurately reflects the current state of Howlerops's compliance program.
 
 **Chief Compliance Officer**
 Name: _______________________

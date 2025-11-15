@@ -362,7 +362,7 @@ func (p *openaiProvider) Chat(ctx context.Context, req *ChatRequest) (*ChatRespo
 
 	systemPrompt := req.System
 	if systemPrompt == "" {
-		systemPrompt = "You are a helpful assistant for SQL Studio. Provide concise, accurate answers. Use Markdown formatting when it improves clarity."
+		systemPrompt = "You are a helpful assistant for Howlerops. Provide concise, accurate answers. Use Markdown formatting when it improves clarity."
 	}
 
 	messages := []openaiChatMessage{

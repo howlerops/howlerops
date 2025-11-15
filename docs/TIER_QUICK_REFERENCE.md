@@ -1,4 +1,4 @@
-# SQL Studio Tier System - Quick Reference
+# Howlerops Tier System - Quick Reference
 
 ## 🎯 Quick Start
 

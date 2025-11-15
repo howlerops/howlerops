@@ -1,6 +1,6 @@
 # Best Practices
 
-Tips and techniques for getting the most out of SQL Studio.
+Tips and techniques for getting the most out of Howlerops.
 
 ## Query Writing
 
@@ -220,7 +220,7 @@ COPY data FROM 's3://bucket/file' CREDENTIALS 'aws_access_key_id=AKIA...;aws_sec
 ```
 
 **Good:**
-Use SQL Studio's secure credential storage or environment variables.
+Use Howlerops's secure credential storage or environment variables.
 
 ### Limit Access Appropriately
 
@@ -386,14 +386,14 @@ Specify columns explicitly for:
 
 ### Don't Ignore Warnings
 
-SQL Studio warns you about:
+Howlerops warns you about:
 - Potential performance issues
 - Syntax deprecations
 - Security concerns
 
 ### Don't Share Passwords
 
-Use SQL Studio's secure sharing:
+Use Howlerops's secure sharing:
 - Share connections, not credentials
 - Use read-only access when appropriate
 - Revoke access when team members leave

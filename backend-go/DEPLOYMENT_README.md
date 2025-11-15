@@ -1,6 +1,6 @@
-# SQL Studio Backend - Deployment Documentation
+# Howlerops Backend - Deployment Documentation
 
-**Complete guide to deploying SQL Studio backend to production**
+**Complete guide to deploying Howlerops backend to production**
 
 ---
 
@@ -42,8 +42,8 @@
 
 ## What You're Deploying
 
-**SQL Studio Backend** is a Go-based API service that provides:
-- REST API for SQL Studio frontend
+**Howlerops Backend** is a Go-based API service that provides:
+- REST API for Howlerops frontend
 - User authentication (JWT)
 - Query history and saved queries
 - Cloud sync functionality

@@ -312,7 +312,7 @@ The service is designed with security in mind:
 5. **Clean up credentials when connections are deleted**
    - Call `DeletePassword()` when removing a connection
 
-## Integration with SQL Studio
+## Integration with Howlerops
 
 ### Desktop Application (Wails)
 
@@ -392,7 +392,7 @@ sudo pacman -S libsecret
 
 **Solution**:
 1. Open "Keychain Access.app"
-2. Find "HowlerOps SQL Studio" entries
+2. Find "HowlerOps Howlerops" entries
 3. Double-click entry → Access Control → Allow all applications
 4. Or grant access when prompted
 
@@ -454,4 +454,4 @@ The tests use mock keyring to avoid requiring actual keychain access during test
 
 ## License
 
-This credential service is part of SQL Studio and is licensed under the same terms as the main project.
+This credential service is part of Howlerops and is licensed under the same terms as the main project.

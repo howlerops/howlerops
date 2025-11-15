@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the security architecture for storing and managing database connection credentials in SQL Studio. The system uses client-side encryption to ensure that sensitive data (passwords, SSH keys) is never stored in plaintext, either locally or in the cloud.
+This document describes the security architecture for storing and managing database connection credentials in Howlerops. The system uses client-side encryption to ensure that sensitive data (passwords, SSH keys) is never stored in plaintext, either locally or in the cloud.
 
 ## Security Principles
 

@@ -3,7 +3,7 @@
 
 ## Overview
 
-Extend SQL Studio from 9 to 20 supported databases (excluding Oracle due to licensing), achieving feature parity with Beekeeper Studio while maintaining our superior SSH tunnel and VPC networking capabilities.
+Extend Howlerops from 9 to 20 supported databases (excluding Oracle due to licensing), achieving feature parity with Beekeeper Studio while maintaining our superior SSH tunnel and VPC networking capabilities.
 
 ## Database Categories & Priority
 

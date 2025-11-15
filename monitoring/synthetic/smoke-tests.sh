@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# SQL Studio Smoke Tests
+# Howlerops Smoke Tests
 # Post-deployment validation script
 # Tests critical user flows to ensure the system is functioning
 
@@ -58,7 +58,7 @@ check_http() {
 }
 
 echo "========================================="
-echo "SQL Studio Smoke Tests"
+echo "Howlerops Smoke Tests"
 echo "========================================="
 echo "Base URL: $BASE_URL"
 echo "API URL: $API_URL"

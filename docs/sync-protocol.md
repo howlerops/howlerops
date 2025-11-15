@@ -1,4 +1,4 @@
-# SQL Studio - Turso Sync Protocol Specification
+# Howlerops - Turso Sync Protocol Specification
 
 ## Table of Contents
 

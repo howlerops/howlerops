@@ -1,6 +1,6 @@
-# SQL Studio Backend (Go)
+# Howlerops Backend (Go)
 
-A high-performance backend service for SQL Studio, built with Go. Supports local SQLite development and Turso cloud production deployment with advanced features like streaming queries, real-time updates, and comprehensive monitoring.
+A high-performance backend service for Howlerops, built with Go. Supports local SQLite development and Turso cloud production deployment with advanced features like streaming queries, real-time updates, and comprehensive monitoring.
 
 ## Features
 
@@ -266,7 +266,7 @@ curl -X POST http://localhost:8080/api/queries/execute \
   -d '{"connection_id": "conn-123", "sql": "SELECT * FROM users LIMIT 10"}'
 ```
 
-## SQL Studio Database (Turso/SQLite)
+## Howlerops Database (Turso/SQLite)
 
 ### Local Development (SQLite)
 
@@ -313,7 +313,7 @@ TURSO_AUTH_TOKEN=your_token_here
 
 ## Database Connections (for users)
 
-SQL Studio supports connecting to various external databases:
+Howlerops supports connecting to various external databases:
 
 ### Creating Connections
 

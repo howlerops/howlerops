@@ -1,6 +1,6 @@
 # Turso Storage Integration Complete
 
-This document summarizes the complete integration of Turso storage into the SQL Studio Go backend.
+This document summarizes the complete integration of Turso storage into the Howlerops Go backend.
 
 ## What Was Integrated
 
@@ -323,4 +323,4 @@ For issues or questions:
 
 ## License
 
-SQL Studio Backend - Phase 2 Integration
+Howlerops Backend - Phase 2 Integration

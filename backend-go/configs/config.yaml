@@ -72,7 +72,7 @@ security:
   rate_limit_rps: 100
   rate_limit_burst: 200
   request_timeout: "30s"
-  max_request_size: 10485760  # 10MB
+  max_request_size: 10485760 # 10MB
   enable_compression: true
 
 metrics:
@@ -87,18 +87,18 @@ email:
   provider: "resend"
   api_key: "${RESEND_API_KEY}"
   from_email: "noreply@sqlstudio.io"
-  from_name: "SQL Studio"
+  from_name: "Howlerops"
   base_url: "https://app.sqlstudio.io"
 
 # Cloud Sync Configuration
 sync:
   enabled: true
-  max_upload_size: 10485760  # 10MB
+  max_upload_size: 10485760 # 10MB
   conflict_strategy: "last_write_wins"
   retention_days: 30
   max_history_items: 1000
   enable_sanitization: true
-  rate_limit_rpm: 10  # 10 requests per minute per user
+  rate_limit_rpm: 10 # 10 requests per minute per user
 
 # Turso Database Configuration
 turso:
@@ -110,134 +110,134 @@ turso:
 multiquery:
   enabled: true
   max_concurrent_connections: 10
-  default_strategy: "auto"  # Options: auto, federated, push_down
+  default_strategy: "auto" # Options: auto, federated, push_down
   timeout: "30s"
   max_result_rows: 10000
-  enable_cross_type_queries: true  # Allow queries across different DB types
-  
+  enable_cross_type_queries: true # Allow queries across different DB types
+
   # Performance settings
   performance:
     enable_parallel_execution: true
     connection_pool_size: 5
     result_buffer_size: 1000
-  
+
   # Security settings
   security:
     validate_permissions: true
     audit_multi_queries: true
-    allow_write_operations: false  # Set to true to allow INSERT/UPDATE/DELETE
+    allow_write_operations: false # Set to true to allow INSERT/UPDATE/DELETE
 
 # AI/RAG Configuration
 ai:
-  enabled: false  # Set to true to enable AI features
-  
+  enabled: false # Set to true to enable AI features
+
   # AI Provider Configuration
   providers:
     openai:
       enabled: false
-      api_key: ""  # Set from environment: OPENAI_API_KEY
+      api_key: "" # Set from environment: OPENAI_API_KEY
       model: "gpt-4"
       max_tokens: 2000
       temperature: 0.7
-    
+
     anthropic:
       enabled: false
-      api_key: ""  # Set from environment: ANTHROPIC_API_KEY
+      api_key: "" # Set from environment: ANTHROPIC_API_KEY
       model: "claude-3-opus-20240229"
       max_tokens: 2000
       temperature: 0.7
-    
+
     claudecode:
       enabled: false
-      binary_path: "claude"  # Path to Claude CLI binary
+      binary_path: "claude" # Path to Claude CLI binary
       model: "claude-3-opus-20240229"
       timeout: "60s"
-    
+
     codex:
       enabled: false
-      api_key: ""  # Set from environment: OPENAI_API_KEY (Codex uses OpenAI API)
+      api_key: "" # Set from environment: OPENAI_API_KEY (Codex uses OpenAI API)
       model: "code-davinci-002"
       max_tokens: 2000
       temperature: 0.7
-    
+
     ollama:
       enabled: false
       endpoint: "http://localhost:11434"
       model: "llama2"
       timeout: "60s"
-    
+
     huggingface:
       enabled: false
-      endpoint: "http://localhost:11434"  # Via Ollama
+      endpoint: "http://localhost:11434" # Via Ollama
       model: "codellama"
       timeout: "60s"
-  
+
   # Default provider to use
   default_provider: "openai"
 
 # Storage Configuration (Local-First Architecture)
 storage:
-  mode: "local"  # local (solo) or team
-  
+  mode: "local" # local (solo) or team
+
   # Local SQLite config (always available)
   local:
     data_dir: "~/.howlerops"
     database: "local.db"
     vectors_db: "vectors.db"
-    
+
   # Team mode config (optional, for future use)
   team:
     enabled: false
-    provider: "turso"  # turso, litefs, s3sync
-    
+    provider: "turso" # turso, litefs, s3sync
+
     turso:
       url: "${TURSO_URL}"
       auth_token: "${TURSO_AUTH_TOKEN}"
       local_replica: "~/.howlerops/team-replica.db"
       sync_interval: "30s"
-    
+
     sync:
-      mode: "auto"  # auto, manual
+      mode: "auto" # auto, manual
       share_history: true
       share_queries: true
       share_learnings: true
 
 # RAG (Retrieval-Augmented Generation) Configuration
 rag:
-  enabled: true  # Enable RAG features with SQLite vector store
-  
+  enabled: true # Enable RAG features with SQLite vector store
+
   # Vector Store Configuration (SQLite with vector extension)
   vector_store:
-    type: "sqlite"  # SQLite is the only supported vector store
-    path: "~/.howlerops/vectors.db"  # Local database file
-    extension: "sqlite-vec"  # sqlite-vec or sqlite-vss
-    dimension: 1536  # OpenAI text-embedding-3-small default
+    type: "sqlite" # SQLite is the only supported vector store
+    path: "~/.howlerops/vectors.db" # Local database file
+    extension: "sqlite-vec" # sqlite-vec or sqlite-vss
+    dimension: 1536 # OpenAI text-embedding-3-small default
     timeout: "10s"
-    
+
     # Collections (document types)
     collections:
       schemas: "schemas"
       queries: "queries"
       business_rules: "business_rules"
       performance: "performance"
-    
+
     # Performance tuning
     cache_size_mb: 128
     mmap_size_mb: 256
     wal_enabled: true
-  
+
   # Embedding Configuration
   embedding:
-    provider: "onnx"  # onnx, openai, local
+    provider: "onnx" # onnx, openai, local
     model: "text-embedding-3-small"
     dimension: 384
     batch_size: 100
-    
+
     # Local embedding model (ONNX sentence-transformer)
     local_model_path: "./internal/rag/models/all-MiniLM-L6-v2.onnx"
-    fallback_provider: "openai"    # openai fallback if ONNX fails
+    fallback_provider: "openai" # openai fallback if ONNX fails
     fallback_model: "text-embedding-3-small"
-  
+
   # Learning Pipeline Configuration
   learning:
     enabled: true
@@ -245,19 +245,19 @@ rag:
     auto_index_schemas: true
     index_successful_queries: true
     query_success_threshold: 0.8
-    
+
     # Background indexing
     background_indexing: true
     indexing_interval: "1h"
     max_queries_to_index: 1000
-  
+
   # Context Retrieval Configuration
   context:
     max_relevant_tables: 5
     max_similar_queries: 3
     similarity_threshold: 0.7
     include_business_rules: true
-  
+
   # Cache Configuration
   cache:
     enabled: true

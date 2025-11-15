@@ -2,7 +2,7 @@
 
 ## Overview
 
-Complete production-ready architecture for Phase 3 Team Collaboration features has been designed and documented. This adds organization/team capabilities to SQL Studio while maintaining full backward compatibility with existing Individual tier users.
+Complete production-ready architecture for Phase 3 Team Collaboration features has been designed and documented. This adds organization/team capabilities to Howlerops while maintaining full backward compatibility with existing Individual tier users.
 
 ---
 

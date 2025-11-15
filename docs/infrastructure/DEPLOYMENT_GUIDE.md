@@ -1,6 +1,6 @@
-# SQL Studio - Production Deployment Guide
+# Howlerops - Production Deployment Guide
 
-Complete step-by-step guide for deploying SQL Studio to production infrastructure.
+Complete step-by-step guide for deploying Howlerops to production infrastructure.
 
 ## Table of Contents
 
@@ -16,7 +16,7 @@ Complete step-by-step guide for deploying SQL Studio to production infrastructur
 
 ## Overview
 
-SQL Studio production deployment architecture:
+Howlerops production deployment architecture:
 
 ```
 Internet

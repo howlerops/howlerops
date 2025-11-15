@@ -1,8 +1,8 @@
-# SQL Studio Authentication System Documentation
+# Howlerops Authentication System Documentation
 
 ## Overview
 
-Complete JWT-based authentication system for SQL Studio frontend using **shadcn/ui components exclusively**. Integrates with the Go backend for user management, token refresh, and tier-based features.
+Complete JWT-based authentication system for Howlerops frontend using **shadcn/ui components exclusively**. Integrates with the Go backend for user management, token refresh, and tier-based features.
 
 ## Architecture
 

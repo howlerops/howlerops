@@ -1,4 +1,4 @@
-# SQL Studio Deployment - Setup Checklist
+# Howlerops Deployment - Setup Checklist
 
 Quick reference for setting up production deployment. Check off each item as you complete it.
 

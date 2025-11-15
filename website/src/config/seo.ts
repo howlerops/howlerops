@@ -1,5 +1,5 @@
 export const seoConfig = {
-  title: 'SQL Studio - Modern SQL Editor for Teams',
+  title: 'Howlerops - Modern SQL Editor for Teams',
   description: 'Write, share, and sync SQL queries across your team. Connect to any database with ease, collaborate in real-time, and boost your team\'s productivity.',
   keywords: [
     'sql editor',

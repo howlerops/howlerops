@@ -2,7 +2,7 @@
  * Sanitization Configuration Module
  *
  * User-configurable rules for data sanitization to prevent credential leakage.
- * This module defines privacy modes and configurable rules for SQL Studio.
+ * This module defines privacy modes and configurable rules for Howlerops.
  *
  * @module sanitization/config
  */

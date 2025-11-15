@@ -33,7 +33,7 @@ mkdir -p "$REPORT_DIR"
 print_banner() {
     echo -e "${CYAN}"
     echo "========================================"
-    echo "   SQL Studio - Full Test Suite"
+    echo "   Howlerops - Full Test Suite"
     echo "========================================"
     echo -e "${NC}"
     echo "Timestamp: $(date)"
@@ -59,7 +59,7 @@ log_both() {
 # Initialize report
 init_report() {
     {
-        echo "SQL Studio Backend - Test Report"
+        echo "Howlerops Backend - Test Report"
         echo "================================="
         echo "Timestamp: $(date)"
         echo "Target: $BASE_URL"

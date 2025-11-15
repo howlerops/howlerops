@@ -18,7 +18,7 @@ if [ -z "$PROJECT_ID" ]; then
     exit 1
 fi
 
-echo -e "${BLUE}💰 Cloud Run Cost Report for SQL Studio Backend${NC}"
+echo -e "${BLUE}💰 Cloud Run Cost Report for Howlerops Backend${NC}"
 echo "=================================================="
 echo "Project: $PROJECT_ID"
 echo "Date: $(date)"

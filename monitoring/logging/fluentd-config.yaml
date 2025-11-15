@@ -1,4 +1,4 @@
-# Fluentd Configuration for SQL Studio
+# Fluentd Configuration for Howlerops
 # Collects logs from Kubernetes pods and forwards to aggregation service
 
 apiVersion: v1
@@ -206,48 +206,48 @@ spec:
       serviceAccount: fluentd
       serviceAccountName: fluentd
       tolerations:
-      - key: node-role.kubernetes.io/master
-        effect: NoSchedule
+        - key: node-role.kubernetes.io/master
+          effect: NoSchedule
       containers:
-      - name: fluentd
-        image: fluent/fluentd-kubernetes-daemonset:v1-debian-elasticsearch
-        env:
-        - name: FLUENT_ELASTICSEARCH_HOST
-          value: "elasticsearch.logging.svc.cluster.local"
-        - name: FLUENT_ELASTICSEARCH_PORT
-          value: "9200"
-        - name: FLUENT_ELASTICSEARCH_SCHEME
-          value: "http"
-        - name: CLUSTER_NAME
-          value: "sql-studio-production"
-        - name: ENVIRONMENT
-          value: "production"
-        resources:
-          limits:
-            memory: 512Mi
-            cpu: 500m
-          requests:
-            memory: 256Mi
-            cpu: 100m
-        volumeMounts:
-        - name: varlog
-          mountPath: /var/log
-        - name: varlibdockercontainers
-          mountPath: /var/lib/docker/containers
-          readOnly: true
-        - name: config-volume
-          mountPath: /fluentd/etc
+        - name: fluentd
+          image: fluent/fluentd-kubernetes-daemonset:v1-debian-elasticsearch
+          env:
+            - name: FLUENT_ELASTICSEARCH_HOST
+              value: "elasticsearch.logging.svc.cluster.local"
+            - name: FLUENT_ELASTICSEARCH_PORT
+              value: "9200"
+            - name: FLUENT_ELASTICSEARCH_SCHEME
+              value: "http"
+            - name: CLUSTER_NAME
+              value: "sql-studio-production"
+            - name: ENVIRONMENT
+              value: "production"
+          resources:
+            limits:
+              memory: 512Mi
+              cpu: 500m
+            requests:
+              memory: 256Mi
+              cpu: 100m
+          volumeMounts:
+            - name: varlog
+              mountPath: /var/log
+            - name: varlibdockercontainers
+              mountPath: /var/lib/docker/containers
+              readOnly: true
+            - name: config-volume
+              mountPath: /fluentd/etc
       terminationGracePeriodSeconds: 30
       volumes:
-      - name: varlog
-        hostPath:
-          path: /var/log
-      - name: varlibdockercontainers
-        hostPath:
-          path: /var/lib/docker/containers
-      - name: config-volume
-        configMap:
-          name: fluentd-config
+        - name: varlog
+          hostPath:
+            path: /var/log
+        - name: varlibdockercontainers
+          hostPath:
+            path: /var/lib/docker/containers
+        - name: config-volume
+          configMap:
+            name: fluentd-config
 
 ---
 # ServiceAccount for Fluentd
@@ -264,15 +264,15 @@ kind: ClusterRole
 metadata:
   name: fluentd
 rules:
-- apiGroups:
-  - ""
-  resources:
-  - pods
-  - namespaces
-  verbs:
-  - get
-  - list
-  - watch
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+      - namespaces
+    verbs:
+      - get
+      - list
+      - watch
 
 ---
 # ClusterRoleBinding for Fluentd
@@ -285,6 +285,6 @@ roleRef:
   name: fluentd
   apiGroup: rbac.authorization.k8s.io
 subjects:
-- kind: ServiceAccount
-  name: fluentd
-  namespace: kube-system
+  - kind: ServiceAccount
+    name: fluentd
+    namespace: kube-system

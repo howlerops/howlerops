@@ -1,10 +1,10 @@
 # Version and Auto-Update Guide
 
-This document describes the version management and auto-update functionality for SQL Studio CLI.
+This document describes the version management and auto-update functionality for Howlerops CLI.
 
 ## Overview
 
-SQL Studio includes built-in version information and auto-update capabilities:
+Howlerops includes built-in version information and auto-update capabilities:
 
 - **Version Command**: Display current version, commit, build date, and runtime info
 - **Update Command**: Check for and install updates from GitHub releases
@@ -26,7 +26,7 @@ SQL Studio includes built-in version information and auto-update capabilities:
 
 **Output:**
 ```
-SQL Studio v2.0.0
+Howlerops v2.0.0
 Commit: 86b8752
 Built: 2025-10-23T22:46:03Z
 Go: go1.24.5

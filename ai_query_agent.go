@@ -485,7 +485,7 @@ func (a *App) failQueryAgent(resp *AIQueryAgentResponse, req AIQueryAgentRequest
 
 func (a *App) generateAnalystMessage(req AIQueryAgentRequest, sql string, preview *ReadOnlyQueryResult) (AIQueryAgentMessage, error) {
 	promptRows := formatRowsForPrompt(preview.Rows, preview.Columns, 15, 150)
-	system := "You are a data analyst agent for SQL Studio. Provide concise, actionable insights in bullet points (max 5) without restating obvious facts. Highlight anomalies, trends, or correlations."
+	system := "You are a data analyst agent for Howlerops. Provide concise, actionable insights in bullet points (max 5) without restating obvious facts. Highlight anomalies, trends, or correlations."
 	user := fmt.Sprintf(`User question: %s
 
 SQL:
@@ -1216,7 +1216,7 @@ func (a *App) buildOrchestratorPlan(req AIQueryAgentRequest, message, context st
 		return nil, nil, fmt.Errorf("ai service unavailable")
 	}
 
-	systemPrompt := "You orchestrate database assistants for SQL Studio. Reply ONLY with compact JSON: {\"reply\": string, \"requires_sql\": boolean}. Use reply for a helpful natural-language response. Set requires_sql to true only if running database SQL is necessary and a connection is available. Never add extra text or markdown."
+	systemPrompt := "You orchestrate database assistants for Howlerops. Reply ONLY with compact JSON: {\"reply\": string, \"requires_sql\": boolean}. Use reply for a helpful natural-language response. Set requires_sql to true only if running database SQL is necessary and a connection is available. Never add extra text or markdown."
 	resp, err := a.aiService.Chat(a.ctx, &ai.ChatRequest{
 		Prompt:      fmt.Sprintf("User message:\n%s\n\nContext:\n%s", message, context),
 		System:      systemPrompt,

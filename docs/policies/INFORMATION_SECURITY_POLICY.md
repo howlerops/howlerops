@@ -10,15 +10,15 @@
 
 ### 1.1 Purpose
 
-This Information Security Policy establishes the framework for protecting SQL Studio's information assets, systems, and infrastructure from threats, whether internal or external, deliberate or accidental. This policy ensures the confidentiality, integrity, and availability of information while enabling business objectives.
+This Information Security Policy establishes the framework for protecting Howlerops's information assets, systems, and infrastructure from threats, whether internal or external, deliberate or accidental. This policy ensures the confidentiality, integrity, and availability of information while enabling business objectives.
 
 ### 1.2 Scope
 
 This policy applies to:
 - All employees, contractors, consultants, and third parties
-- All information systems, networks, and data owned or operated by SQL Studio
-- All locations where SQL Studio business is conducted
-- All devices accessing SQL Studio resources
+- All information systems, networks, and data owned or operated by Howlerops
+- All locations where Howlerops business is conducted
+- All devices accessing Howlerops resources
 
 ### 1.3 Objectives
 
@@ -329,7 +329,7 @@ All documents and systems must be labeled with classification:
 
 ```
 Header/Footer Format:
-[CLASSIFICATION] - SQL Studio - [DOCUMENT TITLE] - Page X of Y
+[CLASSIFICATION] - Howlerops - [DOCUMENT TITLE] - Page X of Y
 
 Email Subject Format:
 [CLASSIFICATION] Subject Line
@@ -1262,7 +1262,7 @@ This policy supports compliance with:
 
 ```
 I acknowledge that I have received, read, understood, and agree to comply
-with the SQL Studio Information Security Policy.
+with the Howlerops Information Security Policy.
 
 Name: _______________________
 Department: _________________

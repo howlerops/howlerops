@@ -1,6 +1,6 @@
-# SQL Studio - Kubernetes Deployment Guide
+# Howlerops - Kubernetes Deployment Guide
 
-Complete guide for deploying SQL Studio to Kubernetes clusters in production.
+Complete guide for deploying Howlerops to Kubernetes clusters in production.
 
 ## Table of Contents
 
@@ -504,7 +504,7 @@ kubectl apply -f backend-deployment.yaml --dry-run=server --validate=true
 
 - [Kubernetes Documentation](https://kubernetes.io/docs/)
 - [Kubectl Cheat Sheet](https://kubernetes.io/docs/reference/kubectl/cheatsheet/)
-- [SQL Studio Docs](../docs/infrastructure/)
+- [Howlerops Docs](../docs/infrastructure/)
 - [Deployment Guide](../docs/infrastructure/DEPLOYMENT_GUIDE.md)
 - [Runbook](../docs/infrastructure/RUNBOOK.md)
 

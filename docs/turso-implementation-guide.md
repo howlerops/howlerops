@@ -1,4 +1,4 @@
-# SQL Studio - Turso Implementation Guide
+# Howlerops - Turso Implementation Guide
 
 ## Overview
 
@@ -1408,6 +1408,6 @@ await cleanupOldRecords({
 
 - [Turso Documentation](https://docs.turso.tech/)
 - [LibSQL Client API](https://github.com/libsql/libsql-client-ts)
-- [SQL Studio Schema](./turso-schema.sql)
+- [Howlerops Schema](./turso-schema.sql)
 - [Sync Protocol](./sync-protocol.md)
 - [Cost Analysis](./turso-cost-analysis.md)

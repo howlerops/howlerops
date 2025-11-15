@@ -7,7 +7,7 @@
 
 ## Executive Summary
 
-This document provides comprehensive documentation of SQL Studio's implementation of SOC 2 Type II controls based on the Trust Services Criteria (TSC) established by the American Institute of Certified Public Accountants (AICPA). Our commitment to SOC 2 compliance demonstrates our dedication to maintaining the highest standards of security, availability, processing integrity, confidentiality, and privacy.
+This document provides comprehensive documentation of Howlerops's implementation of SOC 2 Type II controls based on the Trust Services Criteria (TSC) established by the American Institute of Certified Public Accountants (AICPA). Our commitment to SOC 2 compliance demonstrates our dedication to maintaining the highest standards of security, availability, processing integrity, confidentiality, and privacy.
 
 ## Table of Contents
 
@@ -29,7 +29,7 @@ This document provides comprehensive documentation of SQL Studio's implementatio
 
 ### 1.1 Service Overview
 
-SQL Studio provides a cloud-based SQL database management platform enabling teams to collaboratively query, manage, and analyze databases. The service includes:
+Howlerops provides a cloud-based SQL database management platform enabling teams to collaboratively query, manage, and analyze databases. The service includes:
 
 - **Core Platform**: Web-based SQL editor and database management interface
 - **Cloud Sync Service**: Real-time synchronization across devices and teams

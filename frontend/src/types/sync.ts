@@ -1,7 +1,7 @@
 /**
  * Sync System Type Definitions
  *
- * Type-safe interfaces for cloud sync functionality in SQL Studio.
+ * Type-safe interfaces for cloud sync functionality in Howlerops.
  * Supports offline-first, conflict resolution, and data sanitization.
  *
  * @module types/sync

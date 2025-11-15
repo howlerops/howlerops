@@ -1,6 +1,6 @@
 # Organization Components
 
-React UI components for the team collaboration features in SQL Studio Phase 3.
+React UI components for the team collaboration features in Howlerops Phase 3.
 
 ## Components Overview
 

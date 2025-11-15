@@ -7,7 +7,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
-// Prometheus metrics for SQL Studio backend
+// Prometheus metrics for Howlerops backend
 // These metrics are automatically registered with the default Prometheus registry
 
 var (

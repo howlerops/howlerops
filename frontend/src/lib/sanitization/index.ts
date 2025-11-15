@@ -1,8 +1,8 @@
 /**
- * SQL Studio Data Sanitization Library
+ * Howlerops Data Sanitization Library
  *
  * Comprehensive security module for preventing credential leakage
- * in SQL Studio's sync and storage operations.
+ * in Howlerops's sync and storage operations.
  *
  * @module sanitization
  */

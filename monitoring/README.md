@@ -1,14 +1,14 @@
-# SQL Studio Monitoring & Observability Infrastructure
+# Howlerops Monitoring & Observability Infrastructure
 
 ## Overview
 
-This directory contains comprehensive monitoring, logging, and observability configurations for SQL Studio. The monitoring stack provides full visibility into application performance, infrastructure health, business metrics, and user experience.
+This directory contains comprehensive monitoring, logging, and observability configurations for Howlerops. The monitoring stack provides full visibility into application performance, infrastructure health, business metrics, and user experience.
 
 ## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    SQL Studio Application                   │
+│                    Howlerops Application                   │
 │  ┌────────────┐  ┌────────────┐  ┌─────────────────────┐  │
 │  │  Frontend  │  │   Backend  │  │  Database (Turso)   │  │
 │  └─────┬──────┘  └──────┬─────┘  └──────────┬──────────┘  │

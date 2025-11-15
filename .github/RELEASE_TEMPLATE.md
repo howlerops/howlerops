@@ -1,5 +1,5 @@
 <!--
-SQL Studio Release Notes Template
+Howlerops Release Notes Template
 
 Use this template when creating GitHub releases. The release workflow will auto-populate
 some sections based on commits and pull requests.
@@ -10,7 +10,7 @@ Version Format: v2.1.0 (semantic versioning)
 - PATCH: Bug fixes (backwards compatible)
 -->
 
-# SQL Studio Backend v2.1.0
+# Howlerops Backend v2.1.0
 
 ## Overview
 

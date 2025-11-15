@@ -7,7 +7,7 @@
 
 ## Executive Summary
 
-This report presents a comprehensive security audit of the Role-Based Access Control (RBAC) implementation for the SQL Studio organization management system. The audit focuses on permission enforcement, authorization bypass attempts, privilege escalation, data leakage, rate limiting, and input validation.
+This report presents a comprehensive security audit of the Role-Based Access Control (RBAC) implementation for the Howlerops organization management system. The audit focuses on permission enforcement, authorization bypass attempts, privilege escalation, data leakage, rate limiting, and input validation.
 
 ## Audit Scope
 

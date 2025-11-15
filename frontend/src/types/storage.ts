@@ -1,5 +1,5 @@
 /**
- * IndexedDB Storage Types for SQL Studio
+ * IndexedDB Storage Types for Howlerops
  *
  * Comprehensive type definitions for local-first storage including:
  * - Connection metadata (no passwords)
@@ -15,7 +15,7 @@
 // ============================================================================
 
 /**
- * Database engines supported by SQL Studio
+ * Database engines supported by Howlerops
  */
 export type DatabaseType = 'postgres' | 'mysql' | 'sqlite' | 'mssql' | 'oracle' | 'mongodb';
 

@@ -4,16 +4,16 @@
 **Effective Date:** [EFFECTIVE_DATE]
 **Last Updated:** January 1, 2025
 
-This Service Level Agreement ("**SLA**") is entered into between SQL Studio Inc. ("**SQL Studio**," "**we**," "**us**," or "**our**") and the customer identified in the applicable Order Form ("**Customer**," "**you**," or "**your**") and governs the availability and performance of the SQL Studio Enterprise Services.
+This Service Level Agreement ("**SLA**") is entered into between Howlerops Inc. ("**Howlerops**," "**we**," "**us**," or "**our**") and the customer identified in the applicable Order Form ("**Customer**," "**you**," or "**your**") and governs the availability and performance of the Howlerops Enterprise Services.
 
 ## 1. SERVICE COMMITMENT
 
-SQL Studio is committed to providing reliable, high-performance database management services. This SLA defines our service level objectives and your remedies if we fail to meet them.
+Howlerops is committed to providing reliable, high-performance database management services. This SLA defines our service level objectives and your remedies if we fail to meet them.
 
 ### 1.1 Scope
 
 This SLA applies to:
-- SQL Studio Enterprise tier subscriptions
+- Howlerops Enterprise tier subscriptions
 - Production environment services
 - Core platform functionality
 - API services
@@ -47,7 +47,7 @@ This SLA does NOT apply to:
 
 **"Scheduled Maintenance"**: Planned maintenance notified in advance.
 
-**"Service"**: The SQL Studio Enterprise platform as defined in your Order Form.
+**"Service"**: The Howlerops Enterprise platform as defined in your Order Form.
 
 **"Service Credit"**: A credit applied to future invoices as remedy for SLA violations.
 
@@ -672,7 +672,7 @@ Name: [CUSTOMER_NAME]
 Signature: _______________________
 Date: [DATE]
 
-**SQL STUDIO INC:**
+**Howlerops INC:**
 Name: [SIGNATORY_NAME]
 Title: VP of Customer Success
 Signature: _______________________

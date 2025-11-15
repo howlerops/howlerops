@@ -1,4 +1,4 @@
-# SQL Studio Backend - Production Deployment Checklist
+# Howlerops Backend - Production Deployment Checklist
 
 Use this checklist to ensure all prerequisites are met before deploying to production.
 
@@ -13,7 +13,7 @@ Use this checklist to ensure all prerequisites are met before deploying to produ
 
 - [ ] **GCP Project Created**
   ```bash
-  gcloud projects create PROJECT_ID --name="SQL Studio Production"
+  gcloud projects create PROJECT_ID --name="Howlerops Production"
   ```
 
 - [ ] **Billing Enabled**
@@ -36,7 +36,7 @@ Use this checklist to ensure all prerequisites are met before deploying to produ
 - [ ] **Service Account Created**
   ```bash
   gcloud iam service-accounts create sql-studio-backend \
-    --display-name="SQL Studio Backend Service"
+    --display-name="Howlerops Backend Service"
   ```
 
 - [ ] **IAM Permissions Configured**

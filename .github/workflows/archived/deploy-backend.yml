@@ -1,5 +1,5 @@
 # =============================================================================
-# SQL Studio Backend - Deployment Workflow
+# Howlerops Backend - Deployment Workflow
 # =============================================================================
 # This workflow automates production deployment to GCP Cloud Run with:
 # - Docker image building and pushing to GCP Container Registry
@@ -49,24 +49,24 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Deployment environment'
+        description: "Deployment environment"
         required: true
-        default: 'production'
+        default: "production"
         type: choice
         options:
           - production
           - staging
       deploy_target:
-        description: 'Deployment target'
+        description: "Deployment target"
         required: true
-        default: 'cloudrun'
+        default: "cloudrun"
         type: choice
         options:
           - cloudrun
           - fly
           - both
       image_tag:
-        description: 'Docker image tag (leave empty for latest)'
+        description: "Docker image tag (leave empty for latest)"
         required: false
         type: string
 
@@ -84,9 +84,9 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  GO_VERSION: '1.24'
-  GCP_REGION: 'us-central1'
-  SERVICE_NAME: 'sql-studio-backend'
+  GO_VERSION: "1.24"
+  GCP_REGION: "us-central1"
+  SERVICE_NAME: "sql-studio-backend"
 
 # =============================================================================
 # Jobs
@@ -266,7 +266,7 @@ jobs:
           cache-to: type=gha,mode=max
           # Add labels for better image management
           labels: |
-            org.opencontainers.image.title=SQL Studio Backend
+            org.opencontainers.image.title=Howlerops Backend
             org.opencontainers.image.version=${{ needs.validate.outputs.version }}
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.source=${{ github.repositoryUrl }}
@@ -281,17 +281,17 @@ jobs:
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: gcr.io/${{ secrets.GCP_PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ needs.validate.outputs.image_tag }}
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-          severity: 'CRITICAL,HIGH'
-          exit-code: '0'
+          format: "sarif"
+          output: "trivy-results.sarif"
+          severity: "CRITICAL,HIGH"
+          exit-code: "0"
           # Don't fail deployment on vulnerabilities, but report them
 
       - name: Upload Trivy results to GitHub Security
         uses: github/codeql-action/upload-sarif@v2
         if: always()
         with:
-          sarif_file: 'trivy-results.sarif'
+          sarif_file: "trivy-results.sarif"
 
   # ---------------------------------------------------------------------------
   # Job 3: Manage Secrets in GCP Secret Manager

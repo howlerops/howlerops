@@ -1,7 +1,7 @@
 /**
  * Tier Management Store
  *
- * Central state management for SQL Studio's tier system using Zustand.
+ * Central state management for Howlerops's tier system using Zustand.
  * Handles tier detection, license validation, feature gates, and usage limits.
  *
  * Features:

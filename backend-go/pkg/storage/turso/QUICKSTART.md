@@ -1,6 +1,6 @@
 # Turso Storage Quick Start Guide
 
-Get SQL Studio backend running with Turso in 5 minutes.
+Get Howlerops backend running with Turso in 5 minutes.
 
 ## Step 1: Create Turso Database (2 minutes)
 
@@ -178,7 +178,7 @@ INFO[0000] Connecting to Turso database
 INFO[0000] Successfully connected to Turso database
 INFO[0000] Turso schema initialized successfully
 INFO[0000] Turso storage initialized successfully
-INFO[0000] SQL Studio backend started
+INFO[0000] Howlerops backend started
 ```
 
 ### Test 2: Create Test User

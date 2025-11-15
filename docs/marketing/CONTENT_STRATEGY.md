@@ -1,4 +1,4 @@
-# SQL Studio Content Marketing Strategy
+# Howlerops Content Marketing Strategy
 
 ## Target Audience Personas
 

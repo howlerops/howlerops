@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS white_label_config (
     company_name TEXT,
     support_email TEXT,
     custom_css TEXT, -- Additional CSS overrides
-    hide_branding BOOLEAN DEFAULT false, -- Hide "Powered by SQL Studio"
+    hide_branding BOOLEAN DEFAULT false, -- Hide "Powered by Howlerops"
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL,
     FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE

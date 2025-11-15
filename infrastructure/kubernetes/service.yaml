@@ -1,5 +1,5 @@
 # =============================================================================
-# SQL Studio - Kubernetes Services
+# Howlerops - Kubernetes Services
 # =============================================================================
 # ClusterIP services for internal communication and load balancing
 # =============================================================================
@@ -15,14 +15,14 @@ metadata:
     component: backend
     tier: api
   annotations:
-    description: "SQL Studio backend API service"
+    description: "Howlerops backend API service"
     service.alpha.kubernetes.io/tolerate-unready-endpoints: "false"
 spec:
   type: ClusterIP
-  sessionAffinity: ClientIP  # Sticky sessions for WebSocket connections
+  sessionAffinity: ClientIP # Sticky sessions for WebSocket connections
   sessionAffinityConfig:
     clientIP:
-      timeoutSeconds: 10800  # 3 hours
+      timeoutSeconds: 10800 # 3 hours
 
   # Port configuration
   ports:
@@ -64,7 +64,7 @@ metadata:
     description: "Headless service for direct pod access"
 spec:
   type: ClusterIP
-  clusterIP: None  # Headless service
+  clusterIP: None # Headless service
   publishNotReadyAddresses: false
 
   ports:
@@ -90,7 +90,7 @@ metadata:
     component: frontend
     tier: web
   annotations:
-    description: "SQL Studio frontend web service"
+    description: "Howlerops frontend web service"
 spec:
   type: ClusterIP
   sessionAffinity: None

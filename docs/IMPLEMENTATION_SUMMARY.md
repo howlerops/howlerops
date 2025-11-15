@@ -5,7 +5,7 @@
 
 ## Overview
 
-This document summarizes the implementation of multi-database query support and AI/RAG integration features for HowlerOps SQL Studio, following the architectural patterns outlined in the planning documents.
+This document summarizes the implementation of multi-database query support and AI/RAG integration features for HowlerOps Howlerops, following the architectural patterns outlined in the planning documents.
 
 ## Part 1: Multi-Database Query Support
 

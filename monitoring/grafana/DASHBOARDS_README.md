@@ -1,6 +1,6 @@
-# Grafana Dashboards for SQL Studio
+# Grafana Dashboards for Howlerops
 
-This directory contains Grafana dashboard configurations for comprehensive monitoring of SQL Studio.
+This directory contains Grafana dashboard configurations for comprehensive monitoring of Howlerops.
 
 ## Dashboard Overview
 

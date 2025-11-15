@@ -6,7 +6,7 @@
 
 ## Introduction
 
-SQL Studio Inc. ("**SQL Studio**," "**we**," "**us**," or "**our**") is committed to protecting your privacy and ensuring the security of your personal information. This Privacy Policy explains how we collect, use, disclose, and protect your information when you use our SQL database management platform and related services (collectively, the "**Services**").
+Howlerops Inc. ("**Howlerops**," "**we**," "**us**," or "**our**") is committed to protecting your privacy and ensuring the security of your personal information. This Privacy Policy explains how we collect, use, disclose, and protect your information when you use our SQL database management platform and related services (collectively, the "**Services**").
 
 By using our Services, you agree to the collection and use of information in accordance with this Privacy Policy. If you do not agree with our policies and practices, please do not use our Services.
 
@@ -607,7 +607,7 @@ After notification of changes:
 For privacy-related questions or requests:
 
 **Email**: privacy@sqlstudio.com
-**Mail**: SQL Studio Inc.
+**Mail**: Howlerops Inc.
 Attn: Privacy Team
 [COMPANY_ADDRESS]
 
@@ -616,7 +616,7 @@ Attn: Privacy Team
 ### 11.2 Data Protection Officer
 
 **Email**: dpo@sqlstudio.com
-**Mail**: SQL Studio Inc.
+**Mail**: Howlerops Inc.
 Attn: Data Protection Officer
 [COMPANY_ADDRESS]
 
@@ -697,7 +697,7 @@ Under the Privacy Act, you have rights regarding your personal information. Cont
 
 - **Personal Information**: Information that identifies or relates to an individual
 - **Processing**: Any operation performed on personal information
-- **Services**: SQL Studio platform and related services
+- **Services**: Howlerops platform and related services
 - **Data Controller**: Entity determining purposes of processing
 - **Data Processor**: Entity processing data on controller's behalf
 
@@ -735,4 +735,4 @@ In case of discrepancy, the English version prevails.
 
 **Effective Date**: January 1, 2025
 
-By using SQL Studio, you acknowledge that you have read and understood this Privacy Policy.
+By using Howlerops, you acknowledge that you have read and understood this Privacy Policy.

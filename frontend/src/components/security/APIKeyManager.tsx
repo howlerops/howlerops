@@ -1,9 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
+import React, { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -11,7 +17,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
+} from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -19,16 +25,16 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Checkbox } from '@/components/ui/checkbox';
+} from "@/components/ui/select";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Key,
   Plus,
@@ -39,8 +45,8 @@ import {
   Shield,
   Eye,
   EyeOff,
-} from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+} from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 
 interface APIKey {
   id: string;
@@ -69,43 +75,50 @@ export function APIKeyManager({ organizationId }: APIKeyManagerProps) {
 
   const fetchAPIKeys = async () => {
     try {
-      const response = await fetch('/api/api-keys');
-      if (!response.ok) throw new Error('Failed to fetch API keys');
+      const response = await fetch("/api/api-keys");
+      if (!response.ok) throw new Error("Failed to fetch API keys");
       const data = await response.json();
       setKeys(data);
     } catch {
-      setError('Failed to load API keys');
+      setError("Failed to load API keys");
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleRevoke = async (keyId: string) => {
-    if (!confirm('Are you sure you want to revoke this API key? This action cannot be undone.')) {
+    if (
+      !confirm(
+        "Are you sure you want to revoke this API key? This action cannot be undone."
+      )
+    ) {
       return;
     }
 
     try {
       const response = await fetch(`/api/api-keys/${keyId}`, {
-        method: 'DELETE',
+        method: "DELETE",
       });
 
-      if (!response.ok) throw new Error('Failed to revoke API key');
+      if (!response.ok) throw new Error("Failed to revoke API key");
 
-      setKeys(keys.map(k =>
-        k.id === keyId ? { ...k, revoked_at: new Date().toISOString() } : k
-      ));
+      setKeys(
+        keys.map((k) =>
+          k.id === keyId ? { ...k, revoked_at: new Date().toISOString() } : k
+        )
+      );
     } catch {
-      setError('Failed to revoke API key');
+      setError("Failed to revoke API key");
     }
   };
 
   const getKeyStatus = (key: APIKey) => {
-    if (key.revoked_at) return { label: 'Revoked', variant: 'destructive' as const };
+    if (key.revoked_at)
+      return { label: "Revoked", variant: "destructive" as const };
     if (key.expires_at && new Date(key.expires_at) < new Date()) {
-      return { label: 'Expired', variant: 'secondary' as const };
+      return { label: "Expired", variant: "secondary" as const };
     }
-    return { label: 'Active', variant: 'default' as const };
+    return { label: "Active", variant: "default" as const };
   };
 
   return (
@@ -118,7 +131,7 @@ export function APIKeyManager({ organizationId }: APIKeyManagerProps) {
               API Keys
             </CardTitle>
             <CardDescription>
-              Manage programmatic access to your SQL Studio account
+              Manage programmatic access to your Howlerops account
             </CardDescription>
           </div>
           <Button onClick={() => setShowCreateDialog(true)}>
@@ -132,7 +145,8 @@ export function APIKeyManager({ organizationId }: APIKeyManagerProps) {
           <Alert>
             <Key className="h-4 w-4" />
             <AlertDescription>
-              No API keys created yet. Create your first API key to enable programmatic access.
+              No API keys created yet. Create your first API key to enable
+              programmatic access.
             </AlertDescription>
           </Alert>
         ) : (
@@ -161,8 +175,12 @@ export function APIKeyManager({ organizationId }: APIKeyManagerProps) {
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
-                        {key.permissions.slice(0, 2).map(perm => (
-                          <Badge key={perm} variant="outline" className="text-xs">
+                        {key.permissions.slice(0, 2).map((perm) => (
+                          <Badge
+                            key={perm}
+                            variant="outline"
+                            className="text-xs"
+                          >
                             {perm}
                           </Badge>
                         ))}
@@ -178,11 +196,15 @@ export function APIKeyManager({ organizationId }: APIKeyManagerProps) {
                     </TableCell>
                     <TableCell>
                       {key.last_used_at
-                        ? formatDistanceToNow(new Date(key.last_used_at), { addSuffix: true })
-                        : 'Never'}
+                        ? formatDistanceToNow(new Date(key.last_used_at), {
+                            addSuffix: true,
+                          })
+                        : "Never"}
                     </TableCell>
                     <TableCell>
-                      {formatDistanceToNow(new Date(key.created_at), { addSuffix: true })}
+                      {formatDistanceToNow(new Date(key.created_at), {
+                        addSuffix: true,
+                      })}
                     </TableCell>
                     <TableCell className="text-right">
                       <Button
@@ -229,9 +251,13 @@ interface CreateAPIKeyDialogProps {
   onSuccess: (key: APIKey) => void;
 }
 
-function CreateAPIKeyDialog({ organizationId, onClose, onSuccess }: CreateAPIKeyDialogProps) {
-  const [name, setName] = useState('');
-  const [expiresIn, setExpiresIn] = useState('0');
+function CreateAPIKeyDialog({
+  organizationId,
+  onClose,
+  onSuccess,
+}: CreateAPIKeyDialogProps) {
+  const [name, setName] = useState("");
+  const [expiresIn, setExpiresIn] = useState("0");
   const [permissions, setPermissions] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -240,21 +266,21 @@ function CreateAPIKeyDialog({ organizationId, onClose, onSuccess }: CreateAPIKey
   const [copied, setCopied] = useState(false);
 
   const availablePermissions = [
-    { value: 'connections:read', label: 'Read Connections' },
-    { value: 'connections:write', label: 'Write Connections' },
-    { value: 'queries:read', label: 'Read Queries' },
-    { value: 'queries:write', label: 'Execute Queries' },
-    { value: 'schemas:read', label: 'Read Schemas' },
-    { value: 'templates:read', label: 'Read Templates' },
-    { value: 'templates:write', label: 'Write Templates' },
-    { value: 'organizations:read', label: 'Read Organization' },
-    { value: 'organizations:write', label: 'Manage Organization' },
+    { value: "connections:read", label: "Read Connections" },
+    { value: "connections:write", label: "Write Connections" },
+    { value: "queries:read", label: "Read Queries" },
+    { value: "queries:write", label: "Execute Queries" },
+    { value: "schemas:read", label: "Read Schemas" },
+    { value: "templates:read", label: "Read Templates" },
+    { value: "templates:write", label: "Write Templates" },
+    { value: "organizations:read", label: "Read Organization" },
+    { value: "organizations:write", label: "Manage Organization" },
   ];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (permissions.length === 0) {
-      setError('Please select at least one permission');
+      setError("Please select at least one permission");
       return;
     }
 
@@ -262,9 +288,9 @@ function CreateAPIKeyDialog({ organizationId, onClose, onSuccess }: CreateAPIKey
     setError(null);
 
     try {
-      const response = await fetch('/api/api-keys', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/api-keys", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name,
           organization_id: organizationId,
@@ -274,14 +300,14 @@ function CreateAPIKeyDialog({ organizationId, onClose, onSuccess }: CreateAPIKey
       });
 
       if (!response.ok) {
-        throw new Error('Failed to create API key');
+        throw new Error("Failed to create API key");
       }
 
       const data = await response.json();
       setCreatedKey(data.key);
       onSuccess(data.api_key);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create API key');
+      setError(err instanceof Error ? err.message : "Failed to create API key");
     } finally {
       setIsSubmitting(false);
     }
@@ -296,9 +322,9 @@ function CreateAPIKeyDialog({ organizationId, onClose, onSuccess }: CreateAPIKey
   };
 
   const togglePermission = (permission: string) => {
-    setPermissions(prev =>
+    setPermissions((prev) =>
       prev.includes(permission)
-        ? prev.filter(p => p !== permission)
+        ? prev.filter((p) => p !== permission)
         : [...prev, permission]
     );
   };
@@ -313,7 +339,8 @@ function CreateAPIKeyDialog({ organizationId, onClose, onSuccess }: CreateAPIKey
               API Key Created Successfully
             </DialogTitle>
             <DialogDescription>
-              Make sure to copy your API key now. You won't be able to see it again!
+              Make sure to copy your API key now. You won't be able to see it
+              again!
             </DialogDescription>
           </DialogHeader>
 
@@ -330,7 +357,9 @@ function CreateAPIKeyDialog({ organizationId, onClose, onSuccess }: CreateAPIKey
               <div className="flex gap-2">
                 <div className="relative flex-1">
                   <Input
-                    value={showKey ? createdKey : '••••••••••••••••••••••••••••••••'}
+                    value={
+                      showKey ? createdKey : "••••••••••••••••••••••••••••••••"
+                    }
                     readOnly
                     className="pr-10 font-mono text-xs"
                   />
@@ -360,7 +389,8 @@ function CreateAPIKeyDialog({ organizationId, onClose, onSuccess }: CreateAPIKey
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                This is the only time you'll see this key. If you lose it, you'll need to create a new one.
+                This is the only time you'll see this key. If you lose it,
+                you'll need to create a new one.
               </AlertDescription>
             </Alert>
           </div>
@@ -379,7 +409,7 @@ function CreateAPIKeyDialog({ organizationId, onClose, onSuccess }: CreateAPIKey
         <DialogHeader>
           <DialogTitle>Create API Key</DialogTitle>
           <DialogDescription>
-            Create a new API key for programmatic access to SQL Studio
+            Create a new API key for programmatic access to Howlerops
           </DialogDescription>
         </DialogHeader>
 
@@ -415,7 +445,7 @@ function CreateAPIKeyDialog({ organizationId, onClose, onSuccess }: CreateAPIKey
           <div className="space-y-2">
             <Label>Permissions</Label>
             <div className="space-y-2 rounded-lg border p-3">
-              {availablePermissions.map(perm => (
+              {availablePermissions.map((perm) => (
                 <label
                   key={perm.value}
                   className="flex items-center space-x-2 cursor-pointer"
@@ -440,11 +470,16 @@ function CreateAPIKeyDialog({ organizationId, onClose, onSuccess }: CreateAPIKey
           )}
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              disabled={isSubmitting}
+            >
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting || !name}>
-              {isSubmitting ? 'Creating...' : 'Create API Key'}
+              {isSubmitting ? "Creating..." : "Create API Key"}
             </Button>
           </DialogFooter>
         </form>

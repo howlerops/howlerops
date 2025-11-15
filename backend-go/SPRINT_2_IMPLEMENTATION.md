@@ -30,7 +30,7 @@ type EmailService interface {
 Created 3 mobile-responsive, branded HTML email templates:
 
 **a. Organization Invitation Template** (`organizationInvitationTemplate`)
-- Subject: "You're invited to join {OrgName} on SQL Studio"
+- Subject: "You're invited to join {OrgName} on Howlerops"
 - Features:
   - Prominent organization name badge with gradient
   - Inviter name display
@@ -38,7 +38,7 @@ Created 3 mobile-responsive, branded HTML email templates:
   - Large "Accept Invitation" CTA button
   - Benefits list (shared connections, collaboration, real-time features)
   - 7-day expiration warning
-  - SQL Studio branding
+  - Howlerops branding
   - Mobile-responsive design
 
 **b. Organization Welcome Template** (`organizationWelcomeTemplate`)
@@ -62,7 +62,7 @@ Created 3 mobile-responsive, branded HTML email templates:
 
 **Design Features (All Templates):**
 - Mobile-responsive with max-width 600px
-- Professional color scheme (SQL Studio brand colors)
+- Professional color scheme (Howlerops brand colors)
 - Clear typography hierarchy
 - Accessible color contrast
 - Gradient backgrounds for CTAs
@@ -233,7 +233,7 @@ To use these features in production, configure:
 1. **Email Service (Resend)**:
    - `RESEND_API_KEY`: Your Resend API key
    - `FROM_EMAIL`: Verified sender email (e.g., noreply@sqlstudio.io)
-   - `FROM_NAME`: Sender display name (default: "SQL Studio")
+   - `FROM_NAME`: Sender display name (default: "Howlerops")
 
 2. **Rate Limiting**:
    - User limit: 20/hour (default, configurable in NewInvitationRateLimiter)
@@ -313,7 +313,7 @@ func (h *Handler) CreateInvitation(w http.ResponseWriter, r *http.Request) {
 2. `/Users/jacob_1/projects/sql-studio/backend-go/internal/email/templates.go` (+547 lines)
    - Added 3 complete HTML email templates
    - Mobile-responsive design
-   - SQL Studio branding
+   - Howlerops branding
 
 3. `/Users/jacob_1/projects/sql-studio/backend-go/internal/organization/service.go` (+106 lines)
    - Added EmailService and RateLimiter dependencies

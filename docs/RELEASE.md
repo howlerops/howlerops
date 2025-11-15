@@ -1,10 +1,10 @@
 # Release Process
 
-This document describes the release process for SQL Studio Backend.
+This document describes the release process for Howlerops Backend.
 
 ## Overview
 
-SQL Studio uses semantic versioning (MAJOR.MINOR.PATCH) and follows a GitOps-based release workflow. Releases are triggered by creating and pushing Git tags, with GitHub Actions handling the build, packaging, and deployment process.
+Howlerops uses semantic versioning (MAJOR.MINOR.PATCH) and follows a GitOps-based release workflow. Releases are triggered by creating and pushing Git tags, with GitHub Actions handling the build, packaging, and deployment process.
 
 ## Semantic Versioning
 
@@ -60,7 +60,7 @@ make release-all VERSION=2.1.0
 
 # Verify output shows correct version
 # Expected output:
-# SQL Studio Backend
+# Howlerops Backend
 # Version:    2.1.0
 # Commit:     abc1234
 # Build Date: 2025-10-23T10:30:00Z

@@ -832,7 +832,7 @@ func TestClaudeCode_SystemPrompt_SQLFix(t *testing.T) {
 
 func TestClaudeCode_SystemPrompt_ChatDefault(t *testing.T) {
 	// Default system prompt for chat:
-	// "You are a helpful assistant for SQL Studio. Provide concise, accurate answers and actionable guidance."
+	// "You are a helpful assistant for Howlerops. Provide concise, accurate answers and actionable guidance."
 	config := createClaudeCodeTestConfig()
 	provider, err := ai.NewClaudeCodeProvider(config)
 	require.NoError(t, err)

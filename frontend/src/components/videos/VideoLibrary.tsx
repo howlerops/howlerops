@@ -1,26 +1,26 @@
-import { useState } from "react"
-import { Input } from "@/components/ui/input"
-import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Search, Play, Clock } from "lucide-react"
-import { VideoPlayer } from "./VideoPlayer"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { useState } from "react";
+import { Input } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Search, Play, Clock } from "lucide-react";
+import { VideoPlayer } from "./VideoPlayer";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 interface Video {
-  id: string
-  title: string
-  description: string
-  duration: number // in seconds
-  difficulty: "beginner" | "intermediate" | "advanced"
-  thumbnail: string
-  src: string
-  category: string
+  id: string;
+  title: string;
+  description: string;
+  duration: number; // in seconds
+  difficulty: "beginner" | "intermediate" | "advanced";
+  thumbnail: string;
+  src: string;
+  category: string;
 }
 
 const videos: Video[] = [
   {
     id: "getting-started",
-    title: "Getting Started with SQL Studio",
+    title: "Getting Started with Howlerops",
     description: "Learn the basics and set up your first database connection",
     duration: 180, // 3 minutes
     difficulty: "beginner",
@@ -78,39 +78,42 @@ const videos: Video[] = [
     src: "/videos/tips-tricks.mp4",
     category: "Advanced",
   },
-]
+];
 
 const difficultyColors = {
   beginner: "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300",
-  intermediate: "bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300",
+  intermediate:
+    "bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300",
   advanced: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300",
-}
+};
 
 export function VideoLibrary() {
-  const [searchQuery, setSearchQuery] = useState("")
-  const [selectedDifficulty, setSelectedDifficulty] = useState<string | null>(null)
-  const [selectedVideo, setSelectedVideo] = useState<Video | null>(null)
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedDifficulty, setSelectedDifficulty] = useState<string | null>(
+    null
+  );
+  const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
 
-  const difficulties = ["beginner", "intermediate", "advanced"]
-  const _categories = Array.from(new Set(videos.map((v) => v.category)))
+  const difficulties = ["beginner", "intermediate", "advanced"];
+  const _categories = Array.from(new Set(videos.map((v) => v.category)));
 
   const filteredVideos = videos.filter((video) => {
     const matchesSearch =
       searchQuery === "" ||
       video.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      video.description.toLowerCase().includes(searchQuery.toLowerCase())
+      video.description.toLowerCase().includes(searchQuery.toLowerCase());
 
     const matchesDifficulty =
-      !selectedDifficulty || video.difficulty === selectedDifficulty
+      !selectedDifficulty || video.difficulty === selectedDifficulty;
 
-    return matchesSearch && matchesDifficulty
-  })
+    return matchesSearch && matchesDifficulty;
+  });
 
   const formatDuration = (seconds: number) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`
-  }
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`;
+  };
 
   return (
     <div className="space-y-6">
@@ -118,7 +121,7 @@ export function VideoLibrary() {
       <div>
         <h1 className="text-3xl font-bold">Video Tutorials</h1>
         <p className="text-muted-foreground mt-2">
-          Watch step-by-step video guides to master SQL Studio
+          Watch step-by-step video guides to master Howlerops
         </p>
       </div>
 
@@ -145,7 +148,9 @@ export function VideoLibrary() {
           {difficulties.map((difficulty) => (
             <Badge
               key={difficulty}
-              variant={selectedDifficulty === difficulty ? "default" : "outline"}
+              variant={
+                selectedDifficulty === difficulty ? "default" : "outline"
+              }
               className="cursor-pointer capitalize"
               onClick={() => setSelectedDifficulty(difficulty)}
             >
@@ -258,5 +263,5 @@ export function VideoLibrary() {
         </DialogContent>
       </Dialog>
     </div>
-  )
+  );
 }

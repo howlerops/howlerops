@@ -1,8 +1,8 @@
-# Turso Database Integration & Sync Strategy for SQL Studio
+# Turso Database Integration & Sync Strategy for Howlerops
 
 ## Executive Summary
 
-This document outlines a comprehensive strategy for integrating Turso (libSQL) as a cloud sync backend for SQL Studio's tiered architecture. The design optimizes for minimal row writes, efficient sync patterns, and scalable multi-tenancy while leveraging Turso's edge replication capabilities.
+This document outlines a comprehensive strategy for integrating Turso (libSQL) as a cloud sync backend for Howlerops's tiered architecture. The design optimizes for minimal row writes, efficient sync patterns, and scalable multi-tenancy while leveraging Turso's edge replication capabilities.
 
 **Key Metrics:**
 - Individual tier: ~$29/month Turso cost (est. 500K rows written/month)
@@ -912,7 +912,7 @@ func HasConnectionPermission(
 - Writes go to primary, reads from nearest replica
 - Eventual consistency (typically <100ms)
 
-**SQL Studio Benefits:**
+**Howlerops Benefits:**
 - Query history reads from edge (fast)
 - Tab content reads from edge (fast)
 - Writes to primary (slightly slower, acceptable)
@@ -1008,7 +1008,7 @@ const rows = await client.execute(`
 - Desktop-only (Wails already includes SQLite)
 - More complex client setup
 
-**Recommendation:** Use embedded replica for SQL Studio desktop app.
+**Recommendation:** Use embedded replica for Howlerops desktop app.
 
 ### 5.4 Primary/Replica Sync Patterns
 
@@ -1334,7 +1334,7 @@ CREATE TABLE ui_preferences (
 
 **Optimize for Read-Heavy Workloads:**
 
-SQL Studio is read-heavy:
+Howlerops is read-heavy:
 - 90% reads (query history, tabs, saved queries)
 - 10% writes (new queries, tab updates)
 
@@ -1443,7 +1443,7 @@ Total:                2,000,000 rows/month
 
 **Cost:** Scaler Plan ($29/month, covers 500M rows)
 
-**Conclusion:** Even at scale, SQL Studio stays within free or basic tier.
+**Conclusion:** Even at scale, Howlerops stays within free or basic tier.
 
 ---
 
@@ -1457,7 +1457,7 @@ Total:                2,000,000 rows/month
 // 1. User logs in via OAuth provider (GitHub, Google, etc.)
 const { user, accessToken } = await authProvider.login()
 
-// 2. Exchange access token for SQL Studio JWT
+// 2. Exchange access token for Howlerops JWT
 const response = await fetch('https://api.sqlstudio.app/auth/token', {
   method: 'POST',
   headers: { 'Authorization': `Bearer ${accessToken}` },
@@ -1723,7 +1723,7 @@ DELETE FROM users WHERE user_id = ?;
 
 **GDPR Data Processing Agreement:**
 - Turso is GDPR-compliant
-- SQL Studio acts as data controller
+- Howlerops acts as data controller
 - Users control their data (export, delete)
 - No data sold to third parties
 - Audit trail via `audit_logs` table
@@ -2090,7 +2090,7 @@ func CleanupDeletedData(ctx context.Context) error {
 - Rows written: 500K/month
 - Reads: Unlimited
 
-**SQL Studio Usage:**
+**Howlerops Usage:**
 - Average user: 2K rows/month
 - Heavy user: 20K rows/month
 - Storage: <10 MB/user
@@ -2119,7 +2119,7 @@ func CleanupDeletedData(ctx context.Context) error {
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                        SQL Studio Client                        │
+│                        Howlerops Client                        │
 │                                                                 │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐         │
 │  │   Zustand    │  │ Sync Manager │  │ Turso Client │         │
@@ -2166,7 +2166,7 @@ func CleanupDeletedData(ctx context.Context) error {
 
 ## Conclusion
 
-This comprehensive design provides SQL Studio with:
+This comprehensive design provides Howlerops with:
 
 1. **Scalable sync infrastructure** using Turso's libSQL
 2. **Cost-effective solution** (free for most users, $29/month at scale)
@@ -2191,5 +2191,5 @@ Next steps:
 
 **Document Version:** 1.0
 **Last Updated:** 2025-10-23
-**Author:** SQL Studio Team
+**Author:** Howlerops Team
 **Status:** Draft for Review

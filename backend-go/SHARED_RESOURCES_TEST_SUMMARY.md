@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document summarizes the comprehensive testing strategy for Sprint 4: Shared Resources feature in SQL Studio.
+This document summarizes the comprehensive testing strategy for Sprint 4: Shared Resources feature in Howlerops.
 
 ## Test Coverage
 

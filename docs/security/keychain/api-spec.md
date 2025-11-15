@@ -107,7 +107,7 @@ import (
     "github.com/zalando/go-keyring"
 )
 
-const serviceName = "SQL Studio"
+const serviceName = "Howlerops"
 
 // StorePassword stores a password in the OS keychain
 func (a *App) StorePassword(key string, value string) error {
@@ -170,7 +170,7 @@ Values are JSON strings containing:
 
 ## Security Considerations
 
-1. **Service Name**: Use a consistent service name ("SQL Studio") for all keychain entries
+1. **Service Name**: Use a consistent service name ("Howlerops") for all keychain entries
 2. **Encryption**: The OS keychain handles encryption automatically
 3. **Permissions**: Entries are accessible only to the current user
 4. **Keychain Lock**: If keychain is locked, operations may fail - handle gracefully
@@ -223,7 +223,7 @@ fmt.Println("Expected not found error:", err)
 **macOS:**
 ```bash
 # View in Keychain Access.app
-# Look for service "SQL Studio"
+# Look for service "Howlerops"
 open -a "Keychain Access"
 ```
 
@@ -237,7 +237,7 @@ control /name Microsoft.CredentialManager
 ```bash
 # Using seahorse (GNOME Keyring viewer)
 seahorse
-# Look for "SQL Studio" entries
+# Look for "Howlerops" entries
 ```
 
 ## Integration Checklist

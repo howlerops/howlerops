@@ -1,4 +1,4 @@
-# SQL Studio Upgrade Prompt System
+# Howlerops Upgrade Prompt System
 
 A comprehensive, user-friendly upgrade prompt system that uses **soft nudges** instead of hard blocks.
 

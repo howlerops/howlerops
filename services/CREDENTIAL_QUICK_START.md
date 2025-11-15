@@ -135,7 +135,7 @@ sudo apt-get install libsecret-1-0
 ### macOS: "access denied"
 
 1. Open Keychain Access.app
-2. Find "HowlerOps SQL Studio" entries
+2. Find "HowlerOps Howlerops" entries
 3. Right-click → Get Info → Access Control
 4. Click "Allow all applications to access this item"
 

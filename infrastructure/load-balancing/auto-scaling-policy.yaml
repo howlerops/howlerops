@@ -1,5 +1,5 @@
 # =============================================================================
-# SQL Studio - Auto-scaling Policies
+# Howlerops - Auto-scaling Policies
 # =============================================================================
 # Comprehensive auto-scaling configuration for cloud platforms
 # Includes policies for GCP, AWS, and Azure
@@ -13,30 +13,30 @@ gcp_cloud_run:
 
   # Scaling configuration
   scaling:
-    min_instances: 1      # Always keep 1 instance warm
-    max_instances: 10     # Maximum instances
+    min_instances: 1 # Always keep 1 instance warm
+    max_instances: 10 # Maximum instances
 
     # CPU utilization target
-    cpu_utilization: 70   # Target 70% CPU usage
+    cpu_utilization: 70 # Target 70% CPU usage
 
     # Request concurrency
-    max_concurrent_requests: 80  # Max requests per instance
+    max_concurrent_requests: 80 # Max requests per instance
 
     # Request timeout
-    request_timeout: 300s  # 5 minutes
+    request_timeout: 300s # 5 minutes
 
     # Startup CPU boost
     startup_cpu_boost: true
 
   # Container settings
   container:
-    cpu: "2"              # 2 vCPU per instance
-    memory: "512Mi"       # 512MB memory
+    cpu: "2" # 2 vCPU per instance
+    memory: "512Mi" # 512MB memory
 
   # Scale-down behavior
   scale_down:
     # Time before scaling down idle instances
-    idle_timeout: 300s    # 5 minutes
+    idle_timeout: 300s # 5 minutes
 
     # Minimum time between scale-down operations
     cooldown: 60s
@@ -54,29 +54,29 @@ gcp_compute_engine:
 
   # Scaling configuration
   autoscaling:
-    min_replicas: 2       # Minimum instances
-    max_replicas: 10      # Maximum instances
+    min_replicas: 2 # Minimum instances
+    max_replicas: 10 # Maximum instances
 
     # CPU utilization
     cpu_utilization:
-      target: 0.7         # 70% target
+      target: 0.7 # 70% target
       predictive_method: OPTIMIZE_AVAILABILITY
 
     # Scale-in control
     scale_in_control:
       max_scaled_in_replicas:
-        fixed: 1          # Scale down max 1 instance at a time
-      time_window_sec: 300  # Wait 5 minutes between scale-downs
+        fixed: 1 # Scale down max 1 instance at a time
+      time_window_sec: 300 # Wait 5 minutes between scale-downs
 
     # Cooldown period
     cooldown_period_sec: 60
 
     # Mode
-    mode: ON             # ON, OFF, ONLY_UP, ONLY_DOWN
+    mode: ON # ON, OFF, ONLY_UP, ONLY_DOWN
 
   # Load balancing
   load_balancing:
-    utilization_target: 0.8  # 80% of max RPS
+    utilization_target: 0.8 # 80% of max RPS
     max_rate_per_instance: 100
 
 ---
@@ -99,7 +99,7 @@ aws_autoscaling:
 
   # Health check
   health_check_type: ELB
-  health_check_grace_period: 300  # seconds
+  health_check_grace_period: 300 # seconds
 
   # Availability zones
   availability_zones:
@@ -120,8 +120,8 @@ aws_autoscaling:
         predefined_metric_specification:
           predefined_metric_type: ASGAverageCPUUtilization
         target_value: 70.0
-        scale_in_cooldown: 300    # 5 minutes
-        scale_out_cooldown: 60    # 1 minute
+        scale_in_cooldown: 300 # 5 minutes
+        scale_out_cooldown: 60 # 1 minute
 
     # Scale-up on ALB request count
     - name: scale-up-requests
@@ -130,7 +130,7 @@ aws_autoscaling:
         predefined_metric_specification:
           predefined_metric_type: ALBRequestCountPerTarget
           resource_label: app/sql-studio-alb/abc123/targetgroup/sql-studio-backend/def456
-        target_value: 1000.0      # Requests per minute per target
+        target_value: 1000.0 # Requests per minute per target
 
     # Step scaling (manual)
     - name: scale-up-step
@@ -222,7 +222,7 @@ azure_vmss:
             time_window: PT5M
             time_aggregation: Average
             operator: LessThan
-            threshold: 1073741824  # 1GB
+            threshold: 1073741824 # 1GB
           scale_action:
             direction: Increase
             type: ChangeCount
@@ -278,7 +278,7 @@ custom_metrics_scaling:
 
     - metric: response_time_p95
       query: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))
-      target_value: 0.2  # 200ms
+      target_value: 0.2 # 200ms
       scale_up_threshold: 0.3
       scale_down_threshold: 0.1
 
@@ -314,7 +314,7 @@ best_practices:
     - name: Headroom
       description: "Maintain capacity buffer for traffic spikes"
       min_instances: 2
-      target_utilization: 70  # Not 100%
+      target_utilization: 70 # Not 100%
 
     - name: Graceful termination
       description: "Allow instances to finish requests before termination"
@@ -375,12 +375,12 @@ cost_optimization:
   # Spot/Preemptible instances
   spot_instances:
     enabled: true
-    percentage: 30  # 30% spot, 70% on-demand
-    fallback: true  # Fall back to on-demand if spot unavailable
+    percentage: 30 # 30% spot, 70% on-demand
+    fallback: true # Fall back to on-demand if spot unavailable
 
   # Reserved capacity
   reserved_instances:
-    coverage: 50%   # Cover baseline with reserved instances
+    coverage: 50% # Cover baseline with reserved instances
     term: 1_year
     payment: all_upfront
 
@@ -418,7 +418,6 @@ monitoring:
       condition: cpu_utilization > 90% for 10m
       severity: critical
       action: increase_max_capacity
-
 # =============================================================================
 # Implementation Notes
 # =============================================================================

@@ -78,6 +78,10 @@ export function ExecuteReadOnlyQuery(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['ExecuteReadOnlyQuery'](arg1, arg2, arg3, arg4);
 }
 
+export function ExecuteReadOnlyQueryWithPagination(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['ExecuteReadOnlyQueryWithPagination'](arg1, arg2, arg3, arg4, arg5);
+}
+
 export function ExecuteSyntheticQuery(arg1) {
   return window['go']['main']['App']['ExecuteSyntheticQuery'](arg1);
 }

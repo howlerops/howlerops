@@ -266,7 +266,7 @@ func (s *Service) getDefaultConfig(orgID string) *WhiteLabelConfig {
 		PrimaryColor:   "#1E40AF",
 		SecondaryColor: "#64748B",
 		AccentColor:    "#8B5CF6",
-		CompanyName:    "SQL Studio",
+		CompanyName:    "Howlerops",
 		HideBranding:   false,
 	}
 }

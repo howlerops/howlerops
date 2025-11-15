@@ -1,4 +1,4 @@
-# Production Deployment Guide for SQL Studio Backend
+# Production Deployment Guide for Howlerops Backend
 
 ## Table of Contents
 
@@ -86,7 +86,7 @@ gcloud services enable \
 
 # Create service account for Cloud Run
 gcloud iam service-accounts create sql-studio-backend \
-  --display-name="SQL Studio Backend Service" \
+  --display-name="Howlerops Backend Service" \
   --project=$GCP_PROJECT_ID
 
 # Grant necessary permissions
@@ -299,7 +299,7 @@ gcloud logging read "resource.type=cloud_run_revision AND severity>=ERROR" \
 # Create alerting policy for high error rate
 gcloud alpha monitoring policies create \
   --notification-channels=YOUR_CHANNEL_ID \
-  --display-name="High Error Rate - SQL Studio Backend" \
+  --display-name="High Error Rate - Howlerops Backend" \
   --condition='{"displayName":"Error rate > 1%","conditionThreshold":{"filter":"resource.type=\"cloud_run_revision\" AND metric.type=\"run.googleapis.com/request_count\" AND metric.label.response_code_class=\"5xx\"","comparison":"COMPARISON_GT","thresholdValue":0.01,"duration":"60s"}}' \
   --project=$GCP_PROJECT_ID
 ```
@@ -358,7 +358,7 @@ curl $SERVICE_URL/metrics
 # Create budget alert
 gcloud billing budgets create \
   --billing-account=YOUR_BILLING_ACCOUNT \
-  --display-name="SQL Studio Backend Budget" \
+  --display-name="Howlerops Backend Budget" \
   --budget-amount=50 \
   --threshold-rule=percent=0.5 \
   --threshold-rule=percent=0.9 \
@@ -516,7 +516,7 @@ Configure alerts to notify:
 ```bash
 # Create notification channel
 gcloud alpha monitoring channels create \
-  --display-name="SQL Studio Alerts" \
+  --display-name="Howlerops Alerts" \
   --type=email \
   --channel-labels=email_address=alerts@yourdomain.com \
   --project=$GCP_PROJECT_ID
@@ -550,7 +550,7 @@ After successful deployment:
 - [Turso Documentation](https://docs.turso.tech)
 - [Resend Documentation](https://resend.com/docs)
 - [GCP Pricing Calculator](https://cloud.google.com/products/calculator)
-- [SQL Studio Repository](https://github.com/yourusername/sql-studio)
+- [Howlerops Repository](https://github.com/yourusername/sql-studio)
 
 For urgent production issues, check:
 1. Cloud Run logs

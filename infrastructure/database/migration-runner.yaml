@@ -1,5 +1,5 @@
 # =============================================================================
-# SQL Studio - Database Migration Runner (Kubernetes Job)
+# Howlerops - Database Migration Runner (Kubernetes Job)
 # =============================================================================
 # Kubernetes job for running database migrations safely in production
 # =============================================================================
@@ -16,7 +16,7 @@ metadata:
     description: "Database migration job"
 spec:
   # Keep completed pods for inspection
-  ttlSecondsAfterFinished: 600  # 10 minutes
+  ttlSecondsAfterFinished: 600 # 10 minutes
 
   # Don't retry on failure - migrations should be idempotent
   backoffLimit: 0
@@ -127,7 +127,7 @@ metadata:
   annotations:
     description: "Database migration rollback job"
 spec:
-  ttlSecondsAfterFinished: 3600  # Keep for 1 hour
+  ttlSecondsAfterFinished: 3600 # Keep for 1 hour
   backoffLimit: 0
   # Manual trigger only - set to Suspend initially
   suspend: true
@@ -148,7 +148,7 @@ spec:
             - /app/sql-studio-backend
             - migrate
             - down
-            - "1"  # Rollback 1 migration
+            - "1" # Rollback 1 migration
 
           env:
             - name: TURSO_URL
@@ -257,7 +257,7 @@ metadata:
     app: sql-studio
     component: migration
 spec:
-  schedule: "0 0 * * *"  # Daily at midnight
+  schedule: "0 0 * * *" # Daily at midnight
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 3
   concurrencyPolicy: Forbid

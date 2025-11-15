@@ -1,5 +1,5 @@
 {{ define "email.default.subject" }}
-[{{ .Status | toUpper }}] {{ .GroupLabels.alertname }} - SQL Studio
+[{{ .Status | toUpper }}] {{ .GroupLabels.alertname }} - Howlerops
 {{ end }}
 
 {{ define "email.default.html" }}
@@ -60,7 +60,7 @@
         {{ end }}
 
         <div class="footer">
-            <p>This is an automated alert from SQL Studio monitoring system.</p>
+            <p>This is an automated alert from Howlerops monitoring system.</p>
             <p>Alert generated at: {{ .CommonAnnotations.timestamp | default "N/A" }}</p>
             <p><a href="https://grafana.sqlstudio.io">View Dashboards</a> | <a href="https://prometheus.sqlstudio.io">View Prometheus</a></p>
         </div>

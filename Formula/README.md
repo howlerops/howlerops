@@ -56,4 +56,4 @@ For detailed information about the tap setup and maintenance, see [HOMEBREW.md](
 
 ## License
 
-The SQL Studio Homebrew formula is licensed under the MIT License.
+The Howlerops Homebrew formula is licensed under the MIT License.

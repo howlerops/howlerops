@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Smoke Test Suite for SQL Studio Backend
+# Smoke Test Suite for Howlerops Backend
 # Fast, minimal critical path testing for deployment verification
 # Should complete in < 30 seconds
 
@@ -266,7 +266,7 @@ test_response_time() {
 print_banner() {
     echo -e "${BLUE}"
     echo "========================================"
-    echo "   SQL Studio Smoke Tests"
+    echo "   Howlerops Smoke Tests"
     echo "========================================"
     echo -e "${NC}"
     echo "Target: $BASE_URL"

@@ -1,9 +1,9 @@
-import { Button } from "@/components/ui/button"
-import { Database, Zap, Users, Cloud } from "lucide-react"
+import { Button } from "@/components/ui/button";
+import { Database, Zap, Users, Cloud } from "lucide-react";
 
 interface WelcomeStepProps {
-  onNext: () => void
-  onSkip: () => void
+  onNext: () => void;
+  onSkip: () => void;
 }
 
 export function WelcomeStep({ onNext, onSkip }: WelcomeStepProps) {
@@ -14,7 +14,7 @@ export function WelcomeStep({ onNext, onSkip }: WelcomeStepProps) {
       </div>
 
       <div className="space-y-2">
-        <h2 className="text-3xl font-bold">Welcome to SQL Studio</h2>
+        <h2 className="text-3xl font-bold">Welcome to Howlerops</h2>
         <p className="text-muted-foreground text-lg max-w-md mx-auto">
           Your powerful database management tool that makes working with data a
           breeze.
@@ -81,5 +81,5 @@ export function WelcomeStep({ onNext, onSkip }: WelcomeStepProps) {
         </Button>
       </div>
     </div>
-  )
+  );
 }

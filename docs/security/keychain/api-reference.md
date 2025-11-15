@@ -1,6 +1,6 @@
 # Keychain API Reference
 
-Quick reference for using the credential management API in SQL Studio.
+Quick reference for using the credential management API in Howlerops.
 
 ## Frontend Usage (TypeScript/React)
 

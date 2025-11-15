@@ -86,7 +86,7 @@ export const savedQueriesTutorial: Tutorial = {
       target: "[data-tutorial='query-versions']",
       title: "Version History",
       content: `
-        <p>SQL Studio automatically tracks changes to your saved queries.</p>
+        <p>Howlerops automatically tracks changes to your saved queries.</p>
         <p>View previous versions and restore them if needed.</p>
         <p>This is especially useful when collaborating with others!</p>
       `,

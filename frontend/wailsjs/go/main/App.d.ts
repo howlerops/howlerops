@@ -44,6 +44,8 @@ export function ExecuteQueryStream(arg1:string,arg2:string,arg3:number):Promise<
 
 export function ExecuteReadOnlyQuery(arg1:string,arg2:string,arg3:number,arg4:time.Duration):Promise<main.ReadOnlyQueryResult>;
 
+export function ExecuteReadOnlyQueryWithPagination(arg1:string,arg2:string,arg3:number,arg4:number,arg5:time.Duration):Promise<main.ReadOnlyQueryResult>;
+
 export function ExecuteSyntheticQuery(arg1:string):Promise<main.QueryResponse>;
 
 export function ExplainQuery(arg1:string,arg2:string):Promise<string>;

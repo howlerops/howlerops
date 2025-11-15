@@ -1,6 +1,6 @@
-# SQL Studio Backend - Production Deployment Guide
+# Howlerops Backend - Production Deployment Guide
 
-Complete guide for deploying SQL Studio backend to Google Cloud Run with Turso database.
+Complete guide for deploying Howlerops backend to Google Cloud Run with Turso database.
 
 ## Table of Contents
 
@@ -149,7 +149,7 @@ turso db tokens create sql-studio-prod
 
 ```bash
 # Create a new GCP project (or use existing)
-gcloud projects create sql-studio-prod --name="SQL Studio Production"
+gcloud projects create sql-studio-prod --name="Howlerops Production"
 
 # Set as default project
 gcloud config set project sql-studio-prod
@@ -347,7 +347,7 @@ gcloud billing accounts list
 # Create alert for high error rate
 gcloud alpha monitoring policies create \
   --notification-channels=CHANNEL_ID \
-  --display-name="SQL Studio High Error Rate" \
+  --display-name="Howlerops High Error Rate" \
   --condition-display-name="Error rate > 1%" \
   --condition-threshold-value=0.01 \
   --condition-threshold-duration=300s
@@ -515,7 +515,7 @@ spec:
 # Set up budget alert
 gcloud billing budgets create \
   --billing-account=YOUR_BILLING_ACCOUNT_ID \
-  --display-name="SQL Studio Backend Budget" \
+  --display-name="Howlerops Backend Budget" \
   --budget-amount=5USD \
   --threshold-rule=percent=80 \
   --threshold-rule=percent=100

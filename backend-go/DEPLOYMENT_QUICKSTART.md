@@ -1,6 +1,6 @@
-# SQL Studio Backend - Deployment Quick Start
+# Howlerops Backend - Deployment Quick Start
 
-Quick reference guide for deploying SQL Studio backend to production.
+Quick reference guide for deploying Howlerops backend to production.
 
 ## One-Command Deployments
 
@@ -212,7 +212,7 @@ open https://console.cloud.google.com/run/detail/us-central1/sql-studio-backend/
 
 # Set up alerts
 gcloud monitoring uptime-checks create \
-  --display-name="SQL Studio Health" \
+  --display-name="Howlerops Health" \
   --monitored-url=https://your-app-url/health
 ```
 

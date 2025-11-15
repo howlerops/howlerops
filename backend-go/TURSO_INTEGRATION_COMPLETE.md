@@ -2,7 +2,7 @@
 
 ## Summary
 
-The SQL Studio Go backend has been successfully wired up with Turso storage implementation. All services are properly integrated and the application is ready for both local development and production deployment.
+The Howlerops Go backend has been successfully wired up with Turso storage implementation. All services are properly integrated and the application is ready for both local development and production deployment.
 
 ## Architecture Overview
 

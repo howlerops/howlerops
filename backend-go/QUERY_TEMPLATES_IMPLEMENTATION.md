@@ -2,7 +2,7 @@
 
 ## Overview
 
-Phase 4 introduces **Query Templates** and **Scheduled Query Execution** to SQL Studio, enabling users to:
+Phase 4 introduces **Query Templates** and **Scheduled Query Execution** to Howlerops, enabling users to:
 
 - Save reusable SQL queries with parameters
 - Schedule queries to run automatically (like reports)

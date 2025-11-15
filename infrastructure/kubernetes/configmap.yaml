@@ -1,5 +1,5 @@
 # =============================================================================
-# SQL Studio - ConfigMap
+# Howlerops - ConfigMap
 # =============================================================================
 # Non-sensitive configuration values for backend and frontend
 # =============================================================================
@@ -33,7 +33,7 @@ data:
 
   # Authentication configuration
   JWT_EXPIRATION: "24h"
-  JWT_REFRESH_EXPIRATION: "168h"  # 7 days
+  JWT_REFRESH_EXPIRATION: "168h" # 7 days
   MAGIC_LINK_EXPIRATION: "15m"
 
   # Rate limiting
@@ -51,7 +51,7 @@ data:
   # Feature flags
   FEATURE_EMAIL_AUTH: "true"
   FEATURE_CLOUD_SYNC: "true"
-  FEATURE_AI_QUERY: "false"  # Not implemented yet
+  FEATURE_AI_QUERY: "false" # Not implemented yet
 
   # Sync configuration
   SYNC_BATCH_SIZE: "100"

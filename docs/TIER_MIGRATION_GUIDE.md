@@ -1,6 +1,6 @@
 # Tier System Migration Guide
 
-Step-by-step guide for integrating the tier management system into SQL Studio.
+Step-by-step guide for integrating the tier management system into Howlerops.
 
 ## Phase 1: Core Setup (5 minutes)
 

@@ -1,7 +1,7 @@
 # Phase 1: Foundation Tasks (Weeks 1-4)
 
 ## Overview
-Phase 1 establishes the foundational infrastructure for SQL Studio's tiered architecture. This includes local storage (IndexedDB), data sanitization, multi-tab synchronization, tier detection, and feature gating.
+Phase 1 establishes the foundational infrastructure for Howlerops's tiered architecture. This includes local storage (IndexedDB), data sanitization, multi-tab synchronization, tier detection, and feature gating.
 
 **Timeline:** Weeks 1-4 (28 days)
 **Status:** Not Started

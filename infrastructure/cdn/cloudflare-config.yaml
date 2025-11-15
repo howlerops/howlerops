@@ -1,5 +1,5 @@
 # =============================================================================
-# SQL Studio - Cloudflare CDN Configuration
+# Howlerops - Cloudflare CDN Configuration
 # =============================================================================
 # Complete Cloudflare setup for optimal performance and security
 # Apply via Cloudflare Dashboard or Terraform
@@ -71,7 +71,7 @@ page_rules:
       - "cdn.sql-studio.app/*"
     actions:
       cache_level: cache_everything
-      edge_cache_ttl: 31536000  # 1 year
+      edge_cache_ttl: 31536000 # 1 year
       browser_cache_ttl: 31536000
     priority: 2
     status: active
@@ -92,7 +92,7 @@ page_rules:
       - "*.sql-studio.app/*.{jpg,jpeg,png,gif,svg,webp,avif,ico}"
     actions:
       cache_level: cache_everything
-      edge_cache_ttl: 2592000  # 30 days
+      edge_cache_ttl: 2592000 # 30 days
       browser_cache_ttl: 2592000
       polish: lossless
     priority: 4
@@ -103,7 +103,7 @@ page_rules:
       - "*.sql-studio.app/*.{woff,woff2,ttf,eot,otf}"
     actions:
       cache_level: cache_everything
-      edge_cache_ttl: 31536000  # 1 year
+      edge_cache_ttl: 31536000 # 1 year
       browser_cache_ttl: 31536000
     priority: 5
     status: active
@@ -114,7 +114,7 @@ cache:
   cache_level: aggressive
 
   # Browser cache TTL
-  browser_cache_ttl: 14400  # 4 hours default
+  browser_cache_ttl: 14400 # 4 hours default
 
   # Always online (serve stale content if origin down)
   always_online: "on"
@@ -152,7 +152,7 @@ performance:
   zero_rtt: "on"
 
   # Rocket Loader (defer JS)
-  rocket_loader: "off"  # Disabled - may break React apps
+  rocket_loader: "off" # Disabled - may break React apps
 
   # Mirage (lazy load images)
   mirage: "on"
@@ -169,13 +169,13 @@ performance:
 # Security Settings
 security:
   # Security level
-  security_level: medium  # off, essentially_off, low, medium, high, under_attack
+  security_level: medium # off, essentially_off, low, medium, high, under_attack
 
   # Bot fight mode
   bot_fight_mode: "on"
 
   # Challenge passage (how long until re-challenge)
-  challenge_ttl: 1800  # 30 minutes
+  challenge_ttl: 1800 # 30 minutes
 
   # Browser integrity check
   browser_check: "on"
@@ -267,11 +267,11 @@ rate_limiting:
       request:
         methods: ["POST", "PUT", "DELETE"]
         url: "api.sql-studio.app/*"
-    threshold: 20  # requests
-    period: 60     # seconds
+    threshold: 20 # requests
+    period: 60 # seconds
     action:
       mode: challenge
-      timeout: 86400  # 24 hours
+      timeout: 86400 # 24 hours
 
   # Login endpoint protection
   - match:
@@ -279,10 +279,10 @@ rate_limiting:
         methods: ["POST"]
         url: "api.sql-studio.app/api/v1/auth/login"
     threshold: 5
-    period: 300  # 5 minutes
+    period: 300 # 5 minutes
     action:
       mode: block
-      timeout: 3600  # 1 hour
+      timeout: 3600 # 1 hour
 
   # General rate limit
   - match:
@@ -378,7 +378,7 @@ transform_rules:
   # Add custom response headers
   - description: "Add security headers"
     enabled: true
-    expression: "(http.host eq \"sql-studio.app\")"
+    expression: '(http.host eq "sql-studio.app")'
     action:
       response_headers:
         set:
@@ -388,7 +388,7 @@ transform_rules:
 # Custom SSL/TLS
 ssl_tls:
   # SSL mode
-  mode: full_strict  # off, flexible, full, full_strict
+  mode: full_strict # off, flexible, full, full_strict
 
   # Certificate authority
   certificate_authority: lets_encrypt
@@ -407,7 +407,6 @@ ssl_tls:
 
   # Onion routing
   onion_routing: "off"
-
 # =============================================================================
 # Setup Instructions
 # =============================================================================

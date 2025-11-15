@@ -306,7 +306,7 @@ gcloud run services delete sql-studio-backend --region=us-central1
 # Set budget alert
 gcloud billing budgets create \
     --billing-account=YOUR_BILLING_ACCOUNT_ID \
-    --display-name="SQL Studio Backend Budget" \
+    --display-name="Howlerops Backend Budget" \
     --budget-amount=5USD \
     --threshold-rule=percent=80 \
     --threshold-rule=percent=100

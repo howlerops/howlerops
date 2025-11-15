@@ -1,5 +1,5 @@
 # =============================================================================
-# SQL Studio Backend - Production Dockerfile
+# Howlerops Backend - Production Dockerfile
 # =============================================================================
 # Optimized multi-stage production build with security best practices
 # =============================================================================
@@ -10,7 +10,7 @@
 FROM golang:1.24-alpine AS builder
 
 LABEL stage=builder \
-      maintainer="SQL Studio Team"
+      maintainer="Howlerops Team"
 
 # Install build dependencies
 RUN apk add --no-cache \
@@ -59,10 +59,10 @@ RUN test -f sql-studio-backend && \
 FROM alpine:3.20 AS runtime
 
 # Metadata
-LABEL maintainer="SQL Studio Team" \
-      org.opencontainers.image.title="SQL Studio Backend" \
-      org.opencontainers.image.description="Production SQL Studio backend service" \
-      org.opencontainers.image.vendor="SQL Studio" \
+LABEL maintainer="Howlerops Team" \
+      org.opencontainers.image.title="Howlerops Backend" \
+      org.opencontainers.image.description="Production Howlerops backend service" \
+      org.opencontainers.image.vendor="Howlerops" \
       org.opencontainers.image.licenses="MIT"
 
 # Install runtime dependencies

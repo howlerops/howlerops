@@ -181,7 +181,7 @@ func (p *ClaudeCodeProvider) Chat(_ context.Context, prompt string, options ...G
 		systemPrompt = opts.Context["system"]
 	}
 	if systemPrompt == "" {
-		systemPrompt = "You are a helpful assistant for SQL Studio. Provide concise, accurate answers and actionable guidance."
+		systemPrompt = "You are a helpful assistant for Howlerops. Provide concise, accurate answers and actionable guidance."
 	}
 
 	var fullPrompt strings.Builder

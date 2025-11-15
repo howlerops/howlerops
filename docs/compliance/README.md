@@ -1,4 +1,4 @@
-# SQL Studio Compliance and Legal Documentation Index
+# Howlerops Compliance and Legal Documentation Index
 
 **Last Updated:** January 1, 2025
 **Document Owner:** Chief Compliance Officer
@@ -6,7 +6,7 @@
 
 ## Overview
 
-This directory contains all compliance, legal, and policy documentation for SQL Studio. These documents are critical for maintaining regulatory compliance, supporting enterprise sales, and ensuring operational excellence.
+This directory contains all compliance, legal, and policy documentation for Howlerops. These documents are critical for maintaining regulatory compliance, supporting enterprise sales, and ensuring operational excellence.
 
 ## Quick Navigation
 

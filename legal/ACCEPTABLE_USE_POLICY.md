@@ -6,7 +6,7 @@
 
 ## 1. INTRODUCTION
 
-This Acceptable Use Policy ("**AUP**" or "**Policy**") governs the use of SQL Studio Inc.'s ("**SQL Studio**," "**we**," "**us**," or "**our**") services, including our website, applications, APIs, and any related services (collectively, the "**Services**") by you ("**you**," "**your**," or "**User**").
+This Acceptable Use Policy ("**AUP**" or "**Policy**") governs the use of Howlerops Inc.'s ("**Howlerops**," "**we**," "**us**," or "**our**") services, including our website, applications, APIs, and any related services (collectively, the "**Services**") by you ("**you**," "**your**," or "**User**").
 
 This Policy is incorporated into and forms part of our Terms of Service. By using our Services, you agree to comply with this Policy. Violation of this Policy may result in suspension or termination of your access to the Services.
 
@@ -135,7 +135,7 @@ You must NOT upload, store, or transmit:
 
 You must NOT:
 - Resell or redistribute the Services without authorization
-- Use the Services to compete directly with SQL Studio
+- Use the Services to compete directly with Howlerops
 - Reverse engineer or copy Service features
 - Remove or alter proprietary notices
 - Exceed the scope of your license
@@ -469,7 +469,7 @@ Continued use after Policy changes constitutes acceptance of the modified Policy
 
 ### 15.1 No Exceptions Without Approval
 
-No exceptions to this Policy without written approval from SQL Studio management.
+No exceptions to this Policy without written approval from Howlerops management.
 
 ### 15.2 Legitimate Research
 
@@ -494,7 +494,7 @@ This Policy should be read in conjunction with:
 **"Content"**: Any data, text, files, information, or materials
 **"Malware"**: Software designed to harm or exploit
 **"Resource Abuse"**: Excessive or unauthorized use of system resources
-**"Services"**: All SQL Studio products and services
+**"Services"**: All Howlerops products and services
 **"User"**: Any person or entity using our Services
 
 ## 18. CONTACT INFORMATION
@@ -530,11 +530,11 @@ If any provision of this Policy is found unenforceable, the remaining provisions
 
 **ACKNOWLEDGMENT**
 
-By using SQL Studio Services, you acknowledge that you have read, understood, and agree to be bound by this Acceptable Use Policy.
+By using Howlerops Services, you acknowledge that you have read, understood, and agree to be bound by this Acceptable Use Policy.
 
 **Effective Date: January 1, 2025**
 
-SQL Studio Inc.
+Howlerops Inc.
 [COMPANY_ADDRESS]
 
 ---

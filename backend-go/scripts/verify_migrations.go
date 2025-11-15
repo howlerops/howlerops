@@ -36,7 +36,7 @@ func main() {
 	})
 
 	fmt.Println("╔═══════════════════════════════════════════════════════════╗")
-	fmt.Println("║        SQL Studio Migration Verification Tool            ║")
+	fmt.Println("║        Howlerops Migration Verification Tool            ║")
 	fmt.Println("╚═══════════════════════════════════════════════════════════╝")
 	fmt.Println()
 

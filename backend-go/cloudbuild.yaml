@@ -1,5 +1,5 @@
 # =============================================================================
-# Google Cloud Build Configuration for SQL Studio Backend
+# Google Cloud Build Configuration for Howlerops Backend
 # =============================================================================
 # This configuration automates the CI/CD pipeline for deploying to Cloud Run:
 # 1. Builds the Docker container image
@@ -13,84 +13,84 @@ steps:
   # ---------------------------------------------------------------------------
   # Step 1: Build the container image
   # ---------------------------------------------------------------------------
-  - name: 'gcr.io/cloud-builders/docker'
-    id: 'build-image'
+  - name: "gcr.io/cloud-builders/docker"
+    id: "build-image"
     args:
-      - 'build'
-      - '-t'
-      - 'gcr.io/$PROJECT_ID/howlerops-backend:$COMMIT_SHA'
-      - '-t'
-      - 'gcr.io/$PROJECT_ID/howlerops-backend:latest'
-      - '--cache-from'
-      - 'gcr.io/$PROJECT_ID/howlerops-backend:latest'
-      - '--build-arg'
-      - 'BUILDKIT_INLINE_CACHE=1'
-      - '.'
+      - "build"
+      - "-t"
+      - "gcr.io/$PROJECT_ID/howlerops-backend:$COMMIT_SHA"
+      - "-t"
+      - "gcr.io/$PROJECT_ID/howlerops-backend:latest"
+      - "--cache-from"
+      - "gcr.io/$PROJECT_ID/howlerops-backend:latest"
+      - "--build-arg"
+      - "BUILDKIT_INLINE_CACHE=1"
+      - "."
 
   # ---------------------------------------------------------------------------
   # Step 2: Push the container image to Container Registry
   # ---------------------------------------------------------------------------
-  - name: 'gcr.io/cloud-builders/docker'
-    id: 'push-image-sha'
+  - name: "gcr.io/cloud-builders/docker"
+    id: "push-image-sha"
     args:
-      - 'push'
-      - 'gcr.io/$PROJECT_ID/howlerops-backend:$COMMIT_SHA'
-    waitFor: ['build-image']
+      - "push"
+      - "gcr.io/$PROJECT_ID/howlerops-backend:$COMMIT_SHA"
+    waitFor: ["build-image"]
 
-  - name: 'gcr.io/cloud-builders/docker'
-    id: 'push-image-latest'
+  - name: "gcr.io/cloud-builders/docker"
+    id: "push-image-latest"
     args:
-      - 'push'
-      - 'gcr.io/$PROJECT_ID/howlerops-backend:latest'
-    waitFor: ['build-image']
+      - "push"
+      - "gcr.io/$PROJECT_ID/howlerops-backend:latest"
+    waitFor: ["build-image"]
 
   # ---------------------------------------------------------------------------
   # Step 3: Deploy to Cloud Run
   # ---------------------------------------------------------------------------
-  - name: 'gcr.io/cloud-builders/gcloud'
-    id: 'deploy-cloud-run'
+  - name: "gcr.io/cloud-builders/gcloud"
+    id: "deploy-cloud-run"
     args:
-      - 'run'
-      - 'deploy'
-      - 'howlerops-backend'
-      - '--image=gcr.io/$PROJECT_ID/howlerops-backend:$COMMIT_SHA'
-      - '--region=us-central1'
-      - '--platform=managed'
-      - '--allow-unauthenticated'
+      - "run"
+      - "deploy"
+      - "howlerops-backend"
+      - "--image=gcr.io/$PROJECT_ID/howlerops-backend:$COMMIT_SHA"
+      - "--region=us-central1"
+      - "--platform=managed"
+      - "--allow-unauthenticated"
       # Port configuration
-      - '--port=8500'
+      - "--port=8500"
       # Resource limits (CPU and memory)
-      - '--memory=512Mi'
-      - '--cpu=1'
+      - "--memory=512Mi"
+      - "--cpu=1"
       # Autoscaling configuration
-      - '--min-instances=0'
-      - '--max-instances=10'
+      - "--min-instances=0"
+      - "--max-instances=10"
       # Concurrency (requests per container)
-      - '--concurrency=80'
+      - "--concurrency=80"
       # Request timeout
-      - '--timeout=300'
+      - "--timeout=300"
       # CPU allocation (only during request processing to save costs)
-      - '--cpu-throttling'
+      - "--cpu-throttling"
       # Environment variables
-      - '--set-env-vars=ENVIRONMENT=production,LOG_FORMAT=json,LOG_LEVEL=info'
+      - "--set-env-vars=ENVIRONMENT=production,LOG_FORMAT=json,LOG_LEVEL=info"
       # Secrets from Secret Manager
-      - '--set-secrets=TURSO_URL=turso-url:latest,TURSO_AUTH_TOKEN=turso-auth-token:latest,RESEND_API_KEY=resend-api-key:latest,JWT_SECRET=jwt-secret:latest'
+      - "--set-secrets=TURSO_URL=turso-url:latest,TURSO_AUTH_TOKEN=turso-auth-token:latest,RESEND_API_KEY=resend-api-key:latest,JWT_SECRET=jwt-secret:latest"
       # Service account (create with limited permissions)
-      - '--service-account=howlerops-backend@$PROJECT_ID.iam.gserviceaccount.com'
+      - "--service-account=howlerops-backend@$PROJECT_ID.iam.gserviceaccount.com"
       # VPC Connector (if needed for private resources)
       # - '--vpc-connector=projects/$PROJECT_ID/locations/us-central1/connectors/howlerops-connector'
       # Labels for organization
-      - '--labels=app=howlerops,component=backend,managed-by=cloud-build'
-    waitFor: ['push-image-sha']
+      - "--labels=app=howlerops,component=backend,managed-by=cloud-build"
+    waitFor: ["push-image-sha"]
 
   # ---------------------------------------------------------------------------
   # Step 4: Run smoke tests against deployed service
   # ---------------------------------------------------------------------------
-  - name: 'gcr.io/cloud-builders/curl'
-    id: 'smoke-test'
-    entrypoint: 'sh'
+  - name: "gcr.io/cloud-builders/curl"
+    id: "smoke-test"
+    entrypoint: "sh"
     args:
-      - '-c'
+      - "-c"
       - |
         echo "Waiting for service to be ready..."
         sleep 10
@@ -98,25 +98,25 @@ steps:
         echo "Testing health endpoint: $$SERVICE_URL/health"
         curl -f -s -o /dev/null -w "%{http_code}" $$SERVICE_URL/health || exit 1
         echo "Health check passed!"
-    waitFor: ['deploy-cloud-run']
+    waitFor: ["deploy-cloud-run"]
 
 # Tag images for artifact registry
 images:
-  - 'gcr.io/$PROJECT_ID/howlerops-backend:$COMMIT_SHA'
-  - 'gcr.io/$PROJECT_ID/howlerops-backend:latest'
+  - "gcr.io/$PROJECT_ID/howlerops-backend:$COMMIT_SHA"
+  - "gcr.io/$PROJECT_ID/howlerops-backend:latest"
 
 # Build options
 options:
   # Use high-CPU machine for faster builds
-  machineType: 'N1_HIGHCPU_8'
+  machineType: "N1_HIGHCPU_8"
   # Enable Docker BuildKit for better caching
   env:
-    - 'DOCKER_BUILDKIT=1'
+    - "DOCKER_BUILDKIT=1"
   # Substitute variables
-  substitutionOption: 'ALLOW_LOOSE'
+  substitutionOption: "ALLOW_LOOSE"
 
 # Timeout for entire build
-timeout: '1800s'
+timeout: "1800s"
 
 # Logging configuration
-logsBucket: 'gs://howlerops-prod_cloudbuild/logs'
+logsBucket: "gs://howlerops-prod_cloudbuild/logs"

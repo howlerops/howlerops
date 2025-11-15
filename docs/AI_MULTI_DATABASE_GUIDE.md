@@ -2,7 +2,7 @@
 
 ## Overview
 
-The SQL Studio now supports AI-powered SQL generation that works seamlessly across multiple connected databases. This feature allows users to:
+The Howlerops now supports AI-powered SQL generation that works seamlessly across multiple connected databases. This feature allows users to:
 
 1. Generate SQL queries using natural language across multiple databases
 2. Automatically use the correct `@connection.table` syntax for multi-DB queries

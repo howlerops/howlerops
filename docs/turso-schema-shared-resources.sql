@@ -1,5 +1,5 @@
 -- ============================================================================
--- SQL Studio - Shared Resources Feature Migration
+-- Howlerops - Shared Resources Feature Migration
 -- ============================================================================
 -- Migration Version: 2
 -- Purpose: Add support for shared connections and queries within organizations

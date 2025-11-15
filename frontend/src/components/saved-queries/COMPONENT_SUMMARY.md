@@ -417,4 +417,4 @@ function MyApp() {
 
 ## Conclusion
 
-The SavedQueriesPanel component is a production-ready, feature-complete solution for managing saved queries. It combines beautiful design, smooth interactions, and comprehensive functionality to provide an excellent user experience. The component is fully typed, well-documented, and ready for immediate integration into the SQL Studio application.
+The SavedQueriesPanel component is a production-ready, feature-complete solution for managing saved queries. It combines beautiful design, smooth interactions, and comprehensive functionality to provide an excellent user experience. The component is fully typed, well-documented, and ready for immediate integration into the Howlerops application.

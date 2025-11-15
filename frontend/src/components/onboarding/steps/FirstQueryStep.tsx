@@ -1,11 +1,11 @@
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Play, CheckCircle2, Sparkles } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Play, CheckCircle2, Sparkles } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface FirstQueryStepProps {
-  onNext: () => void
-  onBack: () => void
+  onNext: () => void;
+  onBack: () => void;
 }
 
 const sampleQuery = `-- Your first query
@@ -16,32 +16,36 @@ SELECT
 FROM users
 WHERE active = true
 ORDER BY created_at DESC
-LIMIT 10;`
+LIMIT 10;`;
 
 const mockResults = [
-  { name: "Alice Johnson", email: "alice@example.com", created_at: "2024-01-15" },
+  {
+    name: "Alice Johnson",
+    email: "alice@example.com",
+    created_at: "2024-01-15",
+  },
   { name: "Bob Smith", email: "bob@example.com", created_at: "2024-01-14" },
   { name: "Carol White", email: "carol@example.com", created_at: "2024-01-13" },
-]
+];
 
 export function FirstQueryStep({ onNext, onBack }: FirstQueryStepProps) {
-  const [hasRun, setHasRun] = useState(false)
-  const [isRunning, setIsRunning] = useState(false)
-  const [showCelebration, setShowCelebration] = useState(false)
+  const [hasRun, setHasRun] = useState(false);
+  const [isRunning, setIsRunning] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
 
   const handleRunQuery = async () => {
-    setIsRunning(true)
+    setIsRunning(true);
 
     // Simulate query execution
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    setIsRunning(false)
-    setHasRun(true)
-    setShowCelebration(true)
+    setIsRunning(false);
+    setHasRun(true);
+    setShowCelebration(true);
 
     // Hide celebration after animation
-    setTimeout(() => setShowCelebration(false), 3000)
-  }
+    setTimeout(() => setShowCelebration(false), 3000);
+  };
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 py-8">
@@ -143,7 +147,8 @@ export function FirstQueryStep({ onNext, onBack }: FirstQueryStepProps) {
             <Sparkles className="w-6 h-6 text-green-600 dark:text-green-400" />
           </div>
           <p className="text-green-800 dark:text-green-200">
-            You've successfully run your first query. You're on your way to becoming a SQL Studio pro!
+            You've successfully run your first query. You're on your way to
+            becoming a Howlerops pro!
           </p>
         </div>
       )}
@@ -157,5 +162,5 @@ export function FirstQueryStep({ onNext, onBack }: FirstQueryStepProps) {
         </Button>
       </div>
     </div>
-  )
+  );
 }

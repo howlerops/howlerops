@@ -27,7 +27,7 @@ Common issues and how to resolve them.
    ```
 
 3. **Firewall settings**
-   - Whitelist SQL Studio IP addresses
+   - Whitelist Howlerops IP addresses
    - Check your organization's firewall rules
    - Verify cloud provider security groups
 
@@ -234,13 +234,13 @@ SHOW GRANTS FOR 'user'@'host';
    LIMIT 1000;
    ```
 
-### SQL Studio running slow
+### Howlerops running slow
 
 **Solutions**:
 
 1. **Clear cache**
    - Settings > Advanced > Clear Cache
-   - Restart SQL Studio
+   - Restart Howlerops
 
 2. **Reduce active connections**
    - Close unused database connections
@@ -302,7 +302,7 @@ When the same query is modified on multiple devices, a conflict occurs.
 
 2. **Refresh**
    - Click Refresh in sidebar
-   - Or restart SQL Studio
+   - Or restart Howlerops
 
 3. **Check sync settings**
    - Ensure item type is enabled for sync
@@ -323,7 +323,7 @@ When the same query is modified on multiple devices, a conflict occurs.
    - Settings > Advanced > Clear Cache
 
 3. **Restart application**
-   - Quit and reopen SQL Studio
+   - Quit and reopen Howlerops
 
 ### Missing or broken layout
 
@@ -334,10 +334,10 @@ When the same query is modified on multiple devices, a conflict occurs.
    - Or Settings > Appearance > Reset to Defaults
 
 2. **Reset window size**
-   - Close SQL Studio
+   - Close Howlerops
    - Delete window state file:
-     - macOS: `~/Library/Application Support/SQL Studio/window-state.json`
-     - Windows: `%APPDATA%/SQL Studio/window-state.json`
+     - macOS: `~/Library/Application Support/Howlerops/window-state.json`
+     - Windows: `%APPDATA%/Howlerops/window-state.json`
      - Linux: `~/.config/sql-studio/window-state.json`
 
 ### Dark mode issues
@@ -352,7 +352,7 @@ When the same query is modified on multiple devices, a conflict occurs.
    - Theme improvements in newer versions
 
 3. **Check OS theme**
-   - SQL Studio respects OS theme in "Auto" mode
+   - Howlerops respects OS theme in "Auto" mode
 
 ---
 

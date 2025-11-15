@@ -3,7 +3,7 @@
 ## Executive Summary
 
 ### Overview
-Phase 3 introduces multi-user collaboration features to SQL Studio, enabling teams to share database connections, queries, and collaborate in real-time. This phase builds upon Phase 1 (local-first architecture) and Phase 2 (individual cloud sync) to create a comprehensive Team tier offering.
+Phase 3 introduces multi-user collaboration features to Howlerops, enabling teams to share database connections, queries, and collaborate in real-time. This phase builds upon Phase 1 (local-first architecture) and Phase 2 (individual cloud sync) to create a comprehensive Team tier offering.
 
 ### Goals and Objectives
 

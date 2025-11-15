@@ -83,7 +83,7 @@ func NewResendEmailService(apiKey, fromEmail, fromName string, logger *logrus.Lo
 		return nil, fmt.Errorf("from email is required")
 	}
 	if fromName == "" {
-		fromName = "SQL Studio"
+		fromName = "Howlerops"
 	}
 
 	templates, err := loadTemplates()
@@ -163,7 +163,7 @@ func (s *ResendEmailService) SendVerificationEmail(email, token, verificationURL
 	req := ResendRequest{
 		From:    fmt.Sprintf("%s <%s>", s.fromName, s.fromEmail),
 		To:      []string{email},
-		Subject: "Verify your SQL Studio account",
+		Subject: "Verify your Howlerops account",
 		HTML:    body.String(),
 	}
 
@@ -193,7 +193,7 @@ func (s *ResendEmailService) SendPasswordResetEmail(email, token, resetURL strin
 	req := ResendRequest{
 		From:    fmt.Sprintf("%s <%s>", s.fromName, s.fromEmail),
 		To:      []string{email},
-		Subject: "Reset your SQL Studio password",
+		Subject: "Reset your Howlerops password",
 		HTML:    body.String(),
 	}
 
@@ -226,7 +226,7 @@ func (s *ResendEmailService) SendWelcomeEmail(email, name string) error {
 	req := ResendRequest{
 		From:    fmt.Sprintf("%s <%s>", s.fromName, s.fromEmail),
 		To:      []string{email},
-		Subject: "Welcome to SQL Studio!",
+		Subject: "Welcome to Howlerops!",
 		HTML:    body.String(),
 	}
 
@@ -258,7 +258,7 @@ func (s *ResendEmailService) SendOrganizationInvitationEmail(email, orgName, inv
 	req := ResendRequest{
 		From:    fmt.Sprintf("%s <%s>", s.fromName, s.fromEmail),
 		To:      []string{email},
-		Subject: fmt.Sprintf("You're invited to join %s on SQL Studio", orgName),
+		Subject: fmt.Sprintf("You're invited to join %s on Howlerops", orgName),
 		HTML:    body.String(),
 	}
 

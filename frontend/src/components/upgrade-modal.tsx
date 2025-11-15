@@ -12,18 +12,18 @@
  * - Smooth animations
  */
 
-import React, { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
+import React, { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Sparkles,
   Cloud,
@@ -40,11 +40,15 @@ import {
   Brain,
   FileDown,
   ArrowRight,
-} from 'lucide-react'
-import { useTierStore } from '@/store/tier-store'
-import { useUpgradePromptStore, type UpgradeTrigger, DISMISSAL_DURATIONS } from '@/store/upgrade-prompt-store'
-import { TIER_METADATA } from '@/config/tier-limits'
-import { cn } from '@/lib/utils'
+} from "lucide-react";
+import { useTierStore } from "@/store/tier-store";
+import {
+  useUpgradePromptStore,
+  type UpgradeTrigger,
+  DISMISSAL_DURATIONS,
+} from "@/store/upgrade-prompt-store";
+import { TIER_METADATA } from "@/config/tier-limits";
+import { cn } from "@/lib/utils";
 
 /**
  * Trigger-specific messages
@@ -52,105 +56,113 @@ import { cn } from '@/lib/utils'
 const TRIGGER_MESSAGES: Record<
   UpgradeTrigger,
   {
-    title: string
-    description: string
-    value: string
-    icon: React.ReactNode
+    title: string;
+    description: string;
+    value: string;
+    icon: React.ReactNode;
   }
 > = {
   connections: {
-    title: 'Growing your database portfolio?',
-    description: "You've added 5 connections. Upgrade for unlimited connections synced across all your devices.",
-    value: 'Never worry about limits again',
+    title: "Growing your database portfolio?",
+    description:
+      "You've added 5 connections. Upgrade for unlimited connections synced across all your devices.",
+    value: "Never worry about limits again",
     icon: <Database className="w-6 h-6" />,
   },
   queryHistory: {
-    title: 'Your query history is filling up',
-    description: "You're approaching your query limit. Upgrade for unlimited searchable history.",
-    value: 'Never lose a query again',
+    title: "Your query history is filling up",
+    description:
+      "You're approaching your query limit. Upgrade for unlimited searchable history.",
+    value: "Never lose a query again",
     icon: <History className="w-6 h-6" />,
   },
   multiDevice: {
-    title: 'Working from a new device?',
-    description: 'Upgrade to Pro and your entire workspace syncs automatically across all devices.',
-    value: 'Seamless multi-device workflow',
+    title: "Working from a new device?",
+    description:
+      "Upgrade to Pro and your entire workspace syncs automatically across all devices.",
+    value: "Seamless multi-device workflow",
     icon: <Smartphone className="w-6 h-6" />,
   },
   aiMemory: {
-    title: 'Let AI remember your context',
-    description: 'Unlock unlimited AI memory to remember your database schemas and query patterns.',
-    value: 'Smarter AI assistance',
+    title: "Let AI remember your context",
+    description:
+      "Unlock unlimited AI memory to remember your database schemas and query patterns.",
+    value: "Smarter AI assistance",
     icon: <Brain className="w-6 h-6" />,
   },
   export: {
-    title: 'Need to export larger files?',
-    description: 'Upgrade to export files up to 100MB (Individual) or 500MB (Team).',
-    value: 'Export any dataset',
+    title: "Need to export larger files?",
+    description:
+      "Upgrade to export files up to 100MB (Individual) or 500MB (Team).",
+    value: "Export any dataset",
     icon: <FileDown className="w-6 h-6" />,
   },
   manual: {
-    title: 'Upgrade SQL Studio',
-    description: 'Unlock unlimited connections, cloud sync, and powerful collaboration features.',
-    value: 'Supercharge your workflow',
+    title: "Upgrade Howlerops",
+    description:
+      "Unlock unlimited connections, cloud sync, and powerful collaboration features.",
+    value: "Supercharge your workflow",
     icon: <Sparkles className="w-6 h-6" />,
   },
   periodic: {
-    title: 'Ready to level up?',
-    description: "You've been using SQL Studio for a while. Discover what Pro can do for you.",
-    value: 'Take your workflow to the next level',
+    title: "Ready to level up?",
+    description:
+      "You've been using Howlerops for a while. Discover what Pro can do for you.",
+    value: "Take your workflow to the next level",
     icon: <TrendingUp className="w-6 h-6" />,
   },
   feature: {
-    title: 'This feature requires an upgrade',
-    description: 'Unlock this feature and many more with Individual or Team tier.',
-    value: 'Access all features',
+    title: "This feature requires an upgrade",
+    description:
+      "Unlock this feature and many more with Individual or Team tier.",
+    value: "Access all features",
     icon: <Lock className="w-6 h-6" />,
   },
-}
+};
 
 /**
  * Plan features comparison
  */
 const PLAN_FEATURES = {
   individual: [
-    { name: 'Unlimited connections', icon: <Database className="w-4 h-4" /> },
-    { name: 'Unlimited query history', icon: <History className="w-4 h-4" /> },
-    { name: 'Cloud sync', icon: <Cloud className="w-4 h-4" /> },
-    { name: 'Multi-device support', icon: <Smartphone className="w-4 h-4" /> },
-    { name: 'AI memory sync', icon: <Brain className="w-4 h-4" /> },
-    { name: 'Priority support', icon: <Shield className="w-4 h-4" /> },
-    { name: 'Custom themes', icon: <Sparkles className="w-4 h-4" /> },
+    { name: "Unlimited connections", icon: <Database className="w-4 h-4" /> },
+    { name: "Unlimited query history", icon: <History className="w-4 h-4" /> },
+    { name: "Cloud sync", icon: <Cloud className="w-4 h-4" /> },
+    { name: "Multi-device support", icon: <Smartphone className="w-4 h-4" /> },
+    { name: "AI memory sync", icon: <Brain className="w-4 h-4" /> },
+    { name: "Priority support", icon: <Shield className="w-4 h-4" /> },
+    { name: "Custom themes", icon: <Sparkles className="w-4 h-4" /> },
   ],
   team: [
-    { name: 'Everything in Individual', icon: <Check className="w-4 h-4" /> },
-    { name: 'Team sharing', icon: <Users className="w-4 h-4" /> },
-    { name: 'Role-based access', icon: <Shield className="w-4 h-4" /> },
-    { name: 'Audit logging', icon: <History className="w-4 h-4" /> },
-    { name: '500MB exports', icon: <FileDown className="w-4 h-4" /> },
-    { name: '5 team members', icon: <Users className="w-4 h-4" /> },
+    { name: "Everything in Individual", icon: <Check className="w-4 h-4" /> },
+    { name: "Team sharing", icon: <Users className="w-4 h-4" /> },
+    { name: "Role-based access", icon: <Shield className="w-4 h-4" /> },
+    { name: "Audit logging", icon: <History className="w-4 h-4" /> },
+    { name: "500MB exports", icon: <FileDown className="w-4 h-4" /> },
+    { name: "5 team members", icon: <Users className="w-4 h-4" /> },
   ],
-}
+};
 
 export interface UpgradeModalProps {
   /**
    * Whether the modal is open
    */
-  open: boolean
+  open: boolean;
 
   /**
    * Callback when modal is closed
    */
-  onOpenChange: (open: boolean) => void
+  onOpenChange: (open: boolean) => void;
 
   /**
    * Trigger type for contextual messaging
    */
-  trigger?: UpgradeTrigger
+  trigger?: UpgradeTrigger;
 
   /**
    * Recommended tier to highlight
    */
-  recommendedTier?: 'individual' | 'team'
+  recommendedTier?: "individual" | "team";
 }
 
 /**
@@ -171,36 +183,38 @@ export interface UpgradeModalProps {
 export function UpgradeModal({
   open,
   onOpenChange,
-  trigger = 'manual',
-  recommendedTier = 'individual',
+  trigger = "manual",
+  recommendedTier = "individual",
 }: UpgradeModalProps) {
-  useTierStore()
-  const { markShown, dismiss } = useUpgradePromptStore()
-  const [selectedPlan, setSelectedPlan] = useState<'individual' | 'team'>(recommendedTier)
+  useTierStore();
+  const { markShown, dismiss } = useUpgradePromptStore();
+  const [selectedPlan, setSelectedPlan] = useState<"individual" | "team">(
+    recommendedTier
+  );
 
-  const message = TRIGGER_MESSAGES[trigger]
-  const individualMetadata = TIER_METADATA.individual
-  const teamMetadata = TIER_METADATA.team
+  const message = TRIGGER_MESSAGES[trigger];
+  const individualMetadata = TIER_METADATA.individual;
+  const teamMetadata = TIER_METADATA.team;
 
   // Mark as shown when opened
   useEffect(() => {
     if (open) {
-      markShown(trigger)
+      markShown(trigger);
     }
-  }, [open, trigger, markShown])
+  }, [open, trigger, markShown]);
 
   const handleDismiss = (hours?: number) => {
     if (hours !== undefined) {
-      dismiss(trigger, hours)
+      dismiss(trigger, hours);
     }
-    onOpenChange(false)
-  }
+    onOpenChange(false);
+  };
 
   const handleStartTrial = () => {
     // TODO: Implement trial start flow
-    console.log('Starting trial for:', selectedPlan)
-    onOpenChange(false)
-  }
+    console.log("Starting trial for:", selectedPlan);
+    onOpenChange(false);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -251,20 +265,22 @@ export function UpgradeModal({
             >
               <Card
                 className={cn(
-                  'cursor-pointer transition-all hover:shadow-lg',
-                  selectedPlan === 'individual'
-                    ? 'ring-2 ring-blue-500 shadow-lg'
-                    : 'hover:border-blue-300'
+                  "cursor-pointer transition-all hover:shadow-lg",
+                  selectedPlan === "individual"
+                    ? "ring-2 ring-blue-500 shadow-lg"
+                    : "hover:border-blue-300"
                 )}
-                onClick={() => setSelectedPlan('individual')}
+                onClick={() => setSelectedPlan("individual")}
               >
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Cloud className="w-5 h-5 text-blue-600" />
-                      <CardTitle className="text-xl">{individualMetadata.name}</CardTitle>
+                      <CardTitle className="text-xl">
+                        {individualMetadata.name}
+                      </CardTitle>
                     </div>
-                    {selectedPlan === 'individual' && (
+                    {selectedPlan === "individual" && (
                       <Badge className="bg-blue-600 text-white">
                         <Check className="w-3 h-3 mr-1" />
                         Selected
@@ -295,12 +311,12 @@ export function UpgradeModal({
             >
               <Card
                 className={cn(
-                  'cursor-pointer transition-all hover:shadow-lg relative',
-                  selectedPlan === 'team'
-                    ? 'ring-2 ring-purple-500 shadow-lg'
-                    : 'hover:border-purple-300'
+                  "cursor-pointer transition-all hover:shadow-lg relative",
+                  selectedPlan === "team"
+                    ? "ring-2 ring-purple-500 shadow-lg"
+                    : "hover:border-purple-300"
                 )}
-                onClick={() => setSelectedPlan('team')}
+                onClick={() => setSelectedPlan("team")}
               >
                 <div className="absolute -top-3 -right-3">
                   <Badge className="bg-gradient-to-r from-purple-600 to-pink-600 text-white">
@@ -312,9 +328,11 @@ export function UpgradeModal({
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Users className="w-5 h-5 text-purple-600" />
-                      <CardTitle className="text-xl">{teamMetadata.name}</CardTitle>
+                      <CardTitle className="text-xl">
+                        {teamMetadata.name}
+                      </CardTitle>
                     </div>
-                    {selectedPlan === 'team' && (
+                    {selectedPlan === "team" && (
                       <Badge className="bg-purple-600 text-white">
                         <Check className="w-3 h-3 mr-1" />
                         Selected
@@ -322,7 +340,9 @@ export function UpgradeModal({
                     )}
                   </div>
                   <div className="mt-2">
-                    <span className="text-3xl font-bold text-purple-600">$29</span>
+                    <span className="text-3xl font-bold text-purple-600">
+                      $29
+                    </span>
                     <span className="text-muted-foreground">/month</span>
                   </div>
                 </CardHeader>
@@ -395,13 +415,19 @@ export function UpgradeModal({
         {/* Footer */}
         <div className="mt-6 pt-6 border-t text-center text-sm text-muted-foreground">
           <p>
-            Questions? <a href="#" className="text-blue-600 hover:underline">Contact us</a> or{' '}
-            <a href="#" className="text-blue-600 hover:underline">view pricing details</a>
+            Questions?{" "}
+            <a href="#" className="text-blue-600 hover:underline">
+              Contact us
+            </a>{" "}
+            or{" "}
+            <a href="#" className="text-blue-600 hover:underline">
+              view pricing details
+            </a>
           </p>
         </div>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
 
 /**
@@ -409,29 +435,25 @@ export function UpgradeModal({
  */
 // eslint-disable-next-line react-refresh/only-export-components
 export function useUpgradeModal() {
-  const [open, setOpen] = useState(false)
-  const [trigger, setTrigger] = useState<UpgradeTrigger>('manual')
-  const { shouldShowPrompt } = useUpgradePromptStore()
+  const [open, setOpen] = useState(false);
+  const [trigger, setTrigger] = useState<UpgradeTrigger>("manual");
+  const { shouldShowPrompt } = useUpgradePromptStore();
 
   const showUpgradeModal = (triggerType: UpgradeTrigger) => {
     if (shouldShowPrompt(triggerType)) {
-      setTrigger(triggerType)
-      setOpen(true)
-      return true
+      setTrigger(triggerType);
+      setOpen(true);
+      return true;
     }
-    return false
-  }
+    return false;
+  };
 
   const UpgradeModalComponent = (
-    <UpgradeModal
-      open={open}
-      onOpenChange={setOpen}
-      trigger={trigger}
-    />
-  )
+    <UpgradeModal open={open} onOpenChange={setOpen} trigger={trigger} />
+  );
 
   return {
     showUpgradeModal,
     UpgradeModalComponent,
-  }
+  };
 }

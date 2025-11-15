@@ -503,17 +503,17 @@ Content-Type: application/json
 
 **Email Sent:**
 ```
-Subject: You've been invited to join Acme Corp Engineering on SQL Studio
+Subject: You've been invited to join Acme Corp Engineering on Howlerops
 
 Hi,
 
-John Doe has invited you to join Acme Corp Engineering on SQL Studio as a Member.
+John Doe has invited you to join Acme Corp Engineering on Howlerops as a Member.
 
 [Accept Invitation Button]
 
 This invitation will expire in 7 days.
 
-If you don't have a SQL Studio account, you'll be prompted to create one.
+If you don't have a Howlerops account, you'll be prompted to create one.
 ```
 
 **Error Responses:**
@@ -1571,9 +1571,9 @@ For a complete OpenAPI 3.0 specification, see: `/api/openapi.json`
 ```yaml
 openapi: 3.0.0
 info:
-  title: SQL Studio Team Collaboration API
+  title: Howlerops Team Collaboration API
   version: 3.0.0
-  description: Team collaboration features for SQL Studio
+  description: Team collaboration features for Howlerops
 servers:
   - url: https://api.sqlstudio.io
     description: Production

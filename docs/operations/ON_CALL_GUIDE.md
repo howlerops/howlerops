@@ -1,4 +1,4 @@
-# SQL Studio On-Call Guide
+# Howlerops On-Call Guide
 
 ## Welcome to On-Call!
 

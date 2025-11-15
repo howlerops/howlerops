@@ -1,7 +1,7 @@
-# SQL Studio Data Sanitization Security Module
+# Howlerops Data Sanitization Security Module
 
 ## Overview
-This module provides comprehensive data sanitization to prevent credential leakage when syncing SQL Studio data to the cloud. It implements defense-in-depth with ZERO tolerance for false negatives - we'd rather over-sanitize than leak credentials.
+This module provides comprehensive data sanitization to prevent credential leakage when syncing Howlerops data to the cloud. It implements defense-in-depth with ZERO tolerance for false negatives - we'd rather over-sanitize than leak credentials.
 
 ## Critical Security Requirements
 

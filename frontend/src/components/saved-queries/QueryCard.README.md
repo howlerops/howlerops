@@ -278,7 +278,7 @@ When modifying QueryCard:
 
 ## License
 
-Part of SQL Studio - see project license.
+Part of Howlerops - see project license.
 
 ## Support
 

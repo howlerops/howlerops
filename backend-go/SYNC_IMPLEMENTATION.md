@@ -1,6 +1,6 @@
-# SQL Studio Sync & Email Service Implementation
+# Howlerops Sync & Email Service Implementation
 
-This document provides a comprehensive guide to the sync endpoints and email service implementation for SQL Studio's Individual tier backend.
+This document provides a comprehensive guide to the sync endpoints and email service implementation for Howlerops's Individual tier backend.
 
 ## Overview
 
@@ -88,7 +88,7 @@ import "github.com/sql-studio/backend-go/internal/email"
 emailService, err := email.NewResendEmailService(
     apiKey,
     "noreply@sqlstudio.io",
-    "SQL Studio",
+    "Howlerops",
     logger,
 )
 
@@ -110,7 +110,7 @@ email:
   provider: "resend"
   api_key: "${RESEND_API_KEY}"
   from_email: "noreply@sqlstudio.io"
-  from_name: "SQL Studio"
+  from_name: "Howlerops"
   base_url: "https://app.sqlstudio.io"
 ```
 
@@ -368,7 +368,7 @@ email:
   provider: "resend"
   api_key: "${RESEND_API_KEY}"
   from_email: "noreply@sqlstudio.io"
-  from_name: "SQL Studio"
+  from_name: "Howlerops"
   base_url: "https://app.sqlstudio.io"
 
 sync:

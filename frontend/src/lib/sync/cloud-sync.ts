@@ -1,7 +1,7 @@
 /**
  * Cloud Sync System Public API
  *
- * Main entry point for SQL Studio's cloud sync functionality.
+ * Main entry point for Howlerops's cloud sync functionality.
  * Exports all public interfaces, services, and utilities for Individual tier.
  *
  * @module lib/sync/cloud-sync

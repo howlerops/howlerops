@@ -7,7 +7,7 @@
 
 ## Executive Summary
 
-This guide documents SQL Studio's comprehensive approach to General Data Protection Regulation (GDPR) compliance. We have implemented technical and organizational measures to ensure the protection of personal data in accordance with GDPR requirements, demonstrating our commitment to privacy by design and by default.
+This guide documents Howlerops's comprehensive approach to General Data Protection Regulation (GDPR) compliance. We have implemented technical and organizational measures to ensure the protection of personal data in accordance with GDPR requirements, demonstrating our commitment to privacy by design and by default.
 
 ## Table of Contents
 
@@ -31,7 +31,7 @@ This guide documents SQL Studio's comprehensive approach to General Data Protect
 
 ### 1.1 Scope
 
-This guide applies to all processing of personal data by SQL Studio where:
+This guide applies to all processing of personal data by Howlerops where:
 - The data controller or processor is established in the EU
 - The processing relates to offering goods or services to EU residents
 - The processing relates to monitoring behavior of EU residents
@@ -46,7 +46,7 @@ This guide applies to all processing of personal data by SQL Studio where:
 
 ### 1.3 Our Commitment
 
-SQL Studio is committed to:
+Howlerops is committed to:
 - Protecting the privacy and rights of individuals
 - Being transparent about data processing
 - Implementing privacy by design and by default
@@ -1243,14 +1243,14 @@ class PrivacyByDesign:
 processing_activity:
   name: "User Account Management"
   controller:
-    name: "SQL Studio Inc."
+    name: "Howlerops Inc."
     contact: "privacy@sqlstudio.com"
     representative: "EU Representative Ltd."
   dpo:
     name: "[DPO_NAME]"
     contact: "dpo@sqlstudio.com"
   purposes:
-    - "Provide SQL Studio services"
+    - "Provide Howlerops services"
     - "Account management"
     - "Communication"
   categories_data_subjects:

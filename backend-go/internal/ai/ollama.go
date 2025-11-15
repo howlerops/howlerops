@@ -146,7 +146,7 @@ func (p *OllamaProvider) Chat(ctx context.Context, req *ChatRequest) (*ChatRespo
 
 	systemPrompt := req.System
 	if systemPrompt == "" {
-		systemPrompt = "You are a helpful assistant for SQL Studio. Provide concise, accurate answers and offer practical guidance when relevant."
+		systemPrompt = "You are a helpful assistant for Howlerops. Provide concise, accurate answers and offer practical guidance when relevant."
 	}
 
 	var promptBuilder strings.Builder

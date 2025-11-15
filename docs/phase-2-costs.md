@@ -374,7 +374,7 @@ Comprehensive cost analysis for Phase 2 implementation and ongoing operations, i
 | DataGrip | $199/year | Desktop only, basic sync |
 | Postico | $59 one-time | Mac only, no sync |
 | DBeaver Pro | $30/month | Desktop only |
-| **SQL Studio** | **$9/month** | **Desktop + Web, full sync** |
+| **Howlerops** | **$9/month** | **Desktop + Web, full sync** |
 
 **Value Proposition:**
 - 70% cheaper than DBeaver Pro

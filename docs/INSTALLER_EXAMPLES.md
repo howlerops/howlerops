@@ -1,6 +1,6 @@
-# SQL Studio Installer - Usage Examples
+# Howlerops Installer - Usage Examples
 
-This document provides real-world examples of using the SQL Studio installer in various scenarios.
+This document provides real-world examples of using the Howlerops installer in various scenarios.
 
 ## Basic Usage
 
@@ -14,20 +14,20 @@ curl -fsSL https://raw.githubusercontent.com/sql-studio/sql-studio/main/install.
 **Expected Output:**
 ```
 ╔═══════════════════════════════════════╗
-║    SQL Studio Universal Installer    ║
+║    Howlerops Universal Installer    ║
 ╚═══════════════════════════════════════╝
 
 [INFO] Detected platform: darwin-arm64
 [INFO] Checking dependencies...
 [INFO] Latest version: v2.0.0
 [INFO] Installation directory: ~/.local/bin
-[INFO] Downloading SQL Studio v2.0.0...
+[INFO] Downloading Howlerops v2.0.0...
 [INFO] Verifying checksum...
 [SUCCESS] Checksum verified
 [INFO] Installing to ~/.local/bin...
 [SUCCESS] Binary installed successfully
 
-✓ SQL Studio has been installed successfully!
+✓ Howlerops has been installed successfully!
 
 Location: ~/.local/bin/sql-studio
 Version:  v2.0.0
@@ -192,7 +192,7 @@ FROM ubuntu:22.04
 # Install dependencies
 RUN apt-get update && apt-get install -y curl ca-certificates
 
-# Install SQL Studio
+# Install Howlerops
 RUN curl -fsSL https://raw.githubusercontent.com/sql-studio/sql-studio/main/install.sh | sh
 
 # Add to PATH
@@ -207,7 +207,7 @@ CMD ["sql-studio"]
 ### Multi-stage Build
 
 ```dockerfile
-# Stage 1: Install SQL Studio
+# Stage 1: Install Howlerops
 FROM ubuntu:22.04 AS installer
 
 RUN apt-get update && apt-get install -y curl ca-certificates && \
@@ -233,7 +233,7 @@ FROM alpine:latest
 # Install dependencies
 RUN apk add --no-cache curl bash ca-certificates
 
-# Install SQL Studio
+# Install Howlerops
 RUN curl -fsSL https://raw.githubusercontent.com/sql-studio/sql-studio/main/install.sh | sh
 
 # Add to PATH
@@ -247,7 +247,7 @@ CMD ["sql-studio"]
 ### GitHub Actions
 
 ```yaml
-name: Test with SQL Studio
+name: Test with Howlerops
 
 on: [push, pull_request]
 
@@ -257,7 +257,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install SQL Studio
+      - name: Install Howlerops
         run: |
           curl -fsSL https://raw.githubusercontent.com/sql-studio/sql-studio/main/install.sh | sh -s -- --version v2.0.0
           echo "$HOME/.local/bin" >> $GITHUB_PATH
@@ -298,7 +298,7 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Install SQL Studio
+          name: Install Howlerops
           command: |
             curl -fsSL https://raw.githubusercontent.com/sql-studio/sql-studio/main/install.sh | sh -s -- --version v2.0.0
             echo 'export PATH="$HOME/.local/bin:$PATH"' >> $BASH_ENV
@@ -314,7 +314,7 @@ pipeline {
     agent any
 
     stages {
-        stage('Install SQL Studio') {
+        stage('Install Howlerops') {
             steps {
                 sh '''
                     curl -fsSL https://raw.githubusercontent.com/sql-studio/sql-studio/main/install.sh | sh -s -- --version v2.0.0
@@ -435,13 +435,13 @@ set -e
 
 echo "Setting up development environment..."
 
-# Install SQL Studio
+# Install Howlerops
 if ! command -v sql-studio >/dev/null 2>&1; then
-    echo "Installing SQL Studio..."
+    echo "Installing Howlerops..."
     curl -fsSL https://raw.githubusercontent.com/sql-studio/sql-studio/main/install.sh | sh
     export PATH="$HOME/.local/bin:$PATH"
 else
-    echo "SQL Studio already installed"
+    echo "Howlerops already installed"
 fi
 
 # Verify installation
@@ -464,7 +464,7 @@ install-tools:
 ### Ansible Playbook
 
 ```yaml
-- name: Install SQL Studio
+- name: Install Howlerops
   hosts: all
   tasks:
     - name: Download and run installer

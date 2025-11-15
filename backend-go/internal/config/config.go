@@ -334,7 +334,7 @@ func setDefaults() {
 	// Email defaults
 	viper.SetDefault("email.provider", "resend")
 	viper.SetDefault("email.from_email", "noreply@sqlstudio.io")
-	viper.SetDefault("email.from_name", "SQL Studio")
+	viper.SetDefault("email.from_name", "Howlerops")
 	viper.SetDefault("email.base_url", "http://localhost:3000")
 
 	// Sync defaults

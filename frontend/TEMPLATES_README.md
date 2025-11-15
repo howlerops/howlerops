@@ -2,7 +2,7 @@
 
 ## 📋 Overview
 
-A complete, production-ready frontend implementation for query templates and scheduled queries in SQL Studio. This feature enables users to create reusable SQL templates, execute them with dynamic parameters, and schedule automated query execution.
+A complete, production-ready frontend implementation for query templates and scheduled queries in Howlerops. This feature enables users to create reusable SQL templates, execute them with dynamic parameters, and schedule automated query execution.
 
 ## ✨ Features
 
@@ -463,7 +463,7 @@ When adding features:
 
 ## 📄 License
 
-Part of SQL Studio - MIT License
+Part of Howlerops - MIT License
 
 ## 🆘 Support
 

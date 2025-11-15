@@ -207,7 +207,7 @@ User → Click username → Dropdown Menu
 
 ```
 ┌─────────────────────────────────────┐
-│  Welcome to SQL Studio              │
+│  Welcome to Howlerops              │
 │  Sign in to sync your data...       │
 ├─────────────────────────────────────┤
 │                                     │
@@ -236,7 +236,7 @@ User → Click username → Dropdown Menu
 
 ```
 ┌─────────────────────────────────────┐
-│  Welcome to SQL Studio              │
+│  Welcome to Howlerops              │
 │  Sign in to sync your data...       │
 ├─────────────────────────────────────┤
 │                                     │
@@ -279,7 +279,7 @@ User → Click username → Dropdown Menu
 
 ```
 ┌─────────────────────────────────────┐
-│  Welcome to SQL Studio              │
+│  Welcome to Howlerops              │
 ├─────────────────────────────────────┤
 │  ┌────────┬────────┐               │
 │  │ Login  │ SignUp │               │
@@ -307,7 +307,7 @@ User → Click username → Dropdown Menu
 
 ```
 ┌─────────────────────────────────────┐
-│  Welcome to SQL Studio              │
+│  Welcome to Howlerops              │
 ├─────────────────────────────────────┤
 │  ┌────────┬────────┐               │
 │  │ Login  │ SignUp │               │

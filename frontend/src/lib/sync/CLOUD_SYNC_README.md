@@ -1,6 +1,6 @@
-# SQL Studio Cloud Sync System
+# Howlerops Cloud Sync System
 
-Robust frontend synchronization service for SQL Studio's Individual tier users. Syncs local IndexedDB data with the backend while maintaining offline-first capabilities, conflict resolution, and data sanitization.
+Robust frontend synchronization service for Howlerops's Individual tier users. Syncs local IndexedDB data with the backend while maintaining offline-first capabilities, conflict resolution, and data sanitization.
 
 ## Architecture Overview
 
@@ -520,4 +520,4 @@ Tests cover:
 
 ## License
 
-Part of SQL Studio - see main project license.
+Part of Howlerops - see main project license.
