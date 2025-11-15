@@ -259,7 +259,7 @@ func (es *ElasticsearchDatabase) ExecuteWithOptions(ctx context.Context, query s
 
 	// Step 1: Determine total rows and pagination strategy
 	var totalRows int64
-	modifiedQuery := query
+	var modifiedQuery string
 
 	if opts != nil && opts.Limit > 0 {
 		if hasLimit {

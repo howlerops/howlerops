@@ -190,7 +190,7 @@ func (m *MySQLDatabase) executeSelect(ctx context.Context, db *sql.DB, query str
 
 	// Step 1: Determine total rows and pagination strategy
 	var totalRows int64
-	modifiedQuery := query
+	var modifiedQuery string
 
 	if opts != nil && opts.Limit > 0 {
 		if hasLimit {
@@ -215,6 +215,7 @@ func (m *MySQLDatabase) executeSelect(ctx context.Context, db *sql.DB, query str
 			}
 		} else {
 			// No user LIMIT - get total count and apply pagination
+			// #nosec G201 - queryWithoutLimit is the user's SELECT query which will be executed with parameterized args
 			countQuery := fmt.Sprintf("SELECT COUNT(*) FROM (%s) AS count_subquery", queryWithoutLimit)
 			err := db.QueryRowContext(ctx, countQuery, args...).Scan(&totalRows)
 			if err != nil {
