@@ -132,7 +132,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.24"
+          go-version: "1.21"
           cache-dependency-path: backend-go/go.sum
 
       - name: Run tests
@@ -273,7 +273,7 @@ jobs:
             --port=8500 \
             --cpu-throttling \
             --set-env-vars="ENVIRONMENT=${{ needs.setup.outputs.environment }},LOG_FORMAT=json,LOG_LEVEL=info" \
-            --set-secrets="TURSO_URL=turso-url:latest,TURSO_AUTH_TOKEN=turso-auth-token:latest,RESEND_API_KEY=resend-api-key:latest,JWT_SECRET=jwt-secret:latest" \
+            --set-secrets="TURSO_URL=turso-url:latest,TURSO_AUTH_TOKEN=turso-auth-token:latest,RESEND_API_KEY=resend-api-key:latest,JWT_SECRET=jwt-secret:latest,GOOGLE_CLIENT_ID=google-oauth-client-id:latest,GOOGLE_CLIENT_SECRET=google-oauth-client-secret:latest,GH_CLIENT_ID=github-oauth-client-id:latest,GH_CLIENT_SECRET=github-oauth-client-secret:latest" \
             --service-account=${{ env.SERVICE_ACCOUNT_NAME }}@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com \
             --labels=environment=${{ needs.setup.outputs.environment }},branch=${{ needs.setup.outputs.branch_name }},managed-by=github-actions \
             --quiet
