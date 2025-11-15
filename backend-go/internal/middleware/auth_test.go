@@ -14,7 +14,7 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
-	"github.com/sql-studio/backend-go/internal/middleware"
+	"github.com/jbeck018/howlerops/backend-go/internal/middleware"
 )
 
 // TestNewAuthMiddleware tests the AuthMiddleware constructor

@@ -12,7 +12,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/sirupsen/logrus"
-	"github.com/sql-studio/backend-go/internal/rag"
+	"github.com/jbeck018/howlerops/backend-go/internal/rag"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

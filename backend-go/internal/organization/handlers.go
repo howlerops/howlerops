@@ -10,7 +10,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
-	"github.com/sql-studio/backend-go/internal/middleware"
+	"github.com/jbeck018/howlerops/backend-go/internal/middleware"
 )
 
 // Handler handles organization HTTP requests

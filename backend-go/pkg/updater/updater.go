@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sql-studio/backend-go/pkg/version"
+	"github.com/jbeck018/howlerops/backend-go/pkg/version"
 )
 
 const (

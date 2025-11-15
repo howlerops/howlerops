@@ -14,9 +14,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/sql-studio/backend-go/internal/auth"
-	"github.com/sql-studio/backend-go/internal/middleware"
-	"github.com/sql-studio/backend-go/pkg/crypto"
+	"github.com/jbeck018/howlerops/backend-go/internal/auth"
+	"github.com/jbeck018/howlerops/backend-go/internal/middleware"
+	"github.com/jbeck018/howlerops/backend-go/pkg/crypto"
 )
 
 // mockUserStore implements auth.UserStore for testing

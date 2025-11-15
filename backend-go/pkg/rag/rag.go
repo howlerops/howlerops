@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	internalrag "github.com/sql-studio/backend-go/internal/rag"
+	internalrag "github.com/jbeck018/howlerops/backend-go/internal/rag"
 )
 
 type (

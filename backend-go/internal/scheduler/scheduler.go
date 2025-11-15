@@ -9,8 +9,8 @@ import (
 
 	"github.com/robfig/cron/v3"
 	"github.com/sirupsen/logrus"
-	"github.com/sql-studio/backend-go/internal/templates"
-	"github.com/sql-studio/backend-go/pkg/storage/turso"
+	"github.com/jbeck018/howlerops/backend-go/internal/templates"
+	"github.com/jbeck018/howlerops/backend-go/pkg/storage/turso"
 )
 
 // QueryExecutor defines the interface for executing queries

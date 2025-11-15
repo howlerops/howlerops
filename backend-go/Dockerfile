@@ -13,7 +13,7 @@
 # -----------------------------------------------------------------------------
 # Stage 1: Builder - Compile the Go application
 # -----------------------------------------------------------------------------
-FROM golang:1.24-alpine AS builder
+FROM golang:1.21-alpine AS builder
 
 # Add security labels for container scanning
 LABEL stage=builder

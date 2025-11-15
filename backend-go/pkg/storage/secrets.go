@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/sql-studio/backend-go/pkg/crypto"
+	"github.com/jbeck018/howlerops/backend-go/pkg/crypto"
 )
 
 // SecretStore implements the crypto.SecretStore interface for SQLite storage

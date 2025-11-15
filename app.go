@@ -26,15 +26,15 @@ import (
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 
-	"github.com/sql-studio/backend-go/pkg/ai"
-	"github.com/sql-studio/backend-go/pkg/database"
-	"github.com/sql-studio/backend-go/pkg/database/multiquery"
-	"github.com/sql-studio/backend-go/pkg/federation/duckdb"
-	"github.com/sql-studio/backend-go/pkg/rag"
-	"github.com/sql-studio/backend-go/pkg/storage"
-	"github.com/sql-studio/backend-go/pkg/storage/turso"
-	"github.com/sql-studio/sql-studio/services"
-	"github.com/sql-studio/sql-studio/services/auth"
+	"github.com/jbeck018/howlerops/backend-go/pkg/ai"
+	"github.com/jbeck018/howlerops/backend-go/pkg/database"
+	"github.com/jbeck018/howlerops/backend-go/pkg/database/multiquery"
+	"github.com/jbeck018/howlerops/backend-go/pkg/federation/duckdb"
+	"github.com/jbeck018/howlerops/backend-go/pkg/rag"
+	"github.com/jbeck018/howlerops/backend-go/pkg/storage"
+	"github.com/jbeck018/howlerops/backend-go/pkg/storage/turso"
+	"github.com/jbeck018/howlerops/services"
+	"github.com/jbeck018/howlerops/services/auth"
 )
 
 //go:embed howlerops-light.png howlerops-dark.png howlerops-transparent.png

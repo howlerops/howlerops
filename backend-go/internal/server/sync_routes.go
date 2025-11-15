@@ -7,8 +7,8 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 
-	"github.com/sql-studio/backend-go/internal/services"
-	"github.com/sql-studio/backend-go/internal/sync"
+	"github.com/jbeck018/howlerops/backend-go/internal/services"
+	"github.com/jbeck018/howlerops/backend-go/internal/sync"
 )
 
 // registerSyncRoutes registers HTTP routes for sync operations

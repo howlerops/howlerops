@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/sql-studio/backend-go/pkg/storage/turso"
+	"github.com/jbeck018/howlerops/backend-go/pkg/storage/turso"
 )
 
 // ====================================================================

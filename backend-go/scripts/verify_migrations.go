@@ -12,7 +12,7 @@ import (
 	"github.com/sirupsen/logrus"
 	_ "github.com/tursodatabase/libsql-client-go/libsql"
 
-	"github.com/sql-studio/backend-go/pkg/storage/turso"
+	"github.com/jbeck018/howlerops/backend-go/pkg/storage/turso"
 )
 
 var (

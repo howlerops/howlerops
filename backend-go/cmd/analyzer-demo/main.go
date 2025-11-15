@@ -5,9 +5,9 @@ import (
 	"log"
 
 	"github.com/sirupsen/logrus"
-	"github.com/sql-studio/backend-go/internal/analyzer"
-	"github.com/sql-studio/backend-go/internal/autocomplete"
-	"github.com/sql-studio/backend-go/internal/nl2sql"
+	"github.com/jbeck018/howlerops/backend-go/internal/analyzer"
+	"github.com/jbeck018/howlerops/backend-go/internal/autocomplete"
+	"github.com/jbeck018/howlerops/backend-go/internal/nl2sql"
 )
 
 func main() {

@@ -6,7 +6,7 @@ import (
 	"log"
 
 	"github.com/sirupsen/logrus"
-	"github.com/sql-studio/sql-studio/services"
+	"github.com/jbeck018/howlerops/services"
 )
 
 // ExampleCredentialService_basic demonstrates basic usage of the credential service

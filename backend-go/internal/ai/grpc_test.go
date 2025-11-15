@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/sql-studio/backend-go/internal/ai"
-	aipb "github.com/sql-studio/backend-go/pkg/pb/ai"
+	"github.com/jbeck018/howlerops/backend-go/internal/ai"
+	aipb "github.com/jbeck018/howlerops/backend-go/pkg/pb/ai"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

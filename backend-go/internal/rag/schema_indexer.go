@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/sql-studio/backend-go/pkg/database"
+	"github.com/jbeck018/howlerops/backend-go/pkg/database"
 )
 
 // EnhancedSchemaDocument models rich schema data suitable for embedding and retrieval.

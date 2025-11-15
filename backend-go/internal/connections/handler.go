@@ -6,8 +6,8 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
-	"github.com/sql-studio/backend-go/internal/middleware"
-	"github.com/sql-studio/backend-go/pkg/storage/turso"
+	"github.com/jbeck018/howlerops/backend-go/internal/middleware"
+	"github.com/jbeck018/howlerops/backend-go/pkg/storage/turso"
 )
 
 // Handler handles HTTP requests for connections

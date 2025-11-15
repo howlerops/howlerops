@@ -7,8 +7,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/sirupsen/logrus"
-	"github.com/sql-studio/backend-go/internal/middleware"
-	"github.com/sql-studio/backend-go/pkg/storage/turso"
+	"github.com/jbeck018/howlerops/backend-go/internal/middleware"
+	"github.com/jbeck018/howlerops/backend-go/pkg/storage/turso"
 )
 
 // Handler handles HTTP requests for templates and schedules

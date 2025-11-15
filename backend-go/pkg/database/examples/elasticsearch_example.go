@@ -6,7 +6,7 @@ import (
 	"log"
 
 	"github.com/sirupsen/logrus"
-	"github.com/sql-studio/backend-go/pkg/database"
+	"github.com/jbeck018/howlerops/backend-go/pkg/database"
 )
 
 // ElasticsearchExample demonstrates how to use the Elasticsearch connector

@@ -10,7 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
-	"github.com/sql-studio/backend-go/internal/organization"
+	"github.com/jbeck018/howlerops/backend-go/internal/organization"
 )
 
 // OrganizationStore implements organization.Repository for Turso

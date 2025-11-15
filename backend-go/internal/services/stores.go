@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sql-studio/backend-go/internal/auth"
+	"github.com/jbeck018/howlerops/backend-go/internal/auth"
 )
 
 // InMemoryUserStore provides an in-memory implementation of UserStore

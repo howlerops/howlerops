@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/sql-studio/backend-go/internal/metrics"
+	"github.com/jbeck018/howlerops/backend-go/internal/metrics"
 )
 
 // responseWriter wraps http.ResponseWriter to capture status code and response size

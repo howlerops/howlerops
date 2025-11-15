@@ -10,7 +10,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 
-	servicesauth "github.com/sql-studio/sql-studio/services/auth"
+	servicesauth "github.com/jbeck018/howlerops/services/auth"
 )
 
 // Handler handles authentication HTTP requests

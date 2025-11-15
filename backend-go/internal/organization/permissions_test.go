@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/sql-studio/backend-go/internal/organization"
+	"github.com/jbeck018/howlerops/backend-go/internal/organization"
 )
 
 // ====================================================================

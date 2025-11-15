@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/sql-studio/backend-go/internal/sync"
-	"github.com/sql-studio/backend-go/pkg/storage"
+	"github.com/jbeck018/howlerops/backend-go/internal/sync"
+	"github.com/jbeck018/howlerops/backend-go/pkg/storage"
 )
 
 // SyncStoreAdapter adapts TursoAppDataStore to sync.Store interface

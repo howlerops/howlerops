@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/sql-studio/backend-go/internal/auth"
+	"github.com/jbeck018/howlerops/backend-go/internal/auth"
 )
 
 // TursoUserStore implements auth.UserStore interface for Turso

@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sql-studio/backend-go/pkg/database"
-	"github.com/sql-studio/backend-go/pkg/database/multiquery"
+	"github.com/jbeck018/howlerops/backend-go/pkg/database"
+	"github.com/jbeck018/howlerops/backend-go/pkg/database/multiquery"
 )
 
 type eventRecord struct {

@@ -14,8 +14,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/sql-studio/backend-go/internal/middleware"
-	"github.com/sql-studio/backend-go/pkg/crypto"
+	"github.com/jbeck018/howlerops/backend-go/internal/middleware"
+	"github.com/jbeck018/howlerops/backend-go/pkg/crypto"
 )
 
 // User represents a user in the system

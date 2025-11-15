@@ -9,7 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
-	"github.com/sql-studio/backend-go/pkg/storage"
+	"github.com/jbeck018/howlerops/backend-go/pkg/storage"
 )
 
 // TursoAppDataStore handles syncing of connections, queries, and history

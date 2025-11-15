@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/sirupsen/logrus"
-	"github.com/sql-studio/backend-go/internal/ai"
+	"github.com/jbeck018/howlerops/backend-go/internal/ai"
 )
 
 // Service is a public wrapper around the internal AI service

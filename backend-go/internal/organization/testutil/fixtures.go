@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/sql-studio/backend-go/internal/organization"
+	"github.com/jbeck018/howlerops/backend-go/internal/organization"
 )
 
 // CreateTestUser creates a test user with default values

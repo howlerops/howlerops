@@ -11,11 +11,11 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 
-	"github.com/sql-studio/backend-go/internal/domains"
-	"github.com/sql-studio/backend-go/internal/middleware"
-	"github.com/sql-studio/backend-go/internal/quotas"
-	"github.com/sql-studio/backend-go/internal/sla"
-	"github.com/sql-studio/backend-go/internal/whitelabel"
+	"github.com/jbeck018/howlerops/backend-go/internal/domains"
+	"github.com/jbeck018/howlerops/backend-go/internal/middleware"
+	"github.com/jbeck018/howlerops/backend-go/internal/quotas"
+	"github.com/jbeck018/howlerops/backend-go/internal/sla"
+	"github.com/jbeck018/howlerops/backend-go/internal/whitelabel"
 )
 
 // EnterpriseHandlers handles all enterprise feature endpoints

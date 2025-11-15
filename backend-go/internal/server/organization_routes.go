@@ -4,9 +4,9 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 
-	"github.com/sql-studio/backend-go/internal/middleware"
-	"github.com/sql-studio/backend-go/internal/organization"
-	"github.com/sql-studio/backend-go/internal/services"
+	"github.com/jbeck018/howlerops/backend-go/internal/middleware"
+	"github.com/jbeck018/howlerops/backend-go/internal/organization"
+	"github.com/jbeck018/howlerops/backend-go/internal/services"
 )
 
 // registerOrganizationRoutes registers HTTP routes for organization operations

@@ -14,8 +14,8 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/sirupsen/logrus"
 
-	"github.com/sql-studio/backend-go/internal/rag"
-	"github.com/sql-studio/backend-go/pkg/crypto"
+	"github.com/jbeck018/howlerops/backend-go/internal/rag"
+	"github.com/jbeck018/howlerops/backend-go/pkg/crypto"
 )
 
 // LocalSQLiteStorage implements Storage interface for local solo mode

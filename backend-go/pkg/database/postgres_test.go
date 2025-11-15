@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/sql-studio/backend-go/pkg/database"
+	"github.com/jbeck018/howlerops/backend-go/pkg/database"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

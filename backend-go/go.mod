@@ -1,8 +1,6 @@
-module github.com/sql-studio/backend-go
+module github.com/jbeck018/howlerops/backend-go
 
 go 1.24.0
-
-toolchain go1.24.5
 
 require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.40.3
@@ -16,6 +14,7 @@ require (
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.3
 	github.com/humanlayer/humanlayer/claudecode-go v0.0.0-20251016021547-fe03b19eb75f
+	github.com/jbeck018/howlerops v0.0.0
 	github.com/joho/godotenv v1.5.1
 	github.com/lib/pq v1.10.9
 	github.com/marcboeker/go-duckdb v1.8.5
@@ -26,7 +25,6 @@ require (
 	github.com/sashabaranov/go-openai v1.41.2
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/viper v1.21.0
-	github.com/sql-studio/sql-studio v0.0.0-00010101000000-000000000000
 	github.com/stretchr/testify v1.11.1
 	github.com/tursodatabase/libsql-client-go v0.0.0-20240902231107-85af5b9d094d
 	go.mongodb.org/mongo-driver v1.17.4
@@ -117,4 +115,5 @@ require (
 
 exclude cloud.google.com/go v0.26.0
 
-replace github.com/sql-studio/sql-studio => ../
+// Replace root module with local path for services/auth access
+replace github.com/jbeck018/howlerops => ../

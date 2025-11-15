@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/sql-studio/backend-go/pkg/crypto"
+	"github.com/jbeck018/howlerops/backend-go/pkg/crypto"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
 )

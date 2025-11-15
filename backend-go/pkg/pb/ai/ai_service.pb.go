@@ -2216,7 +2216,7 @@ const file_ai_service_proto_rawDesc = "" +
 	"\x11GetProviderModels\x12\x1c.ai.GetProviderModelsRequest\x1a\x1d.ai.GetProviderModelsResponse\x12A\n" +
 	"\fTestProvider\x12\x17.ai.TestProviderRequest\x1a\x18.ai.TestProviderResponse\x12D\n" +
 	"\rGetUsageStats\x12\x18.ai.GetUsageStatsRequest\x1a\x19.ai.GetUsageStatsResponse\x128\n" +
-	"\tGetConfig\x12\x14.ai.GetConfigRequest\x1a\x15.ai.GetConfigResponseB,Z*github.com/sql-studio/backend-go/pkg/pb/aib\x06proto3"
+	"\tGetConfig\x12\x14.ai.GetConfigRequest\x1a\x15.ai.GetConfigResponseB,Z*github.com/jbeck018/howlerops/backend-go/pkg/pb/aib\x06proto3"
 
 var (
 	file_ai_service_proto_rawDescOnce sync.Once

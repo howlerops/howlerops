@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/sql-studio/backend-go/internal/ai"
+	"github.com/jbeck018/howlerops/backend-go/internal/ai"
 )
 
 // TestNewOllamaDetector tests the constructor

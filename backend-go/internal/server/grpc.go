@@ -21,9 +21,9 @@ import (
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 
-	"github.com/sql-studio/backend-go/internal/config"
-	"github.com/sql-studio/backend-go/internal/middleware"
-	"github.com/sql-studio/backend-go/internal/services"
+	"github.com/jbeck018/howlerops/backend-go/internal/config"
+	"github.com/jbeck018/howlerops/backend-go/internal/middleware"
+	"github.com/jbeck018/howlerops/backend-go/internal/services"
 )
 
 // GRPCServer wraps the gRPC server with additional functionality

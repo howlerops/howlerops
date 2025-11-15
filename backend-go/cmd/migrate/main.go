@@ -7,9 +7,9 @@ import (
 	"os"
 
 	"github.com/sirupsen/logrus"
-	"github.com/sql-studio/backend-go/internal/config"
-	"github.com/sql-studio/backend-go/pkg/logger"
-	"github.com/sql-studio/backend-go/pkg/storage/turso"
+	"github.com/jbeck018/howlerops/backend-go/internal/config"
+	"github.com/jbeck018/howlerops/backend-go/pkg/logger"
+	"github.com/jbeck018/howlerops/backend-go/pkg/storage/turso"
 )
 
 func main() {

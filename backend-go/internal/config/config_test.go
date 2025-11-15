@@ -9,7 +9,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 
-	"github.com/sql-studio/backend-go/internal/config"
+	"github.com/jbeck018/howlerops/backend-go/internal/config"
 )
 
 func resetViper() {

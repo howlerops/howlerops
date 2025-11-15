@@ -9,7 +9,7 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
 
-	"github.com/sql-studio/backend-go/internal/middleware"
+	"github.com/jbeck018/howlerops/backend-go/internal/middleware"
 )
 
 func newSilentLogger() *logrus.Logger {

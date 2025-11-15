@@ -1,15 +1,13 @@
-module github.com/sql-studio/sql-studio
+module github.com/jbeck018/howlerops
 
 go 1.24.0
-
-toolchain go1.24.5
 
 require (
 	github.com/creack/pty v1.1.24
 	github.com/go-webauthn/webauthn v0.15.0
 	github.com/google/uuid v1.6.0
+	github.com/jbeck018/howlerops/backend-go v0.0.0
 	github.com/sirupsen/logrus v1.9.3
-	github.com/sql-studio/backend-go v0.0.0
 	github.com/wailsapp/wails/v2 v2.10.2
 	github.com/zalando/go-keyring v0.2.6
 	golang.org/x/oauth2 v0.33.0
@@ -117,4 +115,4 @@ require (
 )
 
 // Replace the backend-go module with the local path
-replace github.com/sql-studio/backend-go => ./backend-go
+replace github.com/jbeck018/howlerops/backend-go => ./backend-go

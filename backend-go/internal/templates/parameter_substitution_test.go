@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sql-studio/backend-go/pkg/storage/turso"
+	"github.com/jbeck018/howlerops/backend-go/pkg/storage/turso"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

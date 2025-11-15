@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/sql-studio/backend-go/internal/sla"
+	"github.com/jbeck018/howlerops/backend-go/internal/sla"
 )
 
 func TestSLATracking_Track(t *testing.T) {

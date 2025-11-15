@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sql-studio/backend-go/pkg/updater"
-	"github.com/sql-studio/backend-go/pkg/version"
+	"github.com/jbeck018/howlerops/backend-go/pkg/updater"
+	"github.com/jbeck018/howlerops/backend-go/pkg/version"
 )
 
 // Build-time variables (set via ldflags)
@@ -190,5 +190,5 @@ func printUsage() {
 	fmt.Println("  sqlstudio update")
 	fmt.Println()
 	fmt.Printf("Version: %s\n", Version)
-	fmt.Printf("For more information, visit: https://github.com/sql-studio/sql-studio\n")
+	fmt.Printf("For more information, visit: https://github.com/jbeck018/howlerops\n")
 }

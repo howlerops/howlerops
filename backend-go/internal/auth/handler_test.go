@@ -15,8 +15,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/sql-studio/backend-go/internal/auth"
-	"github.com/sql-studio/backend-go/internal/middleware"
+	"github.com/jbeck018/howlerops/backend-go/internal/auth"
+	"github.com/jbeck018/howlerops/backend-go/internal/middleware"
 )
 
 // Note: Mock store implementations are defined in service_test.go and shared across all test files

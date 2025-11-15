@@ -9,8 +9,8 @@ import (
 
 	"github.com/robfig/cron/v3"
 	"github.com/sirupsen/logrus"
-	"github.com/sql-studio/backend-go/internal/organization"
-	"github.com/sql-studio/backend-go/pkg/storage/turso"
+	"github.com/jbeck018/howlerops/backend-go/internal/organization"
+	"github.com/jbeck018/howlerops/backend-go/pkg/storage/turso"
 )
 
 // Service handles business logic for query templates and schedules

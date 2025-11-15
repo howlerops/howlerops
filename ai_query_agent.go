@@ -11,9 +11,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
-	"github.com/sql-studio/backend-go/pkg/ai"
-	"github.com/sql-studio/backend-go/pkg/database"
-	"github.com/sql-studio/backend-go/pkg/database/multiquery"
+	"github.com/jbeck018/howlerops/backend-go/pkg/ai"
+	"github.com/jbeck018/howlerops/backend-go/pkg/database"
+	"github.com/jbeck018/howlerops/backend-go/pkg/database/multiquery"
 )
 
 // AIQueryAgentRequest represents a request to the AI query agent workflow.

@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/sql-studio/backend-go/internal/organization"
+	"github.com/jbeck018/howlerops/backend-go/internal/organization"
 )
 
 // OrgAwareHandler handles organization-aware sync operations

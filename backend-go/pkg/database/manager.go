@@ -10,7 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
-	"github.com/sql-studio/backend-go/pkg/database/multiquery"
+	"github.com/jbeck018/howlerops/backend-go/pkg/database/multiquery"
 )
 
 // databaseAdapter adapts Database to multiquery.Database interface

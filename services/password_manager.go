@@ -6,8 +6,8 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/sql-studio/backend-go/pkg/crypto"
-	"github.com/sql-studio/backend-go/pkg/storage/turso"
+	"github.com/jbeck018/howlerops/backend-go/pkg/crypto"
+	"github.com/jbeck018/howlerops/backend-go/pkg/storage/turso"
 )
 
 // PasswordManager implements a hybrid dual-read system for password storage

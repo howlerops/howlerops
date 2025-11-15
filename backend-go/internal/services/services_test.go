@@ -10,9 +10,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/sql-studio/backend-go/internal/config"
-	"github.com/sql-studio/backend-go/internal/middleware"
-	"github.com/sql-studio/backend-go/pkg/database"
+	"github.com/jbeck018/howlerops/backend-go/internal/config"
+	"github.com/jbeck018/howlerops/backend-go/internal/middleware"
+	"github.com/jbeck018/howlerops/backend-go/pkg/database"
 )
 
 func newSilentLogger() *logrus.Logger {

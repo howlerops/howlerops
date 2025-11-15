@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sql-studio/backend-go/pkg/storage/turso"
+	"github.com/jbeck018/howlerops/backend-go/pkg/storage/turso"
 )
 
 // SubstituteParameters replaces {{param_name}} placeholders with actual values

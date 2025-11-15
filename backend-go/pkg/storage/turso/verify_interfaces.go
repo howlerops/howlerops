@@ -1,7 +1,7 @@
 package turso
 
 import (
-	"github.com/sql-studio/backend-go/internal/auth"
+	"github.com/jbeck018/howlerops/backend-go/internal/auth"
 )
 
 // This file verifies at compile time that our stores implement the correct interfaces

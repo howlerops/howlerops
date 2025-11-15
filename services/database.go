@@ -10,8 +10,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 
-	"github.com/sql-studio/backend-go/pkg/database"
-	"github.com/sql-studio/backend-go/pkg/database/multiquery"
+	"github.com/jbeck018/howlerops/backend-go/pkg/database"
+	"github.com/jbeck018/howlerops/backend-go/pkg/database/multiquery"
 )
 
 // DatabaseManager captures the subset of backend-go's Manager used by the desktop services layer.

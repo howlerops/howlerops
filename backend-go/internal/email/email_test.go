@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/sql-studio/backend-go/internal/email"
+	"github.com/jbeck018/howlerops/backend-go/internal/email"
 )
 
 // TestMockEmailService tests the mock email service implementation

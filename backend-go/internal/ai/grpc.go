@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	aipb "github.com/sql-studio/backend-go/pkg/pb/ai"
+	aipb "github.com/jbeck018/howlerops/backend-go/pkg/pb/ai"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )

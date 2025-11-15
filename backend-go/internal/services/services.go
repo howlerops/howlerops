@@ -6,15 +6,15 @@ import (
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 
-	"github.com/sql-studio/backend-go/internal/ai"
-	"github.com/sql-studio/backend-go/internal/auth"
-	"github.com/sql-studio/backend-go/internal/config"
-	"github.com/sql-studio/backend-go/internal/middleware"
-	"github.com/sql-studio/backend-go/internal/organization"
-	"github.com/sql-studio/backend-go/internal/sync"
-	"github.com/sql-studio/backend-go/pkg/database"
+	"github.com/jbeck018/howlerops/backend-go/internal/ai"
+	"github.com/jbeck018/howlerops/backend-go/internal/auth"
+	"github.com/jbeck018/howlerops/backend-go/internal/config"
+	"github.com/jbeck018/howlerops/backend-go/internal/middleware"
+	"github.com/jbeck018/howlerops/backend-go/internal/organization"
+	"github.com/jbeck018/howlerops/backend-go/internal/sync"
+	"github.com/jbeck018/howlerops/backend-go/pkg/database"
 
-	servicesauth "github.com/sql-studio/sql-studio/services/auth"
+	servicesauth "github.com/jbeck018/howlerops/services/auth"
 )
 
 // Services holds all the application services

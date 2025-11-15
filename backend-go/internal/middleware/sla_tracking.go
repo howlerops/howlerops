@@ -7,7 +7,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/sql-studio/backend-go/internal/sla"
+	"github.com/jbeck018/howlerops/backend-go/internal/sla"
 )
 
 // SLATracking middleware tracks requests for SLA monitoring

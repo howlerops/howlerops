@@ -19,9 +19,9 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/sql-studio/backend-go/internal/config"
-	"github.com/sql-studio/backend-go/internal/server"
-	"github.com/sql-studio/backend-go/internal/services"
+	"github.com/jbeck018/howlerops/backend-go/internal/config"
+	"github.com/jbeck018/howlerops/backend-go/internal/server"
+	"github.com/jbeck018/howlerops/backend-go/internal/services"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"

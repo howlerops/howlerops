@@ -6,8 +6,8 @@ import (
 	"fmt"
 
 	"github.com/sirupsen/logrus"
-	internalrag "github.com/sql-studio/backend-go/internal/rag"
-	pkgrag "github.com/sql-studio/backend-go/pkg/rag"
+	internalrag "github.com/jbeck018/howlerops/backend-go/internal/rag"
+	pkgrag "github.com/jbeck018/howlerops/backend-go/pkg/rag"
 )
 
 // Config holds storage manager configuration

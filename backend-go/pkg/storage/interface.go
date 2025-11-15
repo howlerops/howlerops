@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/sql-studio/backend-go/pkg/crypto"
+	"github.com/jbeck018/howlerops/backend-go/pkg/crypto"
 )
 
 // Redeclare Document locally to avoid import cycles

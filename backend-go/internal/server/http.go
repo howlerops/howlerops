@@ -12,11 +12,11 @@ import (
 	// "google.golang.org/grpc"
 	// "google.golang.org/grpc/credentials/insecure"
 
-	"github.com/sql-studio/backend-go/internal/ai"
-	"github.com/sql-studio/backend-go/internal/auth"
-	"github.com/sql-studio/backend-go/internal/config"
-	"github.com/sql-studio/backend-go/internal/middleware"
-	"github.com/sql-studio/backend-go/internal/services"
+	"github.com/jbeck018/howlerops/backend-go/internal/ai"
+	"github.com/jbeck018/howlerops/backend-go/internal/auth"
+	"github.com/jbeck018/howlerops/backend-go/internal/config"
+	"github.com/jbeck018/howlerops/backend-go/internal/middleware"
+	"github.com/jbeck018/howlerops/backend-go/internal/services"
 )
 
 // HTTPServer wraps the HTTP gateway server

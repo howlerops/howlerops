@@ -8,11 +8,11 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
-	"github.com/sql-studio/backend-go/internal/audit"
-	"github.com/sql-studio/backend-go/internal/backup"
-	"github.com/sql-studio/backend-go/internal/gdpr"
-	"github.com/sql-studio/backend-go/internal/pii"
-	"github.com/sql-studio/backend-go/internal/retention"
+	"github.com/jbeck018/howlerops/backend-go/internal/audit"
+	"github.com/jbeck018/howlerops/backend-go/internal/backup"
+	"github.com/jbeck018/howlerops/backend-go/internal/gdpr"
+	"github.com/jbeck018/howlerops/backend-go/internal/pii"
+	"github.com/jbeck018/howlerops/backend-go/internal/retention"
 )
 
 // ComplianceHandler handles compliance-related HTTP requests

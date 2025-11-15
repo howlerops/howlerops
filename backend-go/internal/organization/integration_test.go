@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/sql-studio/backend-go/internal/organization"
-	"github.com/sql-studio/backend-go/internal/organization/testutil"
+	"github.com/jbeck018/howlerops/backend-go/internal/organization"
+	"github.com/jbeck018/howlerops/backend-go/internal/organization/testutil"
 )
 
 // IntegrationTestSuite is the main test suite for organization integration tests

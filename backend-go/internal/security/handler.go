@@ -9,10 +9,10 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 
-	"github.com/sql-studio/backend-go/internal/apikeys"
-	"github.com/sql-studio/backend-go/internal/auth"
-	"github.com/sql-studio/backend-go/internal/middleware"
-	"github.com/sql-studio/backend-go/internal/sso"
+	"github.com/jbeck018/howlerops/backend-go/internal/apikeys"
+	"github.com/jbeck018/howlerops/backend-go/internal/auth"
+	"github.com/jbeck018/howlerops/backend-go/internal/middleware"
+	"github.com/jbeck018/howlerops/backend-go/internal/sso"
 )
 
 // Handler handles security-related HTTP endpoints

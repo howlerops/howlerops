@@ -11,7 +11,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/sql-studio/backend-go/internal/middleware"
+	"github.com/jbeck018/howlerops/backend-go/internal/middleware"
 )
 
 func TestRateLimitMiddleware_AllowsRequestsUnderLimit(t *testing.T) {
