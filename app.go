@@ -57,13 +57,13 @@ type App struct {
 	duckdbEngine      *duckdb.Engine
 	syntheticViews    *storage.SyntheticViewStorage
 	// OAuth authentication
-	githubOAuth       *auth.OAuth2Manager
-	googleOAuth       *auth.OAuth2Manager
-	secureStorage     *auth.SecureStorage
+	githubOAuth   *auth.OAuth2Manager
+	googleOAuth   *auth.OAuth2Manager
+	secureStorage *auth.SecureStorage
 	// WebAuthn biometric authentication
-	webauthnManager   *auth.WebAuthnManager
-	credentialStore   *auth.CredentialStore
-	sessionStore      *auth.SessionStore
+	webauthnManager *auth.WebAuthnManager
+	credentialStore *auth.CredentialStore
+	sessionStore    *auth.SessionStore
 }
 
 // ConnectionRequest represents a database connection request
@@ -506,8 +506,8 @@ func NewApp() *App {
 	// Initialize OAuth managers (credentials from environment variables)
 	var githubOAuth, googleOAuth *auth.OAuth2Manager
 
-	githubClientID := os.Getenv("GITHUB_CLIENT_ID")
-	githubClientSecret := os.Getenv("GITHUB_CLIENT_SECRET")
+	githubClientID := os.Getenv("GH_CLIENT_ID")
+	githubClientSecret := os.Getenv("GH_CLIENT_SECRET")
 	if githubClientID != "" && githubClientSecret != "" {
 		githubOAuth, _ = auth.NewOAuth2Manager("github", githubClientID, githubClientSecret)
 	}
@@ -4913,7 +4913,7 @@ func (a *App) handleOAuthCallback(code, state string) {
 // CheckBiometricAvailability checks if biometric authentication is available on the current platform
 func (a *App) CheckBiometricAvailability() (map[string]interface{}, error) {
 	a.logger.Debug("Checking biometric availability")
-	
+
 	capability, err := auth.CheckBiometricAvailability()
 	if err != nil {
 		a.logger.WithError(err).Error("Failed to check biometric availability")
@@ -4923,13 +4923,13 @@ func (a *App) CheckBiometricAvailability() (map[string]interface{}, error) {
 			"error":     err.Error(),
 		}, nil // Don't fail the call, just return unavailable
 	}
-	
+
 	a.logger.WithFields(logrus.Fields{
 		"available": capability["available"],
 		"type":      capability["type"],
 		"platform":  capability["platform"],
 	}).Info("Biometric availability check complete")
-	
+
 	return capability, nil
 }
 
@@ -4939,21 +4939,21 @@ func (a *App) StartWebAuthnRegistration(userID, userName string) (string, error)
 		"userID":   userID,
 		"userName": userName,
 	}).Info("Starting WebAuthn registration")
-	
+
 	if a.webauthnManager == nil {
 		return "", fmt.Errorf("WebAuthn not initialized")
 	}
-	
+
 	if userID == "" || userName == "" {
 		return "", fmt.Errorf("userID and userName are required")
 	}
-	
+
 	optionsJSON, err := a.webauthnManager.BeginRegistration(userID, userName)
 	if err != nil {
 		a.logger.WithError(err).Error("Failed to begin WebAuthn registration")
 		return "", err
 	}
-	
+
 	a.logger.WithField("userID", userID).Info("WebAuthn registration started successfully")
 	return string(optionsJSON), nil
 }
@@ -4961,21 +4961,21 @@ func (a *App) StartWebAuthnRegistration(userID, userName string) (string, error)
 // FinishWebAuthnRegistration completes the WebAuthn registration process
 func (a *App) FinishWebAuthnRegistration(userID, credentialJSON string) (bool, error) {
 	a.logger.WithField("userID", userID).Info("Finishing WebAuthn registration")
-	
+
 	if a.webauthnManager == nil {
 		return false, fmt.Errorf("WebAuthn not initialized")
 	}
-	
+
 	if userID == "" || credentialJSON == "" {
 		return false, fmt.Errorf("userID and credentialJSON are required")
 	}
-	
+
 	err := a.webauthnManager.FinishRegistration(userID, credentialJSON)
 	if err != nil {
 		a.logger.WithError(err).Error("Failed to finish WebAuthn registration")
 		return false, err
 	}
-	
+
 	a.logger.WithField("userID", userID).Info("WebAuthn registration completed successfully")
 	return true, nil
 }
@@ -4983,27 +4983,27 @@ func (a *App) FinishWebAuthnRegistration(userID, credentialJSON string) (bool, e
 // StartWebAuthnAuthentication initiates the WebAuthn authentication process
 func (a *App) StartWebAuthnAuthentication(userID string) (string, error) {
 	a.logger.WithField("userID", userID).Info("Starting WebAuthn authentication")
-	
+
 	if a.webauthnManager == nil {
 		return "", fmt.Errorf("WebAuthn not initialized")
 	}
-	
+
 	if userID == "" {
 		return "", fmt.Errorf("userID is required")
 	}
-	
+
 	// Check if user has credentials
 	if !a.credentialStore.HasCredentials(userID) {
 		a.logger.WithField("userID", userID).Warn("No credentials found for user")
 		return "", fmt.Errorf("no credentials registered for this user")
 	}
-	
+
 	optionsJSON, err := a.webauthnManager.BeginAuthentication(userID)
 	if err != nil {
 		a.logger.WithError(err).Error("Failed to begin WebAuthn authentication")
 		return "", err
 	}
-	
+
 	a.logger.WithField("userID", userID).Info("WebAuthn authentication started successfully")
 	return string(optionsJSON), nil
 }
@@ -5011,50 +5011,50 @@ func (a *App) StartWebAuthnAuthentication(userID string) (string, error) {
 // FinishWebAuthnAuthentication completes the WebAuthn authentication process
 func (a *App) FinishWebAuthnAuthentication(userID, assertionJSON string) (string, error) {
 	a.logger.WithField("userID", userID).Info("Finishing WebAuthn authentication")
-	
+
 	if a.webauthnManager == nil {
 		return "", fmt.Errorf("WebAuthn not initialized")
 	}
-	
+
 	if userID == "" || assertionJSON == "" {
 		return "", fmt.Errorf("userID and assertionJSON are required")
 	}
-	
+
 	token, err := a.webauthnManager.FinishAuthentication(userID, assertionJSON)
 	if err != nil {
 		a.logger.WithError(err).Error("Failed to finish WebAuthn authentication")
 		return "", err
 	}
-	
+
 	a.logger.WithField("userID", userID).Info("WebAuthn authentication completed successfully")
-	
+
 	// Emit success event to frontend
 	wailsRuntime.EventsEmit(a.ctx, "webauthn:success", map[string]interface{}{
 		"userID": userID,
 		"token":  token,
 	})
-	
+
 	return token, nil
 }
 
 // DeleteWebAuthnCredential removes a WebAuthn credential for a user
 func (a *App) DeleteWebAuthnCredential(userID string) error {
 	a.logger.WithField("userID", userID).Info("Deleting WebAuthn credentials")
-	
+
 	if a.credentialStore == nil {
 		return fmt.Errorf("credential store not initialized")
 	}
-	
+
 	if userID == "" {
 		return fmt.Errorf("userID is required")
 	}
-	
+
 	err := a.credentialStore.DeleteAllCredentials(userID)
 	if err != nil {
 		a.logger.WithError(err).Error("Failed to delete WebAuthn credentials")
 		return err
 	}
-	
+
 	a.logger.WithField("userID", userID).Info("WebAuthn credentials deleted successfully")
 	return nil
 }
@@ -5062,21 +5062,21 @@ func (a *App) DeleteWebAuthnCredential(userID string) error {
 // HasWebAuthnCredential checks if a user has registered WebAuthn credentials
 func (a *App) HasWebAuthnCredential(userID string) (bool, error) {
 	a.logger.WithField("userID", userID).Debug("Checking for WebAuthn credentials")
-	
+
 	if a.credentialStore == nil {
 		return false, fmt.Errorf("credential store not initialized")
 	}
-	
+
 	if userID == "" {
 		return false, fmt.Errorf("userID is required")
 	}
-	
+
 	hasCredentials := a.credentialStore.HasCredentials(userID)
-	
+
 	a.logger.WithFields(logrus.Fields{
 		"userID":         userID,
 		"hasCredentials": hasCredentials,
 	}).Debug("WebAuthn credential check complete")
-	
+
 	return hasCredentials, nil
 }

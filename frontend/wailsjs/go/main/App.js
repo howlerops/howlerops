@@ -10,8 +10,16 @@ export function CancelQueryStream(arg1) {
   return window['go']['main']['App']['CancelQueryStream'](arg1);
 }
 
+export function CheckBiometricAvailability() {
+  return window['go']['main']['App']['CheckBiometricAvailability']();
+}
+
 export function CheckForUpdates() {
   return window['go']['main']['App']['CheckForUpdates']();
+}
+
+export function CheckStoredToken(arg1) {
+  return window['go']['main']['App']['CheckStoredToken'](arg1);
 }
 
 export function ClearAIMemorySessions() {
@@ -62,6 +70,10 @@ export function DeleteSyntheticView(arg1) {
   return window['go']['main']['App']['DeleteSyntheticView'](arg1);
 }
 
+export function DeleteWebAuthnCredential(arg1) {
+  return window['go']['main']['App']['DeleteWebAuthnCredential'](arg1);
+}
+
 export function ExecuteMultiDatabaseQuery(arg1) {
   return window['go']['main']['App']['ExecuteMultiDatabaseQuery'](arg1);
 }
@@ -96,6 +108,14 @@ export function ExportKeyboardBindings() {
 
 export function FileExists(arg1) {
   return window['go']['main']['App']['FileExists'](arg1);
+}
+
+export function FinishWebAuthnAuthentication(arg1, arg2) {
+  return window['go']['main']['App']['FinishWebAuthnAuthentication'](arg1, arg2);
+}
+
+export function FinishWebAuthnRegistration(arg1, arg2) {
+  return window['go']['main']['App']['FinishWebAuthnRegistration'](arg1, arg2);
 }
 
 export function FixSQLError(arg1, arg2, arg3) {
@@ -198,6 +218,10 @@ export function GetMultiConnectionSchema(arg1) {
   return window['go']['main']['App']['GetMultiConnectionSchema'](arg1);
 }
 
+export function GetOAuthURL(arg1) {
+  return window['go']['main']['App']['GetOAuthURL'](arg1);
+}
+
 export function GetPassword(arg1, arg2) {
   return window['go']['main']['App']['GetPassword'](arg1, arg2);
 }
@@ -216,6 +240,10 @@ export function GetSchemaCacheStats() {
 
 export function GetSchemas(arg1) {
   return window['go']['main']['App']['GetSchemas'](arg1);
+}
+
+export function GetStoredUserInfo(arg1) {
+  return window['go']['main']['App']['GetStoredUserInfo'](arg1);
 }
 
 export function GetSupportedDatabaseTypes() {
@@ -254,6 +282,10 @@ export function HasPassword(arg1) {
   return window['go']['main']['App']['HasPassword'](arg1);
 }
 
+export function HasWebAuthnCredential(arg1) {
+  return window['go']['main']['App']['HasWebAuthnCredential'](arg1);
+}
+
 export function HealthCheckAll() {
   return window['go']['main']['App']['HealthCheckAll']();
 }
@@ -288,6 +320,14 @@ export function ListSyntheticViews() {
 
 export function LoadAIMemorySessions() {
   return window['go']['main']['App']['LoadAIMemorySessions']();
+}
+
+export function Logout(arg1) {
+  return window['go']['main']['App']['Logout'](arg1);
+}
+
+export function OnUrlOpen(arg1) {
+  return window['go']['main']['App']['OnUrlOpen'](arg1);
 }
 
 export function OpenDownloadPage() {
@@ -376,6 +416,14 @@ export function StartClaudeCodeLogin(arg1) {
 
 export function StartCodexLogin(arg1) {
   return window['go']['main']['App']['StartCodexLogin'](arg1);
+}
+
+export function StartWebAuthnAuthentication(arg1) {
+  return window['go']['main']['App']['StartWebAuthnAuthentication'](arg1);
+}
+
+export function StartWebAuthnRegistration(arg1, arg2) {
+  return window['go']['main']['App']['StartWebAuthnRegistration'](arg1, arg2);
 }
 
 export function StorePassword(arg1, arg2, arg3) {

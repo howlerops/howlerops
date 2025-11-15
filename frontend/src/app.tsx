@@ -25,6 +25,7 @@ const InviteAcceptPage = lazy(() => import('./pages/InviteAcceptPage').then(m =>
 const PendingInvitationsPage = lazy(() => import('./pages/PendingInvitationsPage').then(m => ({ default: m.PendingInvitationsPage })))
 const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'))
 const AuthPage = lazy(() => import('./pages/AuthPage').then(m => ({ default: m.AuthPage })))
+const AuthCallback = lazy(() => import('./pages/AuthCallback').then(m => ({ default: m.AuthCallback })))
 
 // Loading component
 function LoadingSpinner() {
@@ -101,6 +102,7 @@ function App() {
               <Suspense fallback={<LoadingSpinner />}>
                 <Routes>
                   <Route path="/auth" element={<AuthPage />} />
+                  <Route path="/auth/callback" element={<AuthCallback />} />
 
                   {/* Public invitation route - no MainLayout wrapper */}
                   <Route path="/invite/:token" element={<InviteAcceptPage />} />

@@ -9,7 +9,9 @@ import { Button } from '@/components/ui/button'
 import { Github, Loader2 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import type { AuthSuccessEvent } from '@/types/wails-auth'
-import { callWails, subscribeToWailsEvent } from '@/lib/wails-guard'
+import { subscribeToWailsEvent } from '@/lib/wails-guard'
+import { isWailsApp } from '@/lib/platform'
+import * as authApi from '@/lib/auth-api'
 
 interface OAuthButtonGroupProps {
   onSuccess?: () => void
@@ -19,8 +21,13 @@ export function OAuthButtonGroup({ onSuccess }: OAuthButtonGroupProps) {
   const [loading, setLoading] = useState<'google' | 'github' | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  // Listen for auth events from backend
+  // Listen for auth events from backend (desktop mode only)
   useEffect(() => {
+    // Only set up event listeners in Wails desktop mode
+    if (!isWailsApp()) {
+      return
+    }
+
     try {
       const unsubscribeSuccess = subscribeToWailsEvent('auth:success', (data: AuthSuccessEvent) => {
         console.log('OAuth authentication successful:', data.user)
@@ -50,13 +57,23 @@ export function OAuthButtonGroup({ onSuccess }: OAuthButtonGroupProps) {
     setError(null)
 
     try {
-      // Get OAuth URL from backend
-      const { authUrl } = await callWails((app) => app.GetOAuthURL!(provider))
+      // Get OAuth URL from backend (works in both modes)
+      const { authUrl, state } = await authApi.getOAuthURL(provider)
 
-      // Open system browser - callback handled by Go backend via deep link
-      window.open(authUrl, '_blank')
-
-      // Loading state will be cleared by auth:success or auth:error event
+      if (isWailsApp()) {
+        // Desktop mode: Open in new window
+        // Callback handled by OS custom protocol handler → auth:success event
+        window.open(authUrl, '_blank')
+        // Loading state will be cleared by auth:success or auth:error event
+      } else {
+        // Web mode: Redirect current window
+        // Store state in sessionStorage for verification after redirect
+        if (state) {
+          sessionStorage.setItem('oauth_state', state)
+        }
+        window.location.href = authUrl
+        // Loading state preserved across redirect
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to initiate OAuth flow'
       console.error('OAuth error:', err)

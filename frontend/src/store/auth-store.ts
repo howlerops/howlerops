@@ -19,7 +19,9 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { importMasterKeyFromBase64 } from '@/lib/crypto/encryption'
 import type { AuthSuccessEvent, AuthRestoredEvent } from '@/types/wails-auth'
-import { callWails, subscribeToWailsEvent } from '@/lib/wails-guard'
+import { subscribeToWailsEvent } from '@/lib/wails-guard'
+import { isWailsApp } from '@/lib/platform'
+import * as authApi from '@/lib/auth-api'
 
 export interface User {
   id: string
@@ -206,13 +208,25 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true, error: null })
 
         try {
-          // Get OAuth URL from backend
-          const { authUrl } = await callWails((app) => app.GetOAuthURL!(provider))
+          // Get OAuth URL from backend (works in both Wails and web mode)
+          const { authUrl, state } = await authApi.getOAuthURL(provider)
 
-          // Open system browser for authentication
-          window.open(authUrl, '_blank')
+          if (isWailsApp()) {
+            // Desktop mode: Open in new window
+            // Callback handled by OS custom protocol handler → auth:success event
+            window.open(authUrl, '_blank')
+          } else {
+            // Web mode: Redirect current window
+            // Store state in sessionStorage for verification after redirect
+            if (state) {
+              sessionStorage.setItem('oauth_state', state)
+            }
+            window.location.href = authUrl
+          }
 
-          // Note: Authentication completion handled by auth:success event listener
+          // Note: Authentication completion handled differently per mode:
+          // - Desktop: auth:success event listener
+          // - Web: /auth/callback route processes the redirect
         } catch (error) {
           set({
             error: error instanceof Error ? error.message : 'OAuth login failed',
@@ -231,8 +245,8 @@ export const useAuthStore = create<AuthState>()(
             '@/lib/utils/webauthn'
           )
 
-          // Get WebAuthn challenge from backend
-          const optionsJSON = await callWails((app) => app.StartWebAuthnAuthentication!())
+          // Get WebAuthn challenge from backend (works in both modes)
+          const optionsJSON = await authApi.startWebAuthnAuthentication()
           const options = parsePublicKeyRequestOptions(optionsJSON)
 
           // Trigger browser's native biometric prompt
@@ -244,9 +258,9 @@ export const useAuthStore = create<AuthState>()(
             throw new Error('Invalid credential type')
           }
 
-          // Send credential to backend for verification
+          // Send credential to backend for verification (works in both modes)
           const assertionJSON = serializeCredentialAssertion(credential as PublicKeyCredential)
-          const token = await callWails((app) => app.FinishWebAuthnAuthentication!(assertionJSON))
+          const token = await authApi.finishWebAuthnAuthentication(assertionJSON)
 
           if (!token) {
             throw new Error('Authentication failed')
@@ -273,12 +287,17 @@ export const useAuthStore = create<AuthState>()(
 
       // Check for stored authentication on app startup
       checkStoredAuth: async () => {
+        // Only applicable in desktop mode - web mode uses session cookies
+        if (!isWailsApp()) {
+          return
+        }
+
         try {
-          // Check for OAuth tokens in backend
+          // Check for OAuth tokens in backend keychain (desktop only)
           const providers: Array<'google' | 'github'> = ['google', 'github']
 
           for (const provider of providers) {
-            const hasToken = await callWails((app) => app.CheckStoredToken!(provider))
+            const hasToken = await authApi.checkStoredToken(provider)
             if (hasToken) {
               console.log(`Found stored ${provider} token`)
               // Token will be restored via auth:restored event
@@ -477,8 +496,8 @@ export const getAuthHeader = (): Record<string, string> => {
 export const initializeAuthStore = () => {
   const { isAuthenticated, refreshToken, checkStoredAuth } = useAuthStore.getState()
 
-  // Set up event listeners for OAuth authentication
-  if (typeof window !== 'undefined' && window.runtime) {
+  // Set up event listeners for OAuth authentication (desktop mode only)
+  if (isWailsApp() && typeof window !== 'undefined' && window.runtime) {
     try {
       // Listen for successful OAuth authentication
       subscribeToWailsEvent('auth:success', (data: AuthSuccessEvent) => {
@@ -536,7 +555,7 @@ export const initializeAuthStore = () => {
     // Validate token on startup
     refreshToken()
   } else {
-    // Check for stored OAuth tokens
+    // Check for stored OAuth tokens (desktop only)
     checkStoredAuth()
   }
 }

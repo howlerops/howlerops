@@ -48,7 +48,8 @@ func NewHTTPServer(cfg *config.Config, logger *logrus.Logger, svc *services.Serv
 	// Register Auth HTTP routes (public - no auth middleware)
 	if svc.Auth != nil {
 		logger.Info("Registering Auth HTTP routes")
-		authHTTPHandler := auth.NewHandler(svc.Auth, logger)
+		// Get OAuth and WebAuthn managers from services
+		authHTTPHandler := auth.NewHandler(svc.Auth, logger, svc.GitHubOAuth, svc.GoogleOAuth, svc.WebAuthnManager)
 		authHTTPHandler.RegisterRoutes(mainRouter)
 		logger.Info("Auth HTTP routes registered successfully")
 	} else {

@@ -71,8 +71,8 @@ This guide walks you through setting up OAuth authentication with Google and Git
 
 1. On the OAuth app page, click "Generate a new client secret"
 2. **Save the credentials**:
-   - Client ID: `YOUR_GITHUB_CLIENT_ID`
-   - Client Secret: `YOUR_GITHUB_CLIENT_SECRET` (only shown once!)
+   - Client ID: `YOUR_GH_CLIENT_ID`
+   - Client Secret: `YOUR_GH_CLIENT_SECRET` (only shown once!)
 
 ## Part 3: Configure HowlerOps
 
@@ -86,8 +86,8 @@ GOOGLE_CLIENT_ID=YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=YOUR_GOOGLE_CLIENT_SECRET
 
 # GitHub OAuth
-GITHUB_CLIENT_ID=YOUR_GITHUB_CLIENT_ID
-GITHUB_CLIENT_SECRET=YOUR_GITHUB_CLIENT_SECRET
+GH_CLIENT_ID=YOUR_GH_CLIENT_ID
+GH_CLIENT_SECRET=YOUR_GH_CLIENT_SECRET
 
 # OAuth Redirect URI
 OAUTH_REDIRECT_URI=howlerops://auth/callback

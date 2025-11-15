@@ -16,12 +16,12 @@ type OAuthUser struct {
 
 // PendingToken represents a pending OAuth2 token exchange
 type PendingToken struct {
-	State           string
-	CodeVerifier    string // PKCE verifier
-	CodeChallenge   string // PKCE challenge
-	Provider        string
-	CreatedAt       time.Time
-	ExpiresAt       time.Time
+	State         string
+	CodeVerifier  string // PKCE verifier
+	CodeChallenge string // PKCE challenge
+	Provider      string
+	CreatedAt     time.Time
+	ExpiresAt     time.Time
 }
 
 // GitHubUser represents GitHub user data from API

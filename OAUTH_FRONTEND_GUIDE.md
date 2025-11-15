@@ -366,8 +366,8 @@ Before testing, ensure OAuth credentials are configured:
 
 ```bash
 # .env file in project root
-GITHUB_CLIENT_ID=your_github_client_id
-GITHUB_CLIENT_SECRET=your_github_client_secret
+GH_CLIENT_ID=your_GH_CLIENT_id
+GH_CLIENT_SECRET=your_GH_CLIENT_secret
 GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret
 ```

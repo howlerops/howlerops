@@ -13,19 +13,24 @@ import (
 	"github.com/sql-studio/backend-go/internal/organization"
 	"github.com/sql-studio/backend-go/internal/sync"
 	"github.com/sql-studio/backend-go/pkg/database"
+
+	servicesauth "github.com/sql-studio/sql-studio/services/auth"
 )
 
 // Services holds all the application services
 type Services struct {
-	Auth         *auth.Service
-	Sync         *sync.Service
-	Organization organization.ServiceInterface
-	Database     *database.Manager
-	AI           ai.Service
-	Query        *QueryService
-	Table        *TableService
-	Health       *HealthService
-	Realtime     *RealtimeService
+	Auth            *auth.Service
+	Sync            *sync.Service
+	Organization    organization.ServiceInterface
+	Database        *database.Manager
+	AI              ai.Service
+	Query           *QueryService
+	Table           *TableService
+	Health          *HealthService
+	Realtime        *RealtimeService
+	GitHubOAuth     *servicesauth.OAuth2Manager
+	GoogleOAuth     *servicesauth.OAuth2Manager
+	WebAuthnManager *servicesauth.WebAuthnManager
 }
 
 // Config holds service configuration

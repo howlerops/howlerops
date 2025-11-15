@@ -68,7 +68,7 @@ func NewWebAuthnManager(credentialStore *CredentialStore, sessionStore *SessionS
 	// Registration options
 	registrationOpts := []webauthn.RegistrationOption{
 		webauthn.WithAuthenticatorSelection(protocol.AuthenticatorSelection{
-			AuthenticatorAttachment: protocol.Platform,      // Prefer platform authenticators (Touch ID, Windows Hello)
+			AuthenticatorAttachment: protocol.Platform, // Prefer platform authenticators (Touch ID, Windows Hello)
 			RequireResidentKey:      protocol.ResidentKeyNotRequired(),
 			UserVerification:        protocol.VerificationPreferred, // Request user verification when possible
 		}),

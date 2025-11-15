@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Fingerprint, Loader2 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { parsePublicKeyRequestOptions, serializeCredentialAssertion } from '@/lib/utils/webauthn'
-import { callWails } from '@/lib/wails-guard'
+import * as authApi from '@/lib/auth-api'
 
 interface BiometricAuthButtonProps {
   onSuccess?: () => void
@@ -30,8 +30,8 @@ export function BiometricAuthButton({ onSuccess }: BiometricAuthButtonProps) {
         return
       }
 
-      // Check backend for platform biometric capabilities
-      const result = await callWails((app) => app.CheckBiometricAvailability!())
+      // Check backend for platform biometric capabilities (works in both modes)
+      const result = await authApi.checkBiometricAvailability()
       setAvailable(result.available)
       setBiometricType(result.type || 'Biometric')
     } catch (err) {
@@ -49,8 +49,8 @@ export function BiometricAuthButton({ onSuccess }: BiometricAuthButtonProps) {
     setError(null)
 
     try {
-      // Get WebAuthn challenge from backend
-      const optionsJSON = await callWails((app) => app.StartWebAuthnAuthentication!())
+      // Get WebAuthn challenge from backend (works in both modes)
+      const optionsJSON = await authApi.startWebAuthnAuthentication()
       const options = parsePublicKeyRequestOptions(optionsJSON)
 
       // Trigger browser's native biometric prompt
@@ -62,9 +62,9 @@ export function BiometricAuthButton({ onSuccess }: BiometricAuthButtonProps) {
         throw new Error('Invalid credential type')
       }
 
-      // Send credential to backend for verification
+      // Send credential to backend for verification (works in both modes)
       const assertionJSON = serializeCredentialAssertion(credential as PublicKeyCredential)
-      const token = await callWails((app) => app.FinishWebAuthnAuthentication!(assertionJSON))
+      const token = await authApi.finishWebAuthnAuthentication(assertionJSON)
 
       if (token) {
         console.log('Biometric authentication successful')

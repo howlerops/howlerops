@@ -172,7 +172,7 @@ type App struct {
 
 func NewApp() *App {
     return &App{
-        auth:    NewOAuth2Manager(os.Getenv("GITHUB_CLIENT_ID"), os.Getenv("GITHUB_CLIENT_SECRET")),
+        auth:    NewOAuth2Manager(os.Getenv("GH_CLIENT_ID"), os.Getenv("GH_CLIENT_SECRET")),
         storage: &SecureStorage{},
     }
 }
@@ -440,8 +440,8 @@ Create a `.env` file with OAuth credentials:
 
 ```bash
 # .env
-GITHUB_CLIENT_ID=your_github_client_id
-GITHUB_CLIENT_SECRET=your_github_client_secret
+GH_CLIENT_ID=your_GH_CLIENT_id
+GH_CLIENT_SECRET=your_GH_CLIENT_secret
 ```
 
 Load in main.go:

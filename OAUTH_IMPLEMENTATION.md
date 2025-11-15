@@ -92,8 +92,8 @@ Create a `.env` file in the project root:
 
 ```bash
 # GitHub OAuth (get from https://github.com/settings/developers)
-GITHUB_CLIENT_ID=your_github_client_id
-GITHUB_CLIENT_SECRET=your_github_client_secret
+GH_CLIENT_ID=your_GH_CLIENT_id
+GH_CLIENT_SECRET=your_GH_CLIENT_secret
 
 # Google OAuth (get from https://console.cloud.google.com/apis/credentials)
 GOOGLE_CLIENT_ID=your_google_client_id
@@ -247,8 +247,8 @@ useEffect(() => {
 1. **Setup Environment**
    ```bash
    # Create .env file with OAuth credentials
-   GITHUB_CLIENT_ID=your_id
-   GITHUB_CLIENT_SECRET=your_secret
+   GH_CLIENT_ID=your_id
+   GH_CLIENT_SECRET=your_secret
    ```
 
 2. **Start Application**

@@ -673,3 +673,130 @@ func (s *Service) SendWelcomeEmail(ctx context.Context, userID string) error {
 
 	return nil
 }
+
+// LoginWithOAuthUser handles login for OAuth-authenticated users
+// This bypasses password verification but otherwise follows the same flow as Login
+func (s *Service) LoginWithOAuthUser(ctx context.Context, email string, username string, req *LoginRequest) (*LoginResponse, error) {
+	// Try to get user by email first (OAuth uses email as primary identifier)
+	user, err := s.userStore.GetUserByEmail(ctx, email)
+	if err != nil {
+		// User doesn't exist, create new user
+		user = &User{
+			Username: username,
+			Email:    email,
+			Role:     "user",
+			Active:   true,
+		}
+		if createErr := s.CreateUser(ctx, user); createErr != nil {
+			return nil, fmt.Errorf("failed to create OAuth user: %w", createErr)
+		}
+	}
+
+	// Check if user is active
+	if !user.Active {
+		return nil, fmt.Errorf("user account is disabled")
+	}
+
+	// Generate tokens (same as Login method)
+	token, err := s.authMiddleware.GenerateToken(user.ID, user.Username, user.Role, s.jwtExpiration)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate token: %w", err)
+	}
+
+	refreshToken, err := s.authMiddleware.GenerateRefreshToken(user.ID, s.refreshExpiration)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate refresh token: %w", err)
+	}
+
+	// Create session
+	session := &Session{
+		ID:           uuid.New().String(),
+		UserID:       user.ID,
+		Token:        token,
+		RefreshToken: refreshToken,
+		ExpiresAt:    time.Now().Add(s.jwtExpiration),
+		CreatedAt:    time.Now(),
+		LastAccess:   time.Now(),
+		IPAddress:    req.IPAddress,
+		UserAgent:    req.UserAgent,
+		Active:       true,
+	}
+
+	if err := s.sessionStore.CreateSession(ctx, session); err != nil {
+		return nil, fmt.Errorf("failed to create session: %w", err)
+	}
+
+	// Update user last login
+	now := time.Now()
+	user.LastLogin = &now
+	user.UpdatedAt = now
+	if err := s.userStore.UpdateUser(ctx, user); err != nil {
+		s.logger.WithError(err).Warn("Failed to update user last login time")
+	}
+
+	return &LoginResponse{
+		User:         user,
+		Token:        token,
+		RefreshToken: refreshToken,
+		ExpiresAt:    session.ExpiresAt,
+	}, nil
+}
+
+// LoginWithWebAuthn handles login for WebAuthn-authenticated users
+// This bypasses password verification but otherwise follows the same flow as Login
+func (s *Service) LoginWithWebAuthn(ctx context.Context, userID string, req *LoginRequest) (*LoginResponse, error) {
+	// Get user by ID
+	user, err := s.userStore.GetUser(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("user not found: %w", err)
+	}
+
+	// Check if user is active
+	if !user.Active {
+		return nil, fmt.Errorf("user account is disabled")
+	}
+
+	// Generate tokens (same as Login method)
+	token, err := s.authMiddleware.GenerateToken(user.ID, user.Username, user.Role, s.jwtExpiration)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate token: %w", err)
+	}
+
+	refreshToken, err := s.authMiddleware.GenerateRefreshToken(user.ID, s.refreshExpiration)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate refresh token: %w", err)
+	}
+
+	// Create session
+	session := &Session{
+		ID:           uuid.New().String(),
+		UserID:       user.ID,
+		Token:        token,
+		RefreshToken: refreshToken,
+		ExpiresAt:    time.Now().Add(s.jwtExpiration),
+		CreatedAt:    time.Now(),
+		LastAccess:   time.Now(),
+		IPAddress:    req.IPAddress,
+		UserAgent:    req.UserAgent,
+		Active:       true,
+	}
+
+	if err := s.sessionStore.CreateSession(ctx, session); err != nil {
+		return nil, fmt.Errorf("failed to create session: %w", err)
+	}
+
+	// Update user last login
+	now := time.Now()
+	user.LastLogin = &now
+	user.UpdatedAt = now
+	if err := s.userStore.UpdateUser(ctx, user); err != nil {
+		s.logger.WithError(err).Warn("Failed to update user last login time")
+	}
+
+	return &LoginResponse{
+		User:         user,
+		Token:        token,
+		RefreshToken: refreshToken,
+		ExpiresAt:    session.ExpiresAt,
+	}, nil
+}

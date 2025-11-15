@@ -10,7 +10,11 @@ export function AddKeyboardBinding(arg1:string,arg2:services.KeyboardAction):Pro
 
 export function CancelQueryStream(arg1:string):Promise<void>;
 
+export function CheckBiometricAvailability():Promise<Record<string, any>>;
+
 export function CheckForUpdates():Promise<main.UpdateInfo>;
+
+export function CheckStoredToken(arg1:string):Promise<boolean>;
 
 export function ClearAIMemorySessions():Promise<void>;
 
@@ -36,6 +40,8 @@ export function DeleteQueryRows(arg1:main.QueryRowDeleteRequest):Promise<main.Qu
 
 export function DeleteSyntheticView(arg1:string):Promise<void>;
 
+export function DeleteWebAuthnCredential(arg1:string):Promise<void>;
+
 export function ExecuteMultiDatabaseQuery(arg1:main.MultiQueryRequest):Promise<main.MultiQueryResponse>;
 
 export function ExecuteQuery(arg1:main.QueryRequest):Promise<main.QueryResponse>;
@@ -53,6 +59,10 @@ export function ExplainQuery(arg1:string,arg2:string):Promise<string>;
 export function ExportKeyboardBindings():Promise<Record<string, services.KeyboardAction>>;
 
 export function FileExists(arg1:string):Promise<boolean>;
+
+export function FinishWebAuthnAuthentication(arg1:string,arg2:string):Promise<string>;
+
+export function FinishWebAuthnRegistration(arg1:string,arg2:string):Promise<boolean>;
 
 export function FixSQLError(arg1:string,arg2:string,arg3:string):Promise<main.FixedSQLResponse>;
 
@@ -104,6 +114,8 @@ export function GetLightIcon():Promise<Array<number>>;
 
 export function GetMultiConnectionSchema(arg1:Array<string>):Promise<main.CombinedSchema>;
 
+export function GetOAuthURL(arg1:string):Promise<Record<string, string>>;
+
 export function GetPassword(arg1:string,arg2:string):Promise<string>;
 
 export function GetQuerySuggestions(arg1:string,arg2:string):Promise<Array<main.Suggestion>>;
@@ -113,6 +125,8 @@ export function GetRecentFiles():Promise<Array<services.RecentFile>>;
 export function GetSchemaCacheStats():Promise<Record<string, any>>;
 
 export function GetSchemas(arg1:string):Promise<Array<string>>;
+
+export function GetStoredUserInfo(arg1:string):Promise<Record<string, any>>;
 
 export function GetSupportedDatabaseTypes():Promise<Array<string>>;
 
@@ -132,6 +146,8 @@ export function HandleKeyboardEvent(arg1:services.KeyboardEvent):Promise<void>;
 
 export function HasPassword(arg1:string):Promise<boolean>;
 
+export function HasWebAuthnCredential(arg1:string):Promise<boolean>;
+
 export function HealthCheckAll():Promise<Record<string, main.HealthStatus>>;
 
 export function ImportKeyboardBindings(arg1:Record<string, services.KeyboardAction>):Promise<void>;
@@ -149,6 +165,10 @@ export function ListConnections():Promise<Array<string>>;
 export function ListSyntheticViews():Promise<Array<main.SyntheticViewSummary>>;
 
 export function LoadAIMemorySessions():Promise<Array<main.AIMemorySessionPayload>>;
+
+export function Logout(arg1:string):Promise<void>;
+
+export function OnUrlOpen(arg1:string):Promise<void>;
 
 export function OpenDownloadPage():Promise<void>;
 
@@ -193,6 +213,10 @@ export function ShowQuestionDialog(arg1:string,arg2:string):Promise<boolean>;
 export function StartClaudeCodeLogin(arg1:string):Promise<main.AITestResponse>;
 
 export function StartCodexLogin(arg1:string):Promise<main.AITestResponse>;
+
+export function StartWebAuthnAuthentication(arg1:string):Promise<string>;
+
+export function StartWebAuthnRegistration(arg1:string,arg2:string):Promise<string>;
 
 export function StorePassword(arg1:string,arg2:string,arg3:string):Promise<void>;
 

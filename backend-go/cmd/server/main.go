@@ -29,6 +29,8 @@ import (
 	"github.com/sql-studio/backend-go/pkg/storage/turso"
 	"github.com/sql-studio/backend-go/pkg/updater"
 	"github.com/sql-studio/backend-go/pkg/version"
+
+	servicesauth "github.com/sql-studio/sql-studio/services/auth"
 )
 
 // Version information (set via ldflags during build)
@@ -315,6 +317,16 @@ func initializeServices(cfg *config.Config, tursoClient *sql.DB, logger *logrus.
 	svc.Sync = syncService
 	svc.Database = dbManager
 	svc.Organization = organizationService
+
+	// Initialize OAuth managers
+	githubOAuth, googleOAuth := initializeOAuthManagers(cfg, logger)
+	svc.GitHubOAuth = githubOAuth
+	svc.GoogleOAuth = googleOAuth
+
+	// Initialize WebAuthn manager
+	webauthnManager := initializeWebAuthnManager(logger)
+	svc.WebAuthnManager = webauthnManager
+
 	logger.Info("All services wired up successfully")
 
 	return svc, authMiddleware, dbManager
@@ -641,4 +653,57 @@ func closeConnections(tursoClient *sql.DB, dbManager *database.Manager, logger *
 	if err := dbManager.Close(); err != nil {
 		logger.WithError(err).Error("Failed to close database manager connections")
 	}
+}
+
+// initializeOAuthManagers initializes GitHub and Google OAuth managers
+func initializeOAuthManagers(cfg *config.Config, logger *logrus.Logger) (*servicesauth.OAuth2Manager, *servicesauth.OAuth2Manager) {
+	var githubOAuth, googleOAuth *servicesauth.OAuth2Manager
+
+	// Initialize GitHub OAuth if configured
+	githubClientID := os.Getenv("GITHUB_CLIENT_ID")
+	githubClientSecret := os.Getenv("GITHUB_CLIENT_SECRET")
+	if githubClientID != "" && githubClientSecret != "" {
+		manager, err := servicesauth.NewOAuth2Manager("github", githubClientID, githubClientSecret)
+		if err != nil {
+			logger.WithError(err).Warn("Failed to initialize GitHub OAuth")
+		} else {
+			githubOAuth = manager
+			logger.Info("GitHub OAuth initialized successfully")
+		}
+	} else {
+		logger.Debug("GitHub OAuth not configured (GITHUB_CLIENT_ID or GITHUB_CLIENT_SECRET missing)")
+	}
+
+	// Initialize Google OAuth if configured
+	googleClientID := os.Getenv("GOOGLE_CLIENT_ID")
+	googleClientSecret := os.Getenv("GOOGLE_CLIENT_SECRET")
+	if googleClientID != "" && googleClientSecret != "" {
+		manager, err := servicesauth.NewOAuth2Manager("google", googleClientID, googleClientSecret)
+		if err != nil {
+			logger.WithError(err).Warn("Failed to initialize Google OAuth")
+		} else {
+			googleOAuth = manager
+			logger.Info("Google OAuth initialized successfully")
+		}
+	} else {
+		logger.Debug("Google OAuth not configured (GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET missing)")
+	}
+
+	return githubOAuth, googleOAuth
+}
+
+// initializeWebAuthnManager initializes WebAuthn manager
+func initializeWebAuthnManager(logger *logrus.Logger) *servicesauth.WebAuthnManager {
+	// Initialize WebAuthn components
+	credentialStore := servicesauth.NewCredentialStore()
+	sessionStore := servicesauth.NewSessionStore()
+
+	manager, err := servicesauth.NewWebAuthnManager(credentialStore, sessionStore)
+	if err != nil {
+		logger.WithError(err).Warn("Failed to initialize WebAuthn manager")
+		return nil
+	}
+
+	logger.Info("WebAuthn manager initialized successfully")
+	return manager
 }
