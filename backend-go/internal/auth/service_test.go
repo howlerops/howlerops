@@ -175,14 +175,14 @@ type mockMasterKeyStore struct {
 }
 
 func (m *mockMasterKeyStore) StoreMasterKey(ctx context.Context, userID string, encryptedKey *crypto.EncryptedMasterKey) error {
-	if m.storeMasterKeyFunc != nil {
+	if m != nil && m.storeMasterKeyFunc != nil {
 		return m.storeMasterKeyFunc(ctx, userID, encryptedKey)
 	}
 	return nil
 }
 
 func (m *mockMasterKeyStore) GetMasterKey(ctx context.Context, userID string) (*crypto.EncryptedMasterKey, error) {
-	if m.getMasterKeyFunc != nil {
+	if m != nil && m.getMasterKeyFunc != nil {
 		return m.getMasterKeyFunc(ctx, userID)
 	}
 	// Return sql.ErrNoRows to simulate "not found" - this is the expected error that
@@ -192,7 +192,7 @@ func (m *mockMasterKeyStore) GetMasterKey(ctx context.Context, userID string) (*
 }
 
 func (m *mockMasterKeyStore) DeleteMasterKey(ctx context.Context, userID string) error {
-	if m.deleteMasterKeyFunc != nil {
+	if m != nil && m.deleteMasterKeyFunc != nil {
 		return m.deleteMasterKeyFunc(ctx, userID)
 	}
 	return nil
@@ -2460,4 +2460,825 @@ func TestEdgeCase_NegativeMaxLoginAttempts(t *testing.T) {
 	_, err := service.Login(context.Background(), req)
 	assert.Error(t, err)
 	assert.NotContains(t, err.Error(), "locked")
+}
+
+// mockEmailService implements auth.EmailService for testing
+type mockEmailService struct {
+	sendVerificationEmailFunc  func(email, token, verificationURL string) error
+	sendPasswordResetEmailFunc func(email, token, resetURL string) error
+	sendWelcomeEmailFunc       func(email, name string) error
+}
+
+func (m *mockEmailService) SendVerificationEmail(email, token, verificationURL string) error {
+	if m.sendVerificationEmailFunc != nil {
+		return m.sendVerificationEmailFunc(email, token, verificationURL)
+	}
+	return nil
+}
+
+func (m *mockEmailService) SendPasswordResetEmail(email, token, resetURL string) error {
+	if m.sendPasswordResetEmailFunc != nil {
+		return m.sendPasswordResetEmailFunc(email, token, resetURL)
+	}
+	return nil
+}
+
+func (m *mockEmailService) SendWelcomeEmail(email, name string) error {
+	if m.sendWelcomeEmailFunc != nil {
+		return m.sendWelcomeEmailFunc(email, name)
+	}
+	return nil
+}
+
+// TestService_Login_MasterKey tests master key decryption during login
+func TestService_Login_MasterKey(t *testing.T) {
+	tests := []struct {
+		name              string
+		setupMasterKey    func() *mockMasterKeyStore
+		password          string
+		expectedMasterKey string // empty string means should be empty
+		expectError       bool
+		errorContains     string
+	}{
+		{
+			name: "user has master key - decrypts successfully",
+			setupMasterKey: func() *mockMasterKeyStore {
+				// Simulate stored encrypted master key
+				masterKey := []byte("test-master-key-32-bytes-long!!")
+				encryptedMK, _ := crypto.EncryptMasterKeyWithPassword(masterKey, "password123")
+				return &mockMasterKeyStore{
+					getMasterKeyFunc: func(ctx context.Context, userID string) (*crypto.EncryptedMasterKey, error) {
+						return encryptedMK, nil
+					},
+				}
+			},
+			password:          "password123",
+			expectedMasterKey: "not-empty", // Will verify it's base64 encoded
+			expectError:       false,
+		},
+		{
+			name: "user has no master key (pre-encryption era) - continues without error",
+			setupMasterKey: func() *mockMasterKeyStore {
+				return &mockMasterKeyStore{
+					getMasterKeyFunc: func(ctx context.Context, userID string) (*crypto.EncryptedMasterKey, error) {
+						return nil, sql.ErrNoRows
+					},
+				}
+			},
+			password:          "password123",
+			expectedMasterKey: "",
+			expectError:       false,
+		},
+		{
+			name: "master key exists but decryption fails - returns error",
+			setupMasterKey: func() *mockMasterKeyStore {
+				// Create encrypted master key with different password
+				masterKey := []byte("test-master-key-32-bytes-long!!")
+				encryptedMK, _ := crypto.EncryptMasterKeyWithPassword(masterKey, "wrong-password")
+				return &mockMasterKeyStore{
+					getMasterKeyFunc: func(ctx context.Context, userID string) (*crypto.EncryptedMasterKey, error) {
+						return encryptedMK, nil
+					},
+				}
+			},
+			password:      "password123",
+			expectError:   true,
+			errorContains: "failed to decrypt master key",
+		},
+		{
+			name: "MasterKeyStore is nil - graceful degradation",
+			setupMasterKey: func() *mockMasterKeyStore {
+				return nil
+			},
+			password:          "password123",
+			expectedMasterKey: "",
+			expectError:       false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			hashedPassword := hashPassword(tt.password)
+			now := time.Now()
+
+			userStore := &mockUserStore{
+				getUserByUsernameFunc: func(ctx context.Context, username string) (*auth.User, error) {
+					return &auth.User{
+						ID:        "user-1",
+						Username:  "testuser",
+						Password:  hashedPassword,
+						Active:    true,
+						CreatedAt: now,
+						UpdatedAt: now,
+					}, nil
+				},
+				updateUserFunc: func(ctx context.Context, user *auth.User) error {
+					return nil
+				},
+			}
+
+			sessionStore := &mockSessionStore{
+				createSessionFunc: func(ctx context.Context, session *auth.Session) error {
+					return nil
+				},
+			}
+
+			attemptStore := &mockLoginAttemptStore{
+				getAttemptsFunc: func(ctx context.Context, ip, username string, since time.Time) ([]*auth.LoginAttempt, error) {
+					return []*auth.LoginAttempt{}, nil
+				},
+			}
+
+			masterKeyStore := tt.setupMasterKey()
+			service := auth.NewService(userStore, sessionStore, attemptStore, masterKeyStore, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+
+			req := &auth.LoginRequest{
+				Username:  "testuser",
+				Password:  tt.password,
+				IPAddress: "127.0.0.1",
+				UserAgent: "test-agent",
+			}
+
+			resp, err := service.Login(context.Background(), req)
+
+			if tt.expectError {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errorContains)
+				assert.Nil(t, resp)
+			} else {
+				require.NoError(t, err)
+				assert.NotNil(t, resp)
+				if tt.expectedMasterKey == "not-empty" {
+					assert.NotEmpty(t, resp.MasterKey, "MasterKey should be base64 encoded")
+				} else {
+					assert.Empty(t, resp.MasterKey)
+				}
+			}
+		})
+	}
+}
+
+// TestService_CreateUser_MasterKey tests master key generation during user creation
+func TestService_CreateUser_MasterKey(t *testing.T) {
+	tests := []struct {
+		name            string
+		setupMasterKey  func() *mockMasterKeyStore
+		expectError     bool
+		expectMasterKey bool
+		errorContains   string
+	}{
+		{
+			name: "master key generated, encrypted, and stored successfully",
+			setupMasterKey: func() *mockMasterKeyStore {
+				var storedKey *crypto.EncryptedMasterKey
+				return &mockMasterKeyStore{
+					storeMasterKeyFunc: func(ctx context.Context, userID string, encryptedKey *crypto.EncryptedMasterKey) error {
+						storedKey = encryptedKey
+						assert.NotNil(t, storedKey)
+						assert.NotEmpty(t, storedKey.Ciphertext)
+						return nil
+					},
+				}
+			},
+			expectError:     false,
+			expectMasterKey: true,
+		},
+		{
+			name: "MasterKeyStore.StoreMasterKey fails - user creation succeeds, error logged",
+			setupMasterKey: func() *mockMasterKeyStore {
+				return &mockMasterKeyStore{
+					storeMasterKeyFunc: func(ctx context.Context, userID string, encryptedKey *crypto.EncryptedMasterKey) error {
+						return errors.New("database error")
+					},
+				}
+			},
+			expectError:     false, // User creation still succeeds
+			expectMasterKey: false, // But master key wasn't stored
+		},
+		{
+			name: "MasterKeyStore is nil - user created without master key",
+			setupMasterKey: func() *mockMasterKeyStore {
+				return nil
+			},
+			expectError:     false,
+			expectMasterKey: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			userStore := &mockUserStore{
+				createUserFunc: func(ctx context.Context, user *auth.User) error {
+					assert.NotEmpty(t, user.ID)
+					assert.NotEmpty(t, user.Password)
+					return nil
+				},
+			}
+
+			sessionStore := &mockSessionStore{}
+			attemptStore := &mockLoginAttemptStore{}
+			masterKeyStore := tt.setupMasterKey()
+
+			service := auth.NewService(userStore, sessionStore, attemptStore, masterKeyStore, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+
+			user := &auth.User{
+				ID:       "user-1",
+				Username: "testuser",
+				Email:    "test@example.com",
+				Password: "password123",
+				Active:   true,
+			}
+
+			err := service.CreateUser(context.Background(), user)
+
+			if tt.expectError {
+				require.Error(t, err)
+				if tt.errorContains != "" {
+					assert.Contains(t, err.Error(), tt.errorContains)
+				}
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+// TestService_ChangePassword_MasterKey tests master key re-encryption during password change
+func TestService_ChangePassword_MasterKey(t *testing.T) {
+	tests := []struct {
+		name           string
+		setupMasterKey func() *mockMasterKeyStore
+		oldPassword    string
+		newPassword    string
+		expectError    bool
+		errorContains  string
+	}{
+		{
+			name: "master key exists - decrypt with old, re-encrypt with new, store successfully",
+			setupMasterKey: func() *mockMasterKeyStore {
+				masterKey := []byte("test-master-key-32-bytes-long!!")
+				encryptedMK, _ := crypto.EncryptMasterKeyWithPassword(masterKey, "oldpass")
+				var reEncryptedKey *crypto.EncryptedMasterKey
+
+				return &mockMasterKeyStore{
+					getMasterKeyFunc: func(ctx context.Context, userID string) (*crypto.EncryptedMasterKey, error) {
+						return encryptedMK, nil
+					},
+					storeMasterKeyFunc: func(ctx context.Context, userID string, encryptedKey *crypto.EncryptedMasterKey) error {
+						reEncryptedKey = encryptedKey
+						assert.NotNil(t, reEncryptedKey)
+						assert.NotEqual(t, encryptedMK, reEncryptedKey, "Re-encrypted key should be different")
+						return nil
+					},
+				}
+			},
+			oldPassword: "oldpass",
+			newPassword: "newpass",
+			expectError: false,
+		},
+		{
+			name: "master key not found (sql.ErrNoRows) - password change succeeds without master key update",
+			setupMasterKey: func() *mockMasterKeyStore {
+				callCount := 0
+				return &mockMasterKeyStore{
+					getMasterKeyFunc: func(ctx context.Context, userID string) (*crypto.EncryptedMasterKey, error) {
+						return nil, sql.ErrNoRows
+					},
+					storeMasterKeyFunc: func(ctx context.Context, userID string, encryptedKey *crypto.EncryptedMasterKey) error {
+						callCount++
+						t.Errorf("StoreMasterKey should not be called when master key not found")
+						return nil
+					},
+				}
+			},
+			oldPassword: "oldpass",
+			newPassword: "newpass",
+			expectError: false,
+		},
+		{
+			name: "MasterKeyStore.GetMasterKey returns non-ErrNoRows error - fails",
+			setupMasterKey: func() *mockMasterKeyStore {
+				return &mockMasterKeyStore{
+					getMasterKeyFunc: func(ctx context.Context, userID string) (*crypto.EncryptedMasterKey, error) {
+						return nil, errors.New("database connection error")
+					},
+				}
+			},
+			oldPassword:   "oldpass",
+			newPassword:   "newpass",
+			expectError:   true,
+			errorContains: "failed to retrieve master key",
+		},
+		{
+			name: "DecryptMasterKeyWithPassword fails (wrong old password) - fails",
+			setupMasterKey: func() *mockMasterKeyStore {
+				masterKey := []byte("test-master-key-32-bytes-long!!")
+				encryptedMK, _ := crypto.EncryptMasterKeyWithPassword(masterKey, "correctoldpass")
+
+				return &mockMasterKeyStore{
+					getMasterKeyFunc: func(ctx context.Context, userID string) (*crypto.EncryptedMasterKey, error) {
+						return encryptedMK, nil
+					},
+				}
+			},
+			oldPassword:   "wrongoldpass",
+			newPassword:   "newpass",
+			expectError:   true,
+			errorContains: "failed to decrypt master key with old password",
+		},
+		{
+			name: "EncryptMasterKeyWithPassword fails - fails",
+			setupMasterKey: func() *mockMasterKeyStore {
+				// This is harder to test without mocking crypto package
+				// For now, we'll create a scenario where the key is corrupted
+				return &mockMasterKeyStore{
+					getMasterKeyFunc: func(ctx context.Context, userID string) (*crypto.EncryptedMasterKey, error) {
+						// Return a corrupted encrypted key that will fail decryption
+						return &crypto.EncryptedMasterKey{
+							Ciphertext: "corrupted",
+							IV:         "nonce",
+							AuthTag:    "tag",
+							Salt:       "salt",
+							Iterations: 100000,
+						}, nil
+					},
+				}
+			},
+			oldPassword:   "oldpass",
+			newPassword:   "newpass",
+			expectError:   true,
+			errorContains: "failed to decrypt master key",
+		},
+		{
+			name: "StoreMasterKey fails - fails",
+			setupMasterKey: func() *mockMasterKeyStore {
+				masterKey := []byte("test-master-key-32-bytes-long!!")
+				encryptedMK, _ := crypto.EncryptMasterKeyWithPassword(masterKey, "oldpass")
+
+				return &mockMasterKeyStore{
+					getMasterKeyFunc: func(ctx context.Context, userID string) (*crypto.EncryptedMasterKey, error) {
+						return encryptedMK, nil
+					},
+					storeMasterKeyFunc: func(ctx context.Context, userID string, encryptedKey *crypto.EncryptedMasterKey) error {
+						return errors.New("database write error")
+					},
+				}
+			},
+			oldPassword:   "oldpass",
+			newPassword:   "newpass",
+			expectError:   true,
+			errorContains: "failed to store re-encrypted master key",
+		},
+		{
+			name: "MasterKeyStore is nil - password changes, no master key operations",
+			setupMasterKey: func() *mockMasterKeyStore {
+				return nil
+			},
+			oldPassword: "oldpass",
+			newPassword: "newpass",
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			hashedOldPassword := hashPassword(tt.oldPassword)
+
+			userStore := &mockUserStore{
+				getUserFunc: func(ctx context.Context, id string) (*auth.User, error) {
+					return &auth.User{
+						ID:       id,
+						Username: "testuser",
+						Password: hashedOldPassword,
+						Active:   true,
+					}, nil
+				},
+				updateUserFunc: func(ctx context.Context, user *auth.User) error {
+					// Verify password was updated
+					err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(tt.newPassword))
+					assert.NoError(t, err, "New password should be hashed and stored")
+					return nil
+				},
+			}
+
+			sessionStore := &mockSessionStore{
+				deleteUserSessionsFunc: func(ctx context.Context, userID string) error {
+					return nil
+				},
+			}
+
+			attemptStore := &mockLoginAttemptStore{}
+			masterKeyStore := tt.setupMasterKey()
+
+			service := auth.NewService(userStore, sessionStore, attemptStore, masterKeyStore, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+
+			err := service.ChangePassword(context.Background(), "user-1", tt.oldPassword, tt.newPassword)
+
+			if tt.expectError {
+				require.Error(t, err)
+				if tt.errorContains != "" {
+					assert.Contains(t, err.Error(), tt.errorContains)
+				}
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+// TestService_SendVerificationEmail tests verification email functionality
+func TestService_SendVerificationEmail(t *testing.T) {
+	tests := []struct {
+		name          string
+		setupEmail    func() *mockEmailService
+		setupUser     func() *mockUserStore
+		expectError   bool
+		errorContains string
+	}{
+		{
+			name: "success - email sent successfully",
+			setupEmail: func() *mockEmailService {
+				return &mockEmailService{
+					sendVerificationEmailFunc: func(email, token, verificationURL string) error {
+						assert.Equal(t, "test@example.com", email)
+						assert.NotEmpty(t, token)
+						assert.Contains(t, verificationURL, token)
+						return nil
+					},
+				}
+			},
+			setupUser: func() *mockUserStore {
+				return &mockUserStore{
+					getUserFunc: func(ctx context.Context, id string) (*auth.User, error) {
+						return &auth.User{
+							ID:       id,
+							Username: "testuser",
+							Email:    "test@example.com",
+							Role:     "user",
+							Active:   true,
+						}, nil
+					},
+				}
+			},
+			expectError: false,
+		},
+		{
+			name: "EmailService nil - error",
+			setupEmail: func() *mockEmailService {
+				return nil
+			},
+			setupUser: func() *mockUserStore {
+				return &mockUserStore{}
+			},
+			expectError:   true,
+			errorContains: "email service not configured",
+		},
+		{
+			name: "user not found - error",
+			setupEmail: func() *mockEmailService {
+				return &mockEmailService{}
+			},
+			setupUser: func() *mockUserStore {
+				return &mockUserStore{
+					getUserFunc: func(ctx context.Context, id string) (*auth.User, error) {
+						return nil, errors.New("user not found")
+					},
+				}
+			},
+			expectError:   true,
+			errorContains: "user not found",
+		},
+		{
+			name: "email send fails - error",
+			setupEmail: func() *mockEmailService {
+				return &mockEmailService{
+					sendVerificationEmailFunc: func(email, token, verificationURL string) error {
+						return errors.New("smtp error")
+					},
+				}
+			},
+			setupUser: func() *mockUserStore {
+				return &mockUserStore{
+					getUserFunc: func(ctx context.Context, id string) (*auth.User, error) {
+						return &auth.User{
+							ID:       id,
+							Username: "testuser",
+							Email:    "test@example.com",
+							Role:     "user",
+							Active:   true,
+						}, nil
+					},
+				}
+			},
+			expectError:   true,
+			errorContains: "failed to send verification email",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			userStore := tt.setupUser()
+			sessionStore := &mockSessionStore{}
+			attemptStore := &mockLoginAttemptStore{}
+			emailService := tt.setupEmail()
+
+			service := auth.NewService(userStore, sessionStore, attemptStore, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+			if emailService != nil {
+				service.SetEmailService(emailService)
+			}
+
+			err := service.SendVerificationEmail(context.Background(), "user-1")
+
+			if tt.expectError {
+				require.Error(t, err)
+				if tt.errorContains != "" {
+					assert.Contains(t, err.Error(), tt.errorContains)
+				}
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+// TestService_SendPasswordResetEmail tests password reset email functionality
+func TestService_SendPasswordResetEmail(t *testing.T) {
+	tests := []struct {
+		name          string
+		setupEmail    func() *mockEmailService
+		setupUser     func() *mockUserStore
+		email         string
+		expectError   bool
+		errorContains string
+	}{
+		{
+			name: "success - email sent successfully",
+			setupEmail: func() *mockEmailService {
+				return &mockEmailService{
+					sendPasswordResetEmailFunc: func(email, token, resetURL string) error {
+						assert.Equal(t, "test@example.com", email)
+						assert.NotEmpty(t, token)
+						assert.Contains(t, resetURL, token)
+						return nil
+					},
+				}
+			},
+			setupUser: func() *mockUserStore {
+				return &mockUserStore{
+					getUserByEmailFunc: func(ctx context.Context, email string) (*auth.User, error) {
+						return &auth.User{
+							ID:       "user-1",
+							Username: "testuser",
+							Email:    email,
+							Role:     "user",
+							Active:   true,
+						}, nil
+					},
+				}
+			},
+			email:       "test@example.com",
+			expectError: false,
+		},
+		{
+			name: "EmailService nil - error",
+			setupEmail: func() *mockEmailService {
+				return nil
+			},
+			setupUser: func() *mockUserStore {
+				return &mockUserStore{}
+			},
+			email:         "test@example.com",
+			expectError:   true,
+			errorContains: "email service not configured",
+		},
+		{
+			name: "user not found (sql.ErrNoRows) - SILENT (returns nil, logs warning)",
+			setupEmail: func() *mockEmailService {
+				callCount := 0
+				return &mockEmailService{
+					sendPasswordResetEmailFunc: func(email, token, resetURL string) error {
+						callCount++
+						t.Errorf("SendPasswordResetEmail should not be called when user not found")
+						return nil
+					},
+				}
+			},
+			setupUser: func() *mockUserStore {
+				return &mockUserStore{
+					getUserByEmailFunc: func(ctx context.Context, email string) (*auth.User, error) {
+						return nil, sql.ErrNoRows
+					},
+				}
+			},
+			email:       "nonexistent@example.com",
+			expectError: false, // SILENT - don't reveal user existence
+		},
+		{
+			name: "user not found (other error) - error",
+			setupEmail: func() *mockEmailService {
+				return &mockEmailService{}
+			},
+			setupUser: func() *mockUserStore {
+				return &mockUserStore{
+					getUserByEmailFunc: func(ctx context.Context, email string) (*auth.User, error) {
+						return nil, errors.New("database connection error")
+					},
+				}
+			},
+			email:         "test@example.com",
+			expectError:   true,
+			errorContains: "failed to get user",
+		},
+		{
+			name: "email send fails - error",
+			setupEmail: func() *mockEmailService {
+				return &mockEmailService{
+					sendPasswordResetEmailFunc: func(email, token, resetURL string) error {
+						return errors.New("smtp error")
+					},
+				}
+			},
+			setupUser: func() *mockUserStore {
+				return &mockUserStore{
+					getUserByEmailFunc: func(ctx context.Context, email string) (*auth.User, error) {
+						return &auth.User{
+							ID:       "user-1",
+							Username: "testuser",
+							Email:    email,
+							Role:     "user",
+							Active:   true,
+						}, nil
+					},
+				}
+			},
+			email:         "test@example.com",
+			expectError:   true,
+			errorContains: "failed to send password reset email",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			userStore := tt.setupUser()
+			sessionStore := &mockSessionStore{}
+			attemptStore := &mockLoginAttemptStore{}
+			emailService := tt.setupEmail()
+
+			service := auth.NewService(userStore, sessionStore, attemptStore, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+			if emailService != nil {
+				service.SetEmailService(emailService)
+			}
+
+			err := service.SendPasswordResetEmail(context.Background(), tt.email)
+
+			if tt.expectError {
+				require.Error(t, err)
+				if tt.errorContains != "" {
+					assert.Contains(t, err.Error(), tt.errorContains)
+				}
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+// TestService_SendWelcomeEmail tests welcome email functionality
+func TestService_SendWelcomeEmail(t *testing.T) {
+	tests := []struct {
+		name          string
+		setupEmail    func() *mockEmailService
+		setupUser     func() *mockUserStore
+		expectError   bool
+		errorContains string
+	}{
+		{
+			name: "success - email sent successfully",
+			setupEmail: func() *mockEmailService {
+				return &mockEmailService{
+					sendWelcomeEmailFunc: func(email, name string) error {
+						assert.Equal(t, "test@example.com", email)
+						assert.Equal(t, "testuser", name)
+						return nil
+					},
+				}
+			},
+			setupUser: func() *mockUserStore {
+				return &mockUserStore{
+					getUserFunc: func(ctx context.Context, id string) (*auth.User, error) {
+						return &auth.User{
+							ID:       id,
+							Username: "testuser",
+							Email:    "test@example.com",
+							Active:   true,
+						}, nil
+					},
+				}
+			},
+			expectError: false,
+		},
+		{
+			name: "EmailService nil - error",
+			setupEmail: func() *mockEmailService {
+				return nil
+			},
+			setupUser: func() *mockUserStore {
+				return &mockUserStore{}
+			},
+			expectError:   true,
+			errorContains: "email service not configured",
+		},
+		{
+			name: "user not found - error",
+			setupEmail: func() *mockEmailService {
+				return &mockEmailService{}
+			},
+			setupUser: func() *mockUserStore {
+				return &mockUserStore{
+					getUserFunc: func(ctx context.Context, id string) (*auth.User, error) {
+						return nil, errors.New("user not found")
+					},
+				}
+			},
+			expectError:   true,
+			errorContains: "user not found",
+		},
+		{
+			name: "email send fails - error",
+			setupEmail: func() *mockEmailService {
+				return &mockEmailService{
+					sendWelcomeEmailFunc: func(email, name string) error {
+						return errors.New("smtp error")
+					},
+				}
+			},
+			setupUser: func() *mockUserStore {
+				return &mockUserStore{
+					getUserFunc: func(ctx context.Context, id string) (*auth.User, error) {
+						return &auth.User{
+							ID:       id,
+							Username: "testuser",
+							Email:    "test@example.com",
+							Active:   true,
+						}, nil
+					},
+				}
+			},
+			expectError:   true,
+			errorContains: "failed to send welcome email",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			userStore := tt.setupUser()
+			sessionStore := &mockSessionStore{}
+			attemptStore := &mockLoginAttemptStore{}
+			emailService := tt.setupEmail()
+
+			service := auth.NewService(userStore, sessionStore, attemptStore, &mockMasterKeyStore{}, newTestAuthMiddleware(), newTestConfig(), newTestLogger())
+			if emailService != nil {
+				service.SetEmailService(emailService)
+			}
+
+			err := service.SendWelcomeEmail(context.Background(), "user-1")
+
+			if tt.expectError {
+				require.Error(t, err)
+				if tt.errorContains != "" {
+					assert.Contains(t, err.Error(), tt.errorContains)
+				}
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+// TestService_getSessionByRefreshToken_NotImplemented tests that getSessionByRefreshToken returns "not implemented" error
+func TestService_getSessionByRefreshToken_NotImplemented(t *testing.T) {
+	authMiddleware := newTestAuthMiddleware()
+
+	userStore := &mockUserStore{
+		getUserFunc: func(ctx context.Context, id string) (*auth.User, error) {
+			return &auth.User{
+				ID:       id,
+				Username: "testuser",
+				Active:   true,
+			}, nil
+		},
+	}
+
+	service := auth.NewService(userStore, &mockSessionStore{}, &mockLoginAttemptStore{}, &mockMasterKeyStore{}, authMiddleware, newTestConfig(), newTestLogger())
+
+	// Generate a valid refresh token so we bypass token validation
+	refreshToken, err := authMiddleware.GenerateRefreshToken("user-1", 24*time.Hour)
+	require.NoError(t, err)
+
+	// Call RefreshToken which internally calls getSessionByRefreshToken
+	resp, err := service.RefreshToken(context.Background(), refreshToken)
+
+	require.Error(t, err)
+	assert.Nil(t, resp)
+	assert.Contains(t, err.Error(), "not implemented")
 }

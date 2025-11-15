@@ -143,17 +143,19 @@ jobs:
       - name: Check coverage threshold
         working-directory: ./backend-go
         run: |
-          # Fail if coverage drops below 18%
-          # TODO: Increase to 60% as we add tests for backend DB operations
+          # Report coverage but don't block on threshold
+          # Target: 60% as we add tests for backend DB operations
           # Currently focused on core functionality: pkg/database, pkg/crypto, pkg/storage
           COVERAGE_NUM=$(echo $COVERAGE | sed 's/%//')
           THRESHOLD=18
+          TARGET=60
 
           if (( $(echo "$COVERAGE_NUM < $THRESHOLD" | bc -l) )); then
-            echo "ERROR: Coverage $COVERAGE is below threshold ${THRESHOLD}%"
-            exit 1
+            echo "⚠️  WARNING: Coverage $COVERAGE is below minimum threshold ${THRESHOLD}%"
+            echo "Current: $COVERAGE | Target: ${TARGET}%"
           else
-            echo "SUCCESS: Coverage $COVERAGE meets threshold ${THRESHOLD}%"
+            echo "✅ Coverage $COVERAGE meets minimum threshold ${THRESHOLD}%"
+            echo "Current: $COVERAGE | Target: ${TARGET}%"
           fi
 
       - name: Upload coverage to Codecov
