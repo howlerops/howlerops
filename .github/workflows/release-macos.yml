@@ -140,6 +140,7 @@ jobs:
           echo "ZIP_PATH=${APP_NAME}-darwin-universal.zip" >> $GITHUB_ENV
 
       - name: Create DMG (for direct downloads)
+        continue-on-error: true  # Don't fail workflow if DMG creation fails (disk space issues)
         run: |
           # Create a nicely formatted DMG
           create-dmg \
@@ -160,13 +161,18 @@ jobs:
             hdiutil create -volname "HowlerOps" \
               -srcfolder "build/bin/$APP_NAME.app" \
               -ov -format UDZO \
-              "${APP_NAME}-darwin-universal.dmg"
+              "${APP_NAME}-darwin-universal.dmg" \
+              || echo "⚠️  DMG creation failed - continuing with ZIP-only release"
           fi
 
-          # Verify DMG was created
-          ls -lah "${APP_NAME}-darwin-universal.dmg"
-
-          echo "DMG_PATH=${APP_NAME}-darwin-universal.dmg" >> $GITHUB_ENV
+          # Set DMG_PATH if DMG was created successfully
+          if [ -f "${APP_NAME}-darwin-universal.dmg" ]; then
+            ls -lah "${APP_NAME}-darwin-universal.dmg"
+            echo "DMG_PATH=${APP_NAME}-darwin-universal.dmg" >> $GITHUB_ENV
+          else
+            echo "⚠️  DMG not created - release will include ZIP only"
+            echo "DMG_PATH=" >> $GITHUB_ENV  # Empty value, won't add file to release
+          fi
 
       # ============================================================
       # STEP 7: NOTARIZATION (DISABLED)
