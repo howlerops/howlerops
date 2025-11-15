@@ -2,6 +2,7 @@ package auth_test
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"sync"
@@ -184,7 +185,10 @@ func (m *mockMasterKeyStore) GetMasterKey(ctx context.Context, userID string) (*
 	if m.getMasterKeyFunc != nil {
 		return m.getMasterKeyFunc(ctx, userID)
 	}
-	return nil, nil
+	// Return sql.ErrNoRows to simulate "not found" - this is the expected error that
+	// service code checks for (service.go:458), preventing both nil pointer panics and
+	// unexpected error returns
+	return nil, sql.ErrNoRows
 }
 
 func (m *mockMasterKeyStore) DeleteMasterKey(ctx context.Context, userID string) error {

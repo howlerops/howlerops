@@ -51,7 +51,7 @@ concurrency:
 
 env:
   GO_VERSION: '1.24'
-  GOLANGCI_LINT_VERSION: 'v1.63'  # Updated to v1.63 for Go 1.24 compatibility
+  GOLANGCI_LINT_VERSION: 'v1.64.8'  # Built with Go 1.24, supports Go 1.24.5
   # CGO is required for SQLite driver (mattn/go-sqlite3)
   CGO_ENABLED: 1
 
@@ -119,9 +119,13 @@ jobs:
           # -covermode=atomic: Thread-safe coverage collection (required with -race)
           # -timeout: Prevent hanging tests (default 10m)
           # -shuffle=on: Randomize test execution to catch order dependencies
+          # -short: Skip integration tests (test/integration/*) that expect server at localhost:8500
+          #         Integration tests check testing.Short() and skip themselves in CI
+          #         Run integration tests locally: `go test ./test/integration/... -v`
           go test \
             -v \
             -race \
+            -short \
             -coverprofile=coverage.out \
             -covermode=atomic \
             -timeout=10m \
@@ -274,6 +278,10 @@ jobs:
           # Windows arm64 is not commonly used
           - goos: windows
             goarch: arm64
+          # Darwin arm64 cross-compilation with CGO requires macOS runner
+          # Skip cross-compilation, will be built in release workflow on native runner
+          - goos: darwin
+            goarch: arm64
 
     steps:
       - name: Checkout code
@@ -301,9 +309,10 @@ jobs:
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
-          # CGO is only enabled for linux builds in CI
-          # Cross-compiling with CGO requires platform-specific toolchains
-          CGO_ENABLED: ${{ matrix.goos == 'linux' && '1' || '0' }}
+          # CGO is only enabled for native Linux amd64 builds
+          # Cross-compiling with CGO requires platform-specific toolchains and is error-prone
+          # For production builds, use native runners per platform (see release workflow)
+          CGO_ENABLED: ${{ matrix.goos == 'linux' && matrix.goarch == 'amd64' && '1' || '0' }}
         run: |
           # Build with production flags
           OUTPUT_NAME="sql-studio-backend"
