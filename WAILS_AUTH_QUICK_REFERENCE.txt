@@ -1,0 +1,356 @@
+═══════════════════════════════════════════════════════════════════════════════
+                    WAILS AUTHENTICATION QUICK REFERENCE
+═══════════════════════════════════════════════════════════════════════════════
+
+RECOMMENDED STACK
+─────────────────────────────────────────────────────────────────────────────
+Primary Auth:        OAuth2 with PKCE (Google, GitHub, Microsoft)
+Biometric Auth:      WebAuthn (Touch ID, Face ID, Windows Hello, YubiKey)
+Token Storage:       OS Keyring (zalando/go-keyring)
+Session Management:  JWT tokens + sessionStorage (frontend) + refresh rotation
+─────────────────────────────────────────────────────────────────────────────
+
+CRITICAL SECURITY RULES
+─────────────────────────────────────────────────────────────────────────────
+✓ USE PKCE for all OAuth flows (MANDATORY for desktop apps)
+✓ VALIDATE state parameter (prevent CSRF)
+✓ STORE tokens in OS keyring (not localStorage or plaintext)
+✓ USE HTTPS for all OAuth provider communication
+✓ KEEP access tokens SHORT-LIVED (1 hour max)
+✓ NEVER put client secrets in frontend code
+✓ TEST with Wails, not just browser
+✓ USE custom protocol handlers for OAuth callbacks (myapp://)
+
+✗ DON'T use cookies for session management (limited WebView support)
+✗ DON'T store tokens in localStorage (XSS vulnerability)
+✗ DON'T implement platform-specific biometrics (use WebAuthn instead)
+✗ DON'T ignore token expiration
+✗ DON'T expose client secrets in binary
+─────────────────────────────────────────────────────────────────────────────
+
+IMPLEMENTATION TIMELINE
+─────────────────────────────────────────────────────────────────────────────
+OAuth2 + PKCE:               2-3 days (first provider)
+WebAuthn (Biometric):        3-5 days (all platforms)
+Token Refresh & Rotation:    1-2 days
+Production Polish:           2-3 days
+─────────────────────────────────────────────────────────────────────────────
+TOTAL:                       1-2 weeks (OAuth + WebAuthn)
+─────────────────────────────────────────────────────────────────────────────
+
+KEY LIBRARIES
+─────────────────────────────────────────────────────────────────────────────
+Go Backend:
+  • golang.org/x/oauth2           - OAuth2 client (REQUIRED)
+  • github.com/zalando/go-keyring - OS keyring storage (REQUIRED)
+  • github.com/duo-labs/webauthn  - WebAuthn server (OPTIONAL)
+  • github.com/golang-jwt/jwt     - JWT handling (OPTIONAL)
+
+React Frontend:
+  • React Context API             - State management (built-in)
+  • navigator.credentials         - WebAuthn API (built-in browser)
+  • window.go.main.*              - Wails binding (built-in)
+  • Standard fetch API            - HTTP calls (built-in)
+─────────────────────────────────────────────────────────────────────────────
+
+OAUTH2 FLOW (Simple)
+─────────────────────────────────────────────────────────────────────────────
+1. User clicks "Sign in with GitHub"
+2. Frontend calls window.go.main.App.GetOAuthURL('github')
+3. Backend generates PKCE challenge + state → returns authUrl
+4. Frontend opens authUrl in browser
+5. User authenticates with GitHub
+6. GitHub redirects to myapp://oauth?code=XXX&state=YYY
+7. Wails catches custom protocol → calls App.OnUrlOpen()
+8. Backend exchanges code for token (validates state + PKCE)
+9. Backend stores token in OS keyring
+10. Backend emits authenticated event to frontend
+11. Frontend stores token reference in sessionStorage
+12. Token included in all API calls: Authorization: Bearer TOKEN
+─────────────────────────────────────────────────────────────────────────────
+
+WEBAUTHN FLOW (Registration)
+─────────────────────────────────────────────────────────────────────────────
+1. User clicks "Set up biometric"
+2. Frontend requests challenge from backend
+3. Backend generates challenge → returns to frontend
+4. Frontend calls navigator.credentials.create()
+5. Browser prompts user for biometric (Touch ID/Face ID/Windows Hello)
+6. User provides fingerprint/face
+7. Browser creates public key credential
+8. Frontend sends credential to backend
+9. Backend verifies credential and stores public key
+10. User can now authenticate with biometric
+─────────────────────────────────────────────────────────────────────────────
+
+WEBAUTHN FLOW (Authentication)
+─────────────────────────────────────────────────────────────────────────────
+1. User clicks "Sign in with biometric"
+2. Frontend requests challenge from backend
+3. Backend generates challenge → returns to frontend
+4. Frontend calls navigator.credentials.get()
+5. Browser prompts user for biometric
+6. User provides fingerprint/face
+7. Browser signs challenge with private key
+8. Frontend sends signed assertion to backend
+9. Backend verifies signature with stored public key
+10. Backend returns auth token
+11. Frontend stores token, user is authenticated
+─────────────────────────────────────────────────────────────────────────────
+
+ERROR HANDLING PATTERN
+─────────────────────────────────────────────────────────────────────────────
+API Call Returns 401:
+  1. Try to refresh token using refresh_token
+  2. If refresh succeeds: update token, retry original request
+  3. If refresh fails: clear tokens, redirect to login page
+  4. User must re-authenticate
+
+OAuth Callback Errors:
+  1. Show error message to user
+  2. Log error for debugging
+  3. Offer retry or alternate login method
+  4. Never fail silently
+─────────────────────────────────────────────────────────────────────────────
+
+GO BACKEND STRUCTURE
+─────────────────────────────────────────────────────────────────────────────
+type App struct {
+    ctx     context.Context
+    auth    *AuthManager          // OAuth2Manager + WebAuthnManager
+    storage *SecureStorage        // OS keyring wrapper
+}
+
+type AuthManager struct {
+    oauth    *OAuth2Manager       // Handles OAuth2 flows
+    webauthn *WebAuthnManager     // Handles WebAuthn flows
+}
+
+type SecureStorage struct {
+    // OS-native keyring storage
+}
+
+Key Methods:
+  • App.GetOAuthURL(provider) -> (authUrl, state)
+  • App.HandleOAuthCallback(code, state) -> token
+  • App.GetWebAuthnChallenge() -> challenge
+  • App.VerifyWebAuthnRegistration(credential) -> bool
+  • App.VerifyWebAuthnAuthentication(assertion) -> token
+  • App.StoreTokenSecurely(token) -> error
+  • App.RetrieveTokenSecurely() -> token
+  • App.ClearTokenSecurely() -> error
+─────────────────────────────────────────────────────────────────────────────
+
+REACT FRONTEND STRUCTURE
+─────────────────────────────────────────────────────────────────────────────
+<AuthProvider>
+  └─ AuthContext
+     ├─ isAuthenticated: boolean
+     ├─ user: User | null
+     ├─ token: string | null
+     ├─ initiateOAuth(provider): Promise<void>
+     ├─ registerBiometric(): Promise<void>
+     ├─ authenticateBiometric(): Promise<void>
+     └─ logout(): Promise<void>
+
+Components:
+  • <LoginPage> - OAuth login + biometric setup
+  • <ProtectedPage> - Requires isAuthenticated
+  • <ProfilePage> - User information
+  • <LogoutButton> - Clears auth state
+
+Custom Hooks:
+  • useAuth() - Access auth context
+  • useApi() - Make authenticated API calls
+  • useWebAuthn() - WebAuthn helpers
+─────────────────────────────────────────────────────────────────────────────
+
+TOKEN MANAGEMENT
+─────────────────────────────────────────────────────────────────────────────
+Storage:
+  Access Token    → sessionStorage (cleared on app exit)
+                 + OS Keyring (for app restart)
+  Refresh Token   → OS Keyring only (NEVER in frontend)
+
+Expiration:
+  Access Token    → 1 hour (short-lived)
+  Refresh Token   → 30 days (with rotation)
+
+Usage:
+  API Calls: Authorization: Bearer <access_token>
+  Refresh:   POST /auth/refresh with refresh_token
+─────────────────────────────────────────────────────────────────────────────
+
+PLATFORM-SPECIFIC NOTES
+─────────────────────────────────────────────────────────────────────────────
+macOS:
+  • WebView: WebKit ✓
+  • OAuth: Custom protocol via CFBundleURLTypes ✓
+  • Biometric: Touch ID / Face ID via WebAuthn ✓
+  • Keyring: macOS Keychain ✓
+
+Windows:
+  • WebView: WebView2 (Chromium) ✓
+  • OAuth: Custom protocol automatic ✓
+  • Biometric: Windows Hello via WebAuthn ✓
+  • Keyring: Windows Credential Manager ✓
+
+Linux:
+  • WebView: WebKitGTK ✓
+  • OAuth: Custom protocol automatic ✓
+  • Biometric: WebAuthn + hardware keys ✓
+  • Keyring: GNOME Keyring / Secret Service ✓
+
+Cookie Support: ⚠️ LIMITED across all platforms
+  → Use tokens instead
+─────────────────────────────────────────────────────────────────────────────
+
+TESTING CHECKLIST
+─────────────────────────────────────────────────────────────────────────────
+OAuth2:
+  ☐ Login with OAuth provider
+  ☐ Token persists after app restart
+  ☐ Token cleared after logout
+  ☐ State parameter validated
+  ☐ Works on macOS, Windows, Linux
+  ☐ Error handling works
+
+WebAuthn:
+  ☐ Register biometric
+  ☐ Authenticate with biometric
+  ☐ Works with Touch ID (macOS)
+  ☐ Works with Face ID (macOS)
+  ☐ Works with Windows Hello (Windows)
+  ☐ Works with hardware key (all platforms)
+  ☐ Fallback to password works
+
+API:
+  ☐ Auth header included in requests
+  ☐ 401 errors trigger re-login
+  ☐ Token refresh works
+  ☐ Expired tokens handled correctly
+
+Security:
+  ☐ Tokens not in localStorage
+  ☐ PKCE used in OAuth
+  ☐ HTTPS for OAuth provider
+  ☐ State validated on callback
+  ☐ No client secrets in code
+─────────────────────────────────────────────────────────────────────────────
+
+COMMON MISTAKES TO AVOID
+─────────────────────────────────────────────────────────────────────────────
+✗ Forgetting PKCE in OAuth flow
+✗ Not validating state parameter
+✗ Storing tokens in localStorage
+✗ Storing client secrets in code
+✗ Testing in browser instead of wails dev
+✗ Using cookies for sessions
+✗ Trying to use platform-specific biometrics
+✗ Not handling token expiration
+✗ Ignoring HTTPS requirement
+✗ No error handling on auth failures
+✗ Silent failures (always log errors)
+✗ Long-lived access tokens
+─────────────────────────────────────────────────────────────────────────────
+
+OAUTH PROVIDERS
+─────────────────────────────────────────────────────────────────────────────
+Easiest (Recommended first):
+  • GitHub: Fast setup, good docs
+  • Google: Most users recognize
+  • Microsoft: Enterprise friendly
+
+Time to implement each:
+  • 1st provider: 2-3 days
+  • 2nd+ providers: 1-2 days each (mostly config)
+─────────────────────────────────────────────────────────────────────────────
+
+ENVIRONMENT VARIABLES
+─────────────────────────────────────────────────────────────────────────────
+.env file:
+  GITHUB_CLIENT_ID=xxx
+  GITHUB_CLIENT_SECRET=xxx
+  GOOGLE_CLIENT_ID=xxx
+  GOOGLE_CLIENT_SECRET=xxx
+  WAILS_CUSTOM_PROTOCOL=myapp://
+
+Load with:
+  import "github.com/joho/godotenv"
+  godotenv.Load()
+─────────────────────────────────────────────────────────────────────────────
+
+CUSTOM PROTOCOL REGISTRATION
+─────────────────────────────────────────────────────────────────────────────
+macOS (in Info.plist):
+  <key>CFBundleURLTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleURLSchemes</key>
+      <array>
+        <string>myapp</string>
+      </array>
+    </dict>
+  </array>
+
+Windows & Linux:
+  Wails handles automatically if OnUrlOpen is implemented
+─────────────────────────────────────────────────────────────────────────────
+
+DEPLOYMENT CHECKLIST
+─────────────────────────────────────────────────────────────────────────────
+Before Production:
+  ☐ All tests pass (unit + integration + manual)
+  ☐ OAuth works on real provider (not sandbox)
+  ☐ PKCE properly implemented
+  ☐ Token refresh working
+  ☐ Rate limiting configured
+  ☐ Error logging enabled
+  ☐ Security review completed
+  ☐ Documentation updated
+  ☐ Support for password reset
+  ☐ Account recovery method available
+  ☐ Audit logging for auth events
+  ☐ Certificate pinning (if needed)
+  ☐ Token expiration well-tested
+─────────────────────────────────────────────────────────────────────────────
+
+WHERE TO FIND CODE EXAMPLES
+─────────────────────────────────────────────────────────────────────────────
+Complete OAuth2 example:
+  → WAILS_AUTH_QUICK_START.md (OAuth2 section)
+
+Complete WebAuthn example:
+  → WAILS_AUTH_QUICK_START.md (WebAuthn section)
+
+High-level patterns:
+  → WAILS_AUTHENTICATION_RESEARCH.md (sections 1-3)
+
+Detailed comparisons:
+  → WAILS_AUTH_COMPARISON_MATRIX.md
+
+Decision making:
+  → WAILS_AUTH_SUMMARY.md
+
+Full reference:
+  → README_AUTHENTICATION.md
+─────────────────────────────────────────────────────────────────────────────
+
+QUICK START (TLDR)
+─────────────────────────────────────────────────────────────────────────────
+1. Implement OAuth2 with PKCE (copy from WAILS_AUTH_QUICK_START.md)
+2. Add WebAuthn for biometric (copy from WAILS_AUTH_QUICK_START.md)
+3. Use OS keyring for token storage (zalando/go-keyring)
+4. Test with `wails dev` on all platforms
+5. Add token refresh handling
+6. Deploy with security review
+═══════════════════════════════════════════════════════════════════════════════
+
+Files in this research:
+  • README_AUTHENTICATION.md (this guide index)
+  • WAILS_AUTH_SUMMARY.md (executive summary)
+  • WAILS_AUTH_COMPARISON_MATRIX.md (detailed comparisons)
+  • WAILS_AUTHENTICATION_RESEARCH.md (deep technical details)
+  • WAILS_AUTH_QUICK_START.md (copy-paste code examples)
+  • WAILS_AUTH_QUICK_REFERENCE.txt (this file)
+═══════════════════════════════════════════════════════════════════════════════
