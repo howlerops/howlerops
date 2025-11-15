@@ -38,13 +38,17 @@ WORKDIR /app
 # This enables dependencies requiring Go 1.24+ to work with Go 1.23 base image
 ENV GOTOOLCHAIN=auto
 
-# Copy dependency files first for better layer caching
-# Only re-download if go.mod or go.sum changes
+# Copy root module files needed for replace directive
 COPY go.mod go.sum ./
+COPY services ./services
+
+# Copy backend-go module files for dependency download
+COPY backend-go/go.mod backend-go/go.sum ./backend-go/
+WORKDIR /app/backend-go
 RUN go mod download && go mod verify
 
-# Copy source code
-COPY . .
+# Copy backend-go source code
+COPY backend-go/ .
 
 # Build the application with production optimizations
 # CGO_ENABLED=1: Required for SQLite driver (mattn/go-sqlite3)

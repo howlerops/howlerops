@@ -17,6 +17,8 @@ steps:
     id: "build-image"
     args:
       - "build"
+      - "-f"
+      - "backend-go/Dockerfile"
       - "-t"
       - "gcr.io/$PROJECT_ID/howlerops-backend:$COMMIT_SHA"
       - "-t"
