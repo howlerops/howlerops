@@ -47,6 +47,8 @@ func EncryptSecret(plaintext []byte, key []byte) (ciphertext []byte, nonce []byt
 	}
 
 	// Encrypt and authenticate
+	// #nosec G407 -- False positive: nonce is randomly generated above using crypto/rand,
+	// not hardcoded. gosec doesn't track the data flow from lines 44-47.
 	ciphertext = gcm.Seal(nil, nonce, plaintext, nil)
 
 	return ciphertext, nonce, nil
