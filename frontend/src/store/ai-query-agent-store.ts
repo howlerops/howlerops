@@ -103,6 +103,8 @@ interface SendMessageOptions {
   temperature?: number
   maxTokens?: number
   maxRows?: number
+  page?: number        // NEW: Current page number (1-indexed)
+  pageSize?: number    // NEW: Rows per page
 }
 
 interface AIQueryAgentState {
@@ -490,6 +492,8 @@ export const useAIQueryAgentStore = create<AIQueryAgentState>()(
           temperature: options.temperature,
           maxTokens: options.maxTokens,
           maxRows: options.maxRows,
+          page: options.page,
+          pageSize: options.pageSize,
         })
       )
 

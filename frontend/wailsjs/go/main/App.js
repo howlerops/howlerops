@@ -194,8 +194,8 @@ export function GetMultiConnectionSchema(arg1) {
   return window['go']['main']['App']['GetMultiConnectionSchema'](arg1);
 }
 
-export function GetPassword(arg1) {
-  return window['go']['main']['App']['GetPassword'](arg1);
+export function GetPassword(arg1, arg2) {
+  return window['go']['main']['App']['GetPassword'](arg1, arg2);
 }
 
 export function GetQuerySuggestions(arg1, arg2) {
@@ -374,8 +374,8 @@ export function StartCodexLogin(arg1) {
   return window['go']['main']['App']['StartCodexLogin'](arg1);
 }
 
-export function StorePassword(arg1, arg2) {
-  return window['go']['main']['App']['StorePassword'](arg1, arg2);
+export function StorePassword(arg1, arg2, arg3) {
+  return window['go']['main']['App']['StorePassword'](arg1, arg2, arg3);
 }
 
 export function StreamAIQueryAgent(arg1) {

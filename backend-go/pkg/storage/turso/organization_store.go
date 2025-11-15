@@ -169,7 +169,11 @@ func (s *OrganizationStore) GetByUserID(ctx context.Context, userID string) ([]*
 	if err != nil {
 		return nil, fmt.Errorf("failed to query organizations: %w", err)
 	}
-	defer func() { if err := rows.Close(); err != nil { s.logger.WithError(err).Error("Failed to close rows") } }()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			s.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	var orgs []*organization.Organization
 	for rows.Next() {
@@ -442,7 +446,11 @@ func (s *OrganizationStore) GetMembers(ctx context.Context, orgID string) ([]*or
 	if err != nil {
 		return nil, fmt.Errorf("failed to query members: %w", err)
 	}
-	defer func() { if err := rows.Close(); err != nil { s.logger.WithError(err).Error("Failed to close rows") } }()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			s.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	var members []*organization.OrganizationMember
 	for rows.Next() {
@@ -706,7 +714,11 @@ func (s *OrganizationStore) GetInvitationsByOrg(ctx context.Context, orgID strin
 	if err != nil {
 		return nil, fmt.Errorf("failed to query invitations: %w", err)
 	}
-	defer func() { if err := rows.Close(); err != nil { s.logger.WithError(err).Error("Failed to close rows") } }()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			s.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	var invitations []*organization.OrganizationInvitation
 	for rows.Next() {
@@ -764,7 +776,11 @@ func (s *OrganizationStore) GetInvitationsByEmail(ctx context.Context, email str
 	if err != nil {
 		return nil, fmt.Errorf("failed to query invitations: %w", err)
 	}
-	defer func() { if err := rows.Close(); err != nil { s.logger.WithError(err).Error("Failed to close rows") } }()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			s.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	var invitations []*organization.OrganizationInvitation
 	for rows.Next() {
@@ -975,7 +991,11 @@ func (s *OrganizationStore) GetAuditLogs(ctx context.Context, orgID string, limi
 	if err != nil {
 		return nil, fmt.Errorf("failed to query audit logs: %w", err)
 	}
-	defer func() { if err := rows.Close(); err != nil { s.logger.WithError(err).Error("Failed to close rows") } }()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			s.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	var logs []*organization.AuditLog
 	for rows.Next() {

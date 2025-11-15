@@ -245,4 +245,3 @@ func (f *Fixer) ensureImport(content string, pkg string) string {
 
 	return content
 }
-

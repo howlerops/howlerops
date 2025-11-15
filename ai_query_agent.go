@@ -31,6 +31,8 @@ type AIQueryAgentRequest struct {
 	Temperature   float64                  `json:"temperature,omitempty"`
 	MaxTokens     int                      `json:"maxTokens,omitempty"`
 	MaxRows       int                      `json:"maxRows,omitempty"`
+	Page          int                      `json:"page,omitempty"`     // NEW: Current page number (1-indexed)
+	PageSize      int                      `json:"pageSize,omitempty"` // NEW: Rows per page
 }
 
 // AIQueryAgentResponse aggregates the generated artefacts for a single turn.
@@ -93,6 +95,12 @@ type AIQueryAgentResultAttachment struct {
 	ExecutionTimeMs int64                    `json:"executionTimeMs"`
 	Limited         bool                     `json:"limited"`
 	ConnectionID    string                   `json:"connectionId,omitempty"`
+	// Pagination metadata
+	TotalRows  int64 `json:"totalRows,omitempty"`  // NEW: Total rows available
+	Page       int   `json:"page,omitempty"`       // NEW: Current page
+	PageSize   int   `json:"pageSize,omitempty"`   // NEW: Page size
+	TotalPages int   `json:"totalPages,omitempty"` // NEW: Total pages
+	HasMore    bool  `json:"hasMore,omitempty"`    // NEW: More pages available
 }
 
 // AIQueryAgentChartAttachment represents a chart suggestion produced by the agent.
@@ -127,6 +135,13 @@ type ReadOnlyQueryResult struct {
 	ExecutionTimeMs int64                    `json:"executionTimeMs"`
 	Limited         bool                     `json:"limited"`
 	ConnectionID    string                   `json:"connectionId"`
+	// Pagination metadata
+	TotalRows  int64 `json:"totalRows,omitempty"`  // Total rows available (unpaged)
+	Page       int   `json:"page,omitempty"`       // Current page number
+	PageSize   int   `json:"pageSize,omitempty"`   // Rows per page
+	TotalPages int   `json:"totalPages,omitempty"` // Total pages available
+	HasMore    bool  `json:"hasMore,omitempty"`    // More pages available
+	Offset     int   `json:"offset,omitempty"`     // Current offset
 }
 
 type queryAgentEvent struct {
@@ -343,7 +358,14 @@ func (a *App) StreamAIQueryAgent(req AIQueryAgentRequest) (*AIQueryAgentResponse
 	var preview *ReadOnlyQueryResult
 	if connectionID != "" && strings.TrimSpace(sqlResp.SQL) != "" {
 		queryStart := time.Now()
-		preview, err = a.ExecuteReadOnlyQuery(connectionID, sqlResp.SQL, req.MaxRows, 30*time.Second)
+		// Calculate offset from page and pageSize
+		offset := 0
+		pageSize := req.MaxRows
+		if req.Page > 0 && req.PageSize > 0 {
+			pageSize = req.PageSize
+			offset = (req.Page - 1) * pageSize
+		}
+		preview, err = a.ExecuteReadOnlyQueryWithPagination(connectionID, sqlResp.SQL, pageSize, offset, 30*time.Second)
 		if err != nil {
 			warning := fmt.Sprintf("Query execution failed: %v", err)
 			errorMessage := AIQueryAgentMessage{
@@ -769,6 +791,129 @@ func (a *App) ExecuteReadOnlyQuery(connectionID string, query string, maxRows in
 	}, nil
 }
 
+// ExecuteReadOnlyQueryWithPagination executes a SELECT query with pagination support.
+func (a *App) ExecuteReadOnlyQueryWithPagination(connectionID string, query string, pageSize int, offset int, timeout time.Duration) (*ReadOnlyQueryResult, error) {
+	if a.databaseService == nil {
+		return nil, fmt.Errorf("database service not available")
+	}
+	isMulti := isMultiDatabaseSQL(query)
+	if strings.TrimSpace(connectionID) == "" && !isMulti {
+		return nil, fmt.Errorf("connection ID is required")
+	}
+
+	clean := strings.TrimSpace(query)
+	if clean == "" {
+		return nil, fmt.Errorf("query cannot be empty")
+	}
+
+	if isMultiDatabaseSQL(clean) {
+		return a.executeMultiReadOnlyQueryWithPagination(clean, pageSize, offset, timeout)
+	}
+
+	if !isSelectOnly(clean) {
+		return nil, fmt.Errorf("only read-only SELECT statements are permitted")
+	}
+
+	// Don't enforce limit in the query itself - use QueryOptions
+	options := &database.QueryOptions{
+		Timeout:  timeout,
+		ReadOnly: true,
+		Limit:    pageSize,
+		Offset:   offset,
+	}
+
+	result, err := a.databaseService.ExecuteQuery(connectionID, clean, options)
+	if err != nil {
+		return nil, err
+	}
+
+	rows := convertRows(result.Columns, result.Rows)
+
+	// Calculate pagination metadata
+	totalRows := result.TotalRows
+	if totalRows == 0 {
+		totalRows = result.RowCount // Fallback if TotalRows not set
+	}
+
+	page := 1
+	if pageSize > 0 && offset >= 0 {
+		page = (offset / pageSize) + 1
+	}
+
+	totalPages := 0
+	hasMore := false
+	if pageSize > 0 && totalRows > 0 {
+		totalPages = int((totalRows + int64(pageSize) - 1) / int64(pageSize))
+		hasMore = page < totalPages
+	}
+
+	return &ReadOnlyQueryResult{
+		Columns:         append([]string(nil), result.Columns...),
+		Rows:            rows,
+		RowCount:        result.RowCount,
+		ExecutionTimeMs: result.Duration.Milliseconds(),
+		Limited:         false, // Not limited when paginating
+		ConnectionID:    connectionID,
+		TotalRows:       totalRows,
+		Page:            page,
+		PageSize:        pageSize,
+		TotalPages:      totalPages,
+		HasMore:         hasMore,
+		Offset:          offset,
+	}, nil
+}
+
+func (a *App) executeMultiReadOnlyQueryWithPagination(query string, pageSize int, offset int, timeout time.Duration) (*ReadOnlyQueryResult, error) {
+	options := &multiquery.Options{
+		Timeout:  timeout,
+		Strategy: multiquery.StrategyAuto,
+		Limit:    pageSize,
+		Offset:   offset,
+	}
+
+	resp, err := a.databaseService.ExecuteMultiDatabaseQuery(query, options)
+	if err != nil {
+		return nil, err
+	}
+
+	rows := convertRows(resp.Columns, resp.Rows)
+	var durationMs int64
+	if parsed, err := time.ParseDuration(resp.Duration); err == nil {
+		durationMs = parsed.Milliseconds()
+	}
+
+	connectionLabel := strings.Join(resp.ConnectionsUsed, ",")
+
+	// Calculate pagination metadata
+	totalRows := resp.RowCount
+	page := 1
+	if pageSize > 0 && offset >= 0 {
+		page = (offset / pageSize) + 1
+	}
+
+	totalPages := 0
+	hasMore := false
+	if pageSize > 0 && totalRows > 0 {
+		totalPages = int((totalRows + int64(pageSize) - 1) / int64(pageSize))
+		hasMore = page < totalPages
+	}
+
+	return &ReadOnlyQueryResult{
+		Columns:         append([]string(nil), resp.Columns...),
+		Rows:            rows,
+		RowCount:        resp.RowCount,
+		ExecutionTimeMs: durationMs,
+		Limited:         false,
+		ConnectionID:    connectionLabel,
+		TotalRows:       totalRows,
+		Page:            page,
+		PageSize:        pageSize,
+		TotalPages:      totalPages,
+		HasMore:         hasMore,
+		Offset:          offset,
+	}, nil
+}
+
 func (a *App) executeMultiReadOnlyQuery(query string, maxRows int, timeout time.Duration) (*ReadOnlyQueryResult, error) {
 	options := &multiquery.Options{
 		Timeout:  timeout,
@@ -901,6 +1046,11 @@ func convertToResultAttachment(preview *ReadOnlyQueryResult) *AIQueryAgentResult
 		ExecutionTimeMs: preview.ExecutionTimeMs,
 		Limited:         preview.Limited,
 		ConnectionID:    preview.ConnectionID,
+		TotalRows:       preview.TotalRows,
+		Page:            preview.Page,
+		PageSize:        preview.PageSize,
+		TotalPages:      preview.TotalPages,
+		HasMore:         preview.HasMore,
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"embed"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -31,6 +32,7 @@ import (
 	"github.com/sql-studio/backend-go/pkg/federation/duckdb"
 	"github.com/sql-studio/backend-go/pkg/rag"
 	"github.com/sql-studio/backend-go/pkg/storage"
+	"github.com/sql-studio/backend-go/pkg/storage/turso"
 	"github.com/sql-studio/sql-studio/services"
 )
 
@@ -46,6 +48,7 @@ type App struct {
 	fileService       *services.FileService
 	keyboardService   *services.KeyboardService
 	credentialService *services.CredentialService
+	passwordManager   *services.PasswordManager // Hybrid password storage (keychain + encrypted DB)
 	aiService         *ai.Service
 	aiConfig          *ai.RuntimeConfig
 	updateChecker     *UpdateChecker
@@ -73,9 +76,10 @@ type ConnectionRequest struct {
 type QueryRequest struct {
 	ConnectionID string `json:"connectionId"`
 	Query        string `json:"query"`
-	Limit        int    `json:"limit,omitempty"`   // Page size (default 1000)
-	Offset       int    `json:"offset,omitempty"`  // NEW: Pagination offset
-	Timeout      int    `json:"timeout,omitempty"` // seconds
+	Limit        int    `json:"limit,omitempty"`    // Page size (default 1000)
+	Offset       int    `json:"offset,omitempty"`   // NEW: Pagination offset
+	Timeout      int    `json:"timeout,omitempty"`  // seconds
+	IsExport     bool   `json:"isExport,omitempty"` // NEW: Bypass limits for exports
 }
 
 // QueryResponse represents a query execution response
@@ -597,6 +601,22 @@ func (a *App) initializeStorageManager(ctx context.Context) error {
 
 	a.storageManager = manager
 
+	// Initialize password manager with hybrid dual-read (keychain + encrypted DB)
+	db := manager.GetDB()
+	if db != nil {
+		credentialStore := turso.NewCredentialStore(db, a.logger)
+		connectionStore := turso.NewConnectionStore(db, a.logger)
+		a.passwordManager = services.NewPasswordManager(
+			a.credentialService,
+			credentialStore,
+			connectionStore,
+			a.logger,
+		)
+		a.logger.Info("Password manager initialized with hybrid storage")
+	} else {
+		a.logger.Warn("Database not available, password manager will use keychain only")
+	}
+
 	// Initialize synthetic views storage
 	syntheticViewsStorage := storage.NewSyntheticViewStorage(manager.GetDB(), a.logger)
 	if err := syntheticViewsStorage.CreateTable(); err != nil {
@@ -957,6 +977,7 @@ func (a *App) ExecuteQuery(req QueryRequest) (*QueryResponse, error) {
 	a.logger.WithFields(logrus.Fields{
 		"connection_id": req.ConnectionID,
 		"query_length":  len(req.Query),
+		"is_export":     req.IsExport,
 	}).Info("Executing query")
 
 	// Check if query targets synthetic schema
@@ -966,20 +987,35 @@ func (a *App) ExecuteQuery(req QueryRequest) (*QueryResponse, error) {
 	}
 
 	// Set default limit for pagination if not specified
+	// For exports, allow unlimited rows (or very large limit)
 	limit := req.Limit
-	if limit == 0 {
-		limit = 1000 // Default page size
+	if req.IsExport {
+		// Export mode: Use a very large limit (1 million rows max for safety)
+		// If limit is explicitly set and smaller, respect it
+		if limit == 0 {
+			limit = 1000000 // 1M rows max for exports
+		}
+	} else {
+		// Normal query mode: Default to 1000 rows
+		if limit == 0 {
+			limit = 1000 // Default page size
+		}
+	}
+
+	// Extend timeout for exports
+	timeout := 30 * time.Second
+	if req.IsExport {
+		timeout = 5 * time.Minute // 5 minute timeout for exports
+	}
+	if req.Timeout > 0 {
+		timeout = time.Duration(req.Timeout) * time.Second
 	}
 
 	options := &database.QueryOptions{
-		Timeout:  30 * time.Second,
+		Timeout:  timeout,
 		ReadOnly: false,
 		Limit:    limit,
 		Offset:   req.Offset, // NEW: Pass pagination offset
-	}
-
-	if req.Timeout > 0 {
-		options.Timeout = time.Duration(req.Timeout) * time.Second
 	}
 
 	result, err := a.databaseService.ExecuteQuery(req.ConnectionID, req.Query, options)
@@ -1272,55 +1308,119 @@ func (a *App) WriteFile(filePath, content string) error {
 }
 
 // ================================================================================
-// Credential Management Methods (Keychain Integration)
+// Credential Management Methods (Hybrid Password Storage)
 // ================================================================================
 
-// StorePassword stores a password securely in the OS keychain
+// StorePassword stores a password securely using the hybrid password manager
 // connectionID is used as the identifier for the stored credential
-func (a *App) StorePassword(connectionID, password string) error {
-	a.logger.WithField("connection_id", connectionID).Debug("Storing password in keychain")
+// masterKeyBase64 is an optional base64-encoded master key from the authenticated session
+// If empty, uses keychain only (graceful degradation)
+func (a *App) StorePassword(connectionID, password, masterKeyBase64 string) error {
+	a.logger.WithField("connection_id", connectionID).Debug("Storing password with hybrid password manager")
 
-	if err := a.credentialService.StorePassword(connectionID, password); err != nil {
-		a.logger.WithError(err).Error("Failed to store password in keychain")
+	if a.passwordManager == nil {
+		// Fallback to legacy keychain-only if password manager not initialized
+		return a.credentialService.StorePassword(connectionID, password)
+	}
+
+	userID := ""
+	if a.storageManager != nil {
+		userID = a.storageManager.GetUserID()
+	}
+
+	// Decode master key if provided
+	var masterKey []byte
+	var err error
+	if masterKeyBase64 != "" {
+		masterKey, err = base64.StdEncoding.DecodeString(masterKeyBase64)
+		if err != nil {
+			a.logger.WithError(err).Warn("Invalid master key provided, falling back to keychain only")
+			masterKey = nil
+		}
+	}
+
+	if err := a.passwordManager.StorePassword(a.ctx, userID, connectionID, password, masterKey); err != nil {
+		a.logger.WithError(err).Error("Failed to store password")
 		return fmt.Errorf("failed to store password securely: %w", err)
 	}
 
 	return nil
 }
 
-// GetPassword retrieves a password from the OS keychain
+// GetPassword retrieves a password using the hybrid password manager
 // connectionID is used as the identifier for the stored credential
+// masterKeyBase64 is an optional base64-encoded master key from the authenticated session
+// If empty, will try encrypted DB first, then fall back to keychain
 // Returns an error if the password is not found or cannot be retrieved
-func (a *App) GetPassword(connectionID string) (string, error) {
-	a.logger.WithField("connection_id", connectionID).Debug("Retrieving password from keychain")
+func (a *App) GetPassword(connectionID, masterKeyBase64 string) (string, error) {
+	a.logger.WithField("connection_id", connectionID).Debug("Retrieving password with hybrid password manager")
 
-	password, err := a.credentialService.GetPassword(connectionID)
+	if a.passwordManager == nil {
+		// Fallback to legacy keychain-only if password manager not initialized
+		return a.credentialService.GetPassword(connectionID)
+	}
+
+	userID := ""
+	if a.storageManager != nil {
+		userID = a.storageManager.GetUserID()
+	}
+
+	// Decode master key if provided
+	var masterKey []byte
+	var err error
+	if masterKeyBase64 != "" {
+		masterKey, err = base64.StdEncoding.DecodeString(masterKeyBase64)
+		if err != nil {
+			a.logger.WithError(err).Warn("Invalid master key provided, falling back to keychain")
+			masterKey = nil
+		}
+	}
+
+	password, err := a.passwordManager.GetPassword(a.ctx, userID, connectionID, masterKey)
 	if err != nil {
-		a.logger.WithError(err).Error("Failed to retrieve password from keychain")
+		a.logger.WithError(err).Error("Failed to retrieve password")
 		return "", fmt.Errorf("failed to retrieve password: %w", err)
 	}
 
 	return password, nil
 }
 
-// DeletePassword removes a password from the OS keychain
+// DeletePassword removes a password from both storage locations
 // connectionID is used as the identifier for the stored credential
 // Does not return an error if the password doesn't exist
 func (a *App) DeletePassword(connectionID string) error {
-	a.logger.WithField("connection_id", connectionID).Debug("Deleting password from keychain")
+	a.logger.WithField("connection_id", connectionID).Debug("Deleting password with hybrid password manager")
 
-	if err := a.credentialService.DeletePassword(connectionID); err != nil {
-		a.logger.WithError(err).Error("Failed to delete password from keychain")
+	if a.passwordManager == nil {
+		// Fallback to legacy keychain-only if password manager not initialized
+		return a.credentialService.DeletePassword(connectionID)
+	}
+
+	userID := ""
+	if a.storageManager != nil {
+		userID = a.storageManager.GetUserID()
+	}
+
+	if err := a.passwordManager.DeletePassword(a.ctx, userID, connectionID); err != nil {
+		a.logger.WithError(err).Error("Failed to delete password")
 		return fmt.Errorf("failed to delete password: %w", err)
 	}
 
 	return nil
 }
 
-// HasPassword checks if a password exists in the keychain for a given connection
+// HasPassword checks if a password exists in either keychain or encrypted DB
 // Returns true if the password exists, false otherwise
 func (a *App) HasPassword(connectionID string) bool {
-	return a.credentialService.HasPassword(connectionID)
+	if a.passwordManager == nil {
+		// Fallback to legacy keychain-only if password manager not initialized
+		return a.credentialService.HasPassword(connectionID)
+	}
+
+	// Try to get password - if successful, it exists
+	// Pass empty master key since we're just checking existence
+	_, err := a.GetPassword(connectionID, "")
+	return err == nil
 }
 
 // ================================================================================

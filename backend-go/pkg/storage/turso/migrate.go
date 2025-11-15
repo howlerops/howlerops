@@ -34,6 +34,31 @@ var Migrations = []Migration{
 		Description: "Add organization support to resources (connections and queries)",
 		SQL:         getAddOrganizationToResourcesSQL(),
 	},
+	{
+		Version:     4,
+		Description: "Add query templates support",
+		SQL:         "", // Migration file: 004_query_templates.sql (loaded separately)
+	},
+	{
+		Version:     5,
+		Description: "Add enterprise security features",
+		SQL:         "", // Migration file: 005_enterprise_security.sql (loaded separately)
+	},
+	{
+		Version:     6,
+		Description: "Add data compliance features",
+		SQL:         "", // Migration file: 006_data_compliance.sql (loaded separately)
+	},
+	{
+		Version:     7,
+		Description: "Add white labeling features",
+		SQL:         "", // Migration file: 007_white_labeling.sql (loaded separately)
+	},
+	{
+		Version:     8,
+		Description: "Add encrypted password storage (zero-knowledge)",
+		SQL:         getEncryptedPasswordStorageSQL(),
+	},
 }
 
 // MigrationStatus represents the status of a migration
@@ -382,4 +407,46 @@ func applyMigration003(db *sql.DB, logger *logrus.Logger) error {
 	}
 
 	return nil
+}
+
+// getEncryptedPasswordStorageSQL returns the SQL for migration 008
+func getEncryptedPasswordStorageSQL() string {
+	return `
+-- Migration 008: Add encrypted password storage
+-- Zero-knowledge architecture - server never sees plaintext passwords
+
+-- User Master Keys table
+CREATE TABLE IF NOT EXISTS user_master_keys (
+    user_id TEXT PRIMARY KEY,
+    encrypted_master_key TEXT NOT NULL,
+    key_iv TEXT NOT NULL,
+    key_auth_tag TEXT NOT NULL,
+    pbkdf2_salt TEXT NOT NULL,
+    pbkdf2_iterations INTEGER NOT NULL DEFAULT 600000,
+    version INTEGER NOT NULL DEFAULT 1,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Encrypted Credentials table
+CREATE TABLE IF NOT EXISTS encrypted_credentials (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    connection_id TEXT NOT NULL,
+    encrypted_password TEXT NOT NULL,
+    password_iv TEXT NOT NULL,
+    password_auth_tag TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (connection_id) REFERENCES connection_templates(id) ON DELETE CASCADE,
+    UNIQUE(user_id, connection_id)
+);
+
+-- Indexes for encrypted password tables
+CREATE INDEX IF NOT EXISTS idx_encrypted_creds_user_id ON encrypted_credentials(user_id);
+CREATE INDEX IF NOT EXISTS idx_encrypted_creds_connection_id ON encrypted_credentials(connection_id);
+CREATE INDEX IF NOT EXISTS idx_encrypted_creds_updated ON encrypted_credentials(updated_at);
+`
 }

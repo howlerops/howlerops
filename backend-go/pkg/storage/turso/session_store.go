@@ -234,7 +234,11 @@ func (s *TursoSessionStore) GetUserSessions(ctx context.Context, userID string) 
 	if err != nil {
 		return nil, fmt.Errorf("failed to query user sessions: %w", err)
 	}
-	defer func() { if err := rows.Close(); err != nil { s.logger.WithError(err).Error("Failed to close rows") } }()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			s.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	var sessions []*auth.Session
 

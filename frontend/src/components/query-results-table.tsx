@@ -3,6 +3,7 @@ import { Database, Clock, Save, AlertCircle, Download, Search, Inbox, Loader2, C
 
 import { EditableTable } from './editable-table/editable-table'
 import { JsonRowViewerSidebar } from './json-row-viewer-sidebar'
+import { PaginationControls } from './pagination-controls'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
@@ -32,6 +33,10 @@ interface QueryResultsTableProps {
   displayMode?: import('../lib/query-result-storage').ResultDisplayMode
   // Pagination metadata
   totalRows?: number
+  hasMore?: boolean
+  offset?: number
+  // Pagination callback
+  onPageChange?: (limit: number, offset: number) => void
 }
 
 interface ToolbarProps {
@@ -189,7 +194,11 @@ const ExportButton = ({ context, onExport }: { context: EditableTableContext; on
     setIsExporting(true)
     try {
       await onExport(exportOptions)
-      setShowExportDialog(false)
+      // Keep dialog open briefly to show success message (handled via toast)
+      setTimeout(() => setShowExportDialog(false), 500)
+    } catch (error) {
+      // Error is handled by onExport, just reset state
+      setIsExporting(false)
     } finally {
       setIsExporting(false)
     }
@@ -212,7 +221,7 @@ const ExportButton = ({ context, onExport }: { context: EditableTableContext; on
           <DialogHeader>
             <DialogTitle>Export Data</DialogTitle>
             <DialogDescription>
-              Configure export options and download to your Downloads folder.
+              Export will fetch ALL results from the database (up to 1M rows). Configure options and download to your Downloads folder.
             </DialogDescription>
           </DialogHeader>
 
@@ -535,6 +544,9 @@ export const QueryResultsTable = ({
   chunkingEnabled = false,
   displayMode,
   totalRows,
+  hasMore = false,
+  offset = 0,
+  onPageChange,
 }: QueryResultsTableProps) => {
   const columnNames = useMemo(
     () => (Array.isArray(columns) ? columns : []),
@@ -542,7 +554,80 @@ export const QueryResultsTable = ({
   )
   const [dirtyRowIds, setDirtyRowIds] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
-  
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(100)
+  const [isLoadingPage, setIsLoadingPage] = useState(false)
+
+  // Sync current page with offset from backend
+  useEffect(() => {
+    if (offset !== undefined && pageSize > 0) {
+      const calculatedPage = Math.floor(offset / pageSize) + 1
+      if (calculatedPage !== currentPage) {
+        setCurrentPage(calculatedPage)
+      }
+    }
+  }, [offset, pageSize])
+
+  // Reset to page 1 when query changes
+  useEffect(() => {
+    setCurrentPage(1)
+    setIsLoadingPage(false)
+  }, [resultId])
+
+  // Pagination handlers
+  const handlePageChange = useCallback(async (newPage: number) => {
+    if (!onPageChange || isLoadingPage) return
+
+    const newOffset = (newPage - 1) * pageSize
+    setIsLoadingPage(true)
+    setCurrentPage(newPage)
+
+    try {
+      await onPageChange(pageSize, newOffset)
+    } catch (error) {
+      console.error('Page change failed:', error)
+      toast({
+        title: 'Page change failed',
+        description: error instanceof Error ? error.message : 'Failed to load page',
+        variant: 'destructive'
+      })
+      // Revert to previous page on error
+      setCurrentPage(Math.floor(offset / pageSize) + 1)
+    } finally {
+      setIsLoadingPage(false)
+    }
+  }, [onPageChange, pageSize, offset, isLoadingPage])
+
+  const handlePageSizeChange = useCallback(async (newPageSize: number) => {
+    if (!onPageChange || isLoadingPage) return
+
+    // Calculate what page we should be on to show similar rows
+    const currentFirstRow = (currentPage - 1) * pageSize
+    const newPage = Math.floor(currentFirstRow / newPageSize) + 1
+
+    setPageSize(newPageSize)
+    setIsLoadingPage(true)
+    setCurrentPage(newPage)
+
+    try {
+      await onPageChange(newPageSize, (newPage - 1) * newPageSize)
+    } catch (error) {
+      console.error('Page size change failed:', error)
+      toast({
+        title: 'Page size change failed',
+        description: error instanceof Error ? error.message : 'Failed to change page size',
+        variant: 'destructive'
+      })
+      // Revert to previous page size on error
+      setPageSize(pageSize)
+      setCurrentPage(Math.floor(offset / pageSize) + 1)
+    } finally {
+      setIsLoadingPage(false)
+    }
+  }, [onPageChange, currentPage, pageSize, offset, isLoadingPage])
+
   // JSON viewer state
   const [jsonViewerOpen, setJsonViewerOpen] = useState(false)
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null)
@@ -1006,28 +1091,6 @@ export const QueryResultsTable = ({
     updateResultRows,
   ])
 
-  // Keyboard shortcut handler for Ctrl+S (Cmd+S on Mac)
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0
-      const isSaveShortcut = isMac 
-        ? (event.metaKey && event.key === 's')
-        : (event.ctrlKey && event.key === 's')
-      
-      if (isSaveShortcut) {
-        event.preventDefault()
-        
-        // Only save if there are dirty rows and metadata is enabled
-        if (metadata?.enabled && dirtyRowIds.length > 0) {
-          handleSave()
-        }
-      }
-    }
-
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [metadata?.enabled, dirtyRowIds.length, handleSave])
-
   const tableColumns: TableColumn[] = useMemo(() => {
     return columnNames.map<TableColumn>((columnName) => {
       const metaColumn = metadataLookup.get(columnName.toLowerCase())
@@ -1078,66 +1141,125 @@ export const QueryResultsTable = ({
   // }, [columnNames, resolveCurrentRows])
 
   const handleExport = useCallback(async (options: ExportOptions) => {
-    const currentRows = resolveCurrentRows()
-    let dataToExport = currentRows
-
-    // Filter to selected rows only if requested
-    if (options.selectedOnly && tableContextRef.current?.state.selectedRows.length && tableContextRef.current.state.selectedRows.length > 0) {
-      const selectedIds = tableContextRef.current.state.selectedRows
-      dataToExport = currentRows.filter(row => selectedIds.includes(row.__rowId!))
-    }
-
-    const timestamp = Date.now()
-    let filename: string
-    let content: string
-
-    if (options.format === 'csv') {
-      filename = `query-results-${timestamp}.csv`
-      const header = options.includeHeaders ? columnNames.join(',') : ''
-      const records = dataToExport.map((row) =>
-        columnNames.map((column) => serialiseCsvValue(row[column])).join(',')
-      )
-      content = options.includeHeaders ? [header, ...records].join('\n') : records.join('\n')
-    } else {
-      filename = `query-results-${timestamp}.json`
-      content = JSON.stringify(dataToExport, null, 2)
+    if (!connectionId) {
+      toast({
+        title: 'Export failed',
+        description: 'No active connection',
+        variant: 'destructive',
+      })
+      return
     }
 
     try {
-      // Import the Wails function
+      // For selected rows only, export the current loaded data
+      if (options.selectedOnly && tableContextRef.current?.state.selectedRows.length && tableContextRef.current.state.selectedRows.length > 0) {
+        const currentRows = resolveCurrentRows()
+        const selectedIds = tableContextRef.current.state.selectedRows
+        const dataToExport = currentRows.filter(row => selectedIds.includes(row.__rowId!))
+
+        const timestamp = Date.now()
+        let filename: string
+        let content: string
+
+        if (options.format === 'csv') {
+          filename = `query-results-${timestamp}.csv`
+          const header = options.includeHeaders ? columnNames.join(',') : ''
+          const records = dataToExport.map((row) =>
+            columnNames.map((column) => serialiseCsvValue(row[column])).join(',')
+          )
+          content = options.includeHeaders ? [header, ...records].join('\n') : records.join('\n')
+        } else {
+          filename = `query-results-${timestamp}.json`
+          content = JSON.stringify(dataToExport, null, 2)
+        }
+
+        const { SaveToDownloads } = await import('../../wailsjs/go/main/App')
+        const filePath = await SaveToDownloads(filename, content)
+
+        toast({
+          title: 'Export successful',
+          description: `File saved to: ${filePath}`,
+          variant: 'default',
+        })
+        return
+      }
+
+      // For full export, re-query with isExport=true to get ALL rows
+      toast({
+        title: 'Export starting',
+        description: 'Fetching all results from database...',
+        variant: 'default',
+      })
+
+      const { wailsApiClient } = await import('../lib/wails-api')
+      const result = await wailsApiClient.executeQuery(
+        connectionId,
+        query,
+        0, // limit=0 triggers unlimited export (backend handles max 1M rows)
+        0, // offset
+        300, // 5 minute timeout
+        true // isExport = true
+      )
+
+      if (!result.success || !result.data) {
+        throw new Error(result.message || 'Failed to fetch export data')
+      }
+
+      // Prepare export data
+      const exportRows = result.data.rows || []
+      const exportColumns = result.data.columns || []
+
+      // Show warning if hitting max export limit (1M rows)
+      if (exportRows.length >= 1000000) {
+        toast({
+          title: 'Export limit reached',
+          description: 'Export limited to 1 million rows. Consider filtering your query.',
+          variant: 'default',
+        })
+      }
+
+      const timestamp = Date.now()
+      let filename: string
+      let content: string
+
+      if (options.format === 'csv') {
+        filename = `query-results-${timestamp}.csv`
+        const header = options.includeHeaders ? exportColumns.join(',') : ''
+        const records = exportRows.map((row: any[]) =>
+          row.map((cell) => serialiseCsvValue(cell)).join(',')
+        )
+        content = options.includeHeaders ? [header, ...records].join('\n') : records.join('\n')
+      } else {
+        filename = `query-results-${timestamp}.json`
+        // Convert rows array to objects for JSON export
+        const jsonData = exportRows.map((row: any[]) => {
+          const obj: Record<string, any> = {}
+          exportColumns.forEach((col: string, idx: number) => {
+            obj[col] = row[idx]
+          })
+          return obj
+        })
+        content = JSON.stringify(jsonData, null, 2)
+      }
+
       const { SaveToDownloads } = await import('../../wailsjs/go/main/App')
       const filePath = await SaveToDownloads(filename, content)
-      
-      // Show success notification with file path
+
       toast({
         title: 'Export successful',
-        description: `File saved to: ${filePath}`,
+        description: `${exportRows.length.toLocaleString()} rows saved to: ${filePath}`,
         variant: 'default',
       })
     } catch (error) {
-      console.error('Failed to save file to Downloads:', error)
-      
-      // Show error and fallback to browser download
+      console.error('Failed to export:', error)
+
       toast({
         title: 'Export failed',
-        description: 'Falling back to browser download',
+        description: error instanceof Error ? error.message : 'Failed to export data',
         variant: 'destructive',
       })
-      
-      // Fallback to browser download if Wails method fails
-      const blob = new Blob([content], { 
-        type: options.format === 'csv' ? 'text/csv;charset=utf-8;' : 'application/json;charset=utf-8;'
-      })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.setAttribute('download', filename)
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
     }
-  }, [columnNames, resolveCurrentRows])
+  }, [connectionId, query, columnNames, resolveCurrentRows])
 
   const handleDiscardChanges = useCallback(() => {
     if (tableContextRef.current) {
@@ -1386,6 +1508,78 @@ export const QueryResultsTable = ({
       ? '1 row affected.'
       : `${safeAffectedRows.toLocaleString()} rows affected.`
   const pendingDeleteCount = pendingDeleteIds.length
+  const effectiveTotalRows = totalRows !== undefined ? totalRows : rowCount
+  const showPagination = onPageChange && effectiveTotalRows > 0 && hasTabularResults
+
+  // Keyboard shortcut handler for Ctrl+S (Cmd+S on Mac) and pagination
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Ignore if user is typing in an input/textarea
+      const target = event.target as HTMLElement
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+        return
+      }
+
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0
+      const isSaveShortcut = isMac
+        ? (event.metaKey && event.key === 's')
+        : (event.ctrlKey && event.key === 's')
+
+      if (isSaveShortcut) {
+        event.preventDefault()
+
+        // Only save if there are dirty rows and metadata is enabled
+        if (metadata?.enabled && dirtyRowIds.length > 0) {
+          handleSave()
+        }
+        return
+      }
+
+      // Pagination keyboard navigation (only when pagination is enabled)
+      if (showPagination && !isLoadingPage && !saving) {
+        const totalPages = Math.ceil(effectiveTotalRows / pageSize)
+
+        // Alt+Left Arrow or Alt+PageUp - Previous page
+        if (event.altKey && (event.key === 'ArrowLeft' || event.key === 'PageUp')) {
+          event.preventDefault()
+          if (currentPage > 1) {
+            handlePageChange(currentPage - 1)
+          }
+          return
+        }
+
+        // Alt+Right Arrow or Alt+PageDown - Next page
+        if (event.altKey && (event.key === 'ArrowRight' || event.key === 'PageDown')) {
+          event.preventDefault()
+          if (currentPage < totalPages) {
+            handlePageChange(currentPage + 1)
+          }
+          return
+        }
+
+        // Alt+Home - First page
+        if (event.altKey && event.key === 'Home') {
+          event.preventDefault()
+          if (currentPage > 1) {
+            handlePageChange(1)
+          }
+          return
+        }
+
+        // Alt+End - Last page
+        if (event.altKey && event.key === 'End') {
+          event.preventDefault()
+          if (currentPage < totalPages) {
+            handlePageChange(totalPages)
+          }
+          return
+        }
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [metadata?.enabled, dirtyRowIds.length, handleSave, showPagination, isLoadingPage, saving, effectiveTotalRows, pageSize, currentPage, handlePageChange])
 
   return (
     <div className="flex flex-1 min-h-0 flex-col">
@@ -1408,28 +1602,59 @@ export const QueryResultsTable = ({
           </div>
         </div>
       ) : (
-        <EditableTable
-          data={rows as TableRow[]}
-          columns={tableColumns}
-          onDirtyChange={handleDirtyChange}
-          enableMultiSelect={canDeleteRows}
-          enableGlobalFilter={false}
-          enableExport={true}
-          loading={saving}
-          className="flex-1 min-h-0"
-          height="100%"
-          onExport={handleExport}
-          onCellEdit={handleCellEdit}
-          onRowInspect={handleRowClick}
-          toolbar={renderToolbar}
-          footer={null}
-          // Phase 2: Chunked data loading
-          resultId={resultId}
-          totalRows={rowCount}
-          isLargeResult={isLarge}
-          chunkingEnabled={chunkingEnabled}
-          displayMode={displayMode}
-        />
+        <>
+          {/* Top pagination controls */}
+          {showPagination && (
+            <div className="border-b border-border bg-muted/20 px-4 py-2">
+              <PaginationControls
+                currentPage={currentPage}
+                pageSize={pageSize}
+                totalRows={effectiveTotalRows}
+                onPageChange={handlePageChange}
+                onPageSizeChange={handlePageSizeChange}
+                disabled={isLoadingPage || saving}
+              />
+            </div>
+          )}
+
+          <EditableTable
+            data={rows as TableRow[]}
+            columns={tableColumns}
+            onDirtyChange={handleDirtyChange}
+            enableMultiSelect={canDeleteRows}
+            enableGlobalFilter={false}
+            enableExport={true}
+            loading={saving || isLoadingPage}
+            className="flex-1 min-h-0"
+            height="100%"
+            onExport={handleExport}
+            onCellEdit={handleCellEdit}
+            onRowInspect={handleRowClick}
+            toolbar={renderToolbar}
+            footer={null}
+            // Phase 2: Chunked data loading
+            resultId={resultId}
+            totalRows={rowCount}
+            isLargeResult={isLarge}
+            chunkingEnabled={chunkingEnabled}
+            displayMode={displayMode}
+          />
+
+          {/* Bottom pagination controls */}
+          {showPagination && (
+            <div className="border-t border-border bg-muted/20 px-4 py-2">
+              <PaginationControls
+                currentPage={currentPage}
+                pageSize={pageSize}
+                totalRows={effectiveTotalRows}
+                onPageChange={handlePageChange}
+                onPageSizeChange={handlePageSizeChange}
+                disabled={isLoadingPage || saving}
+                compact
+              />
+            </div>
+          )}
+        </>
       )}
 
       <Dialog

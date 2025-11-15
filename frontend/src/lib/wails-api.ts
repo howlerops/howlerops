@@ -336,7 +336,7 @@ export class WailsApiClient {
     }
   }
 
-  async executeQuery(connectionId: string, sql: string, limit?: number, offset?: number, timeout?: number) {
+  async executeQuery(connectionId: string, sql: string, limit?: number, offset?: number, timeout?: number, isExport?: boolean) {
     try {
       // Check if query contains @ syntax for multi-database queries
       if (shouldUseMultiDatabasePath(sql)) {
@@ -359,7 +359,8 @@ export class WailsApiClient {
         query: sql,
         limit: limitRows,
         offset: offsetRows,
-        timeout: timeoutSeconds
+        timeout: timeoutSeconds,
+        isExport: isExport || false
       }
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

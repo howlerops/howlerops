@@ -18,6 +18,10 @@ export function Dashboard() {
     queryEditorRef.current?.openAIFix(error, query)
   }, [])
 
+  const handlePageChange = useCallback(async (tabId: string, limit: number, offset: number) => {
+    await queryEditorRef.current?.handlePageChange(tabId, limit, offset)
+  }, [])
+
   const handleResizeStart = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
     event.preventDefault()
     const container = containerRef.current
@@ -68,7 +72,7 @@ export function Dashboard() {
           className="flex min-h-[64px] flex-col overflow-hidden"
           style={{ flexGrow: 1 - editorFraction, flexShrink: 1, flexBasis: 0 }}
         >
-          <ResultsPanel onFixWithAI={handleFixWithAI} />
+          <ResultsPanel onFixWithAI={handleFixWithAI} onPageChange={handlePageChange} />
         </div>
       </div>
     </PageErrorBoundary>

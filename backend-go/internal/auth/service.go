@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"database/sql"
+	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/sql-studio/backend-go/internal/middleware"
+	"github.com/sql-studio/backend-go/pkg/crypto"
 )
 
 // User represents a user in the system
@@ -88,11 +90,19 @@ type EmailService interface {
 	SendWelcomeEmail(email, name string) error
 }
 
+// MasterKeyStore defines the interface for master key storage operations
+type MasterKeyStore interface {
+	StoreMasterKey(ctx context.Context, userID string, encryptedKey *crypto.EncryptedMasterKey) error
+	GetMasterKey(ctx context.Context, userID string) (*crypto.EncryptedMasterKey, error)
+	DeleteMasterKey(ctx context.Context, userID string) error
+}
+
 // Service provides authentication functionality
 type Service struct {
 	userStore         UserStore
 	sessionStore      SessionStore
 	attemptStore      LoginAttemptStore
+	masterKeyStore    MasterKeyStore
 	authMiddleware    *middleware.AuthMiddleware
 	emailService      EmailService
 	logger            *logrus.Logger
@@ -117,6 +127,7 @@ func NewService(
 	userStore UserStore,
 	sessionStore SessionStore,
 	attemptStore LoginAttemptStore,
+	masterKeyStore MasterKeyStore,
 	authMiddleware *middleware.AuthMiddleware,
 	config Config,
 	logger *logrus.Logger,
@@ -125,6 +136,7 @@ func NewService(
 		userStore:         userStore,
 		sessionStore:      sessionStore,
 		attemptStore:      attemptStore,
+		masterKeyStore:    masterKeyStore,
 		authMiddleware:    authMiddleware,
 		logger:            logger,
 		bcryptCost:        config.BcryptCost,
@@ -150,6 +162,7 @@ type LoginResponse struct {
 	Token        string    `json:"token"`
 	RefreshToken string    `json:"refresh_token"`
 	ExpiresAt    time.Time `json:"expires_at"`
+	MasterKey    string    `json:"master_key,omitempty"` // Base64-encoded master key for session
 }
 
 // Login authenticates a user and creates a session
@@ -220,6 +233,26 @@ func (s *Service) Login(ctx context.Context, req *LoginRequest) (*LoginResponse,
 	// Record successful login attempt
 	s.recordLoginAttempt(ctx, req.IPAddress, req.Username, true)
 
+	// Retrieve and decrypt master key
+	var masterKeyBase64 string
+	if s.masterKeyStore != nil {
+		encryptedMK, err := s.masterKeyStore.GetMasterKey(ctx, user.ID)
+		if err != nil {
+			// Master key not found is OK for existing users (before encryption was enabled)
+			s.logger.WithError(err).Debug("Master key not found for user")
+		} else {
+			// Decrypt master key using the user's password
+			masterKey, err := crypto.DecryptMasterKeyWithPassword(encryptedMK, req.Password)
+			if err != nil {
+				s.logger.WithError(err).Error("Failed to decrypt master key")
+				return nil, fmt.Errorf("failed to decrypt master key")
+			}
+
+			// Encode master key as Base64 for transport
+			masterKeyBase64 = base64.StdEncoding.EncodeToString(masterKey)
+		}
+	}
+
 	s.logger.WithFields(logrus.Fields{
 		"user_id":  user.ID,
 		"username": user.Username,
@@ -234,6 +267,7 @@ func (s *Service) Login(ctx context.Context, req *LoginRequest) (*LoginResponse,
 		Token:        token,
 		RefreshToken: refreshToken,
 		ExpiresAt:    session.ExpiresAt,
+		MasterKey:    masterKeyBase64,
 	}, nil
 }
 
@@ -356,6 +390,9 @@ func (s *Service) VerifyToken(ctx context.Context, token string) (*User, error) 
 
 // CreateUser creates a new user account
 func (s *Service) CreateUser(ctx context.Context, user *User) error {
+	// Store the plaintext password temporarily for master key encryption
+	plaintextPassword := user.Password
+
 	// Hash password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), s.bcryptCost)
 	if err != nil {
@@ -372,7 +409,34 @@ func (s *Service) CreateUser(ctx context.Context, user *User) error {
 		user.Metadata = make(map[string]string)
 	}
 
-	return s.userStore.CreateUser(ctx, user)
+	// Create user first
+	if err := s.userStore.CreateUser(ctx, user); err != nil {
+		return err
+	}
+
+	// Generate and encrypt master key for this user
+	if s.masterKeyStore != nil {
+		masterKey, err := crypto.GenerateMasterKey()
+		if err != nil {
+			s.logger.WithError(err).Error("Failed to generate master key")
+			// Don't fail user creation, but log the error
+			return nil
+		}
+
+		encryptedMasterKey, err := crypto.EncryptMasterKeyWithPassword(masterKey, plaintextPassword)
+		if err != nil {
+			s.logger.WithError(err).Error("Failed to encrypt master key")
+			// Don't fail user creation, but log the error
+			return nil
+		}
+
+		if err := s.masterKeyStore.StoreMasterKey(ctx, user.ID, encryptedMasterKey); err != nil {
+			s.logger.WithError(err).Error("Failed to store master key")
+			// Don't fail user creation, but log the error
+		}
+	}
+
+	return nil
 }
 
 // ChangePassword changes a user's password
@@ -386,6 +450,33 @@ func (s *Service) ChangePassword(ctx context.Context, userID, oldPassword, newPa
 	// Verify old password
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(oldPassword)); err != nil {
 		return fmt.Errorf("invalid current password")
+	}
+
+	// Re-encrypt master key with new password
+	if s.masterKeyStore != nil {
+		encryptedMK, err := s.masterKeyStore.GetMasterKey(ctx, userID)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("failed to retrieve master key: %w", err)
+		}
+
+		if encryptedMK != nil {
+			// Decrypt master key with old password
+			masterKey, err := crypto.DecryptMasterKeyWithPassword(encryptedMK, oldPassword)
+			if err != nil {
+				return fmt.Errorf("failed to decrypt master key with old password: %w", err)
+			}
+
+			// Re-encrypt with new password
+			newEncryptedMK, err := crypto.EncryptMasterKeyWithPassword(masterKey, newPassword)
+			if err != nil {
+				return fmt.Errorf("failed to encrypt master key with new password: %w", err)
+			}
+
+			// Store re-encrypted master key
+			if err := s.masterKeyStore.StoreMasterKey(ctx, userID, newEncryptedMK); err != nil {
+				return fmt.Errorf("failed to store re-encrypted master key: %w", err)
+			}
+		}
 	}
 
 	// Hash new password

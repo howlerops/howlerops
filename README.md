@@ -430,9 +430,30 @@ See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for development guidelines.
 
 ## Documentation
 
+### Feature Documentation (NEW - Organized!)
+
+Comprehensive documentation for all implemented features:
+
+- **[Features](docs/features/)** - Implemented features with detailed guides
+  - [Auto-Connect](docs/features/auto-connect/) - Automatic database reconnection ✅
+  - [Pagination](docs/features/pagination/) - Query result pagination ⚠️ In Progress
+  - [Table Virtualization](docs/features/virtualization/) - Performance optimizations ✅
+
+- **[Security](docs/security/)** - Security features and architecture
+  - [Keychain Integration](docs/security/keychain/) - OS-native credential storage ✅
+  - [Password Encryption](docs/security/encryption/) - Zero-knowledge encryption 🚧 In Progress
+
+- **[Architecture](docs/architecture/)** - System design and technical specs
+  - [Storage Architecture](docs/architecture/storage-analysis.md) - Data storage layers
+  - [Test Database Setup](docs/architecture/test-database.md) - Docker test environment
+
+- **[Deployment](docs/deployment/)** - Production deployment guides
+  - [Deployment Overview](docs/deployment/overview.md) - Complete deployment guide
+  - [Migration System](docs/deployment/migration-deployment.md) - Automatic migrations
+
 ### User Guides
 
-- [User Guide](docs/USER_GUIDE.md) - Complete user manual (NEW)
+- [User Guide](docs/user-guides/) - Complete user manual
 - [Installation Guide](INSTALL.md) - Detailed installation instructions for all platforms
 - [Quick Start Guide](INSTALL_QUICK_REFERENCE.md) - Get started in 5 minutes
 - [AI Setup Guide](docs/AI_SETUP_GUIDE.md) - Configure AI providers

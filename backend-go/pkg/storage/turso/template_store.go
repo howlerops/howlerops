@@ -353,7 +353,11 @@ func (s *TemplateStore) queryTemplates(ctx context.Context, query string, args .
 	if err != nil {
 		return nil, fmt.Errorf("failed to query templates: %w", err)
 	}
-	defer func() { if err := rows.Close(); err != nil { s.logger.WithError(err).Error("Failed to close rows") } }()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			s.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	var templates []*QueryTemplate
 	for rows.Next() {

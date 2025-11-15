@@ -9,11 +9,13 @@
  * - Automatic token refresh
  * - Persistent authentication state
  * - Integration with tier store
+ * - Master key management for password encryption
  * - Error handling and loading states
  */
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { importMasterKeyFromBase64 } from '@/lib/crypto/encryption'
 
 export interface User {
   id: string
@@ -29,6 +31,9 @@ export interface AuthTokens {
   expires_at: string
 }
 
+// In-memory master key cache (never persisted to disk!)
+let sessionMasterKey: CryptoKey | null = null
+
 interface AuthState {
   // State
   user: User | null
@@ -43,6 +48,10 @@ interface AuthState {
   signOut: () => Promise<void>
   refreshToken: () => Promise<boolean>
   clearError: () => void
+
+  // Master key management
+  getMasterKey: () => CryptoKey | null
+  hasMasterKey: () => boolean
 
   // Internal
   setUser: (user: User | null) => void
@@ -82,6 +91,15 @@ export const useAuthStore = create<AuthState>()(
           }
 
           const data = await response.json()
+
+          // Import and cache master key in memory
+          if (data.master_key) {
+            try {
+              sessionMasterKey = await importMasterKeyFromBase64(data.master_key)
+            } catch (err) {
+              console.error('Failed to import master key:', err)
+            }
+          }
 
           set({
             user: data.user,
@@ -134,6 +152,15 @@ export const useAuthStore = create<AuthState>()(
 
           const data = await response.json()
 
+          // Import and cache master key in memory
+          if (data.master_key) {
+            try {
+              sessionMasterKey = await importMasterKeyFromBase64(data.master_key)
+            } catch (err) {
+              console.error('Failed to import master key:', err)
+            }
+          }
+
           set({
             user: data.user,
             tokens: {
@@ -185,6 +212,9 @@ export const useAuthStore = create<AuthState>()(
             // Continue with local logout even if backend fails
           }
         }
+
+        // CRITICAL: Clear master key from memory
+        sessionMasterKey = null
 
         set({
           user: null,
@@ -246,6 +276,10 @@ export const useAuthStore = create<AuthState>()(
       // Clear error
       clearError: () => set({ error: null }),
 
+      // Master key management
+      getMasterKey: () => sessionMasterKey,
+      hasMasterKey: () => sessionMasterKey !== null,
+
       // Setters
       setUser: (user) => set({ user }),
       setTokens: (tokens) => set({ tokens }),
@@ -253,14 +287,18 @@ export const useAuthStore = create<AuthState>()(
       setError: (error) => set({ error }),
 
       // Reset store
-      reset: () =>
+      reset: () => {
+        // Clear master key from memory
+        sessionMasterKey = null
+
         set({
           user: null,
           tokens: null,
           isAuthenticated: false,
           isLoading: false,
           error: null,
-        }),
+        })
+      },
     }),
     {
       name: 'auth-storage',

@@ -1,0 +1,190 @@
+version: '3.8'
+
+# HowlerOps Test Database Environment
+# This docker-compose file provides test databases with seed data for all supported database types.
+#
+# Usage:
+#   Start all databases:    docker-compose -f docker-compose.testdb.yml up -d
+#   Stop all databases:     docker-compose -f docker-compose.testdb.yml down
+#   Reset all data:         docker-compose -f docker-compose.testdb.yml down -v
+#   View logs:              docker-compose -f docker-compose.testdb.yml logs -f
+#
+# Each database is pre-populated with realistic test data including:
+# - Users table (100+ users)
+# - Products table (200+ products)
+# - Orders table (500+ orders)
+# - Order items (1000+ line items)
+# - Audit logs (1000+ entries)
+#
+# Port mappings (to avoid conflicts with dev databases):
+# - PostgreSQL:    5433 (internal: 5432)
+# - MySQL:         3307 (internal: 3306)
+# - MongoDB:       27018 (internal: 27017)
+# - ElasticSearch: 9201 (internal: 9200)
+# - ClickHouse:    9001 (internal: 9000), 8124 (internal: 8123)
+# - Redis:         6380 (internal: 6379)
+
+services:
+  # PostgreSQL Test Database
+  postgres-test:
+    image: postgres:16-alpine
+    container_name: howlerops-postgres-test
+    environment:
+      POSTGRES_DB: testdb
+      POSTGRES_USER: testuser
+      POSTGRES_PASSWORD: testpass
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+      - ./scripts/seed-test-data/postgres:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U testuser -d testdb"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - testdb-network
+
+  # MySQL Test Database
+  mysql-test:
+    image: mysql:8.0
+    container_name: howlerops-mysql-test
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: testdb
+      MYSQL_USER: testuser
+      MYSQL_PASSWORD: testpass
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_test_data:/var/lib/mysql
+      - ./scripts/seed-test-data/mysql:/docker-entrypoint-initdb.d:ro
+    command: --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "testuser", "-ptestpass"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - testdb-network
+
+  # MongoDB Test Database
+  mongodb-test:
+    image: mongo:7
+    container_name: howlerops-mongodb-test
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: testuser
+      MONGO_INITDB_ROOT_PASSWORD: testpass
+      MONGO_INITDB_DATABASE: testdb
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongodb_test_data:/data/db
+      - ./scripts/seed-test-data/mongodb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - testdb-network
+
+  # ElasticSearch Test Database
+  elasticsearch-test:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: howlerops-elasticsearch-test
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - bootstrap.memory_lock=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    ports:
+      - "9201:9200"
+      - "9301:9300"
+    volumes:
+      - elasticsearch_test_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - testdb-network
+
+  # ElasticSearch data seeder (runs after ES is healthy)
+  elasticsearch-seeder:
+    image: curlimages/curl:latest
+    container_name: howlerops-elasticsearch-seeder
+    depends_on:
+      elasticsearch-test:
+        condition: service_healthy
+    volumes:
+      - ./scripts/seed-test-data/elasticsearch:/scripts:ro
+    entrypoint: ["/bin/sh"]
+    command: ["/scripts/seed.sh"]
+    networks:
+      - testdb-network
+
+  # ClickHouse Test Database
+  clickhouse-test:
+    image: clickhouse/clickhouse-server:latest
+    container_name: howlerops-clickhouse-test
+    environment:
+      CLICKHOUSE_DB: testdb
+      CLICKHOUSE_USER: testuser
+      CLICKHOUSE_PASSWORD: testpass
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    ports:
+      - "9001:9000"  # Native protocol
+      - "8124:8123"  # HTTP interface
+    volumes:
+      - clickhouse_test_data:/var/lib/clickhouse
+      - ./scripts/seed-test-data/clickhouse:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--query", "SELECT 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - testdb-network
+
+  # Redis Cache (often used alongside databases)
+  redis-test:
+    image: redis:7-alpine
+    container_name: howlerops-redis-test
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_test_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - testdb-network
+
+volumes:
+  postgres_test_data:
+    name: howlerops_postgres_test_data
+  mysql_test_data:
+    name: howlerops_mysql_test_data
+  mongodb_test_data:
+    name: howlerops_mongodb_test_data
+  elasticsearch_test_data:
+    name: howlerops_elasticsearch_test_data
+  clickhouse_test_data:
+    name: howlerops_clickhouse_test_data
+  redis_test_data:
+    name: howlerops_redis_test_data
+
+networks:
+  testdb-network:
+    name: howlerops-testdb-network
+    driver: bridge

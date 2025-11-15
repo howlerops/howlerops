@@ -14,9 +14,10 @@ import { RotateCcw, Clock, Database, AlertCircle, BarChart3, Wand2 } from 'lucid
 
 export interface ResultsPanelProps {
   onFixWithAI?: (error: string, query: string) => void
+  onPageChange?: (tabId: string, limit: number, offset: number) => Promise<void>
 }
 
-export function ResultsPanel({ onFixWithAI }: ResultsPanelProps = {}) {
+export function ResultsPanel({ onFixWithAI, onPageChange }: ResultsPanelProps = {}) {
   const tabs = useQueryStore((state) => state.tabs)
   const activeTabId = useQueryStore((state) => state.activeTabId)
   const results = useQueryStore((state) => state.results)
@@ -224,6 +225,9 @@ export function ResultsPanel({ onFixWithAI }: ResultsPanelProps = {}) {
               chunkingEnabled={latestResult.chunkingEnabled}
               displayMode={latestResult.displayMode}
               totalRows={latestResult.totalRows}
+              hasMore={latestResult.hasMore}
+              offset={latestResult.offset}
+              onPageChange={onPageChange && activeTabId ? (limit, offset) => onPageChange(activeTabId, limit, offset) : undefined}
             />
           )}
         </TabsContent>

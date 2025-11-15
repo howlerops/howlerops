@@ -498,7 +498,7 @@ func TestInvitationFlow_CompleteJourney(t *testing.T) {
 	ctx := context.Background()
 
 	// Setup: Create users
-	_ = testDB.InsertTestUser(ctx, "owner1", "owner@test.com", "owner", "pass")   // Best-effort test setup
+	_ = testDB.InsertTestUser(ctx, "owner1", "owner@test.com", "owner", "pass")    // Best-effort test setup
 	_ = testDB.InsertTestUser(ctx, "member1", "member@test.com", "member", "pass") // Best-effort test setup
 
 	// Step 1: Create organization

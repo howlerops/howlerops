@@ -63,6 +63,7 @@ export interface QueryEditorProps {
 
 export interface QueryEditorHandle {
   openAIFix: (error: string, query: string) => void
+  handlePageChange: (tabId: string, limit: number, offset: number) => Promise<void>
 }
 
 export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mode: propMode = 'single' }, ref) => {
@@ -86,6 +87,7 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
     updateTab,
     setActiveTab,
     executeQuery,
+    results,
   } = useQueryStore()
 
   // AI Integration
@@ -169,8 +171,33 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
   // Save Query Dialog state
   const [showSaveQueryDialog, setShowSaveQueryDialog] = useState(false)
 
+  // Pagination state - tracks pagination settings per tab
+  const [tabPaginationState, setTabPaginationState] = useState<Record<string, {
+    limit: number
+    offset: number
+  }>>({})
+
   // Get user for saved queries
   const user = useAuthStore(state => state.user)
+
+  // Pagination handler - re-executes query with new limit/offset
+  const handlePageChange = useCallback(async (tabId: string, limit: number, offset: number) => {
+    const tab = tabs.find(t => t.id === tabId)
+    if (!tab) return
+
+    // Update pagination state
+    setTabPaginationState(prev => ({
+      ...prev,
+      [tabId]: { limit, offset }
+    }))
+
+    // Find the last executed query for this tab
+    const lastResult = results.find(r => r.tabId === tabId)
+    if (!lastResult?.query) return
+
+    // Re-execute query with new pagination
+    await executeQuery(tabId, lastResult.query, tab.connectionId, limit, offset)
+  }, [tabs, results, executeQuery])
 
   // Expose methods to parent components
   useImperativeHandle(ref, () => ({
@@ -184,8 +211,9 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
       setShowAIDialog(true)
       // Automatically trigger fix
       handleFixQueryError(error, query)
-    }
-  }))
+    },
+    handlePageChange
+  }), [handlePageChange])
 
   const environmentFilteredConnections = useMemo(() => {
     if (!activeEnvironmentFilter) {
@@ -742,12 +770,15 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
       selectedConnectionIds: [connectionId]
     })
 
-    // Execute the pending query
-    await executeQuery(activeTab.id, pendingQuery)
+    // Get pagination state for this tab (default to first page)
+    const paginationState = tabPaginationState[activeTab.id] || { limit: 100, offset: 0 }
+
+    // Execute the pending query with pagination
+    await executeQuery(activeTab.id, pendingQuery, connectionId, paginationState.limit, paginationState.offset)
 
     // Clear pending state
     setPendingQuery(null)
-  }, [activeTab, pendingQuery, updateTab, executeQuery])
+  }, [activeTab, pendingQuery, updateTab, executeQuery, tabPaginationState])
 
   const handleExecuteQuery = useCallback(async () => {
     if (!activeTab) return
@@ -797,8 +828,24 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
 
     flushTabUpdate(activeTab.id, currentEditorValue)
 
-    await executeQuery(activeTab.id, queryToExecute)
-  }, [activeTab, editorContent, executeQuery, flushTabUpdate])
+    // Reset pagination to first page when query changes
+    // Check if query has actually changed by comparing with last executed query
+    const lastResult = results.find(r => r.tabId === activeTab.id)
+    const queryChanged = !lastResult || lastResult.query !== queryToExecute
+
+    if (queryChanged) {
+      // Reset to first page
+      setTabPaginationState(prev => ({
+        ...prev,
+        [activeTab.id]: { limit: 100, offset: 0 }
+      }))
+      await executeQuery(activeTab.id, queryToExecute, activeTab.connectionId, 100, 0)
+    } else {
+      // Use existing pagination state
+      const paginationState = tabPaginationState[activeTab.id] || { limit: 100, offset: 0 }
+      await executeQuery(activeTab.id, queryToExecute, activeTab.connectionId, paginationState.limit, paginationState.offset)
+    }
+  }, [activeTab, editorContent, executeQuery, flushTabUpdate, results, tabPaginationState])
 
   // Keyboard shortcut for executing query (Ctrl/Cmd+Enter)
   useEffect(() => {

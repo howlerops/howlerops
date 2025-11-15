@@ -130,4 +130,3 @@ func fixIneffectualAssignments(content string) string {
 	// This is better done with proper AST walking
 	return content
 }
-

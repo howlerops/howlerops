@@ -185,7 +185,7 @@ func (c *ClickHouseDatabase) executeSelect(ctx context.Context, db *sql.DB, quer
 			// Don't exceed user's limit
 			if int64(effectiveOffset) >= userLimit {
 				effectiveLimit = 0 // No more rows to fetch
-			} else if int64(effectiveOffset) + int64(effectiveLimit) > userLimit {
+			} else if int64(effectiveOffset)+int64(effectiveLimit) > userLimit {
 				effectiveLimit = int(userLimit - int64(effectiveOffset))
 			}
 

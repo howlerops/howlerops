@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	"github.com/sql-studio/backend-go/pkg/crypto"
 )
 
 // Connection represents a database connection template
@@ -21,6 +22,7 @@ type Connection struct {
 	Port           int                    `json:"port,omitempty"`
 	Database       string                 `json:"database"`
 	Username       string                 `json:"username,omitempty"`
+	Password       string                 `json:"password,omitempty"` // Plaintext password (memory only, never stored)
 	UseSSH         bool                   `json:"use_ssh,omitempty"`
 	SSHHost        string                 `json:"ssh_host,omitempty"`
 	SSHPort        int                    `json:"ssh_port,omitempty"`
@@ -38,19 +40,22 @@ type Connection struct {
 
 // ConnectionStore handles database operations for connection templates
 type ConnectionStore struct {
-	db     *sql.DB
-	logger *logrus.Logger
+	db              *sql.DB
+	logger          *logrus.Logger
+	credentialStore *CredentialStore
 }
 
 // NewConnectionStore creates a new connection store
 func NewConnectionStore(db *sql.DB, logger *logrus.Logger) *ConnectionStore {
 	return &ConnectionStore{
-		db:     db,
-		logger: logger,
+		db:              db,
+		logger:          logger,
+		credentialStore: NewCredentialStore(db, logger),
 	}
 }
 
 // Create creates a new connection
+// If a password is provided and a master key is available, it will be encrypted and stored separately
 func (s *ConnectionStore) Create(ctx context.Context, conn *Connection) error {
 	if conn.ID == "" {
 		conn.ID = uuid.New().String()
@@ -100,6 +105,35 @@ func (s *ConnectionStore) Create(ctx context.Context, conn *Connection) error {
 	return nil
 }
 
+// CreateWithEncryptedPassword creates a connection and stores the password encrypted with the user's master key
+func (s *ConnectionStore) CreateWithEncryptedPassword(ctx context.Context, conn *Connection, masterKey []byte) error {
+	// Save the plaintext password temporarily
+	password := conn.Password
+
+	// Clear password from connection struct before saving
+	conn.Password = ""
+
+	// Create connection without password
+	if err := s.Create(ctx, conn); err != nil {
+		return err
+	}
+
+	// If password was provided, encrypt and store it
+	if password != "" && len(masterKey) > 0 {
+		encrypted, err := crypto.EncryptPasswordWithKey(password, masterKey)
+		if err != nil {
+			s.logger.WithError(err).Error("Failed to encrypt password")
+			return fmt.Errorf("failed to encrypt password: %w", err)
+		}
+
+		if err := s.credentialStore.StoreCredential(ctx, conn.UserID, conn.ID, encrypted); err != nil {
+			return fmt.Errorf("failed to store encrypted password: %w", err)
+		}
+	}
+
+	return nil
+}
+
 // GetByID retrieves a connection by ID
 func (s *ConnectionStore) GetByID(ctx context.Context, id string) (*Connection, error) {
 	query := `
@@ -144,6 +178,36 @@ func (s *ConnectionStore) GetByID(ctx context.Context, id string) (*Connection, 
 	}
 
 	return &conn, nil
+}
+
+// GetByIDWithPassword retrieves a connection by ID and decrypts its password using the master key
+func (s *ConnectionStore) GetByIDWithPassword(ctx context.Context, id string, masterKey []byte) (*Connection, error) {
+	conn, err := s.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Try to retrieve and decrypt password if master key is provided
+	if len(masterKey) > 0 {
+		encrypted, err := s.credentialStore.GetCredential(ctx, conn.UserID, conn.ID)
+		if err != nil {
+			s.logger.WithError(err).Debug("Failed to retrieve encrypted password")
+			// Continue without password
+			return conn, nil
+		}
+
+		if encrypted != nil {
+			password, err := crypto.DecryptPasswordWithKey(encrypted, masterKey)
+			if err != nil {
+				s.logger.WithError(err).Error("Failed to decrypt password")
+				return nil, fmt.Errorf("failed to decrypt password: %w", err)
+			}
+
+			conn.Password = password
+		}
+	}
+
+	return conn, nil
 }
 
 // GetByUserID retrieves all connections for a user (personal only)
@@ -309,6 +373,67 @@ func (s *ConnectionStore) Delete(ctx context.Context, id string) error {
 
 	s.logger.WithField("connection_id", id).Info("Connection deleted")
 	return nil
+}
+
+// UpdateMigrationStatus updates the password migration status for a connection
+func (s *ConnectionStore) UpdateMigrationStatus(ctx context.Context, connectionID, status string) error {
+	// Validate status
+	validStatuses := map[string]bool{
+		"not_migrated": true,
+		"migrated":     true,
+		"no_password":  true,
+	}
+
+	if !validStatuses[status] {
+		return fmt.Errorf("invalid migration status: %s", status)
+	}
+
+	query := `
+		UPDATE connection_templates
+		SET password_migration_status = ?, updated_at = ?
+		WHERE id = ? AND deleted_at IS NULL
+	`
+
+	result, err := s.db.ExecContext(ctx, query, status, time.Now().Unix(), connectionID)
+	if err != nil {
+		return fmt.Errorf("failed to update migration status: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("connection not found or already deleted")
+	}
+
+	s.logger.WithFields(logrus.Fields{
+		"connection_id": connectionID,
+		"status":        status,
+	}).Debug("Migration status updated")
+
+	return nil
+}
+
+// GetMigrationStatus retrieves the password migration status for a connection
+func (s *ConnectionStore) GetMigrationStatus(ctx context.Context, connectionID string) (string, error) {
+	query := `
+		SELECT COALESCE(password_migration_status, 'not_migrated')
+		FROM connection_templates
+		WHERE id = ? AND deleted_at IS NULL
+	`
+
+	var status string
+	err := s.db.QueryRowContext(ctx, query, connectionID).Scan(&status)
+	if err == sql.ErrNoRows {
+		return "not_migrated", fmt.Errorf("connection not found")
+	}
+	if err != nil {
+		return "not_migrated", fmt.Errorf("failed to query migration status: %w", err)
+	}
+
+	return status, nil
 }
 
 // queryConnections is a helper method to query and scan multiple connections

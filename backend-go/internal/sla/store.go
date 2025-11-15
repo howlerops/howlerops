@@ -1,10 +1,10 @@
 package sla
 
 import (
-	"log"
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/google/uuid"
@@ -64,7 +64,11 @@ func (s *Store) GetRequestsForDay(ctx context.Context, orgID string, date time.T
 	if err != nil {
 		return nil, fmt.Errorf("query requests: %w", err)
 	}
-	defer func() { if err := rows.Close(); err != nil { log.Printf("Failed to close rows: %v", err) } }()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Printf("Failed to close rows: %v", err)
+		}
+	}()
 
 	var requests []*RequestLog
 	for rows.Next() {
@@ -170,7 +174,11 @@ func (s *Store) GetMetricsForPeriod(ctx context.Context, orgID string, startDate
 	if err != nil {
 		return nil, fmt.Errorf("query metrics: %w", err)
 	}
-	defer func() { if err := rows.Close(); err != nil { log.Printf("Failed to close rows: %v", err) } }()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Printf("Failed to close rows: %v", err)
+		}
+	}()
 
 	var metricsList []*SLAMetrics
 	for rows.Next() {
@@ -245,7 +253,11 @@ func (s *Store) GetLatestMetrics(ctx context.Context, orgID string, limit int) (
 	if err != nil {
 		return nil, fmt.Errorf("query latest metrics: %w", err)
 	}
-	defer func() { if err := rows.Close(); err != nil { log.Printf("Failed to close rows: %v", err) } }()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Printf("Failed to close rows: %v", err)
+		}
+	}()
 
 	var metricsList []*SLAMetrics
 	for rows.Next() {

@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback, useRef, useEffect, memo, useDeferredValue } from 'react';
+import React, { useMemo, useCallback, useRef, useEffect, memo } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
@@ -28,6 +28,33 @@ import { TableToolbar } from './table-toolbar';
 import { StatusBar } from './status-bar';
 
 const EMPTY_VIRTUAL_ITEMS: VirtualItem[] = [];
+
+// Comparison function for VirtualRow memo - only re-render if row data or virtual item changes
+const arePropsEqual = (
+  prev: { row: unknown; virtualItem?: VirtualItem; onRowClick?: (rowId: string, rowData: TableRow) => void },
+  next: { row: unknown; virtualItem?: VirtualItem; onRowClick?: (rowId: string, rowData: TableRow) => void }
+) => {
+  const prevRow = prev.row as { original?: { __rowId?: string } } | null;
+  const nextRow = next.row as { original?: { __rowId?: string } } | null;
+
+  // Check if row ID changed (most important check)
+  if (prevRow?.original?.__rowId !== nextRow?.original?.__rowId) {
+    return false;
+  }
+
+  // Check if virtual item index changed
+  if (prev.virtualItem?.index !== next.virtualItem?.index) {
+    return false;
+  }
+
+  // Check if virtual item key changed (size/position updates)
+  if (prev.virtualItem?.key !== next.virtualItem?.key) {
+    return false;
+  }
+
+  // onRowClick is stable, no need to check
+  return true;
+};
 
 // Simplified VirtualRow component following official pattern
 const VirtualRow = memo(React.forwardRef<HTMLTableRowElement, {
@@ -86,6 +113,9 @@ const VirtualRow = memo(React.forwardRef<HTMLTableRowElement, {
 
 VirtualRow.displayName = 'VirtualRow';
 
+// Apply custom comparison to VirtualRow memo
+const MemoizedVirtualRow = memo(VirtualRow, arePropsEqual) as typeof VirtualRow;
+
 export const EditableTable: React.FC<EditableTableProps> = ({
   data: initialData,
   columns: tableColumns,
@@ -132,23 +162,20 @@ export const EditableTable: React.FC<EditableTableProps> = ({
   });
 
   // Use chunked data if chunking is enabled, otherwise use initial data
+  // REMOVED useDeferredValue - it causes stale data and scroll jumping
   const effectiveData = (chunkingEnabled && isLargeResult) ? chunkedData as TableRow[] : initialData;
-
-  // Defer expensive table updates to keep UI responsive for large datasets
-  // When data changes, React will prioritize urgent updates (user input) over table rendering
-  const deferredData = useDeferredValue(effectiveData);
 
   const {
     data,
     setData,
     state,
     actions,
-  } = useTableState(deferredData);
+  } = useTableState(effectiveData);
 
   useEffect(() => {
-    // Update data when deferred data changes (this allows React to prioritize urgent updates)
-    setData(deferredData);
-  }, [deferredData, setData]);
+    // Update data synchronously when effective data changes
+    setData(effectiveData);
+  }, [effectiveData, setData]);
 
   // Create TanStack Table columns
   const columns = useMemo<ColumnDef<TableRow>[]>(() => {
@@ -354,32 +381,40 @@ export const EditableTable: React.FC<EditableTableProps> = ({
     count: shouldVirtualize ? visibleRowCount : 0,
     getScrollElement: () => tableContainerRef.current,
     estimateSize: () => estimateSize,
-    // Conservative buffer: 20 rows = ~620px buffer (prevents white chunks without sync issues)
-    // ag-Grid uses ~10 rows with dynamic pixel calculation; 20 is safe for fixed-height
-    overscan: 20,
+    // Reduced overscan: 5 rows is sufficient for smooth scrolling
+    // 20 was too aggressive and caused unnecessary renders
+    overscan: 5,
     measureElement: (element) => element?.getBoundingClientRect().height ?? estimateSize,
     // Enable horizontal overscan for wide tables
     horizontal: false,
   });
 
-  // ag-Grid pattern: Optimize scroll performance with passive listeners
+  // Preserve scroll position during data updates
+  const scrollPositionRef = useRef({ top: 0, left: 0 });
+
   useEffect(() => {
     const scrollElement = tableContainerRef.current;
-    if (!scrollElement || !shouldVirtualize) return;
+    if (!scrollElement) return;
 
-    // Add passive scroll listener for better performance
-    // Prevents blocking the main thread during scroll
-    const handleScroll = () => {
-      // TanStack Virtual handles the actual scroll logic
-      // This is just to enable passive event listening
+    // Save scroll position before data updates
+    const saveScrollPosition = () => {
+      scrollPositionRef.current = {
+        top: scrollElement.scrollTop,
+        left: scrollElement.scrollLeft,
+      };
     };
 
-    scrollElement.addEventListener('scroll', handleScroll, { passive: true });
-
-    return () => {
-      scrollElement.removeEventListener('scroll', handleScroll);
+    // Restore scroll position after data updates
+    const restoreScrollPosition = () => {
+      if (scrollPositionRef.current.top > 0) {
+        scrollElement.scrollTop = scrollPositionRef.current.top;
+        scrollElement.scrollLeft = scrollPositionRef.current.left;
+      }
     };
-  }, [shouldVirtualize]);
+
+    saveScrollPosition();
+    restoreScrollPosition();
+  }, [data]);
 
   const virtualizerWorking = shouldVirtualize && Boolean(tableContainerRef.current);
 
@@ -480,6 +515,13 @@ export const EditableTable: React.FC<EditableTableProps> = ({
   // Get virtual items following official pattern
   const virtualItems = virtualizerWorking ? virtualizer.getVirtualItems() : EMPTY_VIRTUAL_ITEMS;
   const totalSize = virtualizerWorking ? virtualizer.getTotalSize() : undefined;
+
+  // Cleanup virtualizer when switching modes or unmounting
+  useEffect(() => {
+    return () => {
+      // No explicit cleanup needed - virtualizer handles its own lifecycle
+    };
+  }, [shouldVirtualize]);
 
   useEffect(() => {
     if (!chunkingEnabled || !isLargeResult) {
@@ -588,7 +630,7 @@ export const EditableTable: React.FC<EditableTableProps> = ({
                     }
 
                     return (
-                      <VirtualRow
+                      <MemoizedVirtualRow
                         key={row.id}
                         row={row}
                         columns={columns}
@@ -619,7 +661,7 @@ export const EditableTable: React.FC<EditableTableProps> = ({
                 </>
               ) : (
                 rows.map(row => (
-                  <VirtualRow
+                  <MemoizedVirtualRow
                     key={row.id}
                     row={row}
                     columns={columns}

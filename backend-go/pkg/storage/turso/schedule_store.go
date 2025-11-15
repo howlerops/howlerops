@@ -452,7 +452,11 @@ func (s *ScheduleStore) GetExecutionHistory(ctx context.Context, scheduleID stri
 	if err != nil {
 		return nil, fmt.Errorf("failed to query executions: %w", err)
 	}
-	defer func() { if err := rows.Close(); err != nil { s.logger.WithError(err).Error("Failed to close rows") } }()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			s.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	var executions []*ScheduleExecution
 	for rows.Next() {
@@ -538,7 +542,11 @@ func (s *ScheduleStore) querySchedules(ctx context.Context, query string, args .
 	if err != nil {
 		return nil, fmt.Errorf("failed to query schedules: %w", err)
 	}
-	defer func() { if err := rows.Close(); err != nil { s.logger.WithError(err).Error("Failed to close rows") } }()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			s.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
 
 	var schedules []*QuerySchedule
 	for rows.Next() {

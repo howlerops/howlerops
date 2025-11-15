@@ -102,7 +102,7 @@ export function GetLightIcon():Promise<Array<number>>;
 
 export function GetMultiConnectionSchema(arg1:Array<string>):Promise<main.CombinedSchema>;
 
-export function GetPassword(arg1:string):Promise<string>;
+export function GetPassword(arg1:string,arg2:string):Promise<string>;
 
 export function GetQuerySuggestions(arg1:string,arg2:string):Promise<Array<main.Suggestion>>;
 
@@ -192,7 +192,7 @@ export function StartClaudeCodeLogin(arg1:string):Promise<main.AITestResponse>;
 
 export function StartCodexLogin(arg1:string):Promise<main.AITestResponse>;
 
-export function StorePassword(arg1:string,arg2:string):Promise<void>;
+export function StorePassword(arg1:string,arg2:string,arg3:string):Promise<void>;
 
 export function StreamAIQueryAgent(arg1:main.AIQueryAgentRequest):Promise<main.AIQueryAgentResponse>;
 

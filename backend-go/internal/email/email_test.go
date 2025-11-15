@@ -211,9 +211,9 @@ func TestEmailErrorHandling(t *testing.T) {
 	t.Run("multiple emails accumulate", func(t *testing.T) {
 		mockSvc := email.NewMockEmailService(logger)
 
-		_ = mockSvc.SendVerificationEmail("user1@example.com", "token1", "url1") // Best-effort mock in test
+		_ = mockSvc.SendVerificationEmail("user1@example.com", "token1", "url1")  // Best-effort mock in test
 		_ = mockSvc.SendPasswordResetEmail("user2@example.com", "token2", "url2") // Best-effort mock in test
-		_ = mockSvc.SendWelcomeEmail("user3@example.com", "User 3") // Best-effort mock in test
+		_ = mockSvc.SendWelcomeEmail("user3@example.com", "User 3")               // Best-effort mock in test
 
 		sent := mockSvc.GetSentEmails()
 		assert.Len(t, sent, 3)

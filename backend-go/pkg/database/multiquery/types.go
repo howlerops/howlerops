@@ -37,6 +37,7 @@ type Options struct {
 	Timeout  time.Duration
 	Strategy ExecutionStrategy
 	Limit    int
+	Offset   int // NEW: Offset for pagination
 }
 
 // ParsedQuery represents a parsed multi-database query

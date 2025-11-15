@@ -31,7 +31,7 @@ func setupTestStorage(t *testing.T) (*LocalSQLiteStorage, func()) {
 	require.NoError(t, err)
 
 	cleanup := func() {
-		_ = storage.Close() // Best-effort close in test
+		_ = storage.Close()      // Best-effort close in test
 		_ = os.RemoveAll(tmpDir) // Best-effort cleanup in test
 	}
 

@@ -12,6 +12,7 @@
  */
 
 import * as App from '../../wailsjs/go/main/App'
+import { exportMasterKeyToBase64 } from '@/lib/crypto/encryption'
 
 export interface SecureCredential {
   connectionId: string
@@ -30,6 +31,7 @@ class SecureCredentialStorage {
 
   /**
    * Store credentials for a connection in keychain and cache
+   * Optionally encrypts with master key if available from auth session
    */
   async setCredentials(
     connectionId: string,
@@ -50,9 +52,22 @@ class SecureCredentialStorage {
         const key = `sql-studio-credentials-${connectionId}`
         const value = JSON.stringify(fullCredentials)
 
+        // Get master key from auth session if available
+        let masterKeyBase64 = ''
+        try {
+          const { useAuthStore } = await import('@/store/auth-store')
+          const masterKey = useAuthStore.getState().getMasterKey()
+          if (masterKey) {
+            masterKeyBase64 = await exportMasterKeyToBase64(masterKey)
+          }
+        } catch (err) {
+          // Auth store not available or master key export failed - continue without it
+          console.debug('[SecureStorage] Master key not available, using keychain only:', err)
+        }
+
         // Check if App.StorePassword exists (type-safe check)
         if (typeof (App as any).StorePassword === 'function') {
-          await (App as any).StorePassword(key, value)
+          await (App as any).StorePassword(key, value, masterKeyBase64)
         } else {
           console.warn(
             '[SecureStorage] Keychain API (App.StorePassword) not available yet. Credentials stored in-memory only for this session.'
@@ -70,6 +85,7 @@ class SecureCredentialStorage {
 
   /**
    * Get credentials for a connection from cache or keychain
+   * Uses master key for decryption if available from auth session
    */
   async getCredentials(connectionId: string): Promise<SecureCredential | null> {
     // Check in-memory cache first
@@ -83,9 +99,22 @@ class SecureCredentialStorage {
       try {
         const key = `sql-studio-credentials-${connectionId}`
 
+        // Get master key from auth session if available
+        let masterKeyBase64 = ''
+        try {
+          const { useAuthStore } = await import('@/store/auth-store')
+          const masterKey = useAuthStore.getState().getMasterKey()
+          if (masterKey) {
+            masterKeyBase64 = await exportMasterKeyToBase64(masterKey)
+          }
+        } catch (err) {
+          // Auth store not available or master key export failed - continue without it
+          console.debug('[SecureStorage] Master key not available, using keychain only:', err)
+        }
+
         // Check if App.GetPassword exists (type-safe check)
         if (typeof (App as any).GetPassword === 'function') {
-          const value = await (App as any).GetPassword(key)
+          const value = await (App as any).GetPassword(key, masterKeyBase64)
 
           if (value) {
             const credentials = JSON.parse(value) as SecureCredential
@@ -122,6 +151,7 @@ class SecureCredentialStorage {
 
   /**
    * Remove credentials for a connection from keychain and cache
+   * Note: DeletePassword doesn't need master key as it's a simple delete operation
    */
   async removeCredentials(connectionId: string): Promise<void> {
     // Remove from in-memory cache immediately
@@ -134,6 +164,7 @@ class SecureCredentialStorage {
 
         // Check if App.DeletePassword exists (type-safe check)
         if (typeof (App as any).DeletePassword === 'function') {
+          // Note: DeletePassword signature remains unchanged (no master key needed for deletion)
           await (App as any).DeletePassword(key)
         } else {
           console.warn(

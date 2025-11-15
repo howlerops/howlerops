@@ -283,6 +283,7 @@ func initializeServices(cfg *config.Config, tursoClient *sql.DB, logger *logrus.
 	loginAttemptStore := turso.NewTursoLoginAttemptStore(tursoClient, logger)
 	syncStore := turso.NewSyncStoreAdapter(tursoClient, logger)
 	organizationStore := turso.NewOrganizationStore(tursoClient, logger)
+	masterKeyStore := turso.NewMasterKeyStore(tursoClient, logger)
 	logger.Info("Storage layer initialized with Turso")
 
 	// Create email service
@@ -290,7 +291,7 @@ func initializeServices(cfg *config.Config, tursoClient *sql.DB, logger *logrus.
 
 	// Create auth middleware and service
 	authMiddleware := middleware.NewAuthMiddleware(cfg.Auth.JWTSecret, logger)
-	authService := createAuthService(cfg, userStore, sessionStore, loginAttemptStore, authMiddleware, emailService, logger)
+	authService := createAuthService(cfg, userStore, sessionStore, loginAttemptStore, masterKeyStore, authMiddleware, emailService, logger)
 
 	// Create sync and organization services
 	syncService := createSyncService(cfg, syncStore, logger)
@@ -345,6 +346,7 @@ func createAuthService(
 	userStore auth.UserStore,
 	sessionStore auth.SessionStore,
 	loginAttemptStore auth.LoginAttemptStore,
+	masterKeyStore auth.MasterKeyStore,
 	authMiddleware *middleware.AuthMiddleware,
 	emailService email.EmailService,
 	logger *logrus.Logger,
@@ -361,6 +363,7 @@ func createAuthService(
 		userStore,
 		sessionStore,
 		loginAttemptStore,
+		masterKeyStore,
 		authMiddleware,
 		authConfig,
 		logger,
