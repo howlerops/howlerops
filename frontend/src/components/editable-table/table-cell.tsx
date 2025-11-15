@@ -294,6 +294,19 @@ export const TableCell = memo<TableCellProps>(({
       )}
     </>
   );
+}, (prevProps, nextProps) => {
+  // Custom comparison function (ag-Grid pattern)
+  // Only re-render if these critical props actually change
+  return (
+    prevProps.value === nextProps.value &&
+    prevProps.isDirty === nextProps.isDirty &&
+    prevProps.isInvalid === nextProps.isInvalid &&
+    prevProps.isEditing === nextProps.isEditing &&
+    prevProps.isSelected === nextProps.isSelected &&
+    prevProps.validationError === nextProps.validationError &&
+    prevProps.columnId === nextProps.columnId &&
+    prevProps.rowId === nextProps.rowId
+  );
 });
 
 TableCell.displayName = 'TableCell';

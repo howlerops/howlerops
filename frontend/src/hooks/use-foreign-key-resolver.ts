@@ -33,9 +33,7 @@ export function useForeignKeyResolver() {
       const escapedValue = typeof value === 'string' ? `'${value.replace(/'/g, "''")}'` : String(value)
       const query = `SELECT * FROM ${tableName} WHERE "${foreignKeyInfo.columnName}" = ${escapedValue} LIMIT 10`
 
-      const response = await wailsEndpoints.queries.execute(connectionId, query, {
-        limit: 10,
-      })
+      const response = await wailsEndpoints.queries.execute(connectionId, query, 10)
 
       if (!response.success || response.message) {
         throw new Error(response.message || 'Query execution failed')

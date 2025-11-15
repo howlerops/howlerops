@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -128,17 +130,106 @@ func (s *SQLiteDatabase) Execute(ctx context.Context, query string, args ...inte
 		strings.HasPrefix(strings.ToUpper(query), "PRAGMA")
 
 	if isSelect {
-		return s.executeSelect(ctx, db, query, args...)
+		return s.executeSelect(ctx, db, query, nil, args...)
+	} else {
+		return s.executeNonSelect(ctx, db, query, args...)
+	}
+}
+
+// ExecuteWithOptions runs a SQL query with options and returns the results
+func (s *SQLiteDatabase) ExecuteWithOptions(ctx context.Context, query string, opts *QueryOptions, args ...interface{}) (*QueryResult, error) {
+	db, err := s.pool.Get(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	query = strings.TrimSpace(query)
+	isSelect := strings.HasPrefix(strings.ToUpper(query), "SELECT") ||
+		strings.HasPrefix(strings.ToUpper(query), "WITH") ||
+		strings.HasPrefix(strings.ToUpper(query), "PRAGMA")
+
+	if isSelect {
+		return s.executeSelect(ctx, db, query, opts, args...)
 	} else {
 		return s.executeNonSelect(ctx, db, query, args...)
 	}
 }
 
 // executeSelect handles SELECT queries
-func (s *SQLiteDatabase) executeSelect(ctx context.Context, db *sql.DB, query string, args ...interface{}) (*QueryResult, error) {
+func (s *SQLiteDatabase) executeSelect(ctx context.Context, db *sql.DB, query string, opts *QueryOptions, args ...interface{}) (*QueryResult, error) {
 	start := time.Now()
 
-	rows, err := db.QueryContext(ctx, query, args...)
+	// Check if query already has LIMIT clause
+	trimmedQuery := strings.TrimSpace(query)
+	trimmedQuery = strings.TrimSuffix(trimmedQuery, ";")
+
+	// Parse existing LIMIT clause (handles "LIMIT 1000" and "LIMIT 1000 OFFSET 500")
+	limitRegex := regexp.MustCompile(`(?i)\s+LIMIT\s+(\d+)(?:\s+OFFSET\s+(\d+))?`)
+	matches := limitRegex.FindStringSubmatch(trimmedQuery)
+
+	var userLimit int64
+	var userOffset int64
+	var hasLimit bool
+	var queryWithoutLimit string
+
+	if len(matches) > 0 {
+		hasLimit = true
+		userLimit, _ = strconv.ParseInt(matches[1], 10, 64)
+		if len(matches) > 2 && matches[2] != "" {
+			userOffset, _ = strconv.ParseInt(matches[2], 10, 64)
+		}
+		// Remove LIMIT/OFFSET from query
+		queryWithoutLimit = limitRegex.ReplaceAllString(trimmedQuery, "")
+	} else {
+		queryWithoutLimit = trimmedQuery
+	}
+
+	// Step 1: Determine total rows and pagination strategy
+	var totalRows int64
+	modifiedQuery := query
+
+	if opts != nil && opts.Limit > 0 {
+		if hasLimit {
+			// User specified LIMIT - use that as total, but paginate through it
+			totalRows = userLimit
+
+			// Apply our pagination on top of user's limit
+			effectiveLimit := opts.Limit
+			effectiveOffset := opts.Offset + int(userOffset)
+
+			// Don't exceed user's limit
+			if int64(effectiveOffset) >= userLimit {
+				effectiveLimit = 0 // No more rows to fetch
+			} else if int64(effectiveOffset) + int64(effectiveLimit) > userLimit {
+				effectiveLimit = int(userLimit - int64(effectiveOffset))
+			}
+
+			if effectiveLimit > 0 {
+				modifiedQuery = fmt.Sprintf("%s LIMIT %d OFFSET %d", queryWithoutLimit, effectiveLimit, effectiveOffset)
+			} else {
+				modifiedQuery = fmt.Sprintf("%s LIMIT 0", queryWithoutLimit)
+			}
+		} else {
+			// No user LIMIT - get total count and apply pagination
+			countQuery := fmt.Sprintf("SELECT COUNT(*) FROM (%s) AS count_subquery", queryWithoutLimit)
+			err := db.QueryRowContext(ctx, countQuery, args...).Scan(&totalRows)
+			if err != nil {
+				s.logger.WithError(err).Warn("Failed to get total count for pagination")
+				totalRows = 0
+			}
+
+			modifiedQuery = fmt.Sprintf("%s LIMIT %d", queryWithoutLimit, opts.Limit)
+			if opts.Offset > 0 {
+				modifiedQuery = fmt.Sprintf("%s OFFSET %d", modifiedQuery, opts.Offset)
+			}
+		}
+	} else {
+		// No pagination requested - use original query
+		modifiedQuery = trimmedQuery
+	}
+
+	// Step 3: Execute modified query
+	rows, err := db.QueryContext(ctx, modifiedQuery, args...)
 	if err != nil {
 		return &QueryResult{
 			Error:    err,
@@ -166,7 +257,7 @@ func (s *SQLiteDatabase) executeSelect(ctx context.Context, db *sql.DB, query st
 		Duration: time.Since(start),
 	}
 
-	// Read all rows
+	// Step 4: Read and normalize all rows
 	for rows.Next() {
 		values := make([]interface{}, len(columns))
 		scanArgs := make([]interface{}, len(columns))
@@ -181,7 +272,13 @@ func (s *SQLiteDatabase) executeSelect(ctx context.Context, db *sql.DB, query st
 			}, err
 		}
 
-		result.Rows = append(result.Rows, values)
+		// NEW: Normalize each value
+		normalizedRow := make([]interface{}, len(values))
+		for i, val := range values {
+			normalizedRow[i] = NormalizeValue(val)
+		}
+
+		result.Rows = append(result.Rows, normalizedRow)
 	}
 
 	if err := rows.Err(); err != nil {
@@ -191,6 +288,16 @@ func (s *SQLiteDatabase) executeSelect(ctx context.Context, db *sql.DB, query st
 
 	result.RowCount = int64(len(result.Rows))
 	result.Duration = time.Since(start)
+
+	// Step 5: Set pagination metadata
+	if opts != nil && opts.Limit > 0 {
+		result.TotalRows = totalRows
+		result.PagedRows = int64(len(result.Rows))
+		result.Offset = opts.Offset
+		result.HasMore = (int64(opts.Offset) + result.PagedRows) < totalRows
+	}
+
+	// PRESERVED: Editable metadata detection logic
 	if metadata, ready, err := s.computeEditableMetadata(ctx, query, columns, false); err == nil {
 		if metadata != nil {
 			if !ready {
@@ -202,9 +309,10 @@ func (s *SQLiteDatabase) executeSelect(ctx context.Context, db *sql.DB, query st
 			result.Editable = metadata
 		}
 	} else {
-		meta := newEditableMetadata(columns)
-		meta.Reason = "Failed to prepare editable metadata"
-		result.Editable = meta
+		// Fall back to disabled metadata with error reason
+		metadata := newEditableMetadata(columns)
+		metadata.Reason = "Failed to prepare editable metadata"
+		result.Editable = metadata
 	}
 
 	return result, nil

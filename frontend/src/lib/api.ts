@@ -256,7 +256,7 @@ export const grpcEndpoints = {
   queries: {
     execute: async (connectionId: string, sql: string, options?: Partial<QueryOptions>) => {
       const queryOptions: QueryOptions = {
-        limit: options?.limit || 1000,
+        limit: options?.limit || 5000,
         timeoutSeconds: options?.timeoutSeconds || 30,
         readOnly: options?.readOnly || false,
         explain: options?.explain || false,

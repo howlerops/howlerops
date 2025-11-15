@@ -19,6 +19,7 @@ export default defineConfig({
     reportCompressedSize: true,
   },
   server: {
+    port: 5173,
     proxy: {
       // REST API proxy (for backward compatibility)
       '/api': {

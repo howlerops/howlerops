@@ -159,7 +159,7 @@ export function Settings() {
   // Preferences (top-level hooks; do not call inside callbacks)
   const editorLineNumbers = useBooleanPreference(DEVICE_USER, 'editorLineNumbers', true, PreferenceCategory.EDITOR)
   const queryTimeoutPref = useNumericPreference(DEVICE_USER, 'queryTimeoutSeconds', 30, PreferenceCategory.BEHAVIOR)
-  const resultLimitPref = useNumericPreference(DEVICE_USER, 'defaultResultLimit', 1000, PreferenceCategory.BEHAVIOR)
+  const resultLimitPref = useNumericPreference(DEVICE_USER, 'defaultResultLimit', 5000, PreferenceCategory.BEHAVIOR)
   const autoCommitPref = useBooleanPreference(DEVICE_USER, 'autoCommit', true, PreferenceCategory.BEHAVIOR)
 
   // Automatically attempt to initialise the embedded runtime once when selected.

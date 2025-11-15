@@ -213,7 +213,7 @@ export function TemplateExecutor({ template, open, onClose }: TemplateExecutorPr
           <Alert>
             <CheckCircle className="h-4 w-4" />
             <AlertDescription>
-              Query executed successfully in {result.executionTime}ms. {result.rowCount} rows returned.
+              Query executed successfully in {result.executionTime}ms. {result.totalRows !== undefined ? result.totalRows : result.rowCount} rows returned.
             </AlertDescription>
           </Alert>
         )}

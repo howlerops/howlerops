@@ -300,7 +300,7 @@ func (s *DatabaseService) ExecuteQuery(connectionID, query string, options *data
 		defer cancel()
 	}
 
-	result, err := db.Execute(ctx, query)
+	result, err := db.ExecuteWithOptions(ctx, query, options)
 	if err != nil {
 		s.logger.WithFields(logrus.Fields{
 			"connection_id": connectionID,

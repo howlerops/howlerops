@@ -267,3 +267,54 @@
 body {
   letter-spacing: var(--tracking-normal);
 }
+
+/* ============================================================================
+   GPU-Accelerated Virtualization (ag-Grid pattern)
+   ============================================================================ */
+
+/* Virtual scroll container optimizations */
+.virtual-scroll-container {
+  /* Enable GPU compositing for smooth scrolling */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+
+  /* Containment hints for browser optimization */
+  contain: layout style paint;
+
+  /* Smooth momentum scrolling on touch devices */
+  -webkit-overflow-scrolling: touch;
+
+  /* Hardware acceleration - ag-Grid pattern */
+  will-change: scroll-position;
+
+  /* Prevent scroll chaining (ag-Grid optimization) */
+  overscroll-behavior: contain;
+
+  /* Enable smooth scrolling for keyboard navigation */
+  scroll-behavior: smooth;
+}
+
+/* Transform-positioned virtual rows */
+.virtual-row-transform {
+  /* Force GPU layer for transform animations */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+
+  /* Hint browser about transform changes */
+  will-change: transform;
+}
+
+/* During active scrolling, optimize rendering */
+.virtual-scroll-container.scrolling .virtual-row-transform {
+  /* Reduce paint complexity during scroll */
+  pointer-events: none;
+}
+
+/* Virtual row container (holds positioned rows) */
+.virtual-rows-container {
+  /* Isolate from parent repaints */
+  contain: strict;
+
+  /* Enable GPU compositing */
+  transform: translateZ(0);
+}

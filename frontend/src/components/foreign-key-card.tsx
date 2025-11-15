@@ -115,9 +115,7 @@ export function ForeignKeyCard({
       console.log('[FK] Executing query:', query)
 
       // Execute query with the ACTUAL active connection, not the prop
-      const response = await wailsEndpoints.queries.execute(actualConnectionId, query, {
-        limit: 10
-      })
+      const response = await wailsEndpoints.queries.execute(actualConnectionId, query, 10)
 
       console.log('[FK] Query response:', response)
       console.log('[FK] Response data structure:', {

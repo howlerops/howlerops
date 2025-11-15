@@ -3,6 +3,18 @@ import { devtools, persist } from 'zustand/middleware'
 import { wailsEndpoints } from '@/lib/wails-api'
 import { EventsOn } from '../../wailsjs/runtime/runtime'
 import { useConnectionStore, type DatabaseConnection } from './connection-store'
+import {
+  storeQueryResult,
+  deleteQueryResult,
+  deleteTabResults,
+  isLargeResult,
+  determineDisplayMode,
+  FEATURE_FLAGS,
+  CHUNK_CONFIG,
+  type StoredQueryResult,
+  type ResultDisplayMode,
+} from '@/lib/query-result-storage'
+// Note: Batch processing removed - Go backend now handles normalization efficiently
 
 export type QueryTabType = 'sql' | 'ai'
 
@@ -13,6 +25,7 @@ export interface QueryTab {
   content: string
   isDirty: boolean
   isExecuting: boolean
+  executionStartTime?: Date
   lastExecuted?: Date
   connectionId?: string // Per-tab connection support (single-DB mode)
   selectedConnectionIds?: string[] // Multi-select connections (multi-DB mode)
@@ -76,6 +89,22 @@ export interface QueryResult {
   editable?: QueryEditableMetadata | null
   query: string
   connectionId?: string
+  isLarge?: boolean // true if stored in IndexedDB
+  rowsLoaded?: number // number of rows loaded in memory (for large results)
+  // Phase 2: Chunking support
+  chunkingEnabled?: boolean
+  loadedChunks?: Set<number>
+  totalChunks?: number
+  displayMode?: ResultDisplayMode
+  // Data processing state (for large datasets)
+  isProcessing?: boolean
+  processingProgress?: number // 0-100
+  // Pagination metadata (from backend)
+  totalRows?: number // Total unpaginated rows
+  pagedRows?: number // Rows in current page
+  hasMore?: boolean // More data available
+  offset?: number // Current offset
+  limit?: number // Page size
 }
 
 interface QueryState {
@@ -88,11 +117,13 @@ interface QueryState {
   closeTab: (id: string) => void
   updateTab: (id: string, updates: Partial<QueryTab>) => void
   setActiveTab: (id: string) => void
-  executeQuery: (tabId: string, query: string, connectionId?: string | null) => Promise<void>
+  executeQuery: (tabId: string, query: string, connectionId?: string | null, limit?: number, offset?: number) => Promise<void>
   addResult: (result: Omit<QueryResult, 'id' | 'timestamp'>) => QueryResult
   clearResults: (tabId: string) => void
   updateResultRows: (resultId: string, rows: QueryResultRow[], newOriginalRows?: Record<string, QueryResultRow>) => void
   updateResultEditable: (resultId: string, metadata: QueryEditableMetadata | null) => void
+  updateResultProcessing: (resultId: string, isProcessing: boolean, progress?: number) => void
+  loadMoreRows: (resultId: string) => Promise<void>
 }
 
 interface NormalisedRowsResult {
@@ -513,6 +544,11 @@ export const useQueryStore = create<QueryState>()(
       },
 
       closeTab: (id) => {
+        // Clean up IndexedDB results for this tab
+        deleteTabResults(id).catch((error) => {
+          console.error('Failed to delete tab results from IndexedDB:', error)
+        })
+
         set((state) => {
           const newTabs = state.tabs.filter((tab) => tab.id !== id)
           const wasActive = state.activeTabId === id
@@ -550,13 +586,13 @@ export const useQueryStore = create<QueryState>()(
         set({ activeTabId: id })
       },
 
-      executeQuery: async (tabId, query, connectionId) => {
+      executeQuery: async (tabId, query, connectionId, limit = 5000, offset = 0) => {
         const tab = get().tabs.find(t => t.id === tabId)
         if (!tab || tab.type !== 'sql') {
           return
         }
 
-        get().updateTab(tabId, { isExecuting: true })
+        get().updateTab(tabId, { isExecuting: true, executionStartTime: new Date() })
 
         // Use tab's connection if no connectionId provided
         const effectiveConnectionId = connectionId || tab.connectionId
@@ -581,7 +617,7 @@ export const useQueryStore = create<QueryState>()(
         // Get the actual session ID from the connection store
         const { connections } = useConnectionStore.getState()
         const connection = connections.find(conn => conn.id === effectiveConnectionId)
-        
+
         if (!connection?.sessionId) {
           get().addResult({
             tabId,
@@ -600,7 +636,7 @@ export const useQueryStore = create<QueryState>()(
         }
 
         try {
-          const response = await wailsEndpoints.queries.execute(connection.sessionId, query)
+          const response = await wailsEndpoints.queries.execute(connection.sessionId, query, limit, offset)
 
           if (!response.success || !response.data) {
             const message = response.message || 'Query execution failed'
@@ -628,6 +664,12 @@ export const useQueryStore = create<QueryState>()(
             editable: rawEditable = null,
           } = response.data
 
+          // Extract pagination metadata with optional chaining (may not exist in all responses)
+          const backendTotalRows = (response.data as any).totalRows
+          const backendPagedRows = (response.data as any).pagedRows
+          const backendHasMore = (response.data as any).hasMore
+          const backendOffset = (response.data as any).offset
+
           const statsRecord = (stats ?? {}) as Record<string, unknown>
           const affectedRows =
             typeof statsRecord.affectedRows === 'number'
@@ -641,6 +683,8 @@ export const useQueryStore = create<QueryState>()(
               : undefined
 
           const editableMetadata = transformEditableMetadata(rawEditable)
+
+          // Process rows synchronously (Go backend already normalized data, so this is fast)
           const { rows: normalisedRows, originalRows } = normaliseRows(columns, rows, editableMetadata)
 
           const savedResult = get().addResult({
@@ -654,7 +698,13 @@ export const useQueryStore = create<QueryState>()(
             error: undefined,
             editable: editableMetadata,
             query,
-            connectionId: effectiveConnectionId, // Use the actual connection that executed the query
+            connectionId: effectiveConnectionId,
+            // Pagination metadata
+            totalRows: typeof backendTotalRows === 'number' ? backendTotalRows : undefined,
+            pagedRows: typeof backendPagedRows === 'number' ? backendPagedRows : undefined,
+            hasMore: typeof backendHasMore === 'boolean' ? backendHasMore : undefined,
+            offset: typeof backendOffset === 'number' ? backendOffset : offset,
+            limit,
           })
 
           const jobId = editableMetadata?.jobId || editableMetadata?.job_id
@@ -681,7 +731,7 @@ export const useQueryStore = create<QueryState>()(
             connectionId: effectiveConnectionId, // Use the actual connection that executed the query
           })
         } finally {
-          get().updateTab(tabId, { isExecuting: false })
+          get().updateTab(tabId, { isExecuting: false, executionStartTime: undefined })
         }
       },
 
@@ -692,6 +742,90 @@ export const useQueryStore = create<QueryState>()(
           timestamp: new Date(),
         }
 
+        const rowCount = newResult.rows.length
+        const displayMode = determineDisplayMode(rowCount, false)
+        const isLarge = isLargeResult(rowCount)
+        const enableChunking = FEATURE_FLAGS.ENABLE_CHUNKING && rowCount >= FEATURE_FLAGS.CHUNKING_THRESHOLD
+
+        // Store large results in IndexedDB with optional chunking
+        // Only use IndexedDB if chunking is enabled OR result is truly massive (> 50K rows)
+        if (isLarge && (enableChunking || rowCount > 50000)) {
+          const storedResult: StoredQueryResult = {
+            id: newResult.id,
+            tabId: newResult.tabId,
+            columns: newResult.columns,
+            rows: newResult.rows,
+            originalRows: newResult.originalRows,
+            rowCount: newResult.rowCount,
+            affectedRows: newResult.affectedRows,
+            executionTime: newResult.executionTime,
+            error: newResult.error,
+            timestamp: newResult.timestamp,
+            editable: newResult.editable,
+            query: newResult.query,
+            connectionId: newResult.connectionId,
+          }
+
+          // Store in IndexedDB asynchronously
+          storeQueryResult(storedResult).catch((error) => {
+            console.error('Failed to store large result in IndexedDB:', error)
+          })
+
+          // If chunking is enabled, keep only first chunk in memory
+          if (enableChunking) {
+            const firstChunk = newResult.rows.slice(0, CHUNK_CONFIG.CHUNK_SIZE)
+            const firstChunkOriginalRows: Record<string, QueryResultRow> = {}
+            firstChunk.forEach((row) => {
+              firstChunkOriginalRows[row.__rowId] = newResult.originalRows[row.__rowId]
+            })
+
+            const resultWithMetadata: QueryResult = {
+              ...newResult,
+              isLarge: true,
+              chunkingEnabled: true,
+              loadedChunks: new Set([0]),
+              totalChunks: Math.ceil(rowCount / CHUNK_CONFIG.CHUNK_SIZE),
+              rowsLoaded: firstChunk.length,
+              rows: firstChunk,
+              originalRows: firstChunkOriginalRows,
+              displayMode,
+            }
+
+            set((state) => ({
+              results: [...state.results, resultWithMetadata].slice(-20),
+            }))
+
+            return resultWithMetadata
+          }
+
+          // Phase 1 behavior: Keep first 100 rows for preview (no chunking)
+          const previewRows = newResult.rows.slice(0, 100)
+          const previewOriginalRows: Record<string, QueryResultRow> = {}
+          previewRows.forEach((row) => {
+            previewOriginalRows[row.__rowId] = newResult.originalRows[row.__rowId]
+          })
+
+          const resultWithMetadata: QueryResult = {
+            ...newResult,
+            isLarge: true,
+            chunkingEnabled: false,
+            rowsLoaded: previewRows.length,
+            rows: previewRows,
+            originalRows: previewOriginalRows,
+            displayMode,
+          }
+
+          set((state) => ({
+            results: [...state.results, resultWithMetadata].slice(-20),
+          }))
+
+          return resultWithMetadata
+        }
+
+        // Small results: store normally in memory
+        newResult.displayMode = displayMode
+        newResult.chunkingEnabled = false
+
         set((state) => ({
           results: [...state.results, newResult].slice(-20),
         }))
@@ -700,6 +834,11 @@ export const useQueryStore = create<QueryState>()(
       },
 
       clearResults: (tabId) => {
+        // Clean up IndexedDB results for this tab
+        deleteTabResults(tabId).catch((error) => {
+          console.error('Failed to clear tab results from IndexedDB:', error)
+        })
+
         set((state) => ({
           results: state.results.filter((result) => result.tabId !== tabId),
         }))
@@ -795,6 +934,105 @@ export const useQueryStore = create<QueryState>()(
             }
           }),
         }))
+      },
+
+      updateResultProcessing: (resultId, isProcessing, progress) => {
+        set((state) => ({
+          results: state.results.map((result) => {
+            if (result.id !== resultId) {
+              return result
+            }
+
+            return {
+              ...result,
+              isProcessing,
+              processingProgress: progress,
+            }
+          }),
+        }))
+      },
+
+      loadMoreRows: async (resultId) => {
+        const result = get().results.find((r) => r.id === resultId)
+        if (!result || !result.hasMore || !result.connectionId) {
+          return
+        }
+
+        const currentOffset = result.offset ?? 0
+        const pageSize = result.limit ?? 5000
+        const nextOffset = currentOffset + pageSize
+
+        // Get the connection session ID
+        const { connections } = useConnectionStore.getState()
+        const connection = connections.find((conn) => conn.id === result.connectionId)
+
+        if (!connection?.sessionId) {
+          console.error('Connection not found for loadMoreRows')
+          return
+        }
+
+        try {
+          // Set loading state
+          get().updateResultProcessing(resultId, true, 0)
+
+          const response = await wailsEndpoints.queries.execute(
+            connection.sessionId,
+            result.query,
+            pageSize,
+            nextOffset
+          )
+
+          if (!response.success || !response.data) {
+            console.error('Failed to load more rows:', response.message)
+            get().updateResultProcessing(resultId, false, 0)
+            return
+          }
+
+          const {
+            rows = [],
+          } = response.data
+
+          // Extract pagination metadata with optional chaining
+          const backendTotalRows = (response.data as any).totalRows
+          const backendPagedRows = (response.data as any).pagedRows
+          const backendHasMore = (response.data as any).hasMore
+          const backendOffset = (response.data as any).offset
+
+          // Process new rows
+          const { rows: normalisedRows, originalRows: newOriginalRows } = normaliseRows(
+            result.columns,
+            rows,
+            result.editable
+          )
+
+          // Append new rows to existing rows
+          const updatedRows = [...result.rows, ...normalisedRows]
+          const updatedOriginalRows = { ...result.originalRows, ...newOriginalRows }
+
+          // Update result with new data
+          set((state) => ({
+            results: state.results.map((r) => {
+              if (r.id !== resultId) {
+                return r
+              }
+
+              return {
+                ...r,
+                rows: updatedRows,
+                originalRows: updatedOriginalRows,
+                offset: typeof backendOffset === 'number' ? backendOffset : nextOffset,
+                hasMore: typeof backendHasMore === 'boolean' ? backendHasMore : false,
+                pagedRows: typeof backendPagedRows === 'number' ? backendPagedRows : rows.length,
+                totalRows: typeof backendTotalRows === 'number' ? backendTotalRows : r.totalRows,
+                isProcessing: false,
+                processingProgress: 0,
+              }
+            }),
+          }))
+        } catch (error) {
+          console.error('Error loading more rows:', error)
+          get().updateResultProcessing(resultId, false, 0)
+        }
       },
     }
   },

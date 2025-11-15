@@ -1233,6 +1233,7 @@ export namespace main {
 	    connectionId: string;
 	    query: string;
 	    limit?: number;
+	    offset?: number;
 	    timeout?: number;
 	
 	    static createFrom(source: any = {}) {
@@ -1244,6 +1245,7 @@ export namespace main {
 	        this.connectionId = source["connectionId"];
 	        this.query = source["query"];
 	        this.limit = source["limit"];
+	        this.offset = source["offset"];
 	        this.timeout = source["timeout"];
 	    }
 	}
@@ -1255,6 +1257,10 @@ export namespace main {
 	    duration: string;
 	    error?: string;
 	    editable?: database.EditableQueryMetadata;
+	    totalRows?: number;
+	    pagedRows?: number;
+	    hasMore?: boolean;
+	    offset?: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new QueryResponse(source);
@@ -1269,6 +1275,10 @@ export namespace main {
 	        this.duration = source["duration"];
 	        this.error = source["error"];
 	        this.editable = this.convertValues(source["editable"], database.EditableQueryMetadata);
+	        this.totalRows = source["totalRows"];
+	        this.pagedRows = source["pagedRows"];
+	        this.hasMore = source["hasMore"];
+	        this.offset = source["offset"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

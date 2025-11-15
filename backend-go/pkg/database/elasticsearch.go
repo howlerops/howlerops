@@ -9,6 +9,8 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -217,15 +219,91 @@ func (es *ElasticsearchDatabase) GetConnectionInfo(ctx context.Context) (map[str
 
 // Execute runs a SQL query using Elasticsearch SQL API
 func (es *ElasticsearchDatabase) Execute(ctx context.Context, query string, args ...interface{}) (*QueryResult, error) {
+	return es.ExecuteWithOptions(ctx, query, nil, args...)
+}
+
+// ExecuteWithOptions runs a SQL query with options using Elasticsearch SQL API
+func (es *ElasticsearchDatabase) ExecuteWithOptions(ctx context.Context, query string, opts *QueryOptions, args ...interface{}) (*QueryResult, error) {
 	start := time.Now()
 	es.stats.requestCount++
 	es.stats.lastRequestAt = start
+
+	// Check if query already has LIMIT clause
+	trimmedQuery := strings.TrimSpace(query)
+	trimmedQuery = strings.TrimSuffix(trimmedQuery, ";")
+
+	// Parse existing LIMIT clause (handles "LIMIT 1000" and "LIMIT 1000 OFFSET 500")
+	limitRegex := regexp.MustCompile(`(?i)\s+LIMIT\s+(\d+)(?:\s+OFFSET\s+(\d+))?`)
+	matches := limitRegex.FindStringSubmatch(trimmedQuery)
+
+	var userLimit int64
+	var userOffset int64
+	var hasLimit bool
+	var queryWithoutLimit string
+
+	if len(matches) > 0 {
+		hasLimit = true
+		userLimit, _ = strconv.ParseInt(matches[1], 10, 64)
+		if len(matches) > 2 && matches[2] != "" {
+			userOffset, _ = strconv.ParseInt(matches[2], 10, 64)
+		}
+		// Remove LIMIT/OFFSET from query
+		queryWithoutLimit = limitRegex.ReplaceAllString(trimmedQuery, "")
+	} else {
+		queryWithoutLimit = trimmedQuery
+	}
+
+	// Step 1: Determine total rows and pagination strategy
+	var totalRows int64
+	modifiedQuery := query
+
+	if opts != nil && opts.Limit > 0 {
+		if hasLimit {
+			// User specified LIMIT - use that as total, but paginate through it
+			totalRows = userLimit
+
+			// Apply our pagination on top of user's limit
+			effectiveLimit := opts.Limit
+			effectiveOffset := opts.Offset + int(userOffset)
+
+			// Don't exceed user's limit
+			if int64(effectiveOffset) >= userLimit {
+				effectiveLimit = 0 // No more rows to fetch
+			} else if int64(effectiveOffset) + int64(effectiveLimit) > userLimit {
+				effectiveLimit = int(userLimit - int64(effectiveOffset))
+			}
+
+			if effectiveLimit > 0 {
+				modifiedQuery = fmt.Sprintf("%s LIMIT %d OFFSET %d", queryWithoutLimit, effectiveLimit, effectiveOffset)
+			} else {
+				modifiedQuery = fmt.Sprintf("%s LIMIT 0", queryWithoutLimit)
+			}
+		} else {
+			// No user LIMIT - get total count and apply pagination
+			countQuery := fmt.Sprintf("SELECT COUNT(*) FROM (%s) AS count_subquery", queryWithoutLimit)
+			countResult, err := es.executeCountQuery(ctx, countQuery, args)
+			if err != nil {
+				es.logger.WithError(err).Warn("Failed to get total count for pagination")
+				totalRows = 0
+			} else {
+				totalRows = countResult
+			}
+
+			modifiedQuery = fmt.Sprintf("%s LIMIT %d", queryWithoutLimit, opts.Limit)
+			if opts.Offset > 0 {
+				modifiedQuery = fmt.Sprintf("%s OFFSET %d", modifiedQuery, opts.Offset)
+			}
+		}
+	} else {
+		// No pagination requested - use original query
+		modifiedQuery = trimmedQuery
+	}
 
 	// Prepare SQL query request
 	sqlURL := es.baseURL + "/_sql?format=json"
 
 	queryBody := map[string]interface{}{
-		"query": query,
+		"query": modifiedQuery,
 	}
 
 	// Add parameters if provided
@@ -313,13 +391,32 @@ func (es *ElasticsearchDatabase) Execute(ctx context.Context, query string, args
 	// Convert to QueryResult
 	result := &QueryResult{
 		Columns:  make([]string, len(sqlResp.Columns)),
-		Rows:     sqlResp.Rows,
-		RowCount: int64(len(sqlResp.Rows)),
+		Rows:     make([][]interface{}, 0, len(sqlResp.Rows)),
 		Duration: time.Since(start),
 	}
 
 	for i, col := range sqlResp.Columns {
 		result.Columns[i] = col.Name
+	}
+
+	// Step 3: Normalize all rows
+	for _, row := range sqlResp.Rows {
+		normalizedRow := make([]interface{}, len(row))
+		for i, val := range row {
+			normalizedRow[i] = NormalizeValue(val)
+		}
+		result.Rows = append(result.Rows, normalizedRow)
+	}
+
+	result.RowCount = int64(len(result.Rows))
+	result.Duration = time.Since(start)
+
+	// Step 4: Set pagination metadata
+	if opts != nil && opts.Limit > 0 {
+		result.TotalRows = totalRows
+		result.PagedRows = int64(len(result.Rows))
+		result.Offset = opts.Offset
+		result.HasMore = (int64(opts.Offset) + result.PagedRows) < totalRows
 	}
 
 	// Elasticsearch indices are not directly editable
@@ -328,6 +425,67 @@ func (es *ElasticsearchDatabase) Execute(ctx context.Context, query string, args
 	result.Editable = metadata
 
 	return result, nil
+}
+
+// executeCountQuery executes a count query for pagination
+func (es *ElasticsearchDatabase) executeCountQuery(ctx context.Context, countQuery string, args []interface{}) (int64, error) {
+	sqlURL := es.baseURL + "/_sql?format=json"
+
+	queryBody := map[string]interface{}{
+		"query": countQuery,
+	}
+
+	if len(args) > 0 {
+		params := make([]interface{}, len(args))
+		copy(params, args)
+		queryBody["params"] = params
+	}
+
+	bodyBytes, err := json.Marshal(queryBody)
+	if err != nil {
+		return 0, err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", sqlURL, bytes.NewReader(bodyBytes))
+	if err != nil {
+		return 0, err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	if es.authHeader != "" {
+		req.Header.Set("Authorization", es.authHeader)
+	}
+
+	resp, err := es.httpClient.Do(req)
+	if err != nil {
+		return 0, err
+	}
+	defer func() { if err := resp.Body.Close(); err != nil { es.logger.WithError(err).Error("Failed to close response body") } }()
+
+	if resp.StatusCode >= 400 {
+		body, _ := io.ReadAll(resp.Body)
+		return 0, fmt.Errorf("count query failed: status %d - %s", resp.StatusCode, string(body))
+	}
+
+	var sqlResp elasticsearchSQLResponse
+	if err := json.NewDecoder(resp.Body).Decode(&sqlResp); err != nil {
+		return 0, err
+	}
+
+	if len(sqlResp.Rows) > 0 && len(sqlResp.Rows[0]) > 0 {
+		switch v := sqlResp.Rows[0][0].(type) {
+		case int64:
+			return v, nil
+		case float64:
+			return int64(v), nil
+		case int:
+			return int64(v), nil
+		default:
+			return 0, fmt.Errorf("unexpected count type: %T", v)
+		}
+	}
+
+	return 0, nil
 }
 
 // elasticsearchSQLResponse represents the response from Elasticsearch SQL API

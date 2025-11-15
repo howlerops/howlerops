@@ -73,7 +73,8 @@ type ConnectionRequest struct {
 type QueryRequest struct {
 	ConnectionID string `json:"connectionId"`
 	Query        string `json:"query"`
-	Limit        int    `json:"limit,omitempty"`
+	Limit        int    `json:"limit,omitempty"`   // Page size (default 1000)
+	Offset       int    `json:"offset,omitempty"`  // NEW: Pagination offset
 	Timeout      int    `json:"timeout,omitempty"` // seconds
 }
 
@@ -81,11 +82,16 @@ type QueryRequest struct {
 type QueryResponse struct {
 	Columns  []string                        `json:"columns"`
 	Rows     [][]interface{}                 `json:"rows"`
-	RowCount int64                           `json:"rowCount"`
+	RowCount int64                           `json:"rowCount"` // Total rows in result
 	Affected int64                           `json:"affected"`
 	Duration string                          `json:"duration"`
 	Error    string                          `json:"error,omitempty"`
 	Editable *database.EditableQueryMetadata `json:"editable,omitempty"`
+	// Pagination metadata
+	TotalRows int64 `json:"totalRows,omitempty"` // NEW: Total rows available (unpaginated)
+	PagedRows int64 `json:"pagedRows,omitempty"` // NEW: Rows in this page
+	HasMore   bool  `json:"hasMore,omitempty"`   // NEW: More data available
+	Offset    int   `json:"offset,omitempty"`    // NEW: Current offset
 }
 
 // EditableMetadataJobResponse represents the status of an editable metadata background job
@@ -959,10 +965,17 @@ func (a *App) ExecuteQuery(req QueryRequest) (*QueryResponse, error) {
 		return a.ExecuteSyntheticQuery(req.Query)
 	}
 
+	// Set default limit for pagination if not specified
+	limit := req.Limit
+	if limit == 0 {
+		limit = 1000 // Default page size
+	}
+
 	options := &database.QueryOptions{
 		Timeout:  30 * time.Second,
 		ReadOnly: false,
-		Limit:    req.Limit,
+		Limit:    limit,
+		Offset:   req.Offset, // NEW: Pass pagination offset
 	}
 
 	if req.Timeout > 0 {
@@ -983,6 +996,11 @@ func (a *App) ExecuteQuery(req QueryRequest) (*QueryResponse, error) {
 		Affected: result.Affected,
 		Duration: result.Duration.String(),
 		Editable: result.Editable,
+		// NEW: Pagination metadata
+		TotalRows: result.TotalRows,
+		PagedRows: result.PagedRows,
+		HasMore:   result.HasMore,
+		Offset:    result.Offset,
 	}, nil
 }
 
@@ -4504,8 +4522,8 @@ func (a *App) CheckForUpdates() (*UpdateInfo, error) {
 	}
 
 	a.logger.WithFields(logrus.Fields{
-		"current": info.CurrentVersion,
-		"latest":  info.LatestVersion,
+		"current":   info.CurrentVersion,
+		"latest":    info.LatestVersion,
 		"available": info.Available,
 	}).Info("Update check complete")
 

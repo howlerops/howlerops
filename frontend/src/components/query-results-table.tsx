@@ -26,6 +26,12 @@ interface QueryResultsTableProps {
   rowCount: number
   executedAt: Date
   affectedRows: number
+  // Phase 2: Chunking metadata
+  isLarge?: boolean
+  chunkingEnabled?: boolean
+  displayMode?: import('../lib/query-result-storage').ResultDisplayMode
+  // Pagination metadata
+  totalRows?: number
 }
 
 interface ToolbarProps {
@@ -525,6 +531,10 @@ export const QueryResultsTable = ({
   rowCount,
   executedAt,
   affectedRows,
+  isLarge = false,
+  chunkingEnabled = false,
+  displayMode,
+  totalRows,
 }: QueryResultsTableProps) => {
   const columnNames = useMemo(
     () => (Array.isArray(columns) ? columns : []),
@@ -1413,6 +1423,12 @@ export const QueryResultsTable = ({
           onRowInspect={handleRowClick}
           toolbar={renderToolbar}
           footer={null}
+          // Phase 2: Chunked data loading
+          resultId={resultId}
+          totalRows={rowCount}
+          isLargeResult={isLarge}
+          chunkingEnabled={chunkingEnabled}
+          displayMode={displayMode}
         />
       )}
 
@@ -1470,7 +1486,11 @@ export const QueryResultsTable = ({
         <div className="flex items-center gap-4">
           <span className="flex items-center gap-1.5">
             <Database className="h-3.5 w-3.5" />
-            {rowCount.toLocaleString()} rows • {columnNames.length} columns
+            {(totalRows !== undefined ? totalRows : rowCount).toLocaleString()} rows
+            {totalRows !== undefined && rowCount < totalRows && (
+              <span className="text-muted-foreground/60"> ({rowCount.toLocaleString()} shown)</span>
+            )}
+            {' • '}{columnNames.length} columns
           </span>
           {safeAffectedRows > 0 && (
             <span className="flex items-center gap-1.5">

@@ -311,6 +311,10 @@ func (f *fakeDatabase) Execute(ctx context.Context, query string, args ...interf
 	return f.executeResult, f.executeErr
 }
 
+func (f *fakeDatabase) ExecuteWithOptions(ctx context.Context, query string, opts *database.QueryOptions, args ...interface{}) (*database.QueryResult, error) {
+	return f.executeResult, f.executeErr
+}
+
 func (f *fakeDatabase) ExecuteStream(ctx context.Context, query string, batchSize int, callback func([][]interface{}) error, args ...interface{}) error {
 	return f.executeStreamErr
 }

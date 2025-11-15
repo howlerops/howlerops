@@ -336,11 +336,11 @@ export class WailsApiClient {
     }
   }
 
-  async executeQuery(connectionId: string, sql: string, options?: { limit?: number; timeout?: number }) {
+  async executeQuery(connectionId: string, sql: string, limit?: number, offset?: number, timeout?: number) {
     try {
       // Check if query contains @ syntax for multi-database queries
       if (shouldUseMultiDatabasePath(sql)) {
-        return await this.executeMultiDatabaseQuery(sql, options)
+        return await this.executeMultiDatabaseQuery(sql, { limit, timeout })
       }
 
       // Load defaults from preferences
@@ -348,15 +348,17 @@ export class WailsApiClient {
       const pref = new PreferenceRepository()
       const timeoutPref = await pref.getUserPreference('local-user', 'queryTimeoutSeconds')
       const limitPref = await pref.getUserPreference('local-user', 'defaultResultLimit')
-      const timeoutSeconds = typeof options?.timeout === 'number' ? options.timeout : (typeof timeoutPref?.value === 'number' ? timeoutPref.value : 30)
-      const limitRows = typeof options?.limit === 'number' ? options.limit : (typeof limitPref?.value === 'number' ? limitPref.value : 1000)
+      const timeoutSeconds = typeof timeout === 'number' ? timeout : (typeof timeoutPref?.value === 'number' ? timeoutPref.value : 30)
+      const limitRows = typeof limit === 'number' ? limit : (typeof limitPref?.value === 'number' ? limitPref.value : 5000)
+      const offsetRows = typeof offset === 'number' ? offset : 0
 
-      // Note: Timeout is supported by backend; TS bindings may lag until regenerated
+      // Note: Timeout and offset are supported by backend; TS bindings may lag until regenerated
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const req: any = {
         connectionId,
         query: sql,
         limit: limitRows,
+        offset: offsetRows,
         timeout: timeoutSeconds
       }
 
@@ -378,7 +380,12 @@ export class WailsApiClient {
             affectedRows: result.affected
           },
           warnings: [],
-          editable: result.editable || null
+          editable: result.editable || null,
+          // Pagination metadata from backend
+          totalRows: result.totalRows,
+          pagedRows: result.pagedRows,
+          hasMore: result.hasMore,
+          offset: result.offset
         },
         success,
         message: hasError ? result.error : undefined
@@ -429,7 +436,7 @@ export class WailsApiClient {
         query: sql,
         timeout: timeoutSeconds, // seconds
         strategy: 'federated',
-        limit: options?.limit || 1000
+        limit: options?.limit || 5000
       })
 
       const hasError = typeof result.error === 'string' ? result.error.length > 0 : Boolean(result.error)
@@ -641,8 +648,8 @@ export const wailsEndpoints = {
 
   // Query endpoints
   queries: {
-    execute: async (connectionId: string, sql: string, options?: { limit?: number; timeout?: number }) => {
-      return wailsApiClient.executeQuery(connectionId, sql, options)
+    execute: async (connectionId: string, sql: string, limit?: number, offset?: number, timeout?: number) => {
+      return wailsApiClient.executeQuery(connectionId, sql, limit, offset, timeout)
     },
     getEditableMetadata: async (jobId: string) => {
       return wailsApiClient.getEditableMetadata(jobId)

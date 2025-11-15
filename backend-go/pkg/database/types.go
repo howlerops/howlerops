@@ -123,13 +123,18 @@ type PoolStats struct {
 
 // QueryResult represents the result of a query execution
 type QueryResult struct {
-	Columns  []string               `json:"columns"`
-	Rows     [][]interface{}        `json:"rows"`
-	RowCount int64                  `json:"row_count"`
-	Affected int64                  `json:"affected"`
-	Duration time.Duration          `json:"duration"`
-	Error    error                  `json:"error,omitempty"`
-	Editable *EditableQueryMetadata `json:"editable,omitempty"`
+	Columns    []string               `json:"columns"`
+	Rows       [][]interface{}        `json:"rows"`
+	RowCount   int64                  `json:"row_count"`    // Total rows in unpaginated query
+	Affected   int64                  `json:"affected"`
+	Duration   time.Duration          `json:"duration"`
+	Error      error                  `json:"error,omitempty"`
+	Editable   *EditableQueryMetadata `json:"editable,omitempty"`
+	// Pagination metadata
+	TotalRows  int64 `json:"total_rows,omitempty"`  // NEW: Total rows available (for pagination)
+	PagedRows  int64 `json:"paged_rows,omitempty"`  // NEW: Rows in this page
+	HasMore    bool  `json:"has_more,omitempty"`    // NEW: More data available
+	Offset     int   `json:"offset,omitempty"`      // NEW: Current offset
 }
 
 // TableInfo represents metadata about a database table
@@ -195,6 +200,7 @@ type Database interface {
 
 	// Query execution
 	Execute(ctx context.Context, query string, args ...interface{}) (*QueryResult, error)
+	ExecuteWithOptions(ctx context.Context, query string, opts *QueryOptions, args ...interface{}) (*QueryResult, error)
 	ExecuteStream(ctx context.Context, query string, batchSize int, callback func([][]interface{}) error, args ...interface{}) error
 	ExplainQuery(ctx context.Context, query string, args ...interface{}) (string, error)
 	ComputeEditableMetadata(ctx context.Context, query string, columns []string) (*EditableQueryMetadata, error)
@@ -245,6 +251,7 @@ type QueryOptions struct {
 	Timeout       time.Duration `json:"timeout"`
 	ReadOnly      bool          `json:"read_only"`
 	Limit         int           `json:"limit"`
+	Offset        int           `json:"offset"`        // NEW: Pagination offset
 	IncludeSchema bool          `json:"include_schema"`
 	StreamingMode bool          `json:"streaming_mode"`
 	BatchSize     int           `json:"batch_size"`

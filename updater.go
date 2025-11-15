@@ -48,10 +48,10 @@ type GitHubRelease struct {
 
 // UpdateChecker handles checking for application updates
 type UpdateChecker struct {
-	ctx            interface{}
-	lastCheckTime  time.Time
-	latestRelease  *GitHubRelease
-	httpClient     *http.Client
+	ctx           interface{}
+	lastCheckTime time.Time
+	latestRelease *GitHubRelease
+	httpClient    *http.Client
 }
 
 // NewUpdateChecker creates a new update checker instance

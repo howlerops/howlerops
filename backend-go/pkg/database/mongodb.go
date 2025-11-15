@@ -308,6 +308,11 @@ func (m *MongoDBDatabase) GetConnectionInfo(ctx context.Context) (map[string]int
 
 // Execute runs a MongoDB query and returns the results
 func (m *MongoDBDatabase) Execute(ctx context.Context, query string, args ...interface{}) (*QueryResult, error) {
+	return m.ExecuteWithOptions(ctx, query, nil, args...)
+}
+
+// ExecuteWithOptions runs a MongoDB query with options and returns the results
+func (m *MongoDBDatabase) ExecuteWithOptions(ctx context.Context, query string, opts *QueryOptions, args ...interface{}) (*QueryResult, error) {
 	start := time.Now()
 	m.stats.requestCount++
 	m.stats.lastRequestAt = start
@@ -325,7 +330,7 @@ func (m *MongoDBDatabase) Execute(ctx context.Context, query string, args ...int
 	}
 
 	// Parse and execute query
-	result, err := m.parseAndExecute(ctx, client, query, args...)
+	result, err := m.parseAndExecute(ctx, client, query, opts, args...)
 	if err != nil {
 		m.stats.errorCount++
 		return &QueryResult{
@@ -345,25 +350,25 @@ func (m *MongoDBDatabase) Execute(ctx context.Context, query string, args ...int
 }
 
 // parseAndExecute parses a query and executes it
-func (m *MongoDBDatabase) parseAndExecute(ctx context.Context, client *mongo.Client, query string, args ...interface{}) (*QueryResult, error) {
+func (m *MongoDBDatabase) parseAndExecute(ctx context.Context, client *mongo.Client, query string, opts *QueryOptions, args ...interface{}) (*QueryResult, error) {
 	query = strings.TrimSpace(query)
 	upperQuery := strings.ToUpper(query)
 
 	// Try to parse as simple SQL SELECT
 	if strings.HasPrefix(upperQuery, "SELECT") {
-		return m.executeSelectQuery(ctx, client, query)
+		return m.executeSelectQuery(ctx, client, query, opts)
 	}
 
 	// Try to parse as MongoDB find command (JSON format)
 	if strings.HasPrefix(query, "{") || strings.HasPrefix(query, "[") {
-		return m.executeMongoQuery(ctx, client, query)
+		return m.executeMongoQuery(ctx, client, query, opts)
 	}
 
 	return nil, fmt.Errorf("unsupported query format. Use SELECT syntax (e.g., SELECT * FROM collection WHERE field = 'value') or MongoDB JSON query (e.g., {\"find\": \"collection\", \"filter\": {}})")
 }
 
 // executeSelectQuery executes a SQL-like SELECT query
-func (m *MongoDBDatabase) executeSelectQuery(ctx context.Context, client *mongo.Client, query string) (*QueryResult, error) {
+func (m *MongoDBDatabase) executeSelectQuery(ctx context.Context, client *mongo.Client, query string, opts *QueryOptions) (*QueryResult, error) {
 	// Parse simple SELECT query
 	// Format: SELECT * FROM collection [WHERE field = value] [LIMIT n]
 	upperQuery := strings.ToUpper(query)
@@ -407,24 +412,49 @@ func (m *MongoDBDatabase) executeSelectQuery(ctx context.Context, client *mongo.
 		}
 	}
 
-	// Extract LIMIT
-	limit := int64(100) // Default limit
+	// Extract LIMIT from query if not provided in opts
+	queryLimit := int64(0)
 	limitIndex := strings.Index(upperQuery, "LIMIT")
 	if limitIndex != -1 {
 		limitClause := strings.TrimSpace(query[limitIndex+5:])
-		var limitValue int64
-		_, _ = fmt.Sscanf(limitClause, "%d", &limitValue) // Best-effort parsing
-		if limitValue > 0 {
-			limit = limitValue
-		}
+		_, _ = fmt.Sscanf(limitClause, "%d", &queryLimit) // Best-effort parsing
 	}
 
 	// Execute query
 	db := client.Database(m.config.Database)
 	collection := db.Collection(collectionName)
 
-	opts := options.Find().SetLimit(limit)
-	cursor, err := collection.Find(ctx, filter, opts)
+	// Step 1: Get total count if pagination is requested
+	var totalRows int64
+	if opts != nil && opts.Limit > 0 {
+		count, err := collection.CountDocuments(ctx, filter)
+		if err != nil {
+			m.logger.WithError(err).Warn("Failed to get total count for pagination")
+			totalRows = 0
+		} else {
+			totalRows = count
+		}
+	}
+
+	// Step 2: Apply pagination options
+	findOptions := options.Find()
+	if opts != nil && opts.Limit > 0 {
+		// #nosec G115 - opts.Limit from config/API, reasonable values (<100k), well within int64 range
+		findOptions.SetLimit(int64(opts.Limit))
+		if opts.Offset > 0 {
+			// #nosec G115 - opts.Offset from config/API, reasonable values (<100k), well within int64 range
+			findOptions.SetSkip(int64(opts.Offset))
+		}
+	} else if queryLimit > 0 {
+		// Use limit from query if no opts provided
+		findOptions.SetLimit(queryLimit)
+	} else {
+		// Default limit
+		findOptions.SetLimit(100)
+	}
+
+	// Step 3: Execute query
+	cursor, err := collection.Find(ctx, filter, findOptions)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute MongoDB find: %w", err)
 	}
@@ -434,18 +464,28 @@ func (m *MongoDBDatabase) executeSelectQuery(ctx context.Context, client *mongo.
 		}
 	}()
 
-	// Read all documents
+	// Step 4: Read all documents
 	var documents []bson.M
 	if err := cursor.All(ctx, &documents); err != nil {
 		return nil, fmt.Errorf("failed to read MongoDB results: %w", err)
 	}
 
-	// Convert to QueryResult
-	return m.convertDocumentsToQueryResult(documents), nil
+	// Step 5: Convert to QueryResult with normalization
+	result := m.convertDocumentsToQueryResult(documents)
+
+	// Step 6: Set pagination metadata
+	if opts != nil && opts.Limit > 0 {
+		result.TotalRows = totalRows
+		result.PagedRows = int64(len(result.Rows))
+		result.Offset = opts.Offset
+		result.HasMore = (int64(opts.Offset) + result.PagedRows) < totalRows
+	}
+
+	return result, nil
 }
 
 // executeMongoQuery executes a native MongoDB query in JSON format
-func (m *MongoDBDatabase) executeMongoQuery(ctx context.Context, client *mongo.Client, query string) (*QueryResult, error) {
+func (m *MongoDBDatabase) executeMongoQuery(ctx context.Context, client *mongo.Client, query string, opts *QueryOptions) (*QueryResult, error) {
 	var command bson.M
 	if err := json.Unmarshal([]byte(query), &command); err != nil {
 		return nil, fmt.Errorf("failed to parse MongoDB JSON query: %w", err)
@@ -498,13 +538,15 @@ func (m *MongoDBDatabase) convertDocumentsToQueryResult(documents []bson.M) *Que
 		}
 	}
 
-	// Convert documents to rows
+	// Convert documents to rows with normalization
 	rows := make([][]interface{}, len(documents))
 	for i, doc := range documents {
 		row := make([]interface{}, len(columnOrder))
 		for j, col := range columnOrder {
 			if val, ok := doc[col]; ok {
-				row[j] = m.convertBSONValue(val)
+				// Convert BSON value then normalize it
+				convertedVal := m.convertBSONValue(val)
+				row[j] = NormalizeValue(convertedVal)
 			} else {
 				row[j] = nil
 			}

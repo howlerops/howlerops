@@ -68,6 +68,7 @@ export interface QueryResult {
   rows: Record<string, unknown>[]
   rowCount: number
   executionTime: number
+  totalRows?: number // Total unpaginated rows
 }
 
 // API Input Types

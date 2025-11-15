@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback, useRef, useEffect, memo } from 'react';
+import React, { useMemo, useCallback, useRef, useEffect, memo, useDeferredValue } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
@@ -7,11 +7,12 @@ import {
   ColumnDef,
   flexRender,
 } from '@tanstack/react-table';
-import { useVirtualizer } from '@tanstack/react-virtual';
+import { useVirtualizer, type VirtualItem } from '@tanstack/react-virtual';
 import { Eye } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useTableState } from '../../hooks/use-table-state';
 import { useKeyboardNavigation } from '../../hooks/use-keyboard-navigation';
+import { useChunkedData } from '../../hooks/use-chunked-data';
 import {
   EditableTableProps,
   TableRow,
@@ -26,6 +27,8 @@ import { TableHeader } from './table-header';
 import { TableToolbar } from './table-toolbar';
 import { StatusBar } from './status-bar';
 
+const EMPTY_VIRTUAL_ITEMS: VirtualItem[] = [];
+
 // Simplified VirtualRow component following official pattern
 const VirtualRow = memo(React.forwardRef<HTMLTableRowElement, {
   row: unknown;
@@ -34,20 +37,28 @@ const VirtualRow = memo(React.forwardRef<HTMLTableRowElement, {
   actions: unknown;
   tableColumns: TableColumn[];
   isVirtual?: boolean;
-  virtualItem?: unknown;
+  virtualItem?: VirtualItem;
   onRowClick?: (rowId: string, rowData: TableRow) => void;
-}>(({ row, onRowClick }, ref) => {
-  const rowData = row as { original: { __rowId: string }; getVisibleCells: () => unknown[] };
-  
+}>(({ row, onRowClick, virtualItem }, ref) => {
+  // Critical validation: Ensure row data exists and is valid (ag-Grid pattern)
+  const rowData = row as { original?: { __rowId?: string }; getVisibleCells?: () => unknown[] } | null;
+
   const handleRowClick = useCallback(() => {
-    if (onRowClick && rowData.original.__rowId) {
-      onRowClick(rowData.original.__rowId, rowData.original);
+    if (!onRowClick || !rowData?.original?.__rowId) {
+      return;
     }
-  }, [onRowClick, rowData.original]);
-  
+    onRowClick(rowData.original.__rowId, rowData.original);
+  }, [onRowClick, rowData]);
+
+  // Return null if row data is invalid (prevents rendering dummy rows)
+  if (!rowData || !rowData.original || !rowData.getVisibleCells) {
+    return null;
+  }
+
   return (
     <tr
       ref={ref}
+      data-index={typeof virtualItem?.index === 'number' ? virtualItem.index : undefined}
       className="border-b border-border hover:bg-muted/50 cursor-pointer"
       onClick={handleRowClick}
     >
@@ -58,7 +69,7 @@ const VirtualRow = memo(React.forwardRef<HTMLTableRowElement, {
         return (
           <td
             key={cellData.id}
-            className={`px-3 py-2 text-sm ${sticky ? `sticky ${sticky === 'right' ? 'right-0' : 'left-0'} bg-background z-10 shadow-sm` : ''}`}
+            className={`px-3 py-1 text-sm ${sticky ? `sticky ${sticky === 'right' ? 'right-0' : 'left-0'} bg-background z-10 shadow-sm` : ''}`}
             style={{
               width: columnSize,
               minWidth: columnSize,
@@ -89,7 +100,7 @@ export const EditableTable: React.FC<EditableTableProps> = ({
   loading = false,
   error = null,
   virtualScrolling = true,
-  estimateSize = 35,
+  estimateSize = 31,
   className,
   height = 600,
   enableMultiSelect = true,
@@ -100,18 +111,44 @@ export const EditableTable: React.FC<EditableTableProps> = ({
   footer,
   onDirtyChange,
   customCellRenderers = {},
+  // Phase 2: Chunked data loading
+  resultId,
+  totalRows,
+  isLargeResult = false,
+  chunkingEnabled = false,
+  displayMode,
 }) => {
   const tableContainerRef = useRef<HTMLDivElement>(null);
+
+  // Phase 2: Load chunked data on-demand from IndexedDB
+  const {
+    data: chunkedData,
+    ensureRangeLoaded,
+  } = useChunkedData({
+    resultId: resultId || '',
+    totalRows: totalRows || initialData.length,
+    isLarge: chunkingEnabled && isLargeResult,
+    initialData,
+  });
+
+  // Use chunked data if chunking is enabled, otherwise use initial data
+  const effectiveData = (chunkingEnabled && isLargeResult) ? chunkedData as TableRow[] : initialData;
+
+  // Defer expensive table updates to keep UI responsive for large datasets
+  // When data changes, React will prioritize urgent updates (user input) over table rendering
+  const deferredData = useDeferredValue(effectiveData);
+
   const {
     data,
     setData,
     state,
     actions,
-  } = useTableState(initialData);
+  } = useTableState(deferredData);
 
   useEffect(() => {
-    setData(initialData);
-  }, [initialData, setData]);
+    // Update data when deferred data changes (this allows React to prioritize urgent updates)
+    setData(deferredData);
+  }, [deferredData, setData]);
 
   // Create TanStack Table columns
   const columns = useMemo<ColumnDef<TableRow>[]>(() => {
@@ -238,13 +275,23 @@ export const EditableTable: React.FC<EditableTableProps> = ({
   ]);
 
   // TanStack Table returns mutable helpers; safe to instantiate per render.
+  // Performance optimization: Disable expensive features for very large datasets
+  const rowCount = data.length;
+  const isVeryLarge = rowCount > 10000;
+
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
+    // Conditionally enable sorting/filtering based on display mode
+    getSortedRowModel: displayMode?.canSort !== false ? getSortedRowModel() : undefined,
+    getFilteredRowModel: displayMode?.canFilter !== false ? getFilteredRowModel() : undefined,
+    enableSorting: displayMode?.canSort !== false,
+    enableFilters: displayMode?.canFilter !== false,
+    // Disable expensive features for very large datasets
+    enableMultiSort: !isVeryLarge, // Disable multi-column sort for 10K+ rows
+    enableGlobalFilter: !isVeryLarge && enableGlobalFilter, // Disable global filter for 10K+ rows
     state: {
       sorting: state.sorting,
       columnFilters: state.columnFilters,
@@ -293,23 +340,46 @@ export const EditableTable: React.FC<EditableTableProps> = ({
       actions.selectAllRows(false);
       selectedIds.forEach(id => actions.toggleRowSelection(id, true));
     },
-    enableRowSelection: enableMultiSelect,
-    enableColumnResizing,
+    enableRowSelection: enableMultiSelect && !isVeryLarge, // Disable row selection for 10K+ rows (expensive)
+    enableColumnResizing: enableColumnResizing && !isVeryLarge, // Disable column resizing for 10K+ rows
     columnResizeMode: 'onChange',
   });
 
   const { rows } = table.getRowModel();
 
-  const rowCount = rows.length;
-  const shouldVirtualize = virtualScrolling && rowCount > 0;
+  const visibleRowCount = rows.length;
+  const shouldVirtualize = virtualScrolling && visibleRowCount > 0;
 
   const virtualizer = useVirtualizer({
-    count: shouldVirtualize ? rowCount : 0,
+    count: shouldVirtualize ? visibleRowCount : 0,
     getScrollElement: () => tableContainerRef.current,
     estimateSize: () => estimateSize,
-    overscan: 12,
+    // Conservative buffer: 20 rows = ~620px buffer (prevents white chunks without sync issues)
+    // ag-Grid uses ~10 rows with dynamic pixel calculation; 20 is safe for fixed-height
+    overscan: 20,
     measureElement: (element) => element?.getBoundingClientRect().height ?? estimateSize,
+    // Enable horizontal overscan for wide tables
+    horizontal: false,
   });
+
+  // ag-Grid pattern: Optimize scroll performance with passive listeners
+  useEffect(() => {
+    const scrollElement = tableContainerRef.current;
+    if (!scrollElement || !shouldVirtualize) return;
+
+    // Add passive scroll listener for better performance
+    // Prevents blocking the main thread during scroll
+    const handleScroll = () => {
+      // TanStack Virtual handles the actual scroll logic
+      // This is just to enable passive event listening
+    };
+
+    scrollElement.addEventListener('scroll', handleScroll, { passive: true });
+
+    return () => {
+      scrollElement.removeEventListener('scroll', handleScroll);
+    };
+  }, [shouldVirtualize]);
 
   const virtualizerWorking = shouldVirtualize && Boolean(tableContainerRef.current);
 
@@ -407,6 +477,26 @@ export const EditableTable: React.FC<EditableTableProps> = ({
   const shouldShowDefaultToolbar = !renderedToolbar && (enableGlobalFilter || enableExport);
   const shouldRenderToolbar = Boolean(renderedToolbar || shouldShowDefaultToolbar);
 
+  // Get virtual items following official pattern
+  const virtualItems = virtualizerWorking ? virtualizer.getVirtualItems() : EMPTY_VIRTUAL_ITEMS;
+  const totalSize = virtualizerWorking ? virtualizer.getTotalSize() : undefined;
+
+  useEffect(() => {
+    if (!chunkingEnabled || !isLargeResult) {
+      return;
+    }
+    if (!virtualizerWorking) {
+      return;
+    }
+    if (virtualItems === EMPTY_VIRTUAL_ITEMS || virtualItems.length === 0) {
+      return;
+    }
+
+    const startIndex = virtualItems[0].index;
+    const endIndex = virtualItems[virtualItems.length - 1].index;
+    ensureRangeLoaded(startIndex, endIndex);
+  }, [chunkingEnabled, isLargeResult, virtualItems, virtualizerWorking, ensureRangeLoaded]);
+
   if (error) {
     return (
       <div className="flex items-center justify-center h-64 text-destructive">
@@ -417,10 +507,6 @@ export const EditableTable: React.FC<EditableTableProps> = ({
       </div>
     );
   }
-
-  // Get virtual items following official pattern
-  const virtualItems = virtualizerWorking ? virtualizer.getVirtualItems() : null;
-  const totalSize = virtualizerWorking ? virtualizer.getTotalSize() : undefined;
 
   return (
     <div className={cn('flex flex-col h-full min-h-0', className)}>
@@ -450,8 +536,8 @@ export const EditableTable: React.FC<EditableTableProps> = ({
       >
         <div
           ref={tableContainerRef}
-          className="relative overflow-auto"
-          style={{ 
+          className="relative overflow-auto virtual-scroll-container"
+          style={{
             height: typeof height === 'number' ? `${height}px` : height || '400px',
           }}
         >
@@ -476,22 +562,31 @@ export const EditableTable: React.FC<EditableTableProps> = ({
 
             {/* Body */}
             <tbody>
-              {virtualizerWorking && virtualItems ? (
+              {virtualizerWorking ? (
                 <>
                   {/* Top spacer */}
                   {virtualItems.length > 0 && virtualItems[0].index > 0 && (
                     <tr>
                       <td
                         colSpan={columns.length}
-                        style={{ height: virtualItems[0].start }}
+                        style={{ height: virtualItems[0].start, padding: 0, border: 'none' }}
                       />
                     </tr>
                   )}
                   {/* Virtual rows */}
                   {virtualItems.map(virtualItem => {
+                    // Critical: Bounds check BEFORE array access (ag-Grid pattern)
+                    // Prevents accessing undefined when virtualizer is out of sync
+                    if (virtualItem.index < 0 || virtualItem.index >= rows.length) {
+                      return null;
+                    }
+
                     const row = rows[virtualItem.index];
-                    if (!row) return null;
-                    
+                    // Double-check row exists and has required data
+                    if (!row || !row.id) {
+                      return null;
+                    }
+
                     return (
                       <VirtualRow
                         key={row.id}
@@ -514,7 +609,9 @@ export const EditableTable: React.FC<EditableTableProps> = ({
                       <td
                         colSpan={columns.length}
                         style={{
-                          height: totalSize! - virtualItems[virtualItems.length - 1].end
+                          height: totalSize! - virtualItems[virtualItems.length - 1].end,
+                          padding: 0,
+                          border: 'none'
                         }}
                       />
                     </tr>

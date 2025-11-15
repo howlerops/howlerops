@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import { SortingState, ColumnFiltersState, Header } from '@tanstack/react-table';
+import type { ResultDisplayMode } from '../lib/query-result-storage';
 
 export type CellValue = string | number | boolean | null | undefined;
 
@@ -67,6 +68,12 @@ export interface EditableTableProps {
   footer?: ReactNode | EditableTableRenderer;
   onDirtyChange?: (dirtyRowIds: string[]) => void;
   customCellRenderers?: Record<string, (value: CellValue, row: TableRow) => ReactNode>;
+  // Phase 2: Chunked data loading
+  resultId?: string;
+  totalRows?: number;
+  isLargeResult?: boolean;
+  chunkingEnabled?: boolean;
+  displayMode?: ResultDisplayMode;
 }
 
 export interface EditableTableContext {

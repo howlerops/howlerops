@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button'
 import { useQueryStore } from '@/store/query-store'
 import { useConnectionStore } from '@/store/connection-store'
 import { QueryResultsTable } from '@/components/query-results-table'
+import { QueryLoadingIndicator } from '@/components/query-loading-indicator'
+import { DataProcessingIndicator } from '@/components/data-processing-indicator'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { useAIConfig } from '@/store/ai-store'
 import { RotateCcw, Clock, Database, AlertCircle, BarChart3, Wand2 } from 'lucide-react'
@@ -147,7 +149,17 @@ export function ResultsPanel({ onFixWithAI }: ResultsPanelProps = {}) {
           value="results"
           className="flex flex-1 min-h-0 flex-col overflow-hidden data-[state=inactive]:hidden"
         >
-          {latestResult.error ? (
+          {activeTab?.isExecuting && activeTab?.executionStartTime ? (
+            <QueryLoadingIndicator
+              startTime={activeTab.executionStartTime}
+              query={activeTab.content}
+            />
+          ) : latestResult.isProcessing ? (
+            <DataProcessingIndicator
+              rowCount={latestResult.rowCount}
+              progress={latestResult.processingProgress}
+            />
+          ) : latestResult.error ? (
             <div className="flex h-full items-center justify-center p-6">
               <Alert variant="destructive" className="max-w-lg text-left">
                 <div className="flex items-start gap-3">
@@ -208,6 +220,10 @@ export function ResultsPanel({ onFixWithAI }: ResultsPanelProps = {}) {
               rowCount={latestResult.rowCount}
               executedAt={latestResult.timestamp}
               affectedRows={latestResult.affectedRows}
+              isLarge={latestResult.isLarge}
+              chunkingEnabled={latestResult.chunkingEnabled}
+              displayMode={latestResult.displayMode}
+              totalRows={latestResult.totalRows}
             />
           )}
         </TabsContent>
@@ -306,7 +322,9 @@ export function ResultsPanel({ onFixWithAI }: ResultsPanelProps = {}) {
                         <span className="text-primary">
                           {(() => {
                             const hasTabularData = result.columns.length > 0
-                            const count = hasTabularData ? result.rowCount : result.affectedRows
+                            const count = hasTabularData
+                              ? (result.totalRows !== undefined ? result.totalRows : result.rowCount)
+                              : result.affectedRows
                             const formattedCount = count.toLocaleString()
                             const noun = count === 1 ? 'row' : 'rows'
                             const verb = hasTabularData ? 'returned' : 'affected'
@@ -344,11 +362,11 @@ export function ResultsPanel({ onFixWithAI }: ResultsPanelProps = {}) {
                 </div>
                 <div>
                   <span className="text-xs text-muted-foreground">
-                    {latestResult.columns.length > 0 ? 'Rows Returned' : 'Rows Affected'}
+                    {latestResult.columns.length > 0 ? 'Total Rows' : 'Rows Affected'}
                   </span>
                   <div className="font-medium">
                     {latestResult.columns.length > 0
-                      ? latestResult.rowCount
+                      ? (latestResult.totalRows !== undefined ? latestResult.totalRows : latestResult.rowCount)
                       : latestResult.affectedRows}
                   </div>
                 </div>
@@ -389,7 +407,12 @@ export function ResultsPanel({ onFixWithAI }: ResultsPanelProps = {}) {
                             <div className="flex items-center gap-4 text-muted-foreground">
                               <div className="flex items-center gap-1">
                                 <Database className="h-3 w-3" />
-                                <span>{result.rowCount} rows</span>
+                                <span>
+                                  {result.totalRows !== undefined ? result.totalRows : result.rowCount} rows
+                                  {result.totalRows !== undefined && result.rowCount < result.totalRows && (
+                                    <span className="text-xs ml-1">({result.rowCount} shown)</span>
+                                  )}
+                                </span>
                               </div>
                               <div className="flex items-center gap-1">
                                 <Clock className="h-3 w-3" />
