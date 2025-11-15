@@ -34,6 +34,10 @@ RUN apk add --no-cache \
 
 WORKDIR /app
 
+# Allow Go to automatically download required toolchain version
+# This enables dependencies requiring Go 1.24+ to work with Go 1.23 base image
+ENV GOTOOLCHAIN=auto
+
 # Copy dependency files first for better layer caching
 # Only re-download if go.mod or go.sum changes
 COPY go.mod go.sum ./
