@@ -5,6 +5,14 @@ on:
     tags:
       - 'v*'  # Trigger on all version tags (v1.0.0, v1.2.3-beta, etc.)
 
+  # Allow manual releases by specifying tag
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Git tag to release (e.g., v0.2.0)'
+        required: true
+        type: string
+
 env:
   APP_NAME: howlerops
   BUNDLE_ID: com.howlerops.app
@@ -25,11 +33,20 @@ jobs:
 
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
 
       - name: Extract version from tag
         id: version
         run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            # Manual trigger: use tag input
+            VERSION=${{ github.event.inputs.tag }}
+            VERSION=${VERSION#v}  # Remove 'v' prefix if present
+          else
+            # Tag push: extract from GITHUB_REF
+            VERSION=${GITHUB_REF#refs/tags/v}
+          fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Version: $VERSION"
 
