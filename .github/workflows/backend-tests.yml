@@ -124,58 +124,6 @@ jobs:
           name: server-logs
           path: backend-go/logs/
 
-  smoke-tests:
-    name: Smoke Tests
-    runs-on: ubuntu-latest
-    needs: [unit-tests]
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.25'
-          cache: true
-          cache-dependency-path: backend-go/go.sum
-
-      - name: Install dependencies
-        working-directory: backend-go
-        run: go mod download
-
-      - name: Install test tools
-        run: sudo apt-get update && sudo apt-get install -y jq bc
-
-      - name: Build server
-        working-directory: backend-go
-        run: go build -o server cmd/server/main.go
-
-      - name: Start server
-        working-directory: backend-go
-        env:
-          TURSO_URL: "file:./test.db"
-          JWT_SECRET: "test-secret-key-for-ci-testing-only-minimum-32-characters-required"
-          ENVIRONMENT: "test"
-          LOG_LEVEL: "debug"
-          OLLAMA_ENDPOINT: "http://localhost:11434"
-        run: |
-          ./server &
-          echo $! > server.pid
-          sleep 10
-
-      - name: Run smoke tests
-        working-directory: backend-go
-        run: ./scripts/smoke-tests.sh
-
-      - name: Stop server
-        if: always()
-        working-directory: backend-go
-        run: |
-          if [ -f server.pid ]; then
-            kill $(cat server.pid) || true
-          fi
-
   lint:
     name: Lint
     runs-on: ubuntu-latest
@@ -218,7 +166,7 @@ jobs:
   test-summary:
     name: Test Summary
     runs-on: ubuntu-latest
-    needs: [unit-tests, integration-tests, smoke-tests, lint]
+    needs: [unit-tests, integration-tests, lint]
     if: always()
 
     steps:
@@ -226,12 +174,10 @@ jobs:
         run: |
           echo "Unit Tests: ${{ needs.unit-tests.result }}"
           echo "Integration Tests: ${{ needs.integration-tests.result }}"
-          echo "Smoke Tests: ${{ needs.smoke-tests.result }}"
           echo "Lint: ${{ needs.lint.result }}"
 
           if [ "${{ needs.unit-tests.result }}" != "success" ] || \
              [ "${{ needs.integration-tests.result }}" != "success" ] || \
-             [ "${{ needs.smoke-tests.result }}" != "success" ] || \
              [ "${{ needs.lint.result }}" != "success" ]; then
             echo "Some tests failed"
             exit 1

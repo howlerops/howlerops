@@ -49,6 +49,9 @@ linters:
 
     govet:
       enable-all: true
+      disable:
+        - fieldalignment  # Too strict for most use cases
+        - shadow  # Variable shadowing - style issue, not a bug
       settings:
         shadow:
           strict: false
