@@ -64,7 +64,6 @@ jobs:
       contents: write
 
     outputs:
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
       version: ${{ steps.get_version.outputs.version }}
 
     steps:
@@ -86,7 +85,7 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Release version: $VERSION"
 
-      - name: Generate changelog
+      - name: Generate changelog and create release notes
         id: changelog
         run: |
           # Generate changelog from commits since last tag
@@ -100,71 +99,70 @@ jobs:
             CHANGELOG=$(git log ${PREV_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
           fi
 
-          # Escape for GitHub multiline output
-          CHANGELOG="${CHANGELOG//'%'/'%25'}"
-          CHANGELOG="${CHANGELOG//$'\n'/'%0A'}"
-          CHANGELOG="${CHANGELOG//$'\r'/'%0D'}"
+          # Create release notes file
+          cat > release_notes.md <<'EOF'
+          ## Howlerops Backend v${{ steps.get_version.outputs.version }}
 
-          echo "changelog=$CHANGELOG" >> $GITHUB_OUTPUT
+          ### Changes
+          ${CHANGELOG}
+
+          ### Installation
+
+          Download the appropriate binary for your platform:
+
+          **Quick Install (Recommended):**
+          ```bash
+          curl -fsSL https://raw.githubusercontent.com/jbeck018/howlerops/main/install.sh | sh
+          ```
+
+          **Manual Download:**
+          - **macOS**: `sql-studio-darwin-amd64.tar.gz` (Intel) or `sql-studio-darwin-arm64.tar.gz` (Apple Silicon)
+          - **Linux**: `sql-studio-linux-amd64.tar.gz` or `sql-studio-linux-arm64.tar.gz`
+          - **Windows**: `sql-studio-windows-amd64.tar.gz`
+
+          ### Verification
+
+          Verify the download with SHA256 checksums:
+          ```bash
+          sha256sum -c checksums.txt
+          ```
+
+          ### Quick Start
+
+          ```bash
+          # Extract (Unix)
+          tar xzf sql-studio-backend-*.tar.gz
+
+          # Make executable
+          chmod +x sql-studio-backend
+
+          # Run
+          ./sql-studio-backend --version
+          ```
+
+          ### Docker Image
+
+          ```bash
+          docker pull gcr.io/${{ github.repository }}:v${{ steps.get_version.outputs.version }}
+          ```
+
+          ---
+          Built with Go ${{ env.GO_VERSION }} | Commit: ${{ github.sha }}
+          EOF
 
       - name: Create GitHub Release
-        id: create_release
-        uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: v${{ steps.get_version.outputs.version }}
-          release_name: Howlerops Backend v${{ steps.get_version.outputs.version }}
-          body: |
-            ## Howlerops Backend v${{ steps.get_version.outputs.version }}
+        run: |
+          PRERELEASE_FLAG=""
+          if [ "${{ github.event.inputs.prerelease || false }}" = "true" ]; then
+            PRERELEASE_FLAG="--prerelease"
+          fi
 
-            ### Changes
-            ${{ steps.changelog.outputs.changelog }}
-
-            ### Installation
-
-            Download the appropriate binary for your platform:
-
-            **Quick Install (Recommended):**
-            ```bash
-            curl -fsSL https://raw.githubusercontent.com/jbeck018/howlerops/main/install.sh | sh
-            ```
-
-            **Manual Download:**
-            - **macOS**: `sql-studio-darwin-amd64.tar.gz` (Intel) or `sql-studio-darwin-arm64.tar.gz` (Apple Silicon)
-            - **Linux**: `sql-studio-linux-amd64.tar.gz` or `sql-studio-linux-arm64.tar.gz`
-            - **Windows**: `sql-studio-windows-amd64.tar.gz`
-
-            ### Verification
-
-            Verify the download with SHA256 checksums:
-            ```bash
-            sha256sum -c checksums.txt
-            ```
-
-            ### Quick Start
-
-            ```bash
-            # Extract (Unix)
-            tar xzf sql-studio-backend-*.tar.gz
-
-            # Make executable
-            chmod +x sql-studio-backend
-
-            # Run
-            ./sql-studio-backend --version
-            ```
-
-            ### Docker Image
-
-            ```bash
-            docker pull gcr.io/${{ github.repository }}:v${{ steps.get_version.outputs.version }}
-            ```
-
-            ---
-            Built with Go ${{ env.GO_VERSION }} | Commit: ${{ github.sha }}
-          draft: false
-          prerelease: ${{ github.event.inputs.prerelease || false }}
+          gh release create "v${{ steps.get_version.outputs.version }}" \
+            --title "Howlerops Backend v${{ steps.get_version.outputs.version }}" \
+            --notes-file release_notes.md \
+            $PRERELEASE_FLAG
 
   # ---------------------------------------------------------------------------
   # Job 2: Build Cross-Platform Binaries
@@ -348,45 +346,18 @@ jobs:
           echo "CHECKSUM_FILE=${{ env.FINAL_ASSET }}.sha256" >> $GITHUB_ENV
           echo "BINARY_CHECKSUM_FILE=${{ matrix.asset_name }}.sha256" >> $GITHUB_ENV
 
-      - name: Upload binary to release
-        uses: actions/upload-release-asset@v1
+      - name: Upload assets to release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ./backend-go/${{ env.FINAL_ASSET }}
-          asset_name: ${{ env.FINAL_ASSET }}
-          asset_content_type: application/octet-stream
-
-      - name: Upload checksum to release
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ./backend-go/${{ env.CHECKSUM_FILE }}
-          asset_name: ${{ env.CHECKSUM_FILE }}
-          asset_content_type: text/plain
-
-      - name: Upload raw binary to release (for auto-updater)
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ./backend-go/${{ matrix.asset_name }}
-          asset_name: ${{ matrix.asset_name }}
-          asset_content_type: application/octet-stream
-
-      - name: Upload binary checksum to release (for auto-updater)
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ./backend-go/${{ env.BINARY_CHECKSUM_FILE }}
-          asset_name: ${{ env.BINARY_CHECKSUM_FILE }}
-          asset_content_type: text/plain
+        working-directory: ./backend-go
+        run: |
+          # Upload all 4 assets for this platform
+          gh release upload "v${{ needs.create-release.outputs.version }}" \
+            "${{ env.FINAL_ASSET }}" \
+            "${{ env.CHECKSUM_FILE }}" \
+            "${{ matrix.asset_name }}" \
+            "${{ env.BINARY_CHECKSUM_FILE }}" \
+            --clobber
 
   build-howlerops:
     name: Build HowlerOps Desktop (macOS)
@@ -403,7 +374,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.21"
+          go-version: "1.25"
           cache: true
 
       - name: Set up Node.js
@@ -444,25 +415,14 @@ jobs:
           shasum -a 256 "$DESKTOP_ARCHIVE" > "${DESKTOP_ARCHIVE}.sha256"
           cat "${DESKTOP_ARCHIVE}.sha256"
 
-      - name: Upload desktop archive
-        uses: actions/upload-release-asset@v1
+      - name: Upload desktop assets to release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ${{ env.DESKTOP_ARCHIVE }}
-          asset_name: howlerops-darwin-universal.tar.gz
-          asset_content_type: application/octet-stream
-
-      - name: Upload desktop checksum
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ${{ env.DESKTOP_ARCHIVE }}.sha256
-          asset_name: howlerops-darwin-universal.tar.gz.sha256
-          asset_content_type: text/plain
+        run: |
+          gh release upload "v${{ needs.create-release.outputs.version }}" \
+            "${{ env.DESKTOP_ARCHIVE }}" \
+            "${{ env.DESKTOP_ARCHIVE }}.sha256" \
+            --clobber
 
   # ---------------------------------------------------------------------------
   # Job 3: Generate Combined Checksums File
@@ -491,14 +451,12 @@ jobs:
           cat checksums.txt
 
       - name: Upload combined checksums
-        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ./checksums.txt
-          asset_name: checksums.txt
-          asset_content_type: text/plain
+        run: |
+          gh release upload "v${{ needs.create-release.outputs.version }}" \
+            checksums.txt \
+            --clobber
 
   # ---------------------------------------------------------------------------
   # Job 4: Build and Push Docker Image
