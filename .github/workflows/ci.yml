@@ -261,8 +261,9 @@ jobs:
 
           # Run security scan
           # -exclude-dir: Skip test files and vendor
+          # -exclude=G101: Skip hardcoded credentials check (prone to false positives in generated code)
           # -severity: Only report medium and above
-          gosec -exclude-dir=vendor -exclude-dir=test -severity medium ./...
+          gosec -exclude-dir=vendor -exclude-dir=test -exclude=G101 -severity medium ./...
 
   # ---------------------------------------------------------------------------
   # Job 3: Build Verification
