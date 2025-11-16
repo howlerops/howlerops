@@ -180,16 +180,18 @@ func TestNewService_NilLogger(t *testing.T) {
 	assert.Contains(t, err.Error(), "logger cannot be nil")
 }
 
-// TestNewService_NoProvidersConfigured tests that service fails when no providers are configured
+// TestNewService_NoProvidersConfigured tests that service succeeds even when no providers are configured
+// (AI providers are now optional - service can run without them for basic operation)
 func TestNewService_NoProvidersConfigured(t *testing.T) {
 	config := newEmptyConfig()
 	logger := newTestLogger()
 
 	service, err := ai.NewService(config, logger)
 
-	assert.Error(t, err)
-	assert.Nil(t, service)
-	assert.Contains(t, err.Error(), "no AI providers configured")
+	// Service should be created successfully even with no providers
+	assert.NoError(t, err)
+	assert.NotNil(t, service)
+	assert.Empty(t, service.GetProviders())
 }
 
 // TestNewService_MultipleProviders tests initialization with multiple providers
