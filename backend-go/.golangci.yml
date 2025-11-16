@@ -8,6 +8,9 @@
 # Run with auto-fix: golangci-lint run --fix
 # =============================================================================
 
+# Configuration version for golangci-lint v2
+version: "2"
+
 # Linter execution settings
 run:
   # Timeout for analysis
