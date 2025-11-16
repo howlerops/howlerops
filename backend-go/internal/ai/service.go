@@ -154,10 +154,11 @@ func (s *serviceImpl) initializeProviders() error {
 	}
 
 	if len(s.providers) == 0 {
-		return fmt.Errorf("no AI providers configured")
+		s.logger.Warn("No AI providers configured - AI features will be unavailable")
+	} else {
+		s.logger.WithField("providers", len(s.providers)).Info("AI providers initialized")
 	}
 
-	s.logger.WithField("providers", len(s.providers)).Info("AI providers initialized")
 	return nil
 }
 
