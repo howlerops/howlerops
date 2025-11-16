@@ -52,10 +52,9 @@ linters:
         - (*github.com/sirupsen/logrus.Entry).Log
         - (*github.com/sirupsen/logrus.Logger).Log
 
-    govet:
-      # Use default analyzers (35 well-balanced checks)
-      # See GOLANGCI_LINT_V2_ANALYSIS.md for full analyzer list and rationale
-      # Note: fieldalignment and shadow are disabled by default in govet
+    # govet uses default analyzers (35 well-balanced checks)
+    # See GOLANGCI_LINT_V2_ANALYSIS.md for full analyzer list and rationale
+    # Note: fieldalignment and shadow are disabled by default
 
     gosec:
       excludes:
