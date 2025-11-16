@@ -48,7 +48,11 @@ linters:
         - (*github.com/sirupsen/logrus.Logger).Log
 
     govet:
-      enable-all: true
+      # Use default analyzers (35 well-balanced checks) but disable noisy ones
+      # See GOLANGCI_LINT_V2_ANALYSIS.md for full analyzer list and rationale
+      disable:
+        - fieldalignment  # Struct field ordering micro-optimization - not worth code churn
+        - shadow         # Variable shadowing - too opinionated for our style
 
     gosec:
       excludes:
