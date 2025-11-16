@@ -5,6 +5,9 @@
 # linting on every pull request and push to main branch. It's optimized for
 # speed with parallel jobs and aggressive caching.
 #
+# When code is pushed to main, this workflow runs alongside auto-version.yml
+# which automatically creates semantic version tags based on conventional commits.
+#
 # Triggers:
 # - Pull requests targeting main branch
 # - Direct pushes to main branch
