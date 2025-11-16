@@ -126,7 +126,7 @@ RUN addgroup -g 1001 -S appgroup && \
 WORKDIR /app
 
 # Copy binary from builder stage with explicit ownership
-COPY --from=builder --chown=appuser:appgroup /app/sql-studio-backend .
+COPY --from=builder --chown=appuser:appgroup /app/backend-go/sql-studio-backend .
 
 # Note: Configuration comes from environment variables (GCP Secret Manager) in production
 # No need to copy config files - they will be provided via environment
