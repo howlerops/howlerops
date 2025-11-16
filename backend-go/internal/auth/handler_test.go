@@ -67,7 +67,7 @@ func TestHandleSignup_Success(t *testing.T) {
 	logger := logrus.New()
 	logger.SetLevel(logrus.ErrorLevel)
 
-	handler := auth.NewHandler(service, logger)
+	handler := auth.NewHandler(service, logger, nil, nil, nil)
 
 	// Setup mocks
 	userStore.createUserFunc = func(ctx context.Context, user *auth.User) error {
@@ -128,7 +128,7 @@ func TestHandleSignup_ValidationErrors(t *testing.T) {
 	logger := logrus.New()
 	logger.SetLevel(logrus.ErrorLevel)
 
-	handler := auth.NewHandler(service, logger)
+	handler := auth.NewHandler(service, logger, nil, nil, nil)
 
 	tests := []struct {
 		name           string
@@ -188,7 +188,7 @@ func TestHandleLogin_Success(t *testing.T) {
 	logger := logrus.New()
 	logger.SetLevel(logrus.ErrorLevel)
 
-	handler := auth.NewHandler(service, logger)
+	handler := auth.NewHandler(service, logger, nil, nil, nil)
 
 	// Setup mocks
 	userStore.getUserByUsernameFunc = func(ctx context.Context, username string) (*auth.User, error) {
@@ -251,7 +251,7 @@ func TestHandleLogin_InvalidCredentials(t *testing.T) {
 	logger := logrus.New()
 	logger.SetLevel(logrus.ErrorLevel)
 
-	handler := auth.NewHandler(service, logger)
+	handler := auth.NewHandler(service, logger, nil, nil, nil)
 
 	// Setup mocks
 	userStore.getUserByUsernameFunc = func(ctx context.Context, username string) (*auth.User, error) {
@@ -296,7 +296,7 @@ func TestHandleRefresh_Success(t *testing.T) {
 	logger := logrus.New()
 	logger.SetLevel(logrus.ErrorLevel)
 
-	handler := auth.NewHandler(service, logger)
+	handler := auth.NewHandler(service, logger, nil, nil, nil)
 
 	// Create a real refresh token
 	authMiddleware := middleware.NewAuthMiddleware("test-secret-key", logger)
@@ -340,7 +340,7 @@ func TestRegisterRoutes(t *testing.T) {
 	logger := logrus.New()
 	logger.SetLevel(logrus.ErrorLevel)
 
-	handler := auth.NewHandler(service, logger)
+	handler := auth.NewHandler(service, logger, nil, nil, nil)
 	router := mux.NewRouter()
 
 	// Register routes
