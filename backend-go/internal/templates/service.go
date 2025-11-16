@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/robfig/cron/v3"
-	"github.com/sirupsen/logrus"
 	"github.com/jbeck018/howlerops/backend-go/internal/organization"
 	"github.com/jbeck018/howlerops/backend-go/pkg/storage/turso"
+	"github.com/robfig/cron/v3"
+	"github.com/sirupsen/logrus"
 )
 
 // Service handles business logic for query templates and schedules

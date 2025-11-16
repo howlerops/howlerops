@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/sirupsen/logrus"
 	"github.com/jbeck018/howlerops/backend-go/pkg/crypto"
+	"github.com/sirupsen/logrus"
 )
 
 // Connection represents a database connection template

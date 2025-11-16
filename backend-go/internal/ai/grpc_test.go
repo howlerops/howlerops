@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/jbeck018/howlerops/backend-go/internal/ai"
 	aipb "github.com/jbeck018/howlerops/backend-go/pkg/pb/ai"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

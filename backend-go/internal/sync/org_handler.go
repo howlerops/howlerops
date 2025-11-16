@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/jbeck018/howlerops/backend-go/internal/organization"
+	"github.com/sirupsen/logrus"
 )
 
 // OrgAwareHandler handles organization-aware sync operations

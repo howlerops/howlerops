@@ -7,8 +7,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/jbeck018/howlerops/backend-go/internal/rag"
+	"github.com/sirupsen/logrus"
 )
 
 type collectionStatsStore interface {

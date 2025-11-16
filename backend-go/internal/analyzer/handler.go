@@ -5,9 +5,9 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/sirupsen/logrus"
 	"github.com/jbeck018/howlerops/backend-go/internal/autocomplete"
 	"github.com/jbeck018/howlerops/backend-go/internal/nl2sql"
+	"github.com/sirupsen/logrus"
 )
 
 // Handler handles query analysis HTTP endpoints

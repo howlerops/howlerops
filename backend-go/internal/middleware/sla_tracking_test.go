@@ -17,13 +17,13 @@ import (
 
 func TestSLATracking_Track(t *testing.T) {
 	tests := []struct {
-		name            string
-		orgID           string
-		path            string
-		method          string
-		statusCode      int
-		expectTracking  bool
-		setupMock       func(mock sqlmock.Sqlmock)
+		name           string
+		orgID          string
+		path           string
+		method         string
+		statusCode     int
+		expectTracking bool
+		setupMock      func(mock sqlmock.Sqlmock)
 	}{
 		{
 			name:           "No organization context skips tracking",
@@ -70,14 +70,14 @@ func TestSLATracking_Track(t *testing.T) {
 				// Mock LogRequest
 				mock.ExpectExec("INSERT INTO request_log").
 					WithArgs(
-						sqlmock.AnyArg(),    // id
-						"org-2",             // organization_id
-						"/api/users/999",    // endpoint
-						"GET",               // method
-						sqlmock.AnyArg(),    // response_time_ms
-						404,                 // status_code
-						true,                // success (4xx is still successful, not server error)
-						sqlmock.AnyArg(),    // created_at
+						sqlmock.AnyArg(), // id
+						"org-2",          // organization_id
+						"/api/users/999", // endpoint
+						"GET",            // method
+						sqlmock.AnyArg(), // response_time_ms
+						404,              // status_code
+						true,             // success (4xx is still successful, not server error)
+						sqlmock.AnyArg(), // created_at
 					).
 					WillReturnResult(sqlmock.NewResult(1, 1))
 			},
@@ -93,14 +93,14 @@ func TestSLATracking_Track(t *testing.T) {
 				// Mock LogRequest
 				mock.ExpectExec("INSERT INTO request_log").
 					WithArgs(
-						sqlmock.AnyArg(),            // id
-						"org-3",                     // organization_id
-						"/api/error",                // endpoint
-						"POST",                      // method
-						sqlmock.AnyArg(),            // response_time_ms
-						500,                         // status_code
-						false,                       // success (5xx is failure)
-						sqlmock.AnyArg(),            // created_at
+						sqlmock.AnyArg(), // id
+						"org-3",          // organization_id
+						"/api/error",     // endpoint
+						"POST",           // method
+						sqlmock.AnyArg(), // response_time_ms
+						500,              // status_code
+						false,            // success (5xx is failure)
+						sqlmock.AnyArg(), // created_at
 					).
 					WillReturnResult(sqlmock.NewResult(1, 1))
 			},

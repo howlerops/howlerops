@@ -5,9 +5,9 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/sirupsen/logrus"
 	"github.com/jbeck018/howlerops/backend-go/internal/middleware"
 	"github.com/jbeck018/howlerops/backend-go/pkg/storage/turso"
+	"github.com/sirupsen/logrus"
 )
 
 // Handler handles HTTP requests for connections

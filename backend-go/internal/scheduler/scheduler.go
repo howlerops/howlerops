@@ -7,10 +7,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/robfig/cron/v3"
-	"github.com/sirupsen/logrus"
 	"github.com/jbeck018/howlerops/backend-go/internal/templates"
 	"github.com/jbeck018/howlerops/backend-go/pkg/storage/turso"
+	"github.com/robfig/cron/v3"
+	"github.com/sirupsen/logrus"
 )
 
 // QueryExecutor defines the interface for executing queries

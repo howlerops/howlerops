@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/jbeck018/howlerops/backend-go/pkg/crypto"
+	"github.com/sirupsen/logrus"
 )
 
 // ConnectionPool manages database connections with pooling

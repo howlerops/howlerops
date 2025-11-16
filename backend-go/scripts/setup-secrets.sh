@@ -44,6 +44,10 @@ fi
 
 echo -e "${GREEN}✅ All required variables are set${NC}"
 
+# Default configuration
+SERVICE_ACCOUNT_NAME="${SERVICE_ACCOUNT_NAME:-howlerops-backend}"
+SERVICE_ACCOUNT="${SERVICE_ACCOUNT_NAME}@${GCP_PROJECT_ID}.iam.gserviceaccount.com"
+
 # Validate variable formats
 echo ""
 echo -e "${BLUE}Validating variable formats...${NC}"
@@ -106,6 +110,47 @@ done
 
 echo -e "${GREEN}✅ All APIs enabled${NC}"
 
+# Ensure Cloud Run service account exists
+echo ""
+echo -e "${BLUE}Ensuring Cloud Run service account exists...${NC}"
+if gcloud iam service-accounts describe "$SERVICE_ACCOUNT" &>/dev/null; then
+    echo -e "${GREEN}✓ Service account ${SERVICE_ACCOUNT} already exists${NC}"
+else
+    echo -n "  Creating service account ${SERVICE_ACCOUNT_NAME}... "
+    if gcloud iam service-accounts create "$SERVICE_ACCOUNT_NAME" \
+        --display-name="Howlerops Cloud Run" \
+        --description="Runs the Howlerops backend on Cloud Run" \
+        --project="$GCP_PROJECT_ID" &>/dev/null; then
+        echo -e "${GREEN}✓${NC}"
+    else
+        echo -e "${RED}✗${NC}"
+        echo -e "${RED}Failed to create service account${NC}"
+        exit 1
+    fi
+fi
+
+echo -e "${BLUE}Granting required IAM roles...${NC}"
+roles=(
+    "roles/run.invoker"
+    "roles/logging.logWriter"
+    "roles/secretmanager.secretAccessor"
+)
+
+for role in "${roles[@]}"; do
+    echo -n "  $role... "
+    if gcloud projects add-iam-policy-binding "$GCP_PROJECT_ID" \
+        --member="serviceAccount:${SERVICE_ACCOUNT}" \
+        --role="$role" \
+        --quiet &>/dev/null; then
+        echo -e "${GREEN}✓${NC}"
+    else
+        echo -e "${YELLOW}⚠️  (already granted)${NC}"
+    fi
+done
+
+# Track secrets for IAM binding/verification
+SECRETS=("turso-url" "turso-auth-token" "resend-api-key" "jwt-secret")
+
 # Create or update secrets
 echo ""
 echo -e "${BLUE}Creating/updating secrets in Secret Manager...${NC}"
@@ -141,19 +186,33 @@ create_or_update_secret "turso-auth-token" "$TURSO_AUTH_TOKEN"
 create_or_update_secret "resend-api-key" "$RESEND_API_KEY"
 create_or_update_secret "jwt-secret" "$JWT_SECRET"
 
+# Optional secrets (only created if environment variables are provided)
+optional_secret_entries=(
+    "resend-from-email|${RESEND_FROM_EMAIL:-}"
+    "google-oauth-client-id|${GOOGLE_CLIENT_ID:-}"
+    "google-oauth-client-secret|${GOOGLE_CLIENT_SECRET:-}"
+    "github-oauth-client-id|${GITHUB_CLIENT_ID:-}"
+    "github-oauth-client-secret|${GITHUB_CLIENT_SECRET:-}"
+)
+
+for entry in "${optional_secret_entries[@]}"; do
+    secret="${entry%%|*}"
+    value="${entry#*|}"
+    if [ -n "$value" ]; then
+        create_or_update_secret "$secret" "$value"
+        SECRETS+=("$secret")
+    fi
+done
+
 echo -e "${GREEN}✅ All secrets created/updated${NC}"
 
-# Get Cloud Run service account
+# Grant Cloud Run service account access to secrets
 echo ""
 echo -e "${BLUE}Granting Cloud Run service account access to secrets...${NC}"
-
-PROJECT_NUMBER=$(gcloud projects describe "$GCP_PROJECT_ID" --format="value(projectNumber)")
-SERVICE_ACCOUNT="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
-
 echo "  Service Account: $SERVICE_ACCOUNT"
 
 # Grant access to each secret
-for secret in turso-url turso-auth-token resend-api-key jwt-secret; do
+for secret in "${SECRETS[@]}"; do
     echo -n "  Granting access to $secret... "
     if gcloud secrets add-iam-policy-binding "$secret" \
         --member="serviceAccount:${SERVICE_ACCOUNT}" \
@@ -173,7 +232,7 @@ echo -e "${GREEN}✅ IAM permissions configured${NC}"
 echo ""
 echo -e "${BLUE}Verifying secrets are accessible...${NC}"
 
-for secret in turso-url turso-auth-token resend-api-key jwt-secret; do
+for secret in "${SECRETS[@]}"; do
     echo -n "  Verifying $secret... "
     if gcloud secrets versions access latest --secret="$secret" &>/dev/null; then
         echo -e "${GREEN}✓${NC}"
@@ -195,7 +254,7 @@ echo ""
 echo "📋 Summary:"
 echo "  Project ID:      $GCP_PROJECT_ID"
 echo "  Service Account: $SERVICE_ACCOUNT"
-echo "  Secrets created: turso-url, turso-auth-token, resend-api-key, jwt-secret"
+echo "  Secrets created: ${SECRETS[*]}"
 echo ""
 echo "🎯 Next steps:"
 echo "  1. Deploy the service: ./scripts/deploy-cloudrun.sh"

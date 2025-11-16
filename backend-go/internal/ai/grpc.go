@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	aipb "github.com/jbeck018/howlerops/backend-go/pkg/pb/ai"
+	"github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )

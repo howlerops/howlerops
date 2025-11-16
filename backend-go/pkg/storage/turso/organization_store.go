@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/sirupsen/logrus"
 	"github.com/jbeck018/howlerops/backend-go/internal/organization"
+	"github.com/sirupsen/logrus"
 )
 
 // OrganizationStore implements organization.Repository for Turso

@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/sirupsen/logrus"
 	"github.com/jbeck018/howlerops/backend-go/internal/analyzer"
 	"github.com/jbeck018/howlerops/backend-go/internal/autocomplete"
 	"github.com/jbeck018/howlerops/backend-go/internal/nl2sql"
+	"github.com/sirupsen/logrus"
 )
 
 func main() {

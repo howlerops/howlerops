@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/sirupsen/logrus"
 	"github.com/jbeck018/howlerops/backend-go/pkg/database"
+	"github.com/sirupsen/logrus"
 )
 
 // ElasticsearchExample demonstrates how to use the Elasticsearch connector

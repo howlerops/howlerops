@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/sirupsen/logrus"
 	"github.com/jbeck018/howlerops/backend-go/internal/organization"
 	"github.com/jbeck018/howlerops/backend-go/pkg/storage/turso"
+	"github.com/sirupsen/logrus"
 )
 
 // ConnectionStore defines the interface for connection storage operations

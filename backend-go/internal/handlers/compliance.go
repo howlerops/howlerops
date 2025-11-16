@@ -7,12 +7,12 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/sirupsen/logrus"
 	"github.com/jbeck018/howlerops/backend-go/internal/audit"
 	"github.com/jbeck018/howlerops/backend-go/internal/backup"
 	"github.com/jbeck018/howlerops/backend-go/internal/gdpr"
 	"github.com/jbeck018/howlerops/backend-go/internal/pii"
 	"github.com/jbeck018/howlerops/backend-go/internal/retention"
+	"github.com/sirupsen/logrus"
 )
 
 // ComplianceHandler handles compliance-related HTTP requests

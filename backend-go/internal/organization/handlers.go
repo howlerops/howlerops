@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
-	"github.com/sirupsen/logrus"
 	"github.com/jbeck018/howlerops/backend-go/internal/middleware"
+	"github.com/sirupsen/logrus"
 )
 
 // Handler handles organization HTTP requests

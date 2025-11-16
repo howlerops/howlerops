@@ -17,13 +17,13 @@ import (
 
 func TestOrgRateLimiter_Limit(t *testing.T) {
 	tests := []struct {
-		name           string
-		orgID          string
-		setupMock      func(mock sqlmock.Sqlmock)
-		expectAllow    bool
-		expectStatus   int
-		expectHeaders  bool
-		requestCount   int
+		name          string
+		orgID         string
+		setupMock     func(mock sqlmock.Sqlmock)
+		expectAllow   bool
+		expectStatus  int
+		expectHeaders bool
+		requestCount  int
 	}{
 		{
 			name:  "No organization context allows request through",

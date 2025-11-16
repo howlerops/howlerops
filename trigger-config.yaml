@@ -1,0 +1,10 @@
+name: deploy-main-branch
+description: Deploy backend on push to main branch
+github:
+  owner: jbeck018
+  name: howlerops
+  push:
+    branch: ^main$
+filename: backend-go/cloudbuild.yaml
+substitutions:
+  _COMMIT_SHA: $(echo $COMMIT_SHA | cut -c1-7)

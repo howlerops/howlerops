@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/sirupsen/logrus"
 	"github.com/jbeck018/howlerops/backend-go/internal/auth"
+	"github.com/sirupsen/logrus"
 )
 
 // TursoLoginAttemptStore implements auth.LoginAttemptStore interface for Turso

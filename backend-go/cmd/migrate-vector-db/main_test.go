@@ -6,8 +6,8 @@ import (
 	"io"
 	"testing"
 
-	"github.com/sirupsen/logrus"
 	"github.com/jbeck018/howlerops/backend-go/internal/rag"
+	"github.com/sirupsen/logrus"
 )
 
 type fakeStatsStore struct {

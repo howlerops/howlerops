@@ -5,9 +5,9 @@ import (
 	"database/sql"
 	"testing"
 
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/jbeck018/howlerops/backend-go/internal/config"
 	"github.com/jbeck018/howlerops/backend-go/pkg/database"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 // NewTestConfig creates a test configuration with sensible defaults

@@ -15,14 +15,14 @@ import (
 
 func TestMetricsMiddleware(t *testing.T) {
 	tests := []struct {
-		name           string
-		method         string
-		path           string
-		routePattern   string
-		statusCode     int
-		responseBody   string
-		requestBody    string
-		expectMetrics  bool
+		name          string
+		method        string
+		path          string
+		routePattern  string
+		statusCode    int
+		responseBody  string
+		requestBody   string
+		expectMetrics bool
 	}{
 		{
 			name:          "GET request succeeds",

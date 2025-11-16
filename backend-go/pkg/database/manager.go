@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/sirupsen/logrus"
 	"github.com/jbeck018/howlerops/backend-go/pkg/database/multiquery"
+	"github.com/sirupsen/logrus"
 )
 
 // databaseAdapter adapts Database to multiquery.Database interface

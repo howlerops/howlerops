@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/sirupsen/logrus"
 	"github.com/jbeck018/howlerops/backend-go/internal/ai"
+	"github.com/sirupsen/logrus"
 )
 
 // Service is a public wrapper around the internal AI service

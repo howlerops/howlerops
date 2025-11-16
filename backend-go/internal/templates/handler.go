@@ -6,9 +6,9 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/sirupsen/logrus"
 	"github.com/jbeck018/howlerops/backend-go/internal/middleware"
 	"github.com/jbeck018/howlerops/backend-go/pkg/storage/turso"
+	"github.com/sirupsen/logrus"
 )
 
 // Handler handles HTTP requests for templates and schedules

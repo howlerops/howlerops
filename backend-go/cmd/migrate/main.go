@@ -6,10 +6,10 @@ import (
 	"log"
 	"os"
 
-	"github.com/sirupsen/logrus"
 	"github.com/jbeck018/howlerops/backend-go/internal/config"
 	"github.com/jbeck018/howlerops/backend-go/pkg/logger"
 	"github.com/jbeck018/howlerops/backend-go/pkg/storage/turso"
+	"github.com/sirupsen/logrus"
 )
 
 func main() {

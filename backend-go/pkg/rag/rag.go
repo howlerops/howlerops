@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	internalrag "github.com/jbeck018/howlerops/backend-go/internal/rag"
+	"github.com/sirupsen/logrus"
 )
 
 type (
