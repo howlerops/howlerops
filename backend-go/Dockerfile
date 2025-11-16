@@ -67,6 +67,9 @@ ARG GIT_COMMIT
 RUN go install golang.org/dl/go1.24.10@latest && \
     go1.24.10 download
 
+# Ensure go.mod/go.sum are in sync with Go 1.24.10
+RUN go1.24.10 mod tidy
+
 RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go1.24.10 build \
     -a \
     -installsuffix cgo \
