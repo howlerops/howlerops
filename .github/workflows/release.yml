@@ -65,6 +65,8 @@ jobs:
 
     outputs:
       version: ${{ steps.get_version.outputs.version }}
+      has_gcp_secrets: ${{ steps.optional_secrets.outputs.has_gcp }}
+      has_homebrew_token: ${{ steps.optional_secrets.outputs.has_homebrew }}
 
     steps:
       - name: Checkout code
@@ -84,6 +86,12 @@ jobs:
 
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Release version: $VERSION"
+
+      - name: Detect optional release targets
+        id: optional_secrets
+        run: |
+          echo "has_gcp=${{ secrets.GCP_SA_KEY != '' && secrets.GCP_PROJECT_ID != '' }}" >> $GITHUB_OUTPUT
+          echo "has_homebrew=${{ secrets.HOMEBREW_TAP_TOKEN != '' }}" >> $GITHUB_OUTPUT
 
       - name: Generate changelog and create release notes
         id: changelog
@@ -464,7 +472,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [create-release, build-binaries]
     # Skip this job if GCP secrets are not configured
-    if: ${{ secrets.GCP_SA_KEY != '' && secrets.GCP_PROJECT_ID != '' }}
+    if: ${{ needs.create-release.outputs.has_gcp_secrets == 'true' }}
 
     permissions:
       contents: read
@@ -587,7 +595,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [create-release, build-binaries, build-howlerops, validate-release]
     # Skip this job if Homebrew token is not configured
-    if: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
+    if: ${{ needs.create-release.outputs.has_homebrew_token == 'true' }}
 
     permissions:
       contents: read

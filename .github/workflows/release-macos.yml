@@ -50,6 +50,11 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Version: $VERSION"
 
+      - name: Detect optional release targets
+        id: optional_secrets
+        run: |
+          echo "has_homebrew=${{ secrets.HOMEBREW_TAP_TOKEN != '' }}" >> $GITHUB_OUTPUT
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
@@ -347,7 +352,7 @@ jobs:
       # ============================================================
 
       - name: Update Homebrew Cask formula
-        if: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
+        if: ${{ steps.optional_secrets.outputs.has_homebrew == 'true' }}
         env:
           HOMEBREW_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           VERSION: ${{ steps.version.outputs.version }}

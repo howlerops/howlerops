@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/sirupsen/logrus"
 	"github.com/jbeck018/howlerops/services"
+	"github.com/sirupsen/logrus"
 )
 
 // ExampleCredentialService_basic demonstrates basic usage of the credential service
