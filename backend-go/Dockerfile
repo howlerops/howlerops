@@ -13,7 +13,7 @@
 # -----------------------------------------------------------------------------
 # Stage 1: Builder - Compile the Go application
 # -----------------------------------------------------------------------------
-FROM golang:1.23-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 # Add security labels for container scanning
 LABEL stage=builder
@@ -63,14 +63,7 @@ ARG VERSION=dev
 ARG BUILD_TIME
 ARG GIT_COMMIT
 
-# Download and use Go 1.24.10 toolchain explicitly
-RUN go install golang.org/dl/go1.24.10@latest && \
-    go1.24.10 download
-
-# Ensure go.mod/go.sum are in sync with Go 1.24.10
-RUN go1.24.10 mod tidy
-
-RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go1.24.10 build \
+RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build \
     -a \
     -installsuffix cgo \
     -ldflags="-s -w -extldflags '-static' \
