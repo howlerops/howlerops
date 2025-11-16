@@ -63,7 +63,7 @@ ARG VERSION=dev
 ARG BUILD_TIME
 ARG GIT_COMMIT
 
-RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build \
+RUN GOTOOLCHAIN=auto CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build \
     -a \
     -installsuffix cgo \
     -ldflags="-s -w -extldflags '-static' \
