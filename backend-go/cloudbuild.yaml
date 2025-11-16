@@ -20,7 +20,7 @@ steps:
       - "-f"
       - "backend-go/Dockerfile"
       - "-t"
-      - "gcr.io/$PROJECT_ID/howlerops-backend:$_COMMIT_SHA"
+      - "gcr.io/$PROJECT_ID/howlerops-backend:$SHORT_SHA"
       - "-t"
       - "gcr.io/$PROJECT_ID/howlerops-backend:latest"
       - "--cache-from"
@@ -36,7 +36,7 @@ steps:
     id: "push-image-sha"
     args:
       - "push"
-      - "gcr.io/$PROJECT_ID/howlerops-backend:$_COMMIT_SHA"
+      - "gcr.io/$PROJECT_ID/howlerops-backend:$SHORT_SHA"
     waitFor: ["build-image"]
 
   - name: "gcr.io/cloud-builders/docker"
@@ -55,7 +55,7 @@ steps:
       - "run"
       - "deploy"
       - "howlerops-backend"
-      - "--image=gcr.io/$PROJECT_ID/howlerops-backend:$_COMMIT_SHA"
+      - "--image=gcr.io/$PROJECT_ID/howlerops-backend:$SHORT_SHA"
       - "--region=us-central1"
       - "--platform=managed"
       - "--allow-unauthenticated"
@@ -104,7 +104,7 @@ steps:
 
 # Tag images for artifact registry
 images:
-  - "gcr.io/$PROJECT_ID/howlerops-backend:$_COMMIT_SHA"
+  - "gcr.io/$PROJECT_ID/howlerops-backend:$SHORT_SHA"
   - "gcr.io/$PROJECT_ID/howlerops-backend:latest"
 
 # Build options
