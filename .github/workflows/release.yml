@@ -501,8 +501,8 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: ${{ github.workspace }}/backend-go
-          file: ${{ github.workspace }}/backend-go/Dockerfile
+          context: backend-go
+          file: backend-go/Dockerfile
           push: true
           platforms: linux/amd64,linux/arm64
           build-args: |
