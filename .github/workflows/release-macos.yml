@@ -3,7 +3,7 @@ name: Release macOS Application
 on:
   push:
     tags:
-      - 'v*.*.*'  # Trigger on version tags like v1.0.0, v1.2.3, etc.
+      - 'v*'  # Trigger on all version tags (v1.0.0, v1.2.3-beta, etc.)
 
 env:
   APP_NAME: howlerops
