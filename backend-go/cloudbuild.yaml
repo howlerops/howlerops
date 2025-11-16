@@ -20,7 +20,7 @@ steps:
       - "-f"
       - "backend-go/Dockerfile"
       - "-t"
-      - "gcr.io/$PROJECT_ID/howlerops-backend:$COMMIT_SHA"
+      - "gcr.io/$PROJECT_ID/howlerops-backend:$_COMMIT_SHA"
       - "-t"
       - "gcr.io/$PROJECT_ID/howlerops-backend:latest"
       - "--cache-from"
@@ -36,7 +36,7 @@ steps:
     id: "push-image-sha"
     args:
       - "push"
-      - "gcr.io/$PROJECT_ID/howlerops-backend:$COMMIT_SHA"
+      - "gcr.io/$PROJECT_ID/howlerops-backend:$_COMMIT_SHA"
     waitFor: ["build-image"]
 
   - name: "gcr.io/cloud-builders/docker"
@@ -55,7 +55,7 @@ steps:
       - "run"
       - "deploy"
       - "howlerops-backend"
-      - "--image=gcr.io/$PROJECT_ID/howlerops-backend:$COMMIT_SHA"
+      - "--image=gcr.io/$PROJECT_ID/howlerops-backend:$_COMMIT_SHA"
       - "--region=us-central1"
       - "--platform=managed"
       - "--allow-unauthenticated"
@@ -88,7 +88,7 @@ steps:
   # ---------------------------------------------------------------------------
   # Step 4: Run smoke tests against deployed service
   # ---------------------------------------------------------------------------
-  - name: "gcr.io/cloud-builders/curl"
+  - name: "gcr.io/cloud-builders/gcloud"
     id: "smoke-test"
     entrypoint: "sh"
     args:
@@ -104,7 +104,7 @@ steps:
 
 # Tag images for artifact registry
 images:
-  - "gcr.io/$PROJECT_ID/howlerops-backend:$COMMIT_SHA"
+  - "gcr.io/$PROJECT_ID/howlerops-backend:$_COMMIT_SHA"
   - "gcr.io/$PROJECT_ID/howlerops-backend:latest"
 
 # Build options
