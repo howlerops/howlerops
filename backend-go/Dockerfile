@@ -63,7 +63,11 @@ ARG VERSION=dev
 ARG BUILD_TIME
 ARG GIT_COMMIT
 
-RUN GOTOOLCHAIN=auto CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build \
+# Download and use Go 1.24.10 toolchain explicitly
+RUN go install golang.org/dl/go1.24.10@latest && \
+    go1.24.10 download
+
+RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go1.24.10 build \
     -a \
     -installsuffix cgo \
     -ldflags="-s -w -extldflags '-static' \
