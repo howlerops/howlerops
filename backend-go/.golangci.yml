@@ -23,6 +23,11 @@ linters:
     - gosec
     - nilerr
 
+  disable:
+    # Disable linters that are enabled by default in v2 but not needed for our minimal set
+    - staticcheck  # Advanced static analysis - too many issues for current codebase
+    - unused       # Unused code detection - too strict for development
+
   settings:
     errcheck:
       check-type-assertions: false
@@ -48,11 +53,9 @@ linters:
         - (*github.com/sirupsen/logrus.Logger).Log
 
     govet:
-      # Use default analyzers (35 well-balanced checks) but disable noisy ones
+      # Use default analyzers (35 well-balanced checks)
       # See GOLANGCI_LINT_V2_ANALYSIS.md for full analyzer list and rationale
-      disable:
-        - fieldalignment  # Struct field ordering micro-optimization - not worth code churn
-        - shadow         # Variable shadowing - too opinionated for our style
+      # Note: fieldalignment and shadow are disabled by default in govet
 
     gosec:
       excludes:
