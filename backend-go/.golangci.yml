@@ -1,5 +1,5 @@
 # =============================================================================
-# golangci-lint Configuration for Howlerops Backend
+# golangci-lint Configuration v2 for Howlerops Backend
 # =============================================================================
 # This configuration enables comprehensive linting with sensible defaults for
 # production Go applications. It balances code quality with practicality.
@@ -8,308 +8,81 @@
 # Run with auto-fix: golangci-lint run --fix
 # =============================================================================
 
-# Configuration version for golangci-lint v2
 version: "2"
 
-# Linter execution settings
 run:
-  # Timeout for analysis
   timeout: 5m
-
-  # Enable Go modules
   modules-download-mode: readonly
-
-  # Allow multiple parallel golangci-lint instances
   allow-parallel-runners: true
 
-# Linters configuration
 linters:
-  # Disable all linters by default
-  disable-all: true
-
-  # Enable all linters to fix ALL remaining issues
-  # Note: Some linters temporarily disabled to unblock deployment
   enable:
-    - govet # Standard Go vet - type checking and basic checks
-    - ineffassign # Detects ineffectual assignments (10 issues to fix)
-    - errcheck # Check for unchecked errors (629 issues)
-    # - staticcheck  # Temporarily disabled - style/deprecation warnings
-    # - unused       # Temporarily disabled - style issue, not a bug
-    - gosec # Inspects source code for security problems (79 issues)
-    - nilerr # Finds code that returns nil even if non-nil error check (6 issues)
+    - govet
+    - ineffassign
+    - errcheck
+    - gosec
+    - nilerr
 
-# Linters settings
-linters-settings:
-  # errcheck - Check for unchecked errors
-  errcheck:
-    # Report about not checking of errors in type assertions: `a := b.(MyStruct)`
-    check-type-assertions: false
+  settings:
+    errcheck:
+      check-type-assertions: false
+      check-blank: false
+      exclude-functions:
+        - (io.Closer).Close
+        - (*database/sql.Rows).Close
+        - (*database/sql.Stmt).Close
+        - (*database/sql.DB).Close
+        - (*database/sql.Tx).Rollback
+        - (*net/http.Response.Body).Close
+        - (*os.File).Close
+        - (*compress/gzip.Writer).Close
+        - (*compress/gzip.Reader).Close
+        - (*encoding/json.Encoder).Encode
+        - (net/http.ResponseWriter).Write
+        - (*net/http.Response.Body).Read
+        - (*database/sql.Row).Scan
+        - encoding/json.Unmarshal
+        - os.Setenv
+        - crypto/rand.Read
+        - (*github.com/sirupsen/logrus.Entry).Log
+        - (*github.com/sirupsen/logrus.Logger).Log
 
-    # Report about assignment of errors to blank identifier: `num, _ := strconv.Atoi(numStr)`
-    check-blank: false
+    govet:
+      enable-all: true
+      settings:
+        shadow:
+          strict: false
 
-    # List of functions to exclude from checking (common patterns that are safe to ignore)
-    exclude-functions:
-      # IO Closers - defer close is standard Go practice
-      - (io.Closer).Close
-      - (*database/sql.Rows).Close
-      - (*database/sql.Stmt).Close
-      - (*database/sql.DB).Close
-      - (*database/sql.Tx).Rollback
-      - (*net/http.Response.Body).Close
-      - (*os.File).Close
-      - (*compress/gzip.Writer).Close
-      - (*compress/gzip.Reader).Close
+    gosec:
+      excludes:
+        - G104  # Audit errors not checked (covered by errcheck)
+        - G304  # File path from user input (intentional for file operations)
+      severity: medium
+      confidence: medium
 
-      # HTTP Response - errors handled by framework
-      - (*encoding/json.Encoder).Encode
-      - (net/http.ResponseWriter).Write
-      - (*net/http.Response.Body).Read
-
-      # Database operations where errors are often ignorable
-      - (*database/sql.Row).Scan
-      - encoding/json.Unmarshal
-
-      # Environment and system calls where errors are typically non-critical
-      - os.Setenv
-      - crypto/rand.Read
-
-      # Logging and audit - best effort operations
-      - (*github.com/sirupsen/logrus.Entry).Log
-      - (*github.com/sirupsen/logrus.Logger).Log
-
-  # govet - Standard Go vet
-  govet:
-    # Enable all analyzers
-    enable-all: true
-
-    # Disable specific analyzers
-    disable:
-      - fieldalignment # Too strict for most use cases
-      - shadow # Variable shadowing - style issue, not a bug
-      - unusedwrite # Unused field writes - style issue, not a bug
-
-  # gocyclo - Cyclomatic complexity
-  gocyclo:
-    # Minimal cyclomatic complexity to report
-    min-complexity: 15
-
-  # gocognit - Cognitive complexity
-  gocognit:
-    # Minimal cognitive complexity to report
-    min-complexity: 20
-
-  # nestif - Nested if statements
-  nestif:
-    # Minimal complexity to report
-    min-complexity: 5
-
-  # gosec - Security issues
-  gosec:
-    # Exclude specific rules (by ID)
-    excludes:
-      - G104 # Audit errors not checked (covered by errcheck)
-      - G304 # File path from user input (intentional for file operations)
-
-    # Severity level
-    severity: medium
-
-    # Confidence level
-    confidence: medium
-
-  # goconst - Repeated strings
-  goconst:
-    # Minimal length of string constant
-    min-len: 3
-
-    # Minimum occurrences to report
-    min-occurrences: 3
-
-    # Ignore test files
-    ignore-tests: true
-
-  # misspell - Commonly misspelled words
-  misspell:
-    # Locale to use (US or UK)
-    locale: US
-
-  # revive - Fast, configurable linter
-  revive:
-    # Minimal confidence to report issues
-    confidence: 0.8
-
-    # Enable all rules
-    enable-all-rules: false
-
-    # Rules to enable
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - vendor
+      - third_party
+      - testdata
+      - examples
+      - ".github"
     rules:
-      - name: blank-imports
-      - name: context-as-argument
-      - name: context-keys-type
-      - name: dot-imports
-      - name: error-return
-      - name: error-strings
-      - name: error-naming
-      - name: exported
-      - name: if-return
-      - name: increment-decrement
-      - name: var-naming
-      - name: var-declaration
-      - name: package-comments
-      - name: range
-      - name: receiver-naming
-      - name: time-naming
-      - name: unexported-return
-      - name: indent-error-flow
-      - name: errorf
-      - name: empty-block
-      - name: superfluous-else
-      - name: unused-parameter
-      - name: unreachable-code
-      - name: redefines-builtin-id
+      - linters:
+          - errcheck
+          - gosec
+          - goconst
+        path: "_test\\.go"
 
-  # gocritic - Comprehensive diagnostics
-  gocritic:
-    # Enable multiple checks by tags
-    enabled-tags:
-      - diagnostic
-      - style
-      - performance
-
-    # Disable specific checks
-    disabled-checks:
-      - ifElseChain # Too opinionated
-      - singleCaseSwitch # Sometimes clearer than if
-
-  # whitespace - Trailing whitespace
-  whitespace:
-    multi-if: false
-    multi-func: false
-
-  # prealloc - Preallocate slices
-  prealloc:
-    # Report preallocation suggestions only on simple loops that have no returns/breaks/continues/gotos
-    simple: true
-    range-loops: true
-    for-loops: false
-
-  # errorlint - Error wrapping
-  errorlint:
-    # Check whether fmt.Errorf uses the %w verb for formatting errors
-    errorf: true
-
-    # Check for plain type assertions and type switches
-    asserts: true
-
-    # Check for plain error comparisons
-    comparison: true
-
-# Issues configuration
-issues:
-  # Make issues output unique by line
-  uniq-by-line: true
-
-  # Which dirs to exclude: issues from them won't be reported
-  exclude-dirs:
-    - vendor
-    - third_party
-    - testdata
-    - examples
-    - .github
-
-  # Which files to exclude: they will be analyzed but issues won't be reported
-  exclude-files:
-    - ".*\\.pb\\.go$"
-    - ".*_gen\\.go$"
-    - ".*\\.mock\\.go$"
-
-  # Maximum issues count per linter
-  max-issues-per-linter: 0
-
-  # Maximum count of issues with the same text
-  max-same-issues: 0
-
-  # Show only new issues
-  new: false
-
-  # Fix found issues (if supported by linter)
-  fix: false
-
-  # Exclude rules by path
-  exclude-rules:
-    # Exclude some linters from running on tests files
-    - path: _test\.go
-      linters:
-        - gocyclo
-        - errcheck
-        - dupl
-        - gosec
-        - goconst
-        - funlen
-        - gocognit
-        - revive # Unused parameters common in test mocks
-        - gocritic # Style issues less critical in tests
-        - misspell # Spelling less critical in tests
-        - prealloc # Performance less critical in tests
-
-    # Exclude linters for generated files
-    - path: ".*\\.pb\\.go"
-      linters:
-        - all
-
-    # Exclude known issues - defer Close() patterns and similar
-    - text: "Error return value of .((os\\.)?std(out|err)\\..*|.*Close|.*Flush|os\\.Remove(All)?|.*printf?|os\\.(Un)?Setenv). is not checked"
-      linters:
-        - errcheck
-
-    # Exclude defer Close() errors - these are generally acceptable to ignore
-    - text: "Error return value of `.*\\.Close` is not checked"
-      source: "defer "
-      linters:
-        - errcheck
-
-    # Exclude Write errors for http.ResponseWriter - handled by framework
-    - text: "Error return value of `.*\\.Write` is not checked"
-      linters:
-        - errcheck
-
-    # Exclude json.Encoder.Encode errors in HTTP handlers - appropriate for most cases
-    - text: "Error return value of `\\(\\*encoding/json\\.Encoder\\)\\.Encode` is not checked"
-      linters:
-        - errcheck
-
-    # Exclude Scan errors where we're intentionally ignoring (common pattern)
-    - text: "Error return value of `\\(\\*database/sql\\.Row\\)\\.Scan` is not checked"
-      linters:
-        - errcheck
-
-    # Exclude rand.Read errors - failure is extremely rare
-    - text: "Error return value of `rand\\.Read` is not checked"
-      linters:
-        - errcheck
-
-    # Exclude "G404: Use of weak random number generator" in test files
-    - path: _test\.go
-      text: "G404:"
-      linters:
-        - gosec
-
-  # Independently of option `exclude` we use default exclude patterns,
-  # it can be disabled by this option. To list all
-  # excluded by default patterns execute `golangci-lint run --help`.
-  exclude-use-default: true
-
-# Severity configuration
 severity:
-  # Default value is empty string
-  default-severity: error
+  default: error
 
-  # If set, only issues with severity greater than or equal to this value will be reported
-  # Supported values: error, warning, info
-  # rules:
-  #   - linters:
-  #       - revive
-  #     severity: warning
 # =============================================================================
 # Usage Examples
 # =============================================================================
