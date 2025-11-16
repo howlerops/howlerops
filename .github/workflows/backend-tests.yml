@@ -143,6 +143,7 @@ jobs:
           version: v2.6.1
           working-directory: backend-go
           args: --timeout=5m
+          skip-cache: true  # Temporarily skip cache to force re-lint with updated config
 
   security:
     name: Security Scan

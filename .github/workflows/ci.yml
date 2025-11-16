@@ -237,7 +237,7 @@ jobs:
 
           # Cache golangci-lint analysis results for faster runs
           only-new-issues: false
-          skip-cache: false
+          skip-cache: true  # Temporarily skip cache to force re-lint with updated config
 
       - name: Check code formatting
         working-directory: ./backend-go
