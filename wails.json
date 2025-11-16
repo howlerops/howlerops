@@ -17,7 +17,7 @@
   },
   "info": {
     "productName": "HowlerOps",
-    "productVersion": "1.0.0",
+    "productVersion": "0.3.2",
     "copyright": "Copyright © 2025 HowlerOps Team",
     "comments": "A powerful desktop SQL client built with Wails"
   },
@@ -116,5 +116,5 @@
     "category": "Development"
   },
   "productName": "HowlerOps",
-  "productVersion": "1.0.0"
+  "productVersion": "0.3.2"
 }
