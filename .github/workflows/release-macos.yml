@@ -347,7 +347,7 @@ jobs:
       # ============================================================
 
       - name: Update Homebrew Cask formula
-        if: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
+        if: secrets.HOMEBREW_TAP_TOKEN != ''
         env:
           HOMEBREW_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           VERSION: ${{ steps.version.outputs.version }}

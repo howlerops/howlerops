@@ -286,9 +286,7 @@ jobs:
       - name: Test binary
         working-directory: ./backend-go
         # Only test on native platforms
-        if: |
-          (matrix.goos == 'linux' && matrix.goarch == 'amd64') ||
-          (matrix.goos == 'darwin' && (matrix.goarch == 'amd64' || matrix.goarch == 'arm64'))
+        if: (matrix.goos == 'linux' && matrix.goarch == 'amd64') || (matrix.goos == 'darwin' && (matrix.goarch == 'amd64' || matrix.goarch == 'arm64'))
         run: |
           chmod +x "${{ matrix.asset_name }}"
           ./"${{ matrix.asset_name }}" --version || echo "Version check completed"
@@ -466,7 +464,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [create-release, build-binaries]
     # Skip this job if GCP secrets are not configured
-    if: ${{ secrets.GCP_SA_KEY != '' && secrets.GCP_PROJECT_ID != '' }}
+    if: secrets.GCP_SA_KEY != '' && secrets.GCP_PROJECT_ID != ''
 
     permissions:
       contents: read
@@ -589,7 +587,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [create-release, build-binaries, build-howlerops, validate-release]
     # Skip this job if Homebrew token is not configured
-    if: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
+    if: secrets.HOMEBREW_TAP_TOKEN != ''
 
     permissions:
       contents: read
