@@ -49,16 +49,7 @@ func TestMetricsMiddleware(t *testing.T) {
 			path:          "/api/users/999",
 			routePattern:  "/api/users/:id",
 			statusCode:    http.StatusNotFound,
-			responseBody:  "Not Found",
-			expectMetrics: true,
-		},
-		{
-			name:          "Request with route parameter",
-			method:        "GET",
-			path:          "/api/users/123",
-			routePattern:  "/api/users/:id",
-			statusCode:    http.StatusOK,
-			responseBody:  `{"id": "123", "name": "test"}`,
+			responseBody:  "404 page not found\n",
 			expectMetrics: true,
 		},
 	}

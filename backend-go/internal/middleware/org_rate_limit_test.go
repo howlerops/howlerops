@@ -60,6 +60,14 @@ func TestOrgRateLimiter_Limit(t *testing.T) {
 					WithArgs("org-1", sqlmock.AnyArg()).
 					WillReturnRows(usageRows)
 
+				// Mock hourly API usage check - within limit (100/1000)
+				hourlyUsageRows := sqlmock.NewRows([]string{"COALESCE(SUM(api_calls_count), 0)"}).
+					AddRow(100)
+
+				mock.ExpectQuery("SELECT COALESCE\\(SUM\\(api_calls_count\\), 0\\) FROM organization_usage_hourly").
+					WithArgs("org-1", sqlmock.AnyArg()).
+					WillReturnRows(hourlyUsageRows)
+
 				// Mock GetQuota for rate limiter setup
 				quotaRows2 := sqlmock.NewRows([]string{
 					"organization_id", "max_connections", "max_queries_per_day",
@@ -114,6 +122,14 @@ func TestOrgRateLimiter_Limit(t *testing.T) {
 				mock.ExpectQuery("SELECT .* FROM organization_usage").
 					WithArgs("org-2", sqlmock.AnyArg()).
 					WillReturnRows(usageRows)
+
+				// Mock hourly API usage check - at limit (100/100)
+				hourlyUsageRows := sqlmock.NewRows([]string{"COALESCE(SUM(api_calls_count), 0)"}).
+					AddRow(100)
+
+				mock.ExpectQuery("SELECT COALESCE\\(SUM\\(api_calls_count\\), 0\\) FROM organization_usage_hourly").
+					WithArgs("org-2", sqlmock.AnyArg()).
+					WillReturnRows(hourlyUsageRows)
 			},
 			expectAllow:   false,
 			expectStatus:  http.StatusTooManyRequests,
