@@ -178,7 +178,8 @@ func Load() (*Config, error) {
 	// Read configuration file (optional)
 	if err := viper.ReadInConfig(); err != nil {
 		var configFileNotFoundError viper.ConfigFileNotFoundError
-		if errors.As(err, &configFileNotFoundError) {
+		if !errors.As(err, &configFileNotFoundError) {
+			// Real error (not just file not found), return it
 			return nil, fmt.Errorf("failed to read config file: %w", err)
 		}
 		// Config file not found, continue with defaults and env vars
