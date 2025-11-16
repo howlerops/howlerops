@@ -1,0 +1,202 @@
+# =============================================================================
+# Automatic Semantic Versioning Workflow
+# =============================================================================
+# This workflow automatically creates version tags based on conventional commits
+# when changes are pushed to the main branch.
+#
+# Conventional Commit Format:
+#   feat: New feature (triggers MINOR version bump: 0.1.0 -> 0.2.0)
+#   fix: Bug fix (triggers PATCH version bump: 0.1.0 -> 0.1.1)
+#   BREAKING CHANGE: Breaking change (triggers MAJOR version bump: 0.1.0 -> 1.0.0)
+#   chore:, docs:, style:, refactor:, test: (NO version bump)
+#
+# How it works:
+# 1. Analyzes commits since last tag
+# 2. Determines next version based on commit types
+# 3. Creates and pushes a new tag (e.g., v0.2.0)
+# 4. The tag push triggers release.yml and release-macos.yml workflows
+#
+# Example commit messages:
+#   feat: Add dark mode support
+#   fix: Resolve memory leak in connection pool
+#   feat!: Redesign API endpoints (! indicates breaking change)
+#   chore: Update dependencies
+# =============================================================================
+
+name: Auto Version
+
+on:
+  push:
+    branches:
+      - main
+    # Don't run on tag pushes (prevents infinite loop)
+    tags-ignore:
+      - '**'
+    # Only run when there are actual code changes
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.github/workflows/auto-version.yml'
+
+# Required permissions
+permissions:
+  contents: write  # Needed to create and push tags
+
+jobs:
+  tag:
+    name: Create Version Tag
+    runs-on: ubuntu-latest
+
+    # Skip if commit message contains [skip-version] or [no-version]
+    if: "!contains(github.event.head_commit.message, '[skip-version]') && !contains(github.event.head_commit.message, '[no-version]')"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for proper version calculation
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get latest tag
+        id: get_latest_tag
+        run: |
+          # Get the latest tag, default to v0.0.0 if none exist
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+          echo "Latest tag: $LATEST_TAG"
+
+      - name: Determine version bump
+        id: version_bump
+        run: |
+          LATEST_TAG="${{ steps.get_latest_tag.outputs.latest_tag }}"
+
+          # Get commits since last tag
+          if [ "$LATEST_TAG" = "v0.0.0" ]; then
+            COMMITS=$(git log --format=%s)
+          else
+            COMMITS=$(git log ${LATEST_TAG}..HEAD --format=%s)
+          fi
+
+          echo "Analyzing commits:"
+          echo "$COMMITS"
+
+          # Check for breaking changes (MAJOR bump)
+          if echo "$COMMITS" | grep -qE '^[a-z]+(\(.+\))?!:|^BREAKING CHANGE:'; then
+            BUMP_TYPE="major"
+            echo "Found breaking change - MAJOR version bump"
+          # Check for features (MINOR bump)
+          elif echo "$COMMITS" | grep -qE '^feat(\(.+\))?:'; then
+            BUMP_TYPE="minor"
+            echo "Found feature - MINOR version bump"
+          # Check for fixes (PATCH bump)
+          elif echo "$COMMITS" | grep -qE '^fix(\(.+\))?:'; then
+            BUMP_TYPE="patch"
+            echo "Found fix - PATCH version bump"
+          else
+            BUMP_TYPE="none"
+            echo "No version-bumping commits found (only chore/docs/etc)"
+          fi
+
+          echo "bump_type=$BUMP_TYPE" >> $GITHUB_OUTPUT
+
+      - name: Calculate new version
+        id: new_version
+        if: steps.version_bump.outputs.bump_type != 'none'
+        run: |
+          LATEST_TAG="${{ steps.get_latest_tag.outputs.latest_tag }}"
+          BUMP_TYPE="${{ steps.version_bump.outputs.bump_type }}"
+
+          # Remove 'v' prefix for calculation
+          VERSION=${LATEST_TAG#v}
+
+          # Split version into components
+          MAJOR=$(echo $VERSION | cut -d. -f1)
+          MINOR=$(echo $VERSION | cut -d. -f2)
+          PATCH=$(echo $VERSION | cut -d. -f3)
+
+          # Bump version based on type
+          if [ "$BUMP_TYPE" = "major" ]; then
+            MAJOR=$((MAJOR + 1))
+            MINOR=0
+            PATCH=0
+          elif [ "$BUMP_TYPE" = "minor" ]; then
+            MINOR=$((MINOR + 1))
+            PATCH=0
+          elif [ "$BUMP_TYPE" = "patch" ]; then
+            PATCH=$((PATCH + 1))
+          fi
+
+          NEW_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "New version will be: $NEW_VERSION"
+
+      - name: Create and push tag
+        if: steps.version_bump.outputs.bump_type != 'none'
+        env:
+          NEW_VERSION: ${{ steps.new_version.outputs.new_version }}
+        run: |
+          # Configure git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Create annotated tag
+          git tag -a "$NEW_VERSION" -m "chore(release): $NEW_VERSION
+
+          Automatically generated release tag based on conventional commits.
+
+          Generated by: ${{ github.workflow }}
+          Commit: ${{ github.sha }}"
+
+          # Push the tag
+          git push origin "$NEW_VERSION"
+
+          echo "✅ Created and pushed tag: $NEW_VERSION"
+          echo "This will trigger the release workflows (release.yml and release-macos.yml)"
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### Auto-Versioning Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ steps.version_bump.outputs.bump_type }}" = "none" ]; then
+            echo "**No version bump required**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Commits did not contain feat:, fix:, or BREAKING CHANGE:" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**New version created:** \`${{ steps.new_version.outputs.new_version }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "- Previous: \`${{ steps.get_latest_tag.outputs.latest_tag }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "- Bump type: **${{ steps.version_bump.outputs.bump_type }}**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "The tag has been pushed and will trigger release workflows." >> $GITHUB_STEP_SUMMARY
+          fi
+
+# =============================================================================
+# Usage Guide
+# =============================================================================
+#
+# Conventional Commit Examples:
+#
+# PATCH version bump (0.1.0 -> 0.1.1):
+#   git commit -m "fix: resolve database connection timeout"
+#
+# MINOR version bump (0.1.0 -> 0.2.0):
+#   git commit -m "feat: add user authentication"
+#
+# MAJOR version bump (0.1.0 -> 1.0.0):
+#   git commit -m "feat!: redesign API structure"
+#   or
+#   git commit -m "feat: redesign API
+#
+#   BREAKING CHANGE: endpoints now use /v2/ prefix"
+#
+# No version bump:
+#   git commit -m "chore: update dependencies"
+#   git commit -m "docs: improve README"
+#   git commit -m "test: add integration tests"
+#
+# Skip versioning for a specific commit:
+#   git commit -m "feat: new feature [skip-version]"
+#
+# =============================================================================
