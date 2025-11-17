@@ -102,8 +102,20 @@ get_latest_release() {
         response=$(curl -s "$api_url")
     fi
 
-    if [ -z "$response" ] || echo "$response" | jq -e '.message == "Not Found"' > /dev/null 2>&1; then
-        log_error "Failed to fetch release information. Repository may not exist or no releases found."
+    if [ -z "$response" ]; then
+        log_error "Failed to fetch release information. Empty response from API."
+        exit 1
+    fi
+    
+    # Check if response is valid JSON
+    if ! echo "$response" | jq empty > /dev/null 2>&1; then
+        log_error "Invalid JSON response from GitHub API:"
+        echo "$response" | head -20
+        exit 1
+    fi
+    
+    if echo "$response" | jq -e '.message == "Not Found"' > /dev/null 2>&1; then
+        log_error "Repository or release not found."
         exit 1
     fi
 
@@ -129,7 +141,19 @@ get_specific_release() {
         response=$(curl -s "$api_url")
     fi
 
-    if [ -z "$response" ] || echo "$response" | jq -e '.message == "Not Found"' > /dev/null 2>&1; then
+    if [ -z "$response" ]; then
+        log_error "Failed to fetch release information. Empty response from API."
+        exit 1
+    fi
+    
+    # Check if response is valid JSON
+    if ! echo "$response" | jq empty > /dev/null 2>&1; then
+        log_error "Invalid JSON response from GitHub API:"
+        echo "$response" | head -20
+        exit 1
+    fi
+    
+    if echo "$response" | jq -e '.message == "Not Found"' > /dev/null 2>&1; then
         log_error "Release $tag not found."
         exit 1
     fi
@@ -299,13 +323,34 @@ main() {
         log_info "Set GITHUB_TOKEN environment variable with a GitHub personal access token."
     fi
 
-    # Fetch release information
+    # Fetch release information (with retry for eventual consistency)
     local release_data
-    if [ "$version" = "latest" ]; then
-        release_data=$(get_latest_release)
-    else
-        release_data=$(get_specific_release "$version")
-    fi
+    local retry_count=0
+    local max_retries=5
+    
+    while [ $retry_count -lt $max_retries ]; do
+        log_info "Fetching release information (attempt $((retry_count + 1))/$max_retries)..."
+        
+        if [ "$version" = "latest" ]; then
+            release_data=$(get_latest_release 2>&1) || true
+        else
+            release_data=$(get_specific_release "$version" 2>&1) || true
+        fi
+        
+        # Check if we got valid data
+        if echo "$release_data" | jq -e '.tag_name' > /dev/null 2>&1; then
+            break
+        fi
+        
+        retry_count=$((retry_count + 1))
+        if [ $retry_count -lt $max_retries ]; then
+            log_warning "Release not ready yet, waiting 10 seconds before retry..."
+            sleep 10
+        else
+            log_error "Failed to fetch release after $max_retries attempts"
+            exit 1
+        fi
+    done
 
     # Extract release information
     local tag_name
