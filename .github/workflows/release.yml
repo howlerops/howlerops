@@ -453,18 +453,22 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Combine checksums
+        id: combine_checksums
         run: |
           if [ -d "checksums" ] && [ -n "$(ls -A checksums/*.sha256 2>/dev/null)" ]; then
             cd checksums
             cat *.sha256 > ../checksums.txt
             cd ..
+            echo "Found checksum files:"
             cat checksums.txt
+            echo "has_checksums=true" >> $GITHUB_OUTPUT
           else
-            echo "No checksum files found. Creating empty checksums.txt"
-            touch checksums.txt
+            echo "No checksum files found. Skipping checksums.txt creation."
+            echo "has_checksums=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Upload combined checksums
+        if: steps.combine_checksums.outputs.has_checksums == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -501,9 +505,11 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Configure Docker for GCR
+      - name: Configure Docker for GCR and Artifact Registry
         run: |
+          # Configure for both GCR (legacy) and Artifact Registry (new redirect)
           gcloud auth configure-docker gcr.io --quiet
+          gcloud auth configure-docker us-docker.pkg.dev --quiet || true
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
