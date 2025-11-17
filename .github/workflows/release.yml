@@ -502,9 +502,12 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Configure Docker for GCR
+      - name: Activate service account and configure Docker
         run: |
+          echo '${{ secrets.GCP_SA_KEY }}' > ${HOME}/gcp-key.json
+          gcloud auth activate-service-account --key-file ${HOME}/gcp-key.json
           gcloud auth configure-docker gcr.io --quiet
+          rm ${HOME}/gcp-key.json
 
       - name: Build and push Docker image (amd64)
         run: |
