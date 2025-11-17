@@ -95,13 +95,12 @@ get_latest_release() {
     local api_url="https://api.github.com/repos/${GITHUB_REPO}/releases/latest"
     local headers=""
 
-    if [ -n "${GITHUB_TOKEN:-}" ]; then
-        headers="-H 'Authorization: token ${GITHUB_TOKEN}'"
-    fi
-
-    # shellcheck disable=SC2086
     local response
-    response=$(curl -s $headers "$api_url")
+    if [ -n "${GITHUB_TOKEN:-}" ]; then
+        response=$(curl -s -H "Authorization: token ${GITHUB_TOKEN}" "$api_url")
+    else
+        response=$(curl -s "$api_url")
+    fi
 
     if [ -z "$response" ] || echo "$response" | jq -e '.message == "Not Found"' > /dev/null 2>&1; then
         log_error "Failed to fetch release information. Repository may not exist or no releases found."
@@ -123,13 +122,12 @@ get_specific_release() {
     local api_url="https://api.github.com/repos/${GITHUB_REPO}/releases/tags/${tag}"
     local headers=""
 
-    if [ -n "${GITHUB_TOKEN:-}" ]; then
-        headers="-H 'Authorization: token ${GITHUB_TOKEN}'"
-    fi
-
-    # shellcheck disable=SC2086
     local response
-    response=$(curl -s $headers "$api_url")
+    if [ -n "${GITHUB_TOKEN:-}" ]; then
+        response=$(curl -s -H "Authorization: token ${GITHUB_TOKEN}" "$api_url")
+    else
+        response=$(curl -s "$api_url")
+    fi
 
     if [ -z "$response" ] || echo "$response" | jq -e '.message == "Not Found"' > /dev/null 2>&1; then
         log_error "Release $tag not found."
@@ -174,7 +172,7 @@ cask "howlerops" do
   version "$version_number"
   sha256 "$universal_sha"
 
-  url "https://github.com/${GITHUB_REPO}/releases/download/v#{version}/howlerops-darwin-universal.zip"
+  url "https://github.com/${GITHUB_REPO}/releases/download/v#{version}/howlerops-darwin-universal.tar.gz"
   name "HowlerOps"
   desc "Powerful SQL client with AI capabilities"
   homepage "https://github.com/${GITHUB_REPO}"
@@ -323,7 +321,7 @@ main() {
     # Extract download URL for universal binary
     local universal_archive
     local universal_url
-    universal_archive=$(echo "$release_data" | jq -r '.assets[] | select(.name | contains("howlerops-darwin-universal.zip")) | .name' | head -n 1)
+    universal_archive=$(echo "$release_data" | jq -r '.assets[] | select(.name | contains("howlerops-darwin-universal.tar.gz")) | .name' | head -n 1)
 
     if [ -z "$universal_archive" ]; then
         log_error "Universal macOS binary not found in release assets"
