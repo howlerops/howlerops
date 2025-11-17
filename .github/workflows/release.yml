@@ -449,6 +449,9 @@ jobs:
           fileName: "*.sha256"
           out-file-path: checksums
 
+      - name: Checkout code for git context
+        uses: actions/checkout@v4
+
       - name: Combine checksums
         run: |
           cd checksums
@@ -501,8 +504,8 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: backend-go
-          file: backend-go/Dockerfile
+          context: .
+          file: ./backend-go/Dockerfile
           push: true
           platforms: linux/amd64,linux/arm64
           build-args: |

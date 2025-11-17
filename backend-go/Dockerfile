@@ -39,16 +39,16 @@ WORKDIR /app
 ENV GOTOOLCHAIN=auto
 
 # Copy root module files needed for replace directive
-COPY go.mod go.sum ./
-COPY services ./services
+COPY ./go.mod ./go.sum ./
+COPY ./services/ ./services/
 
 # Copy backend-go module files for dependency download
-COPY backend-go/go.mod backend-go/go.sum ./backend-go/
+COPY ./backend-go/go.mod ./backend-go/go.sum ./backend-go/
 WORKDIR /app/backend-go
 RUN go mod download && go mod verify
 
 # Copy backend-go source code
-COPY backend-go/ .
+COPY ./backend-go/ .
 
 # Build the application with production optimizations
 # CGO_ENABLED=1: Required for SQLite driver (mattn/go-sqlite3)
@@ -56,22 +56,20 @@ COPY backend-go/ .
 #   -s: Strip debug information
 #   -w: Strip DWARF symbol table
 #   -X: Set version information at build time
-#   -extldflags '-static': Static linking for portability
 # -trimpath: Remove file system paths from binary (security)
-# -buildmode=pie: Position Independent Executable (security hardening)
 ARG VERSION=dev
 ARG BUILD_TIME
 ARG GIT_COMMIT
+ARG TARGETARCH
 
-RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build \
+RUN CGO_ENABLED=1 go build \
     -a \
     -installsuffix cgo \
-    -ldflags="-s -w -extldflags '-static' \
+    -ldflags="-s -w \
     -X 'main.Version=${VERSION}' \
     -X 'main.BuildTime=${BUILD_TIME}' \
     -X 'main.GitCommit=${GIT_COMMIT}'" \
     -trimpath \
-    -buildmode=pie \
     -o sql-studio-backend \
     cmd/server/main.go
 
@@ -91,13 +89,16 @@ RUN chmod +x sql-studio-backend && \
 # Using Alpine for minimal size with necessary tools
 FROM alpine:3.20 AS runtime
 
+# Re-declare ARGs for this stage
+ARG VERSION=dev
+
 # Security metadata
 LABEL maintainer="Howlerops Team" \
       org.opencontainers.image.title="Howlerops Backend" \
       org.opencontainers.image.description="Production-ready Howlerops backend service" \
       org.opencontainers.image.vendor="Howlerops" \
       org.opencontainers.image.licenses="MIT" \
-      org.opencontainers.image.version="${VERSION:-dev}"
+      org.opencontainers.image.version="${VERSION}"
 
 # Install minimal runtime dependencies
 # - ca-certificates: HTTPS support for external API calls (Turso, Resend)
