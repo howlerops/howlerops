@@ -1,0 +1,117 @@
+# =============================================================================
+# Cloud Build Configuration for Release Docker Images
+# =============================================================================
+# This builds multi-arch Docker images for releases and pushes to GCR.
+# Triggered by GitHub Actions release workflow.
+# =============================================================================
+
+steps:
+  # ---------------------------------------------------------------------------
+  # Build and push amd64 image
+  # ---------------------------------------------------------------------------
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-amd64'
+    args:
+      - 'build'
+      - '--platform=linux/amd64'
+      - '-f'
+      - 'backend-go/Dockerfile'
+      - '--build-arg'
+      - 'VERSION=${_VERSION}'
+      - '--build-arg'
+      - 'BUILD_TIME=${_BUILD_TIME}'
+      - '--build-arg'
+      - 'GIT_COMMIT=${_GIT_COMMIT}'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/howlerops-backend:${_VERSION}-amd64'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/howlerops-backend:latest-amd64'
+      - '.'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-amd64'
+    args:
+      - 'push'
+      - '--all-tags'
+      - 'gcr.io/$PROJECT_ID/howlerops-backend'
+    waitFor: ['build-amd64']
+
+  # ---------------------------------------------------------------------------
+  # Build and push arm64 image
+  # ---------------------------------------------------------------------------
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-arm64'
+    args:
+      - 'build'
+      - '--platform=linux/arm64'
+      - '-f'
+      - 'backend-go/Dockerfile'
+      - '--build-arg'
+      - 'VERSION=${_VERSION}'
+      - '--build-arg'
+      - 'BUILD_TIME=${_BUILD_TIME}'
+      - '--build-arg'
+      - 'GIT_COMMIT=${_GIT_COMMIT}'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/howlerops-backend:${_VERSION}-arm64'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/howlerops-backend:latest-arm64'
+      - '.'
+    waitFor: ['push-amd64']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-arm64'
+    args:
+      - 'push'
+      - '--all-tags'
+      - 'gcr.io/$PROJECT_ID/howlerops-backend'
+    waitFor: ['build-arm64']
+
+  # ---------------------------------------------------------------------------
+  # Create multi-arch manifest
+  # ---------------------------------------------------------------------------
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'create-manifest-version'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        docker manifest create \
+          gcr.io/$PROJECT_ID/howlerops-backend:${_VERSION} \
+          gcr.io/$PROJECT_ID/howlerops-backend:${_VERSION}-amd64 \
+          gcr.io/$PROJECT_ID/howlerops-backend:${_VERSION}-arm64
+        docker manifest push gcr.io/$PROJECT_ID/howlerops-backend:${_VERSION}
+    waitFor: ['push-arm64']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'create-manifest-latest'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        docker manifest create \
+          gcr.io/$PROJECT_ID/howlerops-backend:latest \
+          gcr.io/$PROJECT_ID/howlerops-backend:latest-amd64 \
+          gcr.io/$PROJECT_ID/howlerops-backend:latest-arm64
+        docker manifest push gcr.io/$PROJECT_ID/howlerops-backend:latest
+    waitFor: ['push-arm64']
+
+# Tag final multi-arch images
+images:
+  - 'gcr.io/$PROJECT_ID/howlerops-backend:${_VERSION}'
+  - 'gcr.io/$PROJECT_ID/howlerops-backend:latest'
+
+# Build options
+options:
+  machineType: 'E2_HIGHCPU_8'
+  env:
+    - 'DOCKER_BUILDKIT=1'
+  substitutionOption: 'ALLOW_LOOSE'
+
+# Required substitution variables (passed from GitHub Actions)
+substitutions:
+  _VERSION: 'dev'
+  _BUILD_TIME: ''
+  _GIT_COMMIT: ''
+
+timeout: '3600s'
