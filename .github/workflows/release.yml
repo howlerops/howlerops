@@ -509,8 +509,10 @@ jobs:
           
           echo "Triggering Cloud Build for version ${VERSION}..."
           
+          # Use explicit staging bucket to avoid permission issues
           gcloud builds submit \
             --config=cloudbuild-release.yaml \
+            --gcs-source-staging-dir=gs://howlerops-prod_cloudbuild/source \
             --substitutions=_VERSION="${VERSION}",_BUILD_TIME="${BUILD_TIME}",_GIT_COMMIT="${GIT_COMMIT}" \
             --project="${{ secrets.GCP_PROJECT_ID }}" \
             .
