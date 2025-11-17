@@ -501,6 +501,11 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
+      - name: Set correct GCP project
+        run: |
+          gcloud config set project howlerops-prod
+          echo "Active project: $(gcloud config get-value project)"
+
       - name: Trigger Cloud Build for Docker image
         run: |
           VERSION="${{ needs.create-release.outputs.version }}"
