@@ -113,10 +113,7 @@ steps:
         docker manifest push gcr.io/$PROJECT_ID/howlerops-backend:latest
     waitFor: ['push-arm64']
 
-# Tag final multi-arch images
-images:
-  - 'gcr.io/$PROJECT_ID/howlerops-backend:${_VERSION}'
-  - 'gcr.io/$PROJECT_ID/howlerops-backend:latest'
+# Note: images section removed - manifest lists are pushed directly in steps above
 
 # Build options
 options:
