@@ -50,10 +50,12 @@ env:
   GO_VERSION: "1.25"
   # CGO is required for SQLite support
   CGO_ENABLED: 1
-  # Artifact Registry defaults (override via repository variables if needed)
-  GAR_LOCATION: "us"
-  GAR_REPOSITORY: "howlerops-backend"
-  GAR_IMAGE_NAME: "howlerops-backend"
+  # Artifact Registry configuration (overridable via repository/environment variables)
+  GAR_LOCATION: ${{ vars.GAR_LOCATION != '' && vars.GAR_LOCATION || 'us' }}
+  GAR_REPOSITORY: ${{ vars.GAR_REPOSITORY != '' && vars.GAR_REPOSITORY || 'howlerops-backend' }}
+  GAR_IMAGE_NAME: ${{ vars.GAR_IMAGE_NAME != '' && vars.GAR_IMAGE_NAME || 'howlerops-backend' }}
+  GAR_HOST: ${{ format('{0}-docker.pkg.dev', vars.GAR_LOCATION != '' && vars.GAR_LOCATION || 'us') }}
+  GAR_IMAGE_PATH: ${{ format('{0}-docker.pkg.dev/{1}/{2}/{3}', vars.GAR_LOCATION != '' && vars.GAR_LOCATION || 'us', secrets.GCP_PROJECT_ID, vars.GAR_REPOSITORY != '' && vars.GAR_REPOSITORY || 'howlerops-backend', vars.GAR_IMAGE_NAME != '' && vars.GAR_IMAGE_NAME || 'howlerops-backend') }}
 
 jobs:
   # ---------------------------------------------------------------------------
@@ -155,7 +157,7 @@ jobs:
           ### Docker Image
 
           ```bash
-          docker pull ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.GAR_REPOSITORY }}/${{ env.GAR_IMAGE_NAME }}:v${{ steps.get_version.outputs.version }}
+          docker pull ${{ env.GAR_IMAGE_PATH }}:v${{ steps.get_version.outputs.version }}
           ```
 
           ---
@@ -485,10 +487,6 @@ jobs:
     needs: [create-release, build-binaries]
     # Skip this job if GCP secrets are not configured
     if: ${{ needs.create-release.outputs.has_gcp_secrets == 'true' }}
-    env:
-      GAR_HOST: ${{ env.GAR_LOCATION }}-docker.pkg.dev
-      GAR_IMAGE: ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.GAR_REPOSITORY }}/${{ env.GAR_IMAGE_NAME }}
-
     permissions:
       contents: read
       id-token: write
@@ -535,8 +533,8 @@ jobs:
             BUILD_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
             GIT_COMMIT=${{ github.sha }}
           tags: |
-            ${{ env.GAR_IMAGE }}:latest
-            ${{ env.GAR_IMAGE }}:v${{ needs.create-release.outputs.version }}
+            ${{ env.GAR_IMAGE_PATH }}:latest
+            ${{ env.GAR_IMAGE_PATH }}:v${{ needs.create-release.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -544,7 +542,7 @@ jobs:
         id: trivy_scan
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.GAR_IMAGE }}:v${{ needs.create-release.outputs.version }}
+          image-ref: ${{ env.GAR_IMAGE_PATH }}:v${{ needs.create-release.outputs.version }}
           format: "sarif"
           output: "trivy-results.sarif"
           severity: "CRITICAL,HIGH"
