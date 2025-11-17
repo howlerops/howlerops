@@ -7,6 +7,15 @@
 
 steps:
   # ---------------------------------------------------------------------------
+  # Clone source from GitHub
+  # ---------------------------------------------------------------------------
+  - name: 'gcr.io/cloud-builders/git'
+    args: ['clone', '${_REPO_URL}', '.']
+    
+  - name: 'gcr.io/cloud-builders/git'
+    args: ['checkout', '${_COMMIT_SHA}']
+
+  # ---------------------------------------------------------------------------
   # Build and push amd64 image
   # ---------------------------------------------------------------------------
   - name: 'gcr.io/cloud-builders/docker'
@@ -113,5 +122,7 @@ substitutions:
   _VERSION: 'dev'
   _BUILD_TIME: ''
   _GIT_COMMIT: ''
+  _REPO_URL: 'https://github.com/jbeck018/howlerops'
+  _COMMIT_SHA: 'main'
 
 timeout: '3600s'

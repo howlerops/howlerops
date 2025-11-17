@@ -511,21 +511,22 @@ jobs:
           VERSION="${{ needs.create-release.outputs.version }}"
           BUILD_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
           GIT_COMMIT="${{ github.sha }}"
+          REPO_URL="https://github.com/${{ github.repository }}"
           
           echo "Triggering Cloud Build for version ${VERSION}..."
+          echo "Building from ${REPO_URL}@${GIT_COMMIT}"
           
-          # Use dedicated staging bucket with proper permissions
+          # Build from GitHub instead of uploading tarball
           gcloud builds submit \
+            --no-source \
             --config=cloudbuild-release.yaml \
-            --gcs-source-staging-dir=gs://howlerops-releases-staging/source \
-            --substitutions=_VERSION="${VERSION}",_BUILD_TIME="${BUILD_TIME}",_GIT_COMMIT="${GIT_COMMIT}" \
-            --project=howlerops-prod \
-            .
+            --substitutions=_VERSION="${VERSION}",_BUILD_TIME="${BUILD_TIME}",_GIT_COMMIT="${GIT_COMMIT}",_REPO_URL="${REPO_URL}",_COMMIT_SHA="${GIT_COMMIT}" \
+            --project=howlerops-prod
           
           echo "Cloud Build completed successfully!"
           echo "Images pushed:"
-          echo "  - gcr.io/${{ secrets.GCP_PROJECT_ID }}/howlerops-backend:${VERSION}"
-          echo "  - gcr.io/${{ secrets.GCP_PROJECT_ID }}/howlerops-backend:latest"
+          echo "  - gcr.io/howlerops-prod/howlerops-backend:${VERSION}"
+          echo "  - gcr.io/howlerops-prod/howlerops-backend:latest"
 
   # ---------------------------------------------------------------------------
   # Job 5: Post-Release Validation
