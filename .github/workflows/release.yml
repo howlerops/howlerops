@@ -494,9 +494,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
@@ -505,28 +502,31 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Configure Docker for GCR and Artifact Registry
+      - name: Configure Docker for GCR
         run: |
-          # Configure for both GCR (legacy) and Artifact Registry (new redirect)
           gcloud auth configure-docker gcr.io --quiet
-          gcloud auth configure-docker us-docker.pkg.dev --quiet || true
 
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./backend-go/Dockerfile
-          push: true
-          platforms: linux/amd64,linux/arm64
-          build-args: |
-            VERSION=${{ needs.create-release.outputs.version }}
-            BUILD_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-            GIT_COMMIT=${{ github.sha }}
-          tags: |
-            gcr.io/${{ secrets.GCP_PROJECT_ID }}/howlerops-backend:latest
-            gcr.io/${{ secrets.GCP_PROJECT_ID }}/howlerops-backend:v${{ needs.create-release.outputs.version }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: Build and push Docker image (amd64)
+        run: |
+          VERSION="${{ needs.create-release.outputs.version }}"
+          BUILD_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          GIT_COMMIT="${{ github.sha }}"
+          PROJECT_ID="${{ secrets.GCP_PROJECT_ID }}"
+          
+          echo "Building amd64 image..."
+          docker build \
+            --platform linux/amd64 \
+            --build-arg VERSION="${VERSION}" \
+            --build-arg BUILD_TIME="${BUILD_TIME}" \
+            --build-arg GIT_COMMIT="${GIT_COMMIT}" \
+            -f ./backend-go/Dockerfile \
+            -t "gcr.io/${PROJECT_ID}/howlerops-backend:${VERSION}-amd64" \
+            -t "gcr.io/${PROJECT_ID}/howlerops-backend:latest-amd64" \
+            .
+          
+          echo "Pushing amd64 image..."
+          docker push "gcr.io/${PROJECT_ID}/howlerops-backend:${VERSION}-amd64"
+          docker push "gcr.io/${PROJECT_ID}/howlerops-backend:latest-amd64"
 
       - name: Scan Docker image for vulnerabilities
         id: trivy_scan
