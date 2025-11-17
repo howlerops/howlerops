@@ -16,11 +16,18 @@ steps:
     args: ['checkout', '${_COMMIT_SHA}']
 
   # ---------------------------------------------------------------------------
+  # Set up QEMU for multi-arch builds
+  # ---------------------------------------------------------------------------
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['run', '--privileged', '--rm', 'tonistiigi/binfmt', '--install', 'all']
+
+  # ---------------------------------------------------------------------------
   # Build and push amd64 image
   # ---------------------------------------------------------------------------
   - name: 'gcr.io/cloud-builders/docker'
     id: 'build-amd64'
     args:
+      - 'buildx'
       - 'build'
       - '--platform=linux/amd64'
       - '-f'
@@ -51,6 +58,7 @@ steps:
   - name: 'gcr.io/cloud-builders/docker'
     id: 'build-arm64'
     args:
+      - 'buildx'
       - 'build'
       - '--platform=linux/arm64'
       - '-f'
