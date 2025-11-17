@@ -503,6 +503,10 @@ jobs:
 
       - name: Set correct GCP project
         run: |
+          echo "DEBUG: Current auth account:"
+          gcloud auth list
+          echo "DEBUG: Service account from credentials:"
+          echo '${{ secrets.GCP_SA_KEY }}' | jq -r '.client_email'
           gcloud config set project howlerops-prod
           echo "Active project: $(gcloud config get-value project)"
 
