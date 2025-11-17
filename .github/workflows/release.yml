@@ -454,10 +454,15 @@ jobs:
 
       - name: Combine checksums
         run: |
-          cd checksums
-          cat *.sha256 > ../checksums.txt
-          cd ..
-          cat checksums.txt
+          if [ -d "checksums" ] && [ -n "$(ls -A checksums/*.sha256 2>/dev/null)" ]; then
+            cd checksums
+            cat *.sha256 > ../checksums.txt
+            cd ..
+            cat checksums.txt
+          else
+            echo "No checksum files found. Creating empty checksums.txt"
+            touch checksums.txt
+          fi
 
       - name: Upload combined checksums
         env:
@@ -513,8 +518,8 @@ jobs:
             BUILD_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
             GIT_COMMIT=${{ github.sha }}
           tags: |
-            gcr.io/${{ secrets.GCP_PROJECT_ID }}/sql-studio-backend:latest
-            gcr.io/${{ secrets.GCP_PROJECT_ID }}/sql-studio-backend:v${{ needs.create-release.outputs.version }}
+            gcr.io/${{ secrets.GCP_PROJECT_ID }}/howlerops:latest
+            gcr.io/${{ secrets.GCP_PROJECT_ID }}/howlerops:v${{ needs.create-release.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -522,7 +527,7 @@ jobs:
         id: trivy_scan
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: gcr.io/${{ secrets.GCP_PROJECT_ID }}/sql-studio-backend:v${{ needs.create-release.outputs.version }}
+          image-ref: gcr.io/${{ secrets.GCP_PROJECT_ID }}/howlerops:v${{ needs.create-release.outputs.version }}
           format: "sarif"
           output: "trivy-results.sarif"
           severity: "CRITICAL,HIGH"
