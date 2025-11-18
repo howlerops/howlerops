@@ -349,18 +349,11 @@ main() {
                 log_success "Found release with $asset_count assets"
                 break
             else
-                log_warning "Release found but assets not yet available ($asset_count assets)"
+                log_warning "Release found but no assets uploaded yet (0 assets found)"
+                log_info "Build jobs may still be running. Will retry..."
             fi
         else
-            # Try to parse error message, or show raw response if not JSON
-            if echo "$release_data" | jq empty > /dev/null 2>&1; then
-                ERROR_MSG=$(echo "$release_data" | jq -r '.message // "Unknown error"')
-                log_warning "API error: $ERROR_MSG"
-            else
-                log_warning "Invalid JSON response from API (showing first 200 chars):"
-                echo "$release_data" | head -c 200
-                echo ""
-            fi
+            log_warning "Release not found or API returned invalid response"
         fi
         
         retry_count=$((retry_count + 1))
