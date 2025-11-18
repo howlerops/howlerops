@@ -455,8 +455,18 @@ jobs:
       - name: Combine checksums
         id: combine_checksums
         run: |
+          echo "=== Checking downloaded checksums ==="
+          if [ -d "checksums" ]; then
+            echo "Contents of checksums directory:"
+            ls -lah checksums/ || echo "Directory exists but is empty"
+          else
+            echo "ERROR: checksums directory does not exist!"
+          fi
+          echo ""
+          
           if [ -d "checksums" ] && [ -n "$(ls -A checksums/*.sha256 2>/dev/null)" ]; then
             cd checksums
+            echo "Combining $(ls *.sha256 | wc -l) checksum files..."
             cat *.sha256 > ../checksums.txt
             cd ..
             echo "Found checksum files:"
@@ -533,11 +543,16 @@ jobs:
           echo "Build ID: ${BUILD_ID}"
           echo "View logs at: https://console.cloud.google.com/cloud-build/builds/${BUILD_ID}?project=howlerops-prod"
           
-          # Poll for build completion
-          echo "Waiting for build to complete..."
-          for i in {1..60}; do
+          # Docker builds typically take 15-20 minutes
+          # Wait 2 minutes before starting to poll to reduce API calls
+          echo "Waiting 2 minutes before polling (Docker builds take ~20 minutes)..."
+          sleep 120
+          
+          # Poll for build completion (30 minutes max: 90 attempts × 20s)
+          echo "Starting to poll build status..."
+          for i in {1..90}; do
             STATUS=$(gcloud builds describe ${BUILD_ID} --project=howlerops-prod --format="value(status)" 2>/dev/null || echo "UNKNOWN")
-            echo "Build status: ${STATUS} (attempt ${i}/60)"
+            echo "Build status: ${STATUS} (attempt ${i}/90)"
             
             if [ "$STATUS" = "SUCCESS" ]; then
               echo "Cloud Build completed successfully!"
@@ -560,10 +575,10 @@ jobs:
               # Continue polling for unexpected statuses
             fi
             
-            sleep 10
+            sleep 20
           done
           
-          echo "Build timeout - status check exceeded 10 minutes"
+          echo "Build timeout - status check exceeded 30 minutes"
           echo "View logs at: https://console.cloud.google.com/cloud-build/builds/${BUILD_ID}?project=howlerops-prod"
           exit 1
 
