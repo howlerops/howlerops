@@ -225,9 +225,12 @@ clone_tap_repository() {
 
     log_info "Cloning Homebrew tap repository..."
 
-    if [ -n "${GITHUB_TOKEN:-}" ]; then
+    # Use HOMEBREW_TAP_TOKEN for tap repo access, fallback to GITHUB_TOKEN
+    local tap_token="${HOMEBREW_TAP_TOKEN:-${GITHUB_TOKEN:-}}"
+    
+    if [ -n "$tap_token" ]; then
         # Use token for authentication
-        local auth_url="https://${GITHUB_TOKEN}@github.com/${HOMEBREW_TAP_REPO}.git"
+        local auth_url="https://${tap_token}@github.com/${HOMEBREW_TAP_REPO}.git"
         git clone "$auth_url" "$tap_dir" 2>&1 | grep -v "token" || true
     else
         git clone "https://github.com/${HOMEBREW_TAP_REPO}.git" "$tap_dir"
