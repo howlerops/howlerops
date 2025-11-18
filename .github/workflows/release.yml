@@ -550,8 +550,14 @@ jobs:
               echo "View logs at: https://console.cloud.google.com/cloud-build/builds/${BUILD_ID}?project=howlerops-prod"
               exit 1
             elif [ "$STATUS" = "UNKNOWN" ]; then
-              echo "Failed to query build status"
-              exit 1
+              echo "Warning: Unable to query build status, will retry..."
+              # Don't exit - continue polling
+            elif [ "$STATUS" = "QUEUED" ] || [ "$STATUS" = "WORKING" ]; then
+              echo "Build is in progress..."
+              # Continue polling
+            else
+              echo "Unexpected status: ${STATUS}"
+              # Continue polling for unexpected statuses
             fi
             
             sleep 10
@@ -581,6 +587,10 @@ jobs:
         run: |
           cd release-assets
 
+          echo "=== Downloaded artifacts ==="
+          ls -lah
+          echo ""
+
           # Expected artifacts
           EXPECTED=(
             "sql-studio-darwin-amd64.tar.gz"
@@ -592,17 +602,25 @@ jobs:
             "checksums.txt"
           )
 
-          echo "Checking for expected artifacts..."
+          echo "=== Checking for expected artifacts ==="
+          MISSING_COUNT=0
           for artifact in "${EXPECTED[@]}"; do
             if [ ! -f "$artifact" ]; then
-              echo "ERROR: Missing artifact: $artifact"
-              exit 1
+              echo "❌ Missing: $artifact"
+              MISSING_COUNT=$((MISSING_COUNT + 1))
+            else
+              echo "✓ Found: $artifact"
             fi
-            echo "✓ Found: $artifact"
           done
 
+          if [ $MISSING_COUNT -gt 0 ]; then
+            echo ""
+            echo "ERROR: $MISSING_COUNT artifact(s) missing from release!"
+            exit 1
+          fi
+
           echo ""
-          echo "All expected artifacts present!"
+          echo "✅ All expected artifacts present!"
           ls -lh
 
       - name: Verify checksums
