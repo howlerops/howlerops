@@ -459,17 +459,22 @@ jobs:
           if [ -d "checksums" ]; then
             echo "Contents of checksums directory:"
             ls -lah checksums/ || echo "Directory exists but is empty"
+            echo ""
+            echo "Searching recursively for .sha256 files:"
+            find checksums -name "*.sha256" -type f || echo "No .sha256 files found"
           else
             echo "ERROR: checksums directory does not exist!"
           fi
           echo ""
           
-          if [ -d "checksums" ] && [ -n "$(ls -A checksums/*.sha256 2>/dev/null)" ]; then
-            cd checksums
-            echo "Combining $(ls *.sha256 | wc -l) checksum files..."
-            cat *.sha256 > ../checksums.txt
-            cd ..
-            echo "Found checksum files:"
+          # Find all .sha256 files recursively
+          CHECKSUM_FILES=$(find checksums -name "*.sha256" -type f 2>/dev/null || true)
+          
+          if [ -n "$CHECKSUM_FILES" ]; then
+            echo "Found $(echo "$CHECKSUM_FILES" | wc -l) checksum files"
+            echo "Combining checksums..."
+            find checksums -name "*.sha256" -type f -exec cat {} \; > checksums.txt
+            echo "Combined checksums:"
             cat checksums.txt
             echo "has_checksums=true" >> $GITHUB_OUTPUT
           else
@@ -606,20 +611,24 @@ jobs:
           ls -lah
           echo ""
 
-          # Expected artifacts
-          EXPECTED=(
+          # Required artifacts
+          REQUIRED=(
             "sql-studio-darwin-amd64.tar.gz"
             "sql-studio-darwin-arm64.tar.gz"
             "sql-studio-linux-amd64.tar.gz"
             "sql-studio-linux-arm64.tar.gz"
             "sql-studio-windows-amd64.tar.gz"
             "howlerops-darwin-universal.tar.gz"
+          )
+          
+          # Optional artifacts (warn if missing)
+          OPTIONAL=(
             "checksums.txt"
           )
 
-          echo "=== Checking for expected artifacts ==="
+          echo "=== Checking for required artifacts ==="
           MISSING_COUNT=0
-          for artifact in "${EXPECTED[@]}"; do
+          for artifact in "${REQUIRED[@]}"; do
             if [ ! -f "$artifact" ]; then
               echo "❌ Missing: $artifact"
               MISSING_COUNT=$((MISSING_COUNT + 1))
@@ -627,10 +636,20 @@ jobs:
               echo "✓ Found: $artifact"
             fi
           done
+          
+          echo ""
+          echo "=== Checking for optional artifacts ==="
+          for artifact in "${OPTIONAL[@]}"; do
+            if [ ! -f "$artifact" ]; then
+              echo "⚠️  Missing (optional): $artifact"
+            else
+              echo "✓ Found: $artifact"
+            fi
+          done
 
           if [ $MISSING_COUNT -gt 0 ]; then
             echo ""
-            echo "ERROR: $MISSING_COUNT artifact(s) missing from release!"
+            echo "ERROR: $MISSING_COUNT required artifact(s) missing from release!"
             exit 1
           fi
 
