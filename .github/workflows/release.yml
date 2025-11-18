@@ -520,17 +520,46 @@ jobs:
           echo "Triggering Cloud Build for version ${VERSION}..."
           echo "Building from ${REPO_URL}@${GIT_COMMIT}"
           
-          # Build from GitHub instead of uploading tarball
-          gcloud builds submit \
+          # Build from GitHub - use --async to avoid log streaming permission issues
+          BUILD_ID=$(gcloud builds submit \
             --no-source \
             --config=cloudbuild-release.yaml \
             --substitutions=_VERSION="${VERSION}",_BUILD_TIME="${BUILD_TIME}",_GIT_COMMIT="${GIT_COMMIT}",_REPO_URL="${REPO_URL}",_COMMIT_SHA="${GIT_COMMIT}" \
-            --project=howlerops-prod
+            --project=howlerops-prod \
+            --format="value(id)" \
+            --async)
           
-          echo "Cloud Build completed successfully!"
-          echo "Images pushed:"
-          echo "  - gcr.io/howlerops-prod/howlerops-backend:${VERSION}"
-          echo "  - gcr.io/howlerops-prod/howlerops-backend:latest"
+          echo "Cloud Build triggered successfully!"
+          echo "Build ID: ${BUILD_ID}"
+          echo "View logs at: https://console.cloud.google.com/cloud-build/builds/${BUILD_ID}?project=howlerops-prod"
+          
+          # Poll for build completion
+          echo "Waiting for build to complete..."
+          for i in {1..60}; do
+            STATUS=$(gcloud builds describe ${BUILD_ID} --project=howlerops-prod --format="value(status)" 2>/dev/null || echo "UNKNOWN")
+            echo "Build status: ${STATUS} (attempt ${i}/60)"
+            
+            if [ "$STATUS" = "SUCCESS" ]; then
+              echo "Cloud Build completed successfully!"
+              echo "Images pushed:"
+              echo "  - gcr.io/howlerops-prod/howlerops-backend:${VERSION}"
+              echo "  - gcr.io/howlerops-prod/howlerops-backend:latest"
+              exit 0
+            elif [ "$STATUS" = "FAILURE" ] || [ "$STATUS" = "TIMEOUT" ] || [ "$STATUS" = "CANCELLED" ]; then
+              echo "Cloud Build failed with status: ${STATUS}"
+              echo "View logs at: https://console.cloud.google.com/cloud-build/builds/${BUILD_ID}?project=howlerops-prod"
+              exit 1
+            elif [ "$STATUS" = "UNKNOWN" ]; then
+              echo "Failed to query build status"
+              exit 1
+            fi
+            
+            sleep 10
+          done
+          
+          echo "Build timeout - status check exceeded 10 minutes"
+          echo "View logs at: https://console.cloud.google.com/cloud-build/builds/${BUILD_ID}?project=howlerops-prod"
+          exit 1
 
   # ---------------------------------------------------------------------------
   # Job 5: Post-Release Validation
