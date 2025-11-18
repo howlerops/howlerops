@@ -349,8 +349,10 @@ main() {
                 log_success "Found release with $asset_count assets"
                 break
             else
-                log_warning "Release found but assets not yet available"
+                log_warning "Release found but assets not yet available ($asset_count assets)"
             fi
+        else
+            log_warning "API response: $(echo "$release_data" | jq -r '.message // "Invalid response"' 2>/dev/null || echo "Parse error")"
         fi
         
         retry_count=$((retry_count + 1))

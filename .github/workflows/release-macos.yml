@@ -1,9 +1,14 @@
-name: Release macOS Application
+name: Release macOS Application (DISABLED - Using release.yml instead)
+
+# DISABLED: This workflow conflicts with release.yml which already builds macOS app
+# The release.yml workflow includes a 'build-howlerops' job that creates the macOS Universal binary
+# To re-enable this workflow, comment out the build-howlerops job in release.yml
 
 on:
-  push:
-    tags:
-      - 'v*'  # Trigger on all version tags (v1.0.0, v1.2.3-beta, etc.)
+  # Disabled tag trigger - uncomment to re-enable
+  # push:
+  #   tags:
+  #     - 'v*'
 
   # Allow manual releases by specifying tag
   workflow_dispatch:
