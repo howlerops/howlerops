@@ -324,9 +324,11 @@ main() {
     fi
 
     # Fetch release information (with retry for eventual consistency)
+    # GitHub CDN can take time to propagate release assets globally
     local release_data
     local retry_count=0
-    local max_retries=5
+    local max_retries=10
+    local retry_delay=30
     
     while [ $retry_count -lt $max_retries ]; do
         log_info "Fetching release information (attempt $((retry_count + 1))/$max_retries)..."
@@ -339,15 +341,25 @@ main() {
         
         # Check if we got valid data
         if echo "$release_data" | jq -e '.tag_name' > /dev/null 2>&1; then
-            break
+            # Verify assets are actually present
+            local asset_count
+            asset_count=$(echo "$release_data" | jq '.assets | length' 2>/dev/null || echo "0")
+            
+            if [ "$asset_count" -gt 0 ]; then
+                log_success "Found release with $asset_count assets"
+                break
+            else
+                log_warning "Release found but assets not yet available"
+            fi
         fi
         
         retry_count=$((retry_count + 1))
         if [ $retry_count -lt $max_retries ]; then
-            log_warning "Release not ready yet, waiting 10 seconds before retry..."
-            sleep 10
+            log_warning "Release not ready yet, waiting $retry_delay seconds before retry..."
+            sleep $retry_delay
         else
-            log_error "Failed to fetch release after $max_retries attempts"
+            log_error "Failed to fetch release with assets after $max_retries attempts"
+            log_error "GitHub CDN may need more time to propagate. Try running this script again in a few minutes."
             exit 1
         fi
     done
