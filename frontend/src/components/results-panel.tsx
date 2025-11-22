@@ -149,7 +149,7 @@ export function ResultsPanel({ onFixWithAI, onPageChange }: ResultsPanelProps = 
 
         <TabsContent
           value="results"
-          className="flex flex-1 min-h-0 flex-col overflow-hidden data-[state=inactive]:hidden"
+          className="flex flex-1 min-h-0 flex-col mt-0 overflow-hidden data-[state=inactive]:hidden"
         >
           {activeTab?.isExecuting && activeTab?.executionStartTime ? (
             <QueryLoadingIndicator
