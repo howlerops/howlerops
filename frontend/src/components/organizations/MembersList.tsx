@@ -5,22 +5,13 @@
  * Shows member details, allows role changes, and member removal (owner/admin only).
  */
 
+import { Loader2, Shield, Trash2, User,UserPlus } from 'lucide-react'
 import * as React from 'react'
-import { UserPlus, Loader2, Trash2, Shield, User } from 'lucide-react'
-import { RoleManagement } from './RoleManagement'
-import { usePermissions } from '@/hooks/usePermissions'
+
 import { PermissionGate } from '@/components/PermissionGate'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
@@ -29,7 +20,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { usePermissions } from '@/hooks/usePermissions'
+import { cn } from '@/lib/utils'
 import type {
   OrganizationMember,
   OrganizationRole,
@@ -37,12 +38,13 @@ import type {
 } from '@/types/organization'
 import {
   canRemoveMembers,
-  getRoleDisplayName,
-  getRoleBadgeVariant,
   formatRelativeTime,
+  getRoleBadgeVariant,
+  getRoleDisplayName,
   OrganizationRole as OrgRole,
 } from '@/types/organization'
-import { cn } from '@/lib/utils'
+
+import { RoleManagement } from './RoleManagement'
 
 interface MembersListProps {
   members: OrganizationMember[]

@@ -4,27 +4,26 @@
  */
 
 import {
-  WorkerMessage,
-  WorkerResponse,
-  WorkerMessageType,
-  QueryResult,
-  ColumnDefinition,
-  DataType,
-  FilterCondition,
-  FilterOperator,
-  SortCondition,
-  SortDirection,
-  ExportConfig,
   AggregationConfig,
   AggregationOperation,
-  ValidationRule,
-  ValidationType,
+  ColumnDefinition,
+  DataType,
+  ExportConfig,
+  FilterCondition,
+  FilterOperator,
+  MemoryUsage,
+  PerformanceMetrics,
+  ProgressUpdate,
+  QueryResult,
+  SortCondition,
+  SortDirection,
   TransformationRule,
   TransformationType,
-  ProgressUpdate,
-  PerformanceMetrics,
-  MemoryUsage
-} from './types';
+  ValidationRule,
+  ValidationType,
+  WorkerMessage,
+  WorkerMessageType,
+  WorkerResponse} from './types';
 
 // Worker context
 const ctx: Worker = self as unknown as Worker;

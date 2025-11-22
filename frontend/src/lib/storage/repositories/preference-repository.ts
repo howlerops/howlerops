@@ -10,12 +10,13 @@
  * @module lib/storage/repositories/preference-repository
  */
 
-import { getIndexedDBClient } from '../indexeddb-client'
 import {
+  type CreateInput,
   STORE_NAMES,
   type UIPreferenceRecord,
-  type CreateInput,
 } from '@/types/storage'
+
+import { getIndexedDBClient } from '../indexeddb-client'
 
 /**
  * Preference value types

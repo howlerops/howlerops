@@ -5,14 +5,15 @@
  * Non-blocking but persistent reminder with upgrade CTA.
  */
 
-import React, { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { AnimatePresence,motion } from 'framer-motion'
+import { AlertTriangle, Sparkles, TrendingUp,X } from 'lucide-react'
+import React, { useEffect,useState } from 'react'
+
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
-import { AlertTriangle, X, Sparkles, TrendingUp } from 'lucide-react'
 import { useUpgradeModal } from '@/components/upgrade-modal'
-import type { UpgradeTrigger } from '@/store/upgrade-prompt-store'
 import { cn } from '@/lib/utils'
+import type { UpgradeTrigger } from '@/store/upgrade-prompt-store'
 
 export interface SoftLimitBannerProps {
   /**

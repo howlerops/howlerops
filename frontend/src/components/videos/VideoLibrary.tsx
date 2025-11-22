@@ -1,10 +1,12 @@
+import { Clock,Play, Search } from "lucide-react";
 import { useState } from "react";
-import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
+
 import { Badge } from "@/components/ui/badge";
-import { Search, Play, Clock } from "lucide-react";
-import { VideoPlayer } from "./VideoPlayer";
+import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+
+import { VideoPlayer } from "./VideoPlayer";
 
 interface Video {
   id: string;

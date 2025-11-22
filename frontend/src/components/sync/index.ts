@@ -6,7 +6,7 @@
  * @module components/sync
  */
 
-export { ConflictResolver, ConflictBadge } from './conflict-resolver'
+export { ConflictBadge,ConflictResolver } from './conflict-resolver'
 export {
   SyncIndicator,
   SyncIndicatorCompact,

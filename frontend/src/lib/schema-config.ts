@@ -1,6 +1,7 @@
 import { MarkerType } from 'reactflow'
+
 import { SchemaNode } from '@/hooks/use-schema-introspection'
-import { SchemaConfig, TableConfig, ColumnConfig, EdgeConfig } from '@/types/schema-visualizer'
+import { ColumnConfig, EdgeConfig,SchemaConfig, TableConfig } from '@/types/schema-visualizer'
 
 interface ForeignKeyInfo {
   name: string

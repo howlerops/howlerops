@@ -4,8 +4,8 @@
  */
 
 import {
-  PerformanceMetrics,
   MemoryUsage,
+  PerformanceMetrics,
   WorkerMessageType
 } from './types';
 import { WorkerPool, WorkerPoolMetrics } from './worker-pool';

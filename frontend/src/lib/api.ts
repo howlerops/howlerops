@@ -1,12 +1,13 @@
-import axios from 'axios'
 import { QueryClient } from '@tanstack/react-query'
+import axios from 'axios'
+
+import {
+  ConnectionConfig,
+  DatabaseType,
+} from '../generated/database'
+import { DataFormat,QueryOptions } from '../generated/query'
 import { grpcWebClient } from './grpc-web-client'
 import { navigationService } from './navigation'
-import {
-  DatabaseType,
-  ConnectionConfig,
-} from '../generated/database'
-import { QueryOptions, DataFormat } from '../generated/query'
 
 // Create axios instance with base configuration
 export const api = axios.create({

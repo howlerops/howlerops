@@ -9,16 +9,17 @@
 
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
+
 import {
-  getQueries,
   createQuery as apiCreateQuery,
-  updateQuery as apiUpdateQuery,
+  type CreateQueryInput,
   deleteQuery as apiDeleteQuery,
+  getOrganizationQueries,
+  getQueries,
+  type SavedQuery,
   shareQuery as apiShareQuery,
   unshareQuery as apiUnshareQuery,
-  getOrganizationQueries,
-  type SavedQuery,
-  type CreateQueryInput,
+  updateQuery as apiUpdateQuery,
   type UpdateQueryInput,
 } from '@/lib/api/queries'
 

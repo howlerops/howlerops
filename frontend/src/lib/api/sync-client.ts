@@ -7,15 +7,15 @@
  * @module lib/api/sync-client
  */
 
+import { useSyncStore } from '@/store/sync-store'
+import { useTierStore } from '@/store/tier-store'
 import type {
-  UploadChangesRequest,
-  UploadChangesResponse,
-  DownloadChangesResponse,
   Conflict,
   ConflictResolution,
+  DownloadChangesResponse,
+  UploadChangesRequest,
+  UploadChangesResponse,
 } from '@/types/sync'
-import { useTierStore } from '@/store/tier-store'
-import { useSyncStore } from '@/store/sync-store'
 
 /**
  * Sync API client errors

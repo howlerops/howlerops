@@ -1,120 +1,36 @@
-import React, { useMemo, useCallback, useRef, useEffect, useState, memo } from 'react';
-import {
-  useReactTable,
-  getCoreRowModel,
-  getSortedRowModel,
-  getFilteredRowModel,
-  ColumnDef,
-  flexRender,
-} from '@tanstack/react-table';
 import { useVirtualizer, type VirtualItem } from '@tanstack/react-virtual';
-import { Eye } from 'lucide-react';
-import { cn } from '../../utils/cn';
-import { useTableState } from '../../hooks/use-table-state';
-import { useKeyboardNavigation } from '../../hooks/use-keyboard-navigation';
+import React, { useCallback, useEffect, useMemo,useRef, useState } from 'react';
+
 import { useChunkedData } from '../../hooks/use-chunked-data';
+import { useKeyboardNavigation } from '../../hooks/use-keyboard-navigation';
+import { useTableState } from '../../hooks/use-table-state';
 import {
-  EditableTableProps,
-  TableRow,
-  TableColumn,
   CellValue,
   EditableTableContext,
+  EditableTableProps,
   EditableTableRenderer,
+  TableColumn,
+  TableRow,
 } from '../../types/table';
-import { getColumnWidth } from '../../utils/table';
-import { TableCell } from './table-cell';
+import { cn } from '../../utils/cn';
+import { TableBodyStatic } from './components/body/table-body-static';
+import { TableBodyVirtualized } from './components/body/table-body-virtualized';
+import { SelectionBanner } from './components/selection/selection-banner';
+import { EditStateContext } from './context/edit-state-context';
+import { SelectionStateContext } from './context/selection-state-context';
+import { TableConfigContext } from './context/table-config-context';
+import { TableContext } from './context/table-context';
+import { useTableColumns } from './hooks/use-table-columns';
+import { useTableInstance } from './hooks/use-table-instance';
+import { StatusBar } from './status-bar';
 import { TableHeader } from './table-header';
 import { TableToolbar } from './table-toolbar';
-import { StatusBar } from './status-bar';
 
 const EMPTY_VIRTUAL_ITEMS: VirtualItem[] = [];
 
-// Comparison function for VirtualRow memo - only re-render if row data or virtual item changes
-const arePropsEqual = (
-  prev: { row: unknown; virtualItem?: VirtualItem; onRowClick?: (rowId: string, rowData: TableRow) => void },
-  next: { row: unknown; virtualItem?: VirtualItem; onRowClick?: (rowId: string, rowData: TableRow) => void }
-) => {
-  const prevRow = prev.row as { original?: { __rowId?: string } } | null;
-  const nextRow = next.row as { original?: { __rowId?: string } } | null;
-
-  // Check if row ID changed (most important check)
-  if (prevRow?.original?.__rowId !== nextRow?.original?.__rowId) {
-    return false;
-  }
-
-  // Check if virtual item index changed
-  if (prev.virtualItem?.index !== next.virtualItem?.index) {
-    return false;
-  }
-
-  // Check if virtual item key changed (size/position updates)
-  if (prev.virtualItem?.key !== next.virtualItem?.key) {
-    return false;
-  }
-
-  // onRowClick is stable, no need to check
-  return true;
-};
-
-// Simplified VirtualRow component following official pattern
-const VirtualRow = memo(React.forwardRef<HTMLTableRowElement, {
-  row: unknown;
-  columns: ColumnDef<TableRow>[];
-  state: unknown;
-  actions: unknown;
-  tableColumns: TableColumn[];
-  isVirtual?: boolean;
-  virtualItem?: VirtualItem;
-  onRowClick?: (rowId: string, rowData: TableRow) => void;
-}>(({ row, onRowClick, virtualItem }, ref) => {
-  // Critical validation: Ensure row data exists and is valid (ag-Grid pattern)
-  const rowData = row as { original?: { __rowId?: string }; getVisibleCells?: () => unknown[] } | null;
-
-  const handleRowClick = useCallback(() => {
-    if (!onRowClick || !rowData?.original?.__rowId) {
-      return;
-    }
-    onRowClick(rowData.original.__rowId, rowData.original);
-  }, [onRowClick, rowData]);
-
-  // Return null if row data is invalid (prevents rendering dummy rows)
-  if (!rowData || !rowData.original || !rowData.getVisibleCells) {
-    return null;
-  }
-
-  return (
-    <tr
-      ref={ref}
-      data-index={typeof virtualItem?.index === 'number' ? virtualItem.index : undefined}
-      className="border-b border-border hover:bg-muted/50 cursor-pointer"
-      onClick={handleRowClick}
-    >
-      {rowData.getVisibleCells().map((cell: unknown) => {
-        const cellData = cell as { id: string; column: { getSize: () => number; columnDef: { cell: unknown; meta?: { sticky?: 'left' | 'right' } } }; getContext: () => object };
-        const sticky = cellData.column.columnDef.meta?.sticky;
-        const columnSize = cellData.column.getSize();
-        return (
-          <td
-            key={cellData.id}
-            className={`px-3 py-1 text-sm ${sticky ? `sticky ${sticky === 'right' ? 'right-0' : 'left-0'} bg-background z-10 shadow-sm` : ''}`}
-            style={{
-              width: columnSize,
-              minWidth: columnSize,
-              maxWidth: columnSize,
-            }}
-          >
-            {flexRender(cellData.column.columnDef.cell as ((props: object) => React.ReactNode) | React.ReactNode, cellData.getContext())}
-          </td>
-        );
-      })}
-    </tr>
-  );
-}));
-
-VirtualRow.displayName = 'VirtualRow';
-
-// Apply custom comparison to VirtualRow memo
-const MemoizedVirtualRow = memo(VirtualRow, arePropsEqual) as typeof VirtualRow;
+// Debug logging only in development
+const DEBUG = import.meta.env.MODE === 'development';
+const debug = DEBUG ? console.log.bind(console) : () => {};
 
 export const EditableTable: React.FC<EditableTableProps> = ({
   data: initialData,
@@ -171,6 +87,8 @@ export const EditableTable: React.FC<EditableTableProps> = ({
     setData,
     state,
     actions,
+    editStateValue,
+    selectionStateValue,
   } = useTableState(effectiveData);
 
   useEffect(() => {
@@ -178,149 +96,12 @@ export const EditableTable: React.FC<EditableTableProps> = ({
     setData(effectiveData);
   }, [effectiveData, setData]);
 
-  // Create TanStack Table columns
-  const columns = useMemo<ColumnDef<TableRow>[]>(() => {
-    const baseColumns: ColumnDef<TableRow>[] = tableColumns.map(col => {
-      const columnId = col.id ?? (typeof col.accessorKey === 'string' ? col.accessorKey : col.header);
-      return {
-        id: columnId,
-        accessorKey: col.accessorKey ?? columnId,
-        header: col.header,
-        size: getColumnWidth(col, data),
-        minSize: col.minWidth || 80,
-        maxSize: col.maxWidth || 400,
-        enableSorting: col.sortable !== false,
-        enableColumnFilter: col.filterable !== false,
-        enableResizing: enableColumnResizing,
-        meta: {
-          sticky: col.sticky,
-          originalColumn: col,
-        },
-        cell: ({ row, column, getValue }) => {
-          const rawColumnId = column.id ?? (column as unknown as { columnDef?: { id?: string; accessorKey?: string } }).columnDef?.id ?? (column as unknown as { columnDef?: { id?: string; accessorKey?: string } }).columnDef?.accessorKey;
-          const currentColumnId = String(rawColumnId ?? columnId);
-          const rowData = row.original as TableRow;
-
-          // Check if there's a custom renderer for this column
-          const customRenderer = customCellRenderers[currentColumnId];
-          if (customRenderer) {
-            return (
-              <div
-                className="relative group h-full"
-                data-row-id={row.original.__rowId!}
-                data-column-id={currentColumnId}
-              >
-                {customRenderer(getValue() as CellValue, row.original)}
-                {onRowInspect && (
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      onRowInspect(row.original.__rowId!, row.original);
-                    }}
-                    className="absolute bottom-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-background/80 text-muted-foreground opacity-0 shadow-sm transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100"
-                    tabIndex={-1}
-                    aria-label="Open row JSON"
-                  >
-                    <Eye className="h-3.5 w-3.5" />
-                  </button>
-                )}
-              </div>
-            );
-          }
-
-          return (
-            <div
-              data-row-id={row.original.__rowId!}
-              data-column-id={currentColumnId}
-            >
-              <TableCell
-                value={getValue() as CellValue}
-                rowId={row.original.__rowId!}
-                columnId={currentColumnId}
-                column={col}
-                isEditing={
-                  state.editingCell?.rowId === row.original.__rowId &&
-                  state.editingCell?.columnId === currentColumnId
-                }
-                isSelected={state.selectedRows.includes(row.original.__rowId!)}
-                isDirty={state.dirtyRows.has(row.original.__rowId!)}
-                isInvalid={state.invalidCells.has(`${row.original.__rowId!}|${currentColumnId}`)}
-                validationError={state.invalidCells.get(`${row.original.__rowId!}|${currentColumnId}`)?.error}
-                onEdit={actions.startEditing}
-                onSave={actions.saveEditing}
-                onCancel={actions.cancelEditing}
-                onUpdateEdit={actions.updateEditingCell}
-                editingState={state.editingCell}
-                onInspectRow={onRowInspect}
-                rowData={rowData}
-              />
-            </div>
-          );
-        },
-      };
-    });
-
-    if (enableMultiSelect) {
-      baseColumns.unshift({
-        id: 'select',
-        header: ({ table }) => {
-          const allSelected = table.getIsAllRowsSelected();
-          const someSelected = table.getIsSomeRowsSelected();
-
-          return (
-            <input
-              type="checkbox"
-              checked={allSelected}
-              ref={(el) => {
-                if (el) {
-                  el.indeterminate = someSelected && !allSelected;
-                }
-              }}
-              onChange={table.getToggleAllRowsSelectedHandler()}
-              className="rounded border-border focus:ring-2 focus:ring-ring"
-              aria-label="Select all rows"
-            />
-          );
-        },
-        cell: ({ row }) => {
-          const isSelected = row.getIsSelected();
-          console.log(`[Cell Renderer] Row ${row.index} (ID: ${row.original.__rowId}): getIsSelected() = ${isSelected}`);
-
-          return (
-            <input
-              type="checkbox"
-              checked={isSelected}
-              onChange={row.getToggleSelectedHandler()}
-              className="rounded border-border focus:ring-2 focus:ring-ring"
-              aria-label={`Select row ${row.index + 1}`}
-            />
-          );
-        },
-        size: 40,
-        enableSorting: false,
-        enableColumnFilter: false,
-        enableResizing: false,
-      });
-    }
-
-    return baseColumns;
-  }, [
+  // Create TanStack Table columns using extracted hook
+  const columns = useTableColumns({
     tableColumns,
-    data,
     enableMultiSelect,
     enableColumnResizing,
-    state,
-    actions,
-    customCellRenderers,
-    onRowInspect,
-  ]);
-
-  // TanStack Table returns mutable helpers; safe to instantiate per render.
-  // Performance optimization: Disable expensive features for very large datasets
-  const rowCount = data.length;
-  const isVeryLarge = rowCount > 10000;
+  });
 
   // TanStack Table's row selection state - this is the SINGLE source of truth
   const [internalRowSelection, setInternalRowSelection] = useState<Record<string, boolean>>({});
@@ -335,65 +116,27 @@ export const EditableTable: React.FC<EditableTableProps> = ({
       })
       .filter((id): id is string => Boolean(id));
 
-    console.log('[Effect] Syncing internal selection to external state:', selectedIds);
+    debug('[Effect] Syncing internal selection to external state:', selectedIds);
     actions.setSelectedRows(selectedIds);
   }, [internalRowSelection, data, actions]);
 
-  // eslint-disable-next-line react-hooks/incompatible-library
-  const table = useReactTable({
+  // Create TanStack Table instance using extracted hook
+  const table = useTableInstance({
     data,
     columns,
-    getCoreRowModel: getCoreRowModel(),
-    // Conditionally enable sorting/filtering based on display mode
-    getSortedRowModel: displayMode?.canSort !== false ? getSortedRowModel() : undefined,
-    getFilteredRowModel: displayMode?.canFilter !== false ? getFilteredRowModel() : undefined,
-    enableSorting: displayMode?.canSort !== false,
-    enableFilters: displayMode?.canFilter !== false,
-    // Disable expensive features for very large datasets
-    enableMultiSort: !isVeryLarge, // Disable multi-column sort for 10K+ rows
-    enableGlobalFilter: !isVeryLarge && enableGlobalFilter, // Disable global filter for 10K+ rows
-    // Use row index as the row ID for TanStack Table
-    getRowId: (row, index) => {
-      console.log(`[getRowId] Row ${index}: __rowId = ${row.__rowId}`);
-      return String(index);
-    },
-    state: {
-      sorting: state.sorting,
-      columnFilters: state.columnFilters,
-      globalFilter: state.globalFilter,
-      columnVisibility: state.columnVisibility,
-      columnSizing: state.columnSizing,
-      rowSelection: internalRowSelection,
-    },
-    onSortingChange: (updater) => {
-      const next = typeof updater === 'function' ? updater(table.getState().sorting) : updater
-      actions.updateSorting(next)
-    },
-    onColumnFiltersChange: (updater) => {
-      const next = typeof updater === 'function' ? updater(table.getState().columnFilters) : updater
-      actions.updateColumnFilters(next)
-    },
-    onGlobalFilterChange: (updater) => {
-      const prev = table.getState().globalFilter
-      const next = typeof updater === 'function' ? updater(prev) : updater
-      actions.updateGlobalFilter(next ?? '')
-    },
-    onColumnVisibilityChange: (updater) => {
-      const next = typeof updater === 'function' ? updater(table.getState().columnVisibility) : updater
-      actions.updateColumnVisibility(next)
-    },
-    onColumnSizingChange: (updater) => {
-      const next = typeof updater === 'function' ? updater(table.getState().columnSizing) : updater
-      actions.updateColumnSizing(next)
-    },
-    onRowSelectionChange: setInternalRowSelection,
-    enableRowSelection: enableMultiSelect && !isVeryLarge, // Disable row selection for 10K+ rows (expensive)
-    enableColumnResizing: enableColumnResizing && !isVeryLarge, // Disable column resizing for 10K+ rows
-    columnResizeMode: 'onChange',
+    state,
+    actions,
+    displayMode: displayMode?.canSort !== false ? 'view' : 'edit',
+    enableMultiSelect,
+    enableColumnResizing,
+    enableGlobalFilter,
+    internalRowSelection,
+    setInternalRowSelection,
   });
 
   const { rows } = table.getRowModel();
 
+  const rowCount = data.length;
   const visibleRowCount = rows.length;
   const shouldVirtualize = virtualScrolling && visibleRowCount > 0;
 
@@ -521,6 +264,12 @@ export const EditableTable: React.FC<EditableTableProps> = ({
     actions,
   }), [data, state, actions]);
 
+  // Create stable TableConfig value
+  const tableConfigValue = useMemo(() => ({
+    onRowInspect,
+    customCellRenderers,
+  }), [onRowInspect, customCellRenderers]);
+
   const renderedToolbar = typeof toolbar === 'function'
     ? (toolbar as EditableTableRenderer)(tableContext)
     : toolbar;
@@ -586,9 +335,18 @@ export const EditableTable: React.FC<EditableTableProps> = ({
   }
 
   return (
-    <div className={cn('flex flex-col h-full min-h-0', className)}>
-      {/* Toolbar */}
-      {shouldRenderToolbar && (
+    <TableContext.Provider value={{
+      state,
+      actions,
+      onRowInspect,
+      customCellRenderers,
+    }}>
+      <TableConfigContext.Provider value={tableConfigValue}>
+        <EditStateContext.Provider value={editStateValue}>
+          <SelectionStateContext.Provider value={selectionStateValue}>
+            <div className={cn('flex flex-col h-full min-h-0', className)}>
+        {/* Toolbar */}
+        {shouldRenderToolbar && (
         <div className="flex-shrink-0 border-b border-border">
           {renderedToolbar ?? (
             <TableToolbar
@@ -606,44 +364,24 @@ export const EditableTable: React.FC<EditableTableProps> = ({
 
       {/* Select All Pages Banner */}
       {shouldShowSelectAllBanner && (
-        <div className="flex-shrink-0 bg-blue-50 dark:bg-blue-950 border-b border-blue-200 dark:border-blue-800 px-4 py-2">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-blue-900 dark:text-blue-100">
-              All {data.length} rows on this page are selected.
-            </span>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleSelectAllPages}
-                className="text-sm font-medium text-blue-700 dark:text-blue-300 hover:text-blue-900 dark:hover:text-blue-100 underline"
-              >
-                Select all {totalRows?.toLocaleString()} rows
-              </button>
-              <button
-                onClick={handleClearSelection}
-                className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200"
-              >
-                Clear selection
-              </button>
-            </div>
-          </div>
-        </div>
+        <SelectionBanner
+          mode="offer"
+          currentPageCount={data.length}
+          totalCount={totalRows || data.length}
+          onSelectAllPages={handleSelectAllPages}
+          onClearSelection={handleClearSelection}
+        />
       )}
 
       {/* Select All Pages Active Banner */}
       {state.selectAllPagesMode && (
-        <div className="flex-shrink-0 bg-blue-100 dark:bg-blue-900 border-b border-blue-300 dark:border-blue-700 px-4 py-2">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
-              All {totalRows?.toLocaleString()} rows are selected.
-            </span>
-            <button
-              onClick={handleClearSelection}
-              className="text-sm text-blue-700 dark:text-blue-300 hover:text-blue-900 dark:hover:text-blue-100 underline"
-            >
-              Clear selection
-            </button>
-          </div>
-        </div>
+        <SelectionBanner
+          mode="active"
+          currentPageCount={data.length}
+          totalCount={totalRows || data.length}
+          onSelectAllPages={handleSelectAllPages}
+          onClearSelection={handleClearSelection}
+        />
       )}
 
       {/* Table Container */}
@@ -680,77 +418,23 @@ export const EditableTable: React.FC<EditableTableProps> = ({
             </thead>
 
             {/* Body */}
-            <tbody>
-              {virtualizerWorking ? (
-                <>
-                  {/* Top spacer */}
-                  {virtualItems.length > 0 && virtualItems[0].index > 0 && (
-                    <tr>
-                      <td
-                        colSpan={columns.length}
-                        style={{ height: virtualItems[0].start, padding: 0, border: 'none' }}
-                      />
-                    </tr>
-                  )}
-                  {/* Virtual rows */}
-                  {virtualItems.map(virtualItem => {
-                    // Critical: Bounds check BEFORE array access (ag-Grid pattern)
-                    // Prevents accessing undefined when virtualizer is out of sync
-                    if (virtualItem.index < 0 || virtualItem.index >= rows.length) {
-                      return null;
-                    }
-
-                    const row = rows[virtualItem.index];
-                    // Double-check row exists and has required data
-                    if (!row || !row.id) {
-                      return null;
-                    }
-
-                    return (
-                      <MemoizedVirtualRow
-                        key={row.id}
-                        row={row}
-                        columns={columns}
-                        state={state}
-                        actions={actions}
-                        tableColumns={tableColumns}
-                        isVirtual={true}
-                        virtualItem={virtualItem}
-                        onRowClick={onRowClick}
-                        ref={virtualizer.measureElement}
-                      />
-                    );
-                  })}
-                  {/* Bottom spacer */}
-                  {virtualItems.length > 0 &&
-                   virtualItems[virtualItems.length - 1].index < rowCount - 1 && (
-                    <tr>
-                      <td
-                        colSpan={columns.length}
-                        style={{
-                          height: totalSize! - virtualItems[virtualItems.length - 1].end,
-                          padding: 0,
-                          border: 'none'
-                        }}
-                      />
-                    </tr>
-                  )}
-                </>
-              ) : (
-                rows.map(row => (
-                  <MemoizedVirtualRow
-                    key={row.id}
-                    row={row}
-                    columns={columns}
-                    state={state}
-                    actions={actions}
-                    tableColumns={tableColumns}
-                    isVirtual={false}
-                    onRowClick={onRowClick}
-                  />
-                ))
-              )}
-            </tbody>
+            {virtualizerWorking ? (
+              <TableBodyVirtualized
+                virtualItems={virtualItems}
+                rows={rows}
+                columns={columns}
+                totalSize={totalSize}
+                rowCount={rowCount}
+                measureElement={virtualizer.measureElement}
+                onRowClick={onRowClick}
+              />
+            ) : (
+              <TableBodyStatic
+                rows={rows}
+                columns={columns}
+                onRowClick={onRowClick}
+              />
+            )}
           </table>
 
           {loading && (
@@ -775,7 +459,11 @@ export const EditableTable: React.FC<EditableTableProps> = ({
           )}
         </div>
       )}
-    </div>
+            </div>
+          </SelectionStateContext.Provider>
+        </EditStateContext.Provider>
+      </TableConfigContext.Provider>
+    </TableContext.Provider>
   );
 };
 

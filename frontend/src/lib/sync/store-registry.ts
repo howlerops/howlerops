@@ -25,8 +25,8 @@
  */
 
 import { getBroadcastSync } from './broadcast-sync'
-import { getTabLifecycleManager } from './tab-lifecycle'
 import { getPasswordTransferManager } from './password-transfer'
+import { getTabLifecycleManager } from './tab-lifecycle'
 
 /**
  * Store synchronization configuration
@@ -128,7 +128,6 @@ const STORE_CONFIGS: Record<string, StoreSyncConfig> = {
 const EXCLUDED_STORES = [
   'secrets-store', // Contains sensitive data
   'schema-store', // Large data, database-specific
-  'json-viewer-store', // Transient UI state
   'ai-query-agent-store', // Session-specific
   'ai-store', // Session-specific with large data
   'upgrade-prompt-store' // UI state

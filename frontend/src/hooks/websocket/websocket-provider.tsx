@@ -3,12 +3,13 @@
  */
 
 import React, { useMemo } from 'react';
+
+import {
+  UseWebSocketOptions,
+  WebSocketContextValue,
+} from '../../types/websocket';
 import { useWebSocket } from './use-websocket';
 import { WebSocketContext } from './websocket-context';
-import {
-  WebSocketContextValue,
-  UseWebSocketOptions,
-} from '../../types/websocket';
 
 interface WebSocketProviderProps {
   children: React.ReactNode;

@@ -1,23 +1,24 @@
-import React, { useState, useRef, useEffect } from 'react'
-import { Card, CardContent } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
+import {
+  Check,
+  ChevronRight,
+  Copy,
+  HelpCircle,
+  Loader2,
+  Send,
+  Sparkles,
+} from 'lucide-react'
+import React, { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
-import {
-  Sparkles,
-  Send,
-  Copy,
-  Check,
-  HelpCircle,
-  ChevronRight,
-  Loader2,
-} from 'lucide-react'
 import { nl2sql } from '@/lib/api/query-optimizer'
 
 interface NaturalLanguageInputProps {
@@ -44,21 +45,28 @@ export function NaturalLanguageInput({
   const [showExamples, setShowExamples] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const examples = [
+  const examples = useMemo(() => [
     { text: 'show all users', sql: 'SELECT * FROM users LIMIT 100' },
     { text: 'count orders from today', sql: 'SELECT COUNT(*) FROM orders WHERE DATE(created_at) = CURDATE()' },
     { text: 'find products where price > 100', sql: 'SELECT * FROM products WHERE price > 100' },
     { text: 'top 10 customers ordered by total_spent', sql: 'SELECT * FROM customers ORDER BY total_spent DESC LIMIT 10' },
     { text: 'average price from products', sql: 'SELECT AVG(price) AS average FROM products' },
     { text: 'users with email contains gmail', sql: "SELECT * FROM users WHERE email LIKE '%gmail%'" },
-  ]
+  ], [])
+
+  const quickSuggestions = useMemo(() => [
+    'show users',
+    'count products',
+    'find orders where total > 100',
+    'top 5 customers',
+  ], [])
 
   useEffect(() => {
     // Focus input on mount
     inputRef.current?.focus()
   }, [])
 
-  const handleConvert = async () => {
+  const handleConvert = useCallback(async () => {
     if (!nlQuery.trim()) {
       setError('Please enter a query')
       return
@@ -71,56 +79,61 @@ export function NaturalLanguageInput({
     try {
       const conversionResult = await nl2sql(nlQuery, connectionId)
 
-      if (conversionResult.sql) {
-        setResult(conversionResult)
-        if (onSQLGenerated) {
-          onSQLGenerated(conversionResult.sql)
+      // Use startTransition for non-urgent UI updates
+      startTransition(() => {
+        if (conversionResult.sql) {
+          setResult(conversionResult)
+          if (onSQLGenerated) {
+            onSQLGenerated(conversionResult.sql)
+          }
+        } else if (conversionResult.suggestions) {
+          setError('Could not understand the query. Try rephrasing or check the suggestions.')
+          setResult(conversionResult)
+        } else {
+          setError('Could not convert to SQL. Please try a different query.')
         }
-      } else if (conversionResult.suggestions) {
-        setError('Could not understand the query. Try rephrasing or check the suggestions.')
-        setResult(conversionResult)
-      } else {
-        setError('Could not convert to SQL. Please try a different query.')
-      }
+      })
     } catch (err) {
       console.error('NL2SQL conversion failed:', err)
       setError('Failed to convert query. Please try again.')
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [nlQuery, connectionId, onSQLGenerated])
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !isLoading) {
       handleConvert()
     }
-  }
+  }, [isLoading, handleConvert])
 
-  const handleCopy = () => {
+  const handleCopy = useCallback(() => {
     if (result?.sql) {
       navigator.clipboard.writeText(result.sql)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     }
-  }
+  }, [result?.sql])
 
-  const handleExampleClick = (example: typeof examples[0]) => {
+  const handleExampleClick = useCallback((example: typeof examples[0]) => {
     setNlQuery(example.text)
     setShowExamples(false)
     // Auto-convert after setting example
     setTimeout(() => {
-      setResult({
-        sql: example.sql,
-        confidence: 1.0,
-        template: 'Example query',
+      startTransition(() => {
+        setResult({
+          sql: example.sql,
+          confidence: 1.0,
+          template: 'Example query',
+        })
+        if (onSQLGenerated) {
+          onSQLGenerated(example.sql)
+        }
       })
-      if (onSQLGenerated) {
-        onSQLGenerated(example.sql)
-      }
     }, 100)
-  }
+  }, [examples, onSQLGenerated])
 
-  const getConfidenceBadge = (confidence: number) => {
+  const getConfidenceBadge = useCallback((confidence: number) => {
     if (confidence >= 0.8) {
       return <Badge className="bg-green-500">High confidence</Badge>
     } else if (confidence >= 0.5) {
@@ -128,7 +141,7 @@ export function NaturalLanguageInput({
     } else {
       return <Badge className="bg-red-500">Low confidence</Badge>
     }
-  }
+  }, [])
 
   return (
     <div className="space-y-4">
@@ -252,12 +265,7 @@ export function NaturalLanguageInput({
       {/* Quick suggestions */}
       <div className="flex flex-wrap gap-2">
         <span className="text-xs text-gray-500">Try:</span>
-        {[
-          'show users',
-          'count products',
-          'find orders where total > 100',
-          'top 5 customers',
-        ].map((suggestion) => (
+        {quickSuggestions.map((suggestion) => (
           <Button
             key={suggestion}
             variant="outline"

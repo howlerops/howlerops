@@ -5,25 +5,26 @@
  * Helps users understand their current usage and upgrade value.
  */
 
-import React, { useState, useEffect } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import {
+  AlertCircle,
+  BookMarked,
+  Brain,
+  CheckCircle2,
   Database,
   History,
-  Brain,
-  BookMarked,
   Sparkles,
   TrendingUp,
-  CheckCircle2,
-  AlertCircle,
 } from 'lucide-react'
-import { useTierStore } from '@/store/tier-store'
-import { useConnectionStore } from '@/store/connection-store'
+import React, { useEffect,useState } from 'react'
+
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useUpgradeModal } from '@/components/upgrade-modal'
 import { getQueryHistoryRepository } from '@/lib/storage/repositories/query-history-repository'
 import { cn } from '@/lib/utils'
+import { useConnectionStore } from '@/store/connection-store'
+import { useTierStore } from '@/store/tier-store'
 
 /**
  * Usage stat item configuration

@@ -6,18 +6,19 @@
  */
 
 import React, { useState } from "react";
+
+import { showSoftLimitToast } from "@/components/soft-limits";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useUpgrade } from "@/components/upgrade-provider";
+import { UsageStats } from "@/components/usage-stats";
 import {
   ConnectionLimitIndicator,
   QueryHistoryIndicator,
 } from "@/components/value-indicators";
-import { showSoftLimitToast } from "@/components/soft-limits";
-import { UsageStats } from "@/components/usage-stats";
-import { useUpgrade } from "@/components/upgrade-provider";
-import { useTierStore } from "@/store/tier-store";
-import { useConnectionStore } from "@/store/connection-store";
 import { trackQueryExecution } from "@/lib/upgrade-reminders";
+import { useConnectionStore } from "@/store/connection-store";
+import { useTierStore } from "@/store/tier-store";
 
 /**
  * Example 1: Connection Management with Soft Limits

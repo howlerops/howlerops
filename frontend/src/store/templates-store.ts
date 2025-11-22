@@ -5,18 +5,18 @@
 
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
-import type {
-  QueryTemplate,
-  QuerySchedule,
-  ScheduleExecution,
-  CreateTemplateInput,
-  UpdateTemplateInput,
-  CreateScheduleInput,
-  QueryResult,
-  TemplateFilters,
-  TemplateSortBy
-} from '@/types/templates'
+
 import * as api from '@/lib/api/templates'
+import type {
+  CreateScheduleInput,
+  CreateTemplateInput,
+  QueryResult,
+  QuerySchedule,
+  QueryTemplate,
+  ScheduleExecution,
+  TemplateFilters,
+  TemplateSortBy,
+  UpdateTemplateInput} from '@/types/templates'
 
 interface TemplatesStore {
   // State

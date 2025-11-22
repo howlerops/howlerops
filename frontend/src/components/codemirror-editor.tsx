@@ -4,17 +4,18 @@
  * A React wrapper for CodeMirror 6 with SQL support
  */
 
-import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react'
-import { EditorView, lineNumbers, highlightActiveLineGutter, highlightSpecialChars, drawSelection, dropCursor, rectangularSelection, crosshairCursor, highlightActiveLine, keymap } from '@codemirror/view'
-import { EditorState, Extension } from '@codemirror/state'
-import { defaultHighlightStyle, syntaxHighlighting, indentOnInput, bracketMatching, foldGutter, foldKeymap } from '@codemirror/language'
+import { autocompletion, closeBrackets, closeBracketsKeymap,completionKeymap } from '@codemirror/autocomplete'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
-import { searchKeymap, highlightSelectionMatches } from '@codemirror/search'
-import { autocompletion, completionKeymap, closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete'
+import { bracketMatching, defaultHighlightStyle, foldGutter, foldKeymap,indentOnInput, syntaxHighlighting } from '@codemirror/language'
 import { lintKeymap } from '@codemirror/lint'
-import { createSQLExtensions, updateEditorSchema, Connection, SchemaNode, ColumnLoader } from '@/lib/codemirror-sql'
-import { cn } from '@/lib/utils'
+import { highlightSelectionMatches,searchKeymap } from '@codemirror/search'
+import { EditorState, Extension } from '@codemirror/state'
+import { crosshairCursor, drawSelection, dropCursor, EditorView, highlightActiveLine, highlightActiveLineGutter, highlightSpecialChars, keymap,lineNumbers, rectangularSelection } from '@codemirror/view'
+import { forwardRef, useEffect, useImperativeHandle,useRef } from 'react'
+
 import { createInlineAISuggestionsExtension } from '@/lib/codemirror-ai'
+import { ColumnLoader,Connection, createSQLExtensions, SchemaNode, updateEditorSchema } from '@/lib/codemirror-sql'
+import { cn } from '@/lib/utils'
 import { aiSuggest } from '@/lib/wails-ai-api'
 
 export interface CodeMirrorEditorProps {

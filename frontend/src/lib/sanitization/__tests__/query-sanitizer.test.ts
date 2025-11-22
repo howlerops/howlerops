@@ -5,17 +5,17 @@
  * These tests are CRITICAL for security - they must all pass with zero false negatives.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest'
+import { beforeEach,describe, expect, it } from 'vitest'
+
 import {
-  sanitizeQuery,
-  sanitizeQueries,
-  isPrivateQuery,
-  extractQueryMetadata,
-  QueryPrivacyLevel,
-  PrivacyMode,
   createDefaultConfig,
-  type SanitizationConfig
-} from '../index'
+  extractQueryMetadata,
+  isPrivateQuery,
+  PrivacyMode,
+  QueryPrivacyLevel,
+  type SanitizationConfig,
+  sanitizeQueries,
+  sanitizeQuery} from '../index'
 
 describe('Query Sanitizer', () => {
   let config: SanitizationConfig

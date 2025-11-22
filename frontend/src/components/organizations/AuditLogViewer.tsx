@@ -12,18 +12,33 @@
  * - Export to CSV
  */
 
-import * as React from 'react'
 import {
-  FileText,
-  Download,
+  Activity,
   ChevronDown,
   ChevronRight,
-  Loader2,
-  User,
-  Activity,
-  RefreshCw,
   Clock,
+  Download,
+  FileText,
+  Loader2,
+  RefreshCw,
+  User,
 } from 'lucide-react'
+import * as React from 'react'
+import { toast } from 'sonner'
+
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   Table,
   TableBody,
@@ -32,27 +47,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { cn } from '@/lib/utils'
 import type {
-  AuditLog,
   AuditAction,
+  AuditLog,
   OrganizationMember,
 } from '@/types/organization'
 import { formatRelativeTime } from '@/types/organization'
-import { cn } from '@/lib/utils'
-import { toast } from 'sonner'
 
 interface AuditLogViewerProps {
   organizationId: string

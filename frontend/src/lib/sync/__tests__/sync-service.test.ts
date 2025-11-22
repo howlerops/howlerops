@@ -7,12 +7,14 @@
  * @module lib/sync/__tests__/sync-service.test
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { SyncService } from '../sync-service'
-import { getIndexedDBClient } from '@/lib/storage/indexeddb-client'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
 import { getSyncClient } from '@/lib/api/sync-client'
-import { STORE_NAMES } from '@/types/storage'
+import { getIndexedDBClient } from '@/lib/storage/indexeddb-client'
 import type { ConnectionRecord } from '@/types/storage'
+import { STORE_NAMES } from '@/types/storage'
+
+import { SyncService } from '../sync-service'
 
 // Mock dependencies
 vi.mock('@/lib/storage/indexeddb-client')

@@ -4,9 +4,9 @@
  * Exports all organization-related UI components for team collaboration features.
  */
 
-export { OrganizationList, OrganizationListMobile } from './OrganizationList'
+export { InviteMemberModal } from './InviteMemberModal'
+export { MembersList, MembersListMobile } from './MembersList'
 export { OrganizationCreateModal } from './OrganizationCreateModal'
+export { OrganizationList, OrganizationListMobile } from './OrganizationList'
 export { OrganizationSettings } from './OrganizationSettings'
 export { OrganizationSwitcher, OrganizationSwitcherCompact } from './OrganizationSwitcher'
-export { MembersList, MembersListMobile } from './MembersList'
-export { InviteMemberModal } from './InviteMemberModal'

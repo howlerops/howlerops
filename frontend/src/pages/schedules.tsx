@@ -3,10 +3,27 @@
  * Page for managing scheduled queries
  */
 
-import React, { useState, useEffect } from 'react'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import { formatDistanceToNow } from 'date-fns'
+import {
+  AlertCircle,
+  Calendar,
+  CheckCircle,
+  Clock,
+  History,
+  MoreVertical,
+  Pause,
+  Play,
+  Plus,
+  Trash2,
+  XCircle,
+} from 'lucide-react'
+import React, { useEffect,useState } from 'react'
+
+import { ExecutionHistory } from '@/components/templates/ExecutionHistory'
+import { ScheduleCreator } from '@/components/templates/ScheduleCreator'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
@@ -21,25 +38,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import {
-  Calendar,
-  Plus,
-  Play,
-  Pause,
-  Trash2,
-  MoreVertical,
-  Clock,
-  AlertCircle,
-  CheckCircle,
-  XCircle,
-  History,
-} from 'lucide-react'
-import { useTemplatesStore } from '@/store/templates-store'
-import { ScheduleCreator } from '@/components/templates/ScheduleCreator'
-import { ExecutionHistory } from '@/components/templates/ExecutionHistory'
-import type { QuerySchedule } from '@/types/templates'
 import { cronToHumanReadable, getRelativeNextRun } from '@/lib/utils/cron'
-import { formatDistanceToNow } from 'date-fns'
+import { useTemplatesStore } from '@/store/templates-store'
+import type { QuerySchedule } from '@/types/templates'
 
 const STATUS_CONFIG = {
   active: {

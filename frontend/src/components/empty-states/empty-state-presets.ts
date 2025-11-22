@@ -1,10 +1,10 @@
 import {
   Database,
-  FileText,
-  Users,
   FileCode,
-  Search,
+  FileText,
   Inbox,
+  Search,
+  Users,
 } from "lucide-react"
 
 export const emptyStates = {

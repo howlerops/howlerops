@@ -1,19 +1,20 @@
+import { Plus, Tag,X } from "lucide-react"
 import { useState } from "react"
+
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
-import { useConnectionStore } from "@/store/connection-store"
-import { Plus, X, Tag } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useConnectionStore } from "@/store/connection-store"
 
 interface EnvironmentManagerProps {
   open: boolean

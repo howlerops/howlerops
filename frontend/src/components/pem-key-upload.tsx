@@ -1,8 +1,10 @@
-import React, { useState, useRef } from 'react'
+import { AlertCircle, CheckCircle,Upload } from 'lucide-react'
+import React, { useRef,useState } from 'react'
+
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Upload, AlertCircle, CheckCircle } from 'lucide-react'
+
 import { SecretTextarea } from './secret-input'
 
 interface PemKeyUploadProps {

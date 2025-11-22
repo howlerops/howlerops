@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react'
-import { useConnectionStore } from '@/store/connection-store'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import { Bug, CheckCircle, ChevronDown, ChevronRight,RefreshCw, XCircle } from 'lucide-react'
+import React, { useEffect,useState } from 'react'
+
 import { Badge } from '@/components/ui/badge'
-import { CheckCircle, XCircle, RefreshCw, Bug, ChevronDown, ChevronRight } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { useConnectionStore } from '@/store/connection-store'
 
 interface SchemaNode {
   name: string;

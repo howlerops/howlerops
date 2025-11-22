@@ -4,15 +4,14 @@
  */
 
 import type {
-  QueryTemplate,
-  QuerySchedule,
-  ScheduleExecution,
-  CreateTemplateInput,
-  UpdateTemplateInput,
   CreateScheduleInput,
+  CreateTemplateInput,
+  QueryResult,
+  QuerySchedule,
+  QueryTemplate,
+  ScheduleExecution,
   TemplateFilters,
-  QueryResult
-} from '@/types/templates'
+  UpdateTemplateInput} from '@/types/templates'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
 

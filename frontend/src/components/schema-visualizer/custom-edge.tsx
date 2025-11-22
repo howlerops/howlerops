@@ -1,12 +1,13 @@
-import React, { useState, useCallback } from 'react'
+import React, { useCallback,useState } from 'react'
 import {
   BaseEdge,
   EdgeLabelRenderer,
   EdgeProps,
   getSmoothStepPath,
 } from 'reactflow'
-import { EdgeConfig } from '@/types/schema-visualizer'
+
 import { edgeDesignSystem, getCardinalitySymbol } from '@/lib/edge-design-tokens'
+import { EdgeConfig } from '@/types/schema-visualizer'
 
 interface CustomEdgeData {
   data?: EdgeConfig

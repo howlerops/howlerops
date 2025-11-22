@@ -1,59 +1,60 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
-import {
-  ReactFlow,
-  Background,
-  Controls,
-  MiniMap,
-  useNodesState,
-  useEdgesState,
-  addEdge,
-  Connection,
-  ReactFlowProvider,
-  Node,
-  Edge,
-  OnMove,
-} from 'reactflow'
 import 'reactflow/dist/style.css'
 
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Switch } from '@/components/ui/switch'
-import { Label } from '@/components/ui/label'
 import {
-  X,
-  Search,
-  Settings,
-  Download,
-  RotateCcw,
-  Maximize2,
-  Minimize2,
-  Layers,
   Database,
+  Download,
   FolderMinus,
   FolderPlus,
+  Layers,
+  Maximize2,
+  Minimize2,
+  RotateCcw,
+  Search,
+  Settings,
+  X,
 } from 'lucide-react'
+import React, { useCallback, useEffect, useMemo,useState } from 'react'
+import {
+  addEdge,
+  Background,
+  Connection,
+  Controls,
+  Edge,
+  MiniMap,
+  Node,
+  OnMove,
+  ReactFlow,
+  ReactFlowProvider,
+  useEdgesState,
+  useNodesState,
+} from 'reactflow'
 
-import { TableNode } from './table-node'
-import { SchemaSummaryNode } from './schema-summary-node'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
+import { useDebounce } from '@/hooks/use-debounce'
+import { SchemaNode } from '@/hooks/use-schema-introspection'
+import { SchemaConfigBuilder } from '@/lib/schema-config'
+import { LayoutEngine } from '@/lib/schema-layout'
+import {
+  EdgeConfig,
+  LayoutAlgorithm,
+  LayoutOptions,
+  SchemaConfig,
+  SchemaVisualizerEdge,
+  SchemaVisualizerNode,
+  TableConfig,
+} from '@/types/schema-visualizer'
+
 import { CustomEdge } from './custom-edge'
 import { RelationshipInspector } from './relationship-inspector'
 import { SchemaErrorBoundary } from './schema-error-boundary'
-import { LayoutEngine } from '@/lib/schema-layout'
-import { SchemaConfigBuilder } from '@/lib/schema-config'
-import { SchemaNode } from '@/hooks/use-schema-introspection'
-import { useDebounce } from '@/hooks/use-debounce'
-import {
-  SchemaConfig,
-  LayoutAlgorithm,
-  LayoutOptions,
-  SchemaVisualizerNode,
-  SchemaVisualizerEdge,
-  EdgeConfig,
-  TableConfig,
-} from '@/types/schema-visualizer'
+import { SchemaSummaryNode } from './schema-summary-node'
+import { TableNode } from './table-node'
 
 interface SchemaVisualizerProps {
   schema: SchemaNode[]

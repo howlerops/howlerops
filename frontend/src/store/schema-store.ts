@@ -7,6 +7,7 @@
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+
 import { wailsEndpoints } from '@/lib/wails-api'
 
 export interface SchemaNode {

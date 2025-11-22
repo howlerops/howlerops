@@ -3,30 +3,28 @@
  * Exports all components for the visual query builder
  */
 
-export { VisualQueryBuilder } from './visual-query-builder'
-export { SourcePicker } from './source-picker'
 export { ColumnPicker } from './column-picker'
 export { FilterEditor } from './filter-editor'
 export { JoinBuilder } from './join-builder'
 export { SortLimit } from './sort-limit'
+export { SourcePicker } from './source-picker'
 export { SqlPreview } from './sql-preview'
-
 export type {
-  ConnectionInfo,
-  SchemaInfo,
-  TableInfo,
   ColumnInfo,
-  FilterCondition,
-  FilterGroup,
-  VisualQueryState,
-  SourcePickerProps,
   ColumnPickerProps,
+  ColumnSelectProps,
+  ConnectionInfo,
+  FilterCondition,
   FilterEditorProps,
+  FilterGroup,
   JoinBuilderProps,
-  SortLimitProps,
-  SqlPreviewProps,
-  VisualQueryBuilderProps,
-  TypeInputProps,
   OperatorSelectProps,
-  ColumnSelectProps
-} from './types'
+  SchemaInfo,
+  SortLimitProps,
+  SourcePickerProps,
+  SqlPreviewProps,
+  TableInfo,
+  TypeInputProps,
+  VisualQueryBuilderProps,
+  VisualQueryState} from './types'
+export { VisualQueryBuilder } from './visual-query-builder'

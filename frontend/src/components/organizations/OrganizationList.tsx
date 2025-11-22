@@ -5,15 +5,16 @@
  * Shows organization details including name, description, member count, and user's role.
  */
 
+import { Building2, ChevronRight, Loader2,Plus, Users } from 'lucide-react'
 import * as React from 'react'
-import { Users, Building2, Plus, ChevronRight, Loader2 } from 'lucide-react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import type { OrganizationWithMembership } from '@/types/organization'
-import { getRoleDisplayName, getRoleBadgeVariant } from '@/types/organization'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
+import type { OrganizationWithMembership } from '@/types/organization'
+import { getRoleBadgeVariant,getRoleDisplayName } from '@/types/organization'
 
 interface OrganizationListProps {
   organizations: OrganizationWithMembership[]

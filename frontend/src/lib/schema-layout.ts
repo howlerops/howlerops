@@ -1,10 +1,11 @@
 // import { Node, Edge, Position } from 'reactflow'
 import dagre from '@dagrejs/dagre'
+
 import {
-  SchemaVisualizerNode,
-  SchemaVisualizerEdge,
   LayoutOptions,
   SchemaSummaryNodeData,
+  SchemaVisualizerEdge,
+  SchemaVisualizerNode,
   TableConfig,
 } from '@/types/schema-visualizer'
 

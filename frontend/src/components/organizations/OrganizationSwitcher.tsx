@@ -5,15 +5,16 @@
  * Shows current organization and allows quick switching to others or personal workspace.
  */
 
+import { Building2, Check, ChevronsUpDown, Plus,User } from 'lucide-react'
 import * as React from 'react'
-import { Check, ChevronsUpDown, Building2, User, Plus } from 'lucide-react'
+
 import { Button } from '@/components/ui/button'
 import {
   Select,
   SelectContent,
   SelectItem,
-  SelectTrigger,
   SelectSeparator,
+  SelectTrigger,
 } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import type { OrganizationWithMembership } from '@/types/organization'

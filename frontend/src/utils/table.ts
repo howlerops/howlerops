@@ -1,4 +1,4 @@
-import { CellValue, TableColumn, ValidationResult, ClipboardData, TableRow, ExportOptions } from '../types/table';
+import { CellValue, ClipboardData, ExportOptions,TableColumn, TableRow, ValidationResult } from '../types/table';
 
 export const validateCellValue = (
   value: CellValue,

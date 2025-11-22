@@ -1,9 +1,10 @@
 // Wails AI API integration
 // This module provides AI testing functionality through Wails runtime bindings
 
-import { TestOpenAIConnection, TestAnthropicConnection, TestOllamaConnection, TestClaudeCodeConnection, TestCodexConnection, TestHuggingFaceConnection, ShowNotification, StartClaudeCodeLogin, StartCodexLogin } from '../../wailsjs/go/main/App'
-import { main } from '../../wailsjs/go/models'
 import { toast } from '@/hooks/use-toast'
+
+import { ShowNotification, StartClaudeCodeLogin, StartCodexLogin,TestAnthropicConnection, TestClaudeCodeConnection, TestCodexConnection, TestHuggingFaceConnection, TestOllamaConnection, TestOpenAIConnection } from '../../wailsjs/go/main/App'
+import { main } from '../../wailsjs/go/models'
 
 export type AITestResponse = main.AITestResponse
 

@@ -1,6 +1,7 @@
+import { CheckCircle2, Play, Sparkles } from "lucide-react";
 import { useState } from "react";
+
 import { Button } from "@/components/ui/button";
-import { Play, CheckCircle2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface FirstQueryStepProps {

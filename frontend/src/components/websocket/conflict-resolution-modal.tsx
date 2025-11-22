@@ -3,20 +3,21 @@
  * Provides interactive conflict resolution with multiple strategies
  */
 
-import React, { useState, useCallback, useEffect } from 'react';
+import { AlertTriangle, Clock, GitMerge,Users } from 'lucide-react';
+import React, { useCallback, useEffect,useState } from 'react';
+
+import { useConflictResolution } from '../../hooks/websocket';
+import { Badge } from '../ui/badge';
+import { Button } from '../ui/button';
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from '../ui/dialog';
-import { Button } from '../ui/button';
-import { Badge } from '../ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Textarea } from '../ui/textarea';
-import { AlertTriangle, Clock, Users, GitMerge } from 'lucide-react';
-import { useConflictResolution } from '../../hooks/websocket';
 
 interface ConflictResolutionModalProps {
   isOpen: boolean;

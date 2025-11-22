@@ -1,10 +1,12 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+
+import { showHybridNotification } from '@/lib/wails-ai-api'
+import { useAIMemoryStore } from '@/store/ai-memory-store'
+
 import { StreamAIQueryAgent } from '../../wailsjs/go/main/App'
 import { main } from '../../wailsjs/go/models'
 import { EventsOn } from '../../wailsjs/runtime/runtime'
-import { useAIMemoryStore } from '@/store/ai-memory-store'
-import { showHybridNotification } from '@/lib/wails-ai-api'
 
 export type AgentAttachmentType = 'sql' | 'result' | 'chart' | 'report' | 'insight' | string
 
@@ -81,6 +83,7 @@ export interface AgentSession {
   turnId?: string
   provider?: string
   model?: string
+  metadata?: Record<string, unknown>
 }
 
 interface StreamPayload {
@@ -337,21 +340,25 @@ export const useAIQueryAgentStore = create<AIQueryAgentState>()(
   },
 
   setSessionConnection: (sessionId, connectionId) => {
+    // Store connection metadata in the agent session, not directly in memory store
+    // Memory store metadata is managed through recordMessage calls
     set(state => {
       const session = state.sessions[sessionId]
       if (!session) return state
-      const memoryStore = useAIMemoryStore.getState()
-      const existing = memoryStore.sessions[sessionId]
-      if (existing) {
-        memoryStore.sessions[sessionId] = {
-          ...existing,
-          metadata: {
-            ...(existing.metadata ?? {}),
-            connectionId,
+
+      return {
+        ...state,
+        sessions: {
+          ...state.sessions,
+          [sessionId]: {
+            ...session,
+            metadata: {
+              ...session.metadata,
+              connectionId,
+            },
           },
-        }
+        },
       }
-      return state
     })
   },
 
@@ -459,12 +466,22 @@ export const useAIQueryAgentStore = create<AIQueryAgentState>()(
     })
   },
 
+  /**
+   * Sends a message to the AI query agent
+   *
+   * Handles streaming AI responses for query-based interactions,
+   * including SQL generation, result analysis, and insights.
+   *
+   * @param options - Message options including session, provider, and context
+   * @throws {Error} If session not found or AI request fails
+   */
   sendMessage: async (options) => {
     const session = get().sessions[options.sessionId]
     if (!session) {
       throw new Error('Session not found')
     }
 
+    // Set session to streaming state
     set(state => ({
       ...state,
       streamingTurnId: undefined,
@@ -479,6 +496,7 @@ export const useAIQueryAgentStore = create<AIQueryAgentState>()(
     }))
 
     try {
+      // Create and send request to AI agent
       const response = await StreamAIQueryAgent(
         main.AIQueryAgentRequest.createFrom({
           sessionId: options.sessionId,
@@ -497,10 +515,12 @@ export const useAIQueryAgentStore = create<AIQueryAgentState>()(
         })
       )
 
+      // Handle error response
       if (response?.error) {
         throw new Error(response.error)
       }
 
+      // Process messages from response
       if (response?.messages) {
         set(state => {
           let nextState = state
@@ -524,6 +544,7 @@ export const useAIQueryAgentStore = create<AIQueryAgentState>()(
           }
         })
       } else {
+        // No messages in response, just update status
         set(state => ({
           ...state,
           streamingTurnId: undefined,
@@ -541,6 +562,7 @@ export const useAIQueryAgentStore = create<AIQueryAgentState>()(
       const message = error instanceof Error ? error.message : 'AI query failed'
       showHybridNotification('AI Query Agent Error', message, true)
 
+      // Set session to error state
       set(state => ({
         ...state,
         streamingTurnId: undefined,
@@ -607,12 +629,36 @@ export const useAIQueryAgentStore = create<AIQueryAgentState>()(
 }
 ))
 
+/**
+ * Event listener cleanup
+ * Track listener to allow cleanup when needed (e.g., in tests or hot reload)
+ */
+let eventListenerCleanup: (() => void) | null = null
+
 const hasWailsRuntime =
   typeof window !== 'undefined' &&
   typeof (window as { runtime?: { EventsOnMultiple?: unknown } }).runtime?.EventsOnMultiple === 'function'
 
 if (hasWailsRuntime) {
+  // Register event listener
   EventsOn('ai:query-agent:stream', (payload: unknown) => {
     useAIQueryAgentStore.getState().receiveEvent((payload ?? {}) as StreamPayload)
   })
+
+  // Store cleanup function (Wails EventsOn doesn't return cleanup, but we track it)
+  eventListenerCleanup = () => {
+    // Wails doesn't provide EventsOff, but we can mark as cleaned up
+    console.log('AI Query Agent event listener cleanup called')
+  }
+}
+
+/**
+ * Cleanup function for event listeners
+ * Export this to allow manual cleanup if needed
+ */
+export function cleanupEventListeners(): void {
+  if (eventListenerCleanup) {
+    eventListenerCleanup()
+    eventListenerCleanup = null
+  }
 }

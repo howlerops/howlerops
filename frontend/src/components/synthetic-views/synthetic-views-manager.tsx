@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react'
+import { Calendar,Database, Edit, Eye, Lock, Plus, Trash2 } from 'lucide-react'
+import React, { useEffect,useState } from 'react'
+
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
-import { Plus, Edit, Trash2, Eye, Database, Lock, Calendar } from 'lucide-react'
 
 interface WailsApp {
   ListSyntheticViews: () => Promise<ViewSummary[]>

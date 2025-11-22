@@ -8,44 +8,40 @@
 
 // Repository exports
 export {
-  QueryHistoryRepository,
+  ConnectionRepository,
+  type ConnectionSearchOptions,
+  getConnectionRepository,
+} from './connection-repository'
+export {
+  getPreferenceRepository,
+  PreferenceCategory,
+  PreferenceRepository,
+  type PreferenceValue,
+} from './preference-repository'
+export {
   getQueryHistoryRepository,
+  QueryHistoryRepository,
   type QueryHistorySearchOptions,
   type QueryStatistics,
 } from './query-history-repository'
-
 export {
-  ConnectionRepository,
-  getConnectionRepository,
-  type ConnectionSearchOptions,
-} from './connection-repository'
-
+  getSavedQueryRepository,
+  SavedQueryRepository,
+  type SavedQuerySearchOptions,
+} from './saved-query-repository'
 export {
-  PreferenceRepository,
-  getPreferenceRepository,
-  PreferenceCategory,
-  type PreferenceValue,
-} from './preference-repository'
-
-export {
-  SyncQueueRepository,
   getSyncQueueRepository,
+  SyncQueueRepository,
   type SyncQueueSearchOptions,
   type SyncStatistics,
 } from './sync-queue-repository'
 
-export {
-  SavedQueryRepository,
-  getSavedQueryRepository,
-  type SavedQuerySearchOptions,
-} from './saved-query-repository'
-
 // Re-export common types
 export type {
   ConnectionRecord,
-  QueryHistoryRecord,
-  UIPreferenceRecord,
-  SyncQueueRecord,
   CreateInput,
+  QueryHistoryRecord,
+  SyncQueueRecord,
+  UIPreferenceRecord,
   UpdateInput,
 } from '@/types/storage'

@@ -23,12 +23,13 @@
  * ```
  */
 
-import { useMemo, useCallback, createElement } from 'react'
 import type { ReactNode } from 'react'
+import { createElement,useCallback, useMemo } from 'react'
+
+import { BadgeWrapper,LockedWrapper, PreviewWrapper } from '@/components/feature-gating-helpers'
+import { getRequiredTier } from '@/config/tier-limits'
 import { useTierStore } from '@/store/tier-store'
 import type { TierFeatures, TierLevel } from '@/types/tiers'
-import { getRequiredTier } from '@/config/tier-limits'
-import { PreviewWrapper, LockedWrapper, BadgeWrapper } from '@/components/feature-gating-helpers'
 
 /**
  * Feature gate mode

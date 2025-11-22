@@ -4,8 +4,8 @@
  */
 
 export { ConflictResolutionModal } from './conflict-resolution-modal';
-export { OptimisticUpdateIndicator } from './optimistic-update-indicator';
 export { ConnectionStatusIndicator } from './connection-status-indicator';
+export { OptimisticUpdateIndicator } from './optimistic-update-indicator';
 export { RealtimeTableEditor } from './realtime-table-editor';
 
 // Additional utility components

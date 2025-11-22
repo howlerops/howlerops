@@ -7,7 +7,7 @@
  * @module sanitization/credential-detector
  */
 
-import { SanitizationConfig, getGlobalConfig } from './config'
+import { getGlobalConfig,SanitizationConfig } from './config'
 
 export enum CredentialType {
   PASSWORD = 'password',

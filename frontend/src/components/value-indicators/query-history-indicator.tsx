@@ -5,15 +5,16 @@
  * Only shows when approaching limit (40+ queries).
  */
 
-import React, { useState, useEffect } from 'react'
+import { History, Sparkles } from 'lucide-react'
+import React, { useEffect,useState } from 'react'
+
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
-import { History, Sparkles } from 'lucide-react'
-import { useTierStore } from '@/store/tier-store'
 import { useUpgradeModal } from '@/components/upgrade-modal'
 import { getQueryHistoryRepository } from '@/lib/storage/repositories/query-history-repository'
 import { cn } from '@/lib/utils'
+import { useTierStore } from '@/store/tier-store'
 
 export interface QueryHistoryIndicatorProps {
   /**

@@ -5,16 +5,16 @@
  * CRITICAL: These tests must ensure ZERO false negatives for security.
  */
 
-import { describe, it, expect } from 'vitest'
+import { describe, expect,it } from 'vitest'
+
+import { createDefaultConfig } from '../config'
 import {
+  CredentialType,
+  deepScanForCredentials,
   detectCredentials,
   detectCredentialsInBatch,
-  deepScanForCredentials,
   mightBeCredential,
-  redactCredentials,
-  CredentialType
-} from '../credential-detector'
-import { createDefaultConfig } from '../config'
+  redactCredentials} from '../credential-detector'
 
 describe('Credential Detector', () => {
   const config = createDefaultConfig()

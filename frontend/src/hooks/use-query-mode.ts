@@ -3,7 +3,8 @@
  * Auto-switches based on number of connections
  */
 
-import { useState, useEffect } from 'react';
+import { useEffect,useState } from 'react';
+
 import { useConnectionStore } from '@/store/connection-store';
 
 export type QueryMode = 'single' | 'multi';

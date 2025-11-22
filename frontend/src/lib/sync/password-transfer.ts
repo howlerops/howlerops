@@ -27,8 +27,8 @@
  * ```
  */
 
-import { getBroadcastSync } from './broadcast-sync'
 import { getSecureStorage } from '../secure-storage'
+import { getBroadcastSync } from './broadcast-sync'
 
 /**
  * Password data structure

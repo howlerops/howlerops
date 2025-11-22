@@ -5,15 +5,16 @@
  * Provides gentle upgrade prompts when approaching limit.
  */
 
+import { Database, Sparkles } from 'lucide-react'
 import React from 'react'
+
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { Database, Sparkles } from 'lucide-react'
-import { useTierStore } from '@/store/tier-store'
-import { useConnectionStore } from '@/store/connection-store'
 import { useUpgradeModal } from '@/components/upgrade-modal'
 import { cn } from '@/lib/utils'
+import { useConnectionStore } from '@/store/connection-store'
+import { useTierStore } from '@/store/tier-store'
 
 export interface ConnectionLimitIndicatorProps {
   /**

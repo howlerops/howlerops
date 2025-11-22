@@ -5,7 +5,8 @@
  * and detects schema conflicts
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback,useEffect, useState } from 'react';
+
 import { GetMultiConnectionSchema, ListConnections } from '../../wailsjs/go/main/App';
 
 export interface Connection {

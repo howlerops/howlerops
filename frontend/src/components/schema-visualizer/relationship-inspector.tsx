@@ -1,8 +1,9 @@
-import React, { useEffect, useCallback } from 'react'
-import { X, Copy, CheckCheck } from 'lucide-react'
+import { CheckCheck,Copy, X } from 'lucide-react'
+import React, { useCallback,useEffect } from 'react'
+
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { EdgeConfig, TableConfig } from '@/types/schema-visualizer'
 
 interface RelationshipInspectorProps {

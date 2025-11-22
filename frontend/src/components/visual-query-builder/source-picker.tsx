@@ -3,14 +3,16 @@
  * Handles connection and table selection
  */
 
-import { useState, useEffect } from 'react'
+import { AlertCircle,Database, Loader2 } from 'lucide-react'
+import { useEffect,useState } from 'react'
+
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Badge } from '@/components/ui/badge'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Loader2, Database, AlertCircle } from 'lucide-react'
-import { SourcePickerProps, TableInfo } from './types'
 import { TableRef } from '@/lib/query-ir'
+
+import { SourcePickerProps, TableInfo } from './types'
 
 export function SourcePicker({
   connections,

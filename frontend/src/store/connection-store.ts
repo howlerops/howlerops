@@ -1,8 +1,10 @@
 import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
-import { wailsEndpoints } from '@/lib/wails-api'
+
 import { SSHAuthMethod } from '@/generated/database'
 import { getSecureStorage, migratePasswordsFromLocalStorage } from '@/lib/secure-storage'
+import { wailsEndpoints } from '@/lib/wails-api'
+
 import { useTierStore } from './tier-store'
 
 export type DatabaseTypeString =

@@ -1,16 +1,17 @@
+import { AlertCircle, BarChart3, Clock, Database, RotateCcw, Wand2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+
+import { DataProcessingIndicator } from '@/components/data-processing-indicator'
+import { QueryLoadingIndicator } from '@/components/query-loading-indicator'
+import { QueryResultsTable } from '@/components/query-results-table'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Button } from '@/components/ui/button'
-import { useQueryStore } from '@/store/query-store'
-import { useConnectionStore } from '@/store/connection-store'
-import { QueryResultsTable } from '@/components/query-results-table'
-import { QueryLoadingIndicator } from '@/components/query-loading-indicator'
-import { DataProcessingIndicator } from '@/components/data-processing-indicator'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useAIConfig } from '@/store/ai-store'
-import { RotateCcw, Clock, Database, AlertCircle, BarChart3, Wand2 } from 'lucide-react'
+import { useConnectionStore } from '@/store/connection-store'
+import { useQueryStore } from '@/store/query-store'
 
 export interface ResultsPanelProps {
   onFixWithAI?: (error: string, query: string) => void

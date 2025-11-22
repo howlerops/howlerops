@@ -1,3 +1,10 @@
+import type {
+  ReportRunOverrides,
+  ReportRunResult,
+  ReportSummary,
+} from '@/types/reports'
+import type { ReportRecord } from '@/types/storage'
+
 import {
   DeleteReport as deleteReportRPC,
   GetReport as getReportRPC,
@@ -5,12 +12,6 @@ import {
   RunReport as runReportRPC,
   SaveReport as saveReportRPC,
 } from '../../wailsjs/go/main/App'
-import type { ReportRecord } from '@/types/storage'
-import type {
-  ReportRunOverrides,
-  ReportRunResult,
-  ReportSummary,
-} from '@/types/reports'
 
 const DEFAULT_SYNC_OPTIONS = { enabled: false, cadence: '@every 1h', target: 'local' } as const
 
@@ -19,6 +20,7 @@ const ensureDate = (value?: string | Date): Date | undefined => {
   return value instanceof Date ? value : new Date(value)
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Wails RPC returns untyped backend payloads
 const fromBackendReport = (data: any): ReportRecord => ({
   id: data?.id ?? crypto.randomUUID(),
   name: data?.name ?? 'Untitled Report',
@@ -53,6 +55,7 @@ const toBackendPayload = (record: ReportRecord) => ({
   updatedAt: record.updated_at?.toISOString(),
 })
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Wails RPC returns untyped backend payloads
 const fromBackendSummary = (summary: any): ReportSummary => ({
   id: summary?.id,
   name: summary?.name,
@@ -64,6 +67,7 @@ const fromBackendSummary = (summary: any): ReportSummary => ({
   lastRunStatus: summary?.lastRunStatus ?? 'idle',
 })
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Wails RPC returns untyped backend payloads
 const fromBackendRun = (payload: any): ReportRunResult => ({
   reportId: payload?.reportId,
   startedAt: ensureDate(payload?.startedAt) ?? new Date(),
@@ -84,6 +88,7 @@ export const reportService = {
 
   async saveReport(record: ReportRecord): Promise<ReportRecord> {
     const payload = toBackendPayload(record)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Wails RPC requires untyped payload
     const saved = await saveReportRPC(payload as any)
     return fromBackendReport(saved)
   },
@@ -98,6 +103,7 @@ export const reportService = {
       componentIds: overrides.componentIds ?? [],
       filterValues: overrides.filters ?? {},
       force: true,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Wails RPC requires untyped payload
     } as any)
     return fromBackendRun(response)
   },

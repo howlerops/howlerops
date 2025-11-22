@@ -568,3 +568,18 @@ func max(a, b int) int {
 	}
 	return b
 }
+
+// StoreDocumentWithoutEmbedding stores a document without embedding (stub for MySQL)
+func (s *MySQLVectorStore) StoreDocumentWithoutEmbedding(ctx context.Context, doc *Document) error {
+	return fmt.Errorf("hierarchical indexing not yet implemented for MySQL")
+}
+
+// GetDocumentsBatch retrieves multiple documents (stub for MySQL)
+func (s *MySQLVectorStore) GetDocumentsBatch(ctx context.Context, ids []string) ([]*Document, error) {
+	return nil, fmt.Errorf("batch retrieval not yet implemented for MySQL")
+}
+
+// UpdateDocumentMetadata updates document metadata (stub for MySQL)
+func (s *MySQLVectorStore) UpdateDocumentMetadata(ctx context.Context, id string, metadata map[string]interface{}) error {
+	return fmt.Errorf("metadata update not yet implemented for MySQL")
+}

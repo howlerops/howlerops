@@ -12,11 +12,12 @@
  * ```
  */
 
+import { ArrowRight,Crown, Lock, Sparkles, Zap } from 'lucide-react'
 import * as React from 'react'
-import { Sparkles, Lock, Zap, Crown, ArrowRight } from 'lucide-react'
+
 import { Button } from '@/components/ui/button'
-import type { TierLevel } from '@/types/tiers'
 import { cn } from '@/lib/utils'
+import type { TierLevel } from '@/types/tiers'
 
 interface UpgradeButtonProps {
   trigger: string

@@ -17,13 +17,15 @@
  * ```
  */
 
+import { AnimatePresence,motion } from 'framer-motion'
+import { ChevronRight,Lock, X } from 'lucide-react'
 import * as React from 'react'
-import { Lock, X, ChevronRight } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
+
 import { cn } from '@/lib/utils'
+import type { TierLevel } from '@/types/tiers'
+
 import { FeatureBadge } from './feature-badge'
 import { UpgradeButton } from './upgrade-button'
-import type { TierLevel } from '@/types/tiers'
 
 interface LockedFeatureOverlayProps {
   feature: string

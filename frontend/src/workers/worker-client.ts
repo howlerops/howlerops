@@ -4,21 +4,20 @@
  */
 
 import {
-  WorkerMessage,
-  WorkerResponse,
-  WorkerMessageType,
-  Priority,
-  QueryResult,
-  FilterCondition,
-  SortCondition,
+  AggregationConfig,
   ExportConfig,
   ExportFormat,
-  AggregationConfig,
-  ValidationRule,
-  TransformationRule,
+  FilterCondition,
+  Priority,
   ProgressUpdate,
-  WorkerError
-} from './types';
+  QueryResult,
+  SortCondition,
+  TransformationRule,
+  ValidationRule,
+  WorkerError,
+  WorkerMessage,
+  WorkerMessageType,
+  WorkerResponse} from './types';
 
 export interface WorkerClientConfig {
   workerPath?: string;

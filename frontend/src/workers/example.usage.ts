@@ -4,28 +4,27 @@
  */
 
 import {
-  getWorkerManager,
-  parseQueryResults,
-  filterData,
-  sortData,
-  exportData,
-  calculateStatistics,
-  SQLStudioWorkers,
-  QueryResult,
-  FilterCondition,
-  FilterOperator,
-  SortCondition,
-  SortDirection,
-  ExportConfig,
-  ExportFormat,
   AggregationConfig,
   AggregationOperation,
-  ValidationRule,
-  ValidationType,
+  calculateStatistics,
+  DataType,
+  ExportConfig,
+  exportData,
+  ExportFormat,
+  FilterCondition,
+  filterData,
+  FilterOperator,
+  getWorkerManager,
+  parseQueryResults,
+  QueryResult,
+  SortCondition,
+  sortData,
+  SortDirection,
+  SQLStudioWorkers,
   TransformationRule,
   TransformationType,
-  DataType
-} from './index';
+  ValidationRule,
+  ValidationType} from './index';
 
 // Example 1: Basic Usage with Convenience Functions
  

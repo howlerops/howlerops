@@ -9,7 +9,17 @@
  * - Sets onboarding complete flag in localStorage
  */
 
+import {
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle,
+  Database,
+  Shield,
+  Users,
+} from 'lucide-react'
 import { useState } from 'react'
+
+import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
@@ -18,16 +28,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
-import {
-  Users,
-  Shield,
-  Database,
-  CheckCircle,
-  ArrowRight,
-  ArrowLeft,
-} from 'lucide-react'
 import { markOnboardingComplete } from '@/lib/onboarding-utils'
 
 interface OnboardingModalProps {

@@ -1,6 +1,7 @@
-import React from 'react'
-import { ErrorBoundary } from '@/components/error-boundary'
 import { AlertTriangle, RefreshCw } from 'lucide-react'
+import React from 'react'
+
+import { ErrorBoundary } from '@/components/error-boundary'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 

@@ -3,23 +3,25 @@
  * Displays progress, status, and allows cancellation
  */
 
-import React, { useState, useCallback } from 'react';
-import { Progress } from '@/components/ui/progress';
-import { Button } from '../ui/button';
-import { Badge } from '../ui/badge';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
-  Play,
-  Square,
+  AlertTriangle,
   CheckCircle,
-  XCircle,
   Clock,
   Database,
+  Play,
+  Square,
+  XCircle,
   Zap,
-  AlertTriangle,
 } from 'lucide-react';
+import React, { useCallback,useState } from 'react';
+
+import { Progress } from '@/components/ui/progress';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
 import { useRealtimeQuery } from '../../hooks/websocket';
-import { QueryResult, QueryError } from '../../types/websocket';
+import { QueryError,QueryResult } from '../../types/websocket';
+import { Badge } from '../ui/badge';
+import { Button } from '../ui/button';
 
 interface QueryProgressIndicatorProps {
   connectionName: string;

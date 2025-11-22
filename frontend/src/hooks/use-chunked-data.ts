@@ -5,11 +5,12 @@
  * Works with TanStack Virtual to load only visible rows + overscan.
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useCallback, useEffect, useRef,useState } from 'react'
+
 import {
-  loadChunks,
   calculateRequiredChunks,
   CHUNK_CONFIG,
+  loadChunks,
 } from '../lib/query-result-storage'
 
 interface UseChunkedDataOptions {

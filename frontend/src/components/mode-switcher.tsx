@@ -1,18 +1,19 @@
-import { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
-import { Database, Network, ChevronDown, Info, CheckCircle2, Circle } from 'lucide-react'
+import { CheckCircle2, ChevronDown, Circle,Database, Info, Network } from 'lucide-react'
+import { useEffect, useRef,useState } from 'react'
+
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger,
   DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Badge } from '@/components/ui/badge'
+import { UseQueryModeReturn } from '@/hooks/use-query-mode'
 import { cn } from '@/lib/utils'
 import { useConnectionStore } from '@/store/connection-store'
-import { UseQueryModeReturn } from '@/hooks/use-query-mode'
 
 interface ModeSwitcherProps {
   mode: UseQueryModeReturn['mode']

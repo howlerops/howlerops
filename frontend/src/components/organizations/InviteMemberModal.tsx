@@ -6,8 +6,12 @@
  * and displays pending invitations.
  */
 
+import { AlertCircle, Loader2, Mail, Send,UserPlus, X } from 'lucide-react'
 import * as React from 'react'
-import { Mail, Loader2, UserPlus, X, AlertCircle, Send } from 'lucide-react'
+
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
@@ -16,11 +20,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
   Select,
   SelectContent,
@@ -34,11 +35,11 @@ import type {
   OrganizationInvitation,
 } from '@/types/organization'
 import {
-  isValidEmail,
-  getRoleDisplayName,
   formatRelativeTime,
-  OrganizationRole as OrgRole,
+  getRoleDisplayName,
+  isValidEmail,
   OrganizationRole,
+  OrganizationRole as OrgRole,
 } from '@/types/organization'
 
 interface InviteMemberModalProps {

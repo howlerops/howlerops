@@ -146,6 +146,19 @@ func (a *AdaptiveVectorStore) DeleteDocument(ctx context.Context, id string) err
 	return a.localStore.DeleteDocument(ctx, id)
 }
 
+// Hierarchical document operations
+func (a *AdaptiveVectorStore) StoreDocumentWithoutEmbedding(ctx context.Context, doc *Document) error {
+	return a.localStore.StoreDocumentWithoutEmbedding(ctx, doc)
+}
+
+func (a *AdaptiveVectorStore) GetDocumentsBatch(ctx context.Context, ids []string) ([]*Document, error) {
+	return a.localStore.GetDocumentsBatch(ctx, ids)
+}
+
+func (a *AdaptiveVectorStore) UpdateDocumentMetadata(ctx context.Context, id string, metadata map[string]interface{}) error {
+	return a.localStore.UpdateDocumentMetadata(ctx, id, metadata)
+}
+
 func (a *AdaptiveVectorStore) SearchSimilar(ctx context.Context, embedding []float32, k int, filter map[string]interface{}) ([]*Document, error) {
 	return a.localStore.SearchSimilar(ctx, embedding, k, filter)
 }

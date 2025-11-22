@@ -26,71 +26,71 @@
 import { getIndexedDBClient, IndexedDBClient } from './indexeddb-client'
 
 // Schema and client
-export { DB_NAME, CURRENT_VERSION, getCurrentSchema } from './schema'
+export { CURRENT_VERSION, DB_NAME, getCurrentSchema } from './schema'
 
 // Repositories
 export {
-  QueryHistoryRepository,
-  getQueryHistoryRepository,
   ConnectionRepository,
   getConnectionRepository,
-  PreferenceRepository,
   getPreferenceRepository,
-  PreferenceCategory,
-  SyncQueueRepository,
-  getSyncQueueRepository,
-  SavedQueryRepository,
+  getQueryHistoryRepository,
   getSavedQueryRepository,
+  getSyncQueueRepository,
+  PreferenceCategory,
+  PreferenceRepository,
+  QueryHistoryRepository,
+  SavedQueryRepository,
+  SyncQueueRepository,
 } from './repositories'
 
 // Repository types
 export type {
-  QueryHistorySearchOptions,
-  QueryStatistics,
   ConnectionSearchOptions,
   PreferenceValue,
+  QueryHistorySearchOptions,
+  QueryStatistics,
+  SavedQuerySearchOptions,
   SyncQueueSearchOptions,
   SyncStatistics,
-  SavedQuerySearchOptions,
 } from './repositories'
 
 // Storage types
 export type {
-  ConnectionRecord,
-  QueryHistoryRecord,
-  UIPreferenceRecord,
-  SyncQueueRecord,
-  SavedQueryRecord,
-  AISessionRecord,
   AIMessageRecord,
-  ExportFileRecord,
+  AISessionRecord,
+  ConnectionRecord,
   CreateInput,
-  UpdateInput,
-  PaginatedResult,
-  QueryOptions,
-  StoreName,
   DatabaseType,
-  PrivacyMode,
-  SSLMode,
   EntityType,
+  ExportFileRecord,
+  PaginatedResult,
+  PrivacyMode,
+  QueryHistoryRecord,
+  QueryOptions,
+  SavedQueryRecord,
+  SSLMode,
+  StoreName,
   SyncOperation,
+  SyncQueueRecord,
+  UIPreferenceRecord,
+  UpdateInput,
 } from '@/types/storage'
 
 // Error types
 export {
-  StorageError,
-  QuotaExceededError,
-  VersionMismatchError,
-  TransactionError,
   NotFoundError,
+  QuotaExceededError,
+  StorageError,
+  TransactionError,
+  VersionMismatchError,
 } from '@/types/storage'
 
 // Migration utilities
 export {
-  migrateFromLocalStorage,
-  needsMigration,
   getMigrationStatus,
+  migrateFromLocalStorage,
   type MigrationResult,
+  needsMigration,
 } from './migrate-from-localstorage'
 
 /**

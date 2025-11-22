@@ -4,11 +4,10 @@
  */
 
 import type {
-  QueryTemplate,
+  QueryResult,
   QuerySchedule,
-  ScheduleExecution,
-  QueryResult
-} from '@/types/templates'
+  QueryTemplate,
+  ScheduleExecution} from '@/types/templates'
 
 export const mockTemplates: QueryTemplate[] = [
   {

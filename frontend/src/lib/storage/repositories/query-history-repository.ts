@@ -11,17 +11,18 @@
  * @module lib/storage/repositories/query-history-repository
  */
 
-import { getIndexedDBClient } from '../indexeddb-client'
+import { useTierStore } from '@/store/tier-store'
 import {
-  STORE_NAMES,
-  type QueryHistoryRecord,
   type CreateInput,
-  type UpdateInput,
+  NotFoundError,
   type PaginatedResult,
   type PrivacyMode,
-  NotFoundError,
+  type QueryHistoryRecord,
+  STORE_NAMES,
+  type UpdateInput,
 } from '@/types/storage'
-import { useTierStore } from '@/store/tier-store'
+
+import { getIndexedDBClient } from '../indexeddb-client'
 
 /**
  * Search options for query history

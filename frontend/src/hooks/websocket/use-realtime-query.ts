@@ -3,15 +3,16 @@
  * Manages query state, progress updates, and result streaming
  */
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useCallback, useEffect,useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+
 import {
+  DataChunk,
+  EventHandler,
+  QueryError,
   QueryProgress,
   QueryResult,
-  QueryError,
-  DataChunk,
   UseRealtimeQueryOptions,
-  EventHandler,
 } from '../../types/websocket';
 import { useWebSocket } from './use-websocket';
 

@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react"
-import { Card } from "@/components/ui/card"
+import { AnimatePresence,motion } from "framer-motion"
+import { Lightbulb,X } from "lucide-react"
+import { useEffect,useState } from "react"
+
 import { Button } from "@/components/ui/button"
-import { X, Lightbulb } from "lucide-react"
-import { motion, AnimatePresence } from "framer-motion"
+import { Card } from "@/components/ui/card"
 
 interface ContextualHelpProps {
   id: string

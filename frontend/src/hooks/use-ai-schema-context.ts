@@ -4,10 +4,12 @@
  * Provides schema information and context building for AI SQL generation
  */
 
-import { useMemo, useCallback } from 'react'
-import { useConnectionStore } from '@/store/connection-store'
-import { useSchemaIntrospection, type SchemaNode } from './use-schema-introspection'
+import { useCallback,useMemo } from 'react'
+
 import { AISchemaContextBuilder, MultiDatabaseContext } from '@/lib/ai-schema-context'
+import { useConnectionStore } from '@/store/connection-store'
+
+import { type SchemaNode,useSchemaIntrospection } from './use-schema-introspection'
 
 export function useAISchemaContext(
   mode: 'single' | 'multi',

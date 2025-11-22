@@ -18,8 +18,8 @@
  * ```
  */
 
-import { useOrganizationStore } from '@/store/organization-store'
 import { useAuthStore } from '@/store/auth-store'
+import { useOrganizationStore } from '@/store/organization-store'
 import { OrganizationRole } from '@/types/organization'
 
 /**

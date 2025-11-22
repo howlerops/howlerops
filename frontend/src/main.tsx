@@ -1,5 +1,7 @@
-import { createRoot } from 'react-dom/client'
 import './index.css'
+
+import { createRoot } from 'react-dom/client'
+
 import App from './app.tsx'
 import { applyWailsClipboardFix } from './lib/wails-clipboard-fix'
 

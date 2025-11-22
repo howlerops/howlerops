@@ -13,7 +13,12 @@
  * @module components/saved-queries/SaveQueryDialog
  */
 
-import { useState, useEffect } from 'react'
+import { Loader2,Plus, Star, X } from 'lucide-react'
+import { useEffect,useState } from 'react'
+
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -22,10 +27,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import {
   Select,
   SelectContent,
@@ -33,9 +36,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Badge } from '@/components/ui/badge'
-import { Checkbox } from '@/components/ui/checkbox'
-import { X, Star, Plus, Loader2 } from 'lucide-react'
+import { Textarea } from '@/components/ui/textarea'
 import { useSavedQueriesStore } from '@/store/saved-queries-store'
 import type { SavedQueryRecord } from '@/types/storage'
 

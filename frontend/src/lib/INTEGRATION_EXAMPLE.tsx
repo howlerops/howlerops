@@ -6,6 +6,7 @@
  */
 
 import { useEffect } from 'react'
+
 import { useMigrateCredentials } from './migrate-credentials'
 
 /**

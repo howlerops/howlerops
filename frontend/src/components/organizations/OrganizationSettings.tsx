@@ -5,13 +5,12 @@
  * Includes edit name/description, member count, creation date, and delete organization (owner only).
  */
 
+import { ArrowRight,Calendar, Loader2, Save, Trash2, Users } from 'lucide-react'
 import * as React from 'react'
-import { Calendar, Users, Loader2, Trash2, Save, ArrowRight } from 'lucide-react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Dialog,
   DialogContent,
@@ -20,9 +19,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import type { Organization, UpdateOrganizationInput, OrganizationRole } from '@/types/organization'
-import { canUpdateSettings, canDeleteOrganization } from '@/types/organization'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
+import type { Organization, OrganizationRole,UpdateOrganizationInput } from '@/types/organization'
+import { canDeleteOrganization,canUpdateSettings } from '@/types/organization'
 
 interface OrganizationSettingsProps {
   organization: Organization

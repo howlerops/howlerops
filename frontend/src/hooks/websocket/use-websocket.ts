@@ -3,20 +3,21 @@
  * Provides connection state, auto-reconnection, and event handling
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useCallback,useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
+
 import {
   ConnectionState,
   ConnectionStatus,
-  UseWebSocketOptions,
+  DataChunk,
   EventHandler,
-  Room,
+  QueryError,
   QueryProgress,
   QueryResult,
-  QueryError,
-  DataChunk,
+  Room,
   TableEditConflict,
   TableRowChange,
+  UseWebSocketOptions,
 } from '../../types/websocket';
 
 const DEFAULT_OPTIONS: UseWebSocketOptions = {

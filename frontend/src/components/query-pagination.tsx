@@ -1,18 +1,19 @@
 import { useState } from 'react'
+
+import { Button } from './ui/button'
+import { Input } from './ui/input'
 import {
   Pagination,
   PaginationContent,
   PaginationEllipsis,
+  PaginationFirst,
   PaginationItem,
+  PaginationLast,
   PaginationLink,
   PaginationNext,
   PaginationPrevious,
-  PaginationFirst,
-  PaginationLast,
 } from './ui/pagination'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
-import { Input } from './ui/input'
-import { Button } from './ui/button'
 
 interface QueryPaginationProps {
   currentPage: number

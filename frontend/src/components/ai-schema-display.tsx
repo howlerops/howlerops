@@ -5,13 +5,14 @@
  * to help users understand what tables they can query in multi-DB mode.
  */
 
-import { useEffect, useState } from 'react'
-import { ChevronRight, ChevronDown, Database, Table, Columns, Link } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/button'
+import { ChevronDown, ChevronRight, Columns, Database, Link,Table } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+
 import { Badge } from '@/components/ui/badge'
-import { ScrollArea } from '@/components/ui/scroll-area'
+import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { cn } from '@/lib/utils'
 
 interface SchemaNode {
   id?: string
@@ -62,37 +63,43 @@ export function AISchemaDisplay({
     }
   }, [connections, schemasMap])
 
-  const toggleDatabase = (dbId: string) => {
-    const newExpanded = new Set(expandedDatabases)
-    if (newExpanded.has(dbId)) {
-      newExpanded.delete(dbId)
-    } else {
-      newExpanded.add(dbId)
-    }
-    setExpandedDatabases(newExpanded)
-  }
+  const toggleDatabase = useCallback((dbId: string) => {
+    setExpandedDatabases(prev => {
+      const newExpanded = new Set(prev)
+      if (newExpanded.has(dbId)) {
+        newExpanded.delete(dbId)
+      } else {
+        newExpanded.add(dbId)
+      }
+      return newExpanded
+    })
+  }, [])
 
-  const toggleSchema = (schemaId: string) => {
-    const newExpanded = new Set(expandedSchemas)
-    if (newExpanded.has(schemaId)) {
-      newExpanded.delete(schemaId)
-    } else {
-      newExpanded.add(schemaId)
-    }
-    setExpandedSchemas(newExpanded)
-  }
+  const toggleSchema = useCallback((schemaId: string) => {
+    setExpandedSchemas(prev => {
+      const newExpanded = new Set(prev)
+      if (newExpanded.has(schemaId)) {
+        newExpanded.delete(schemaId)
+      } else {
+        newExpanded.add(schemaId)
+      }
+      return newExpanded
+    })
+  }, [])
 
-  const toggleTable = (tableId: string) => {
-    const newExpanded = new Set(expandedTables)
-    if (newExpanded.has(tableId)) {
-      newExpanded.delete(tableId)
-    } else {
-      newExpanded.add(tableId)
-    }
-    setExpandedTables(newExpanded)
-  }
+  const toggleTable = useCallback((tableId: string) => {
+    setExpandedTables(prev => {
+      const newExpanded = new Set(prev)
+      if (newExpanded.has(tableId)) {
+        newExpanded.delete(tableId)
+      } else {
+        newExpanded.add(tableId)
+      }
+      return newExpanded
+    })
+  }, [])
 
-  const getTablePath = (connection: Connection, schemaName: string, tableName: string) => {
+  const getTablePath = useCallback((connection: Connection, schemaName: string, tableName: string) => {
     if (mode === 'single') {
       return schemaName === 'public' ? tableName : `${schemaName}.${tableName}`
     } else {
@@ -100,9 +107,12 @@ export function AISchemaDisplay({
         ? `@${connection.name}.${tableName}`
         : `@${connection.name}.${schemaName}.${tableName}`
     }
-  }
+  }, [mode])
 
-  const connectedConnections = connections.filter(c => c.isConnected)
+  const connectedConnections = useMemo(() =>
+    connections.filter(c => c.isConnected),
+    [connections]
+  )
 
   if (connectedConnections.length === 0) {
     return (

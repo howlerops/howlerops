@@ -57,6 +57,7 @@ declare global {
       [key: string]: unknown
     }
     runtime?: {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Wails runtime events emit untyped data payloads
       EventsOn?: (eventName: string, callback: (data: any) => void) => () => void
       EventsOff?: (eventName: string) => void
     }

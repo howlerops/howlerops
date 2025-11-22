@@ -1,10 +1,11 @@
+import { Eye, EyeOff, Lock, Shield } from 'lucide-react'
 import React, { useState } from 'react'
+
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Lock, Eye, EyeOff, Shield } from 'lucide-react'
 
 interface PassphrasePromptProps {
   onUnlock: (passphrase: string) => Promise<void>

@@ -5,10 +5,11 @@
  * Shows upgrade value without preventing actions.
  */
 
+import { Brain, Database, FileDown,History, Sparkles } from 'lucide-react'
 import React from 'react'
 import { toast } from 'sonner'
+
 import { Button } from '@/components/ui/button'
-import { Sparkles, Database, History, Brain, FileDown } from 'lucide-react'
 
 /**
  * Limit type to icon mapping

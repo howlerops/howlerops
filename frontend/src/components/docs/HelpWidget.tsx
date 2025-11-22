@@ -1,8 +1,10 @@
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
 import { HelpCircle } from "lucide-react"
-import { HelpPanel } from "./HelpPanel"
+import { useEffect,useState } from "react"
+
+import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+
+import { HelpPanel } from "./HelpPanel"
 
 interface HelpWidgetProps {
   className?: string

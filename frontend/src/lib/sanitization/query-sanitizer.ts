@@ -8,13 +8,12 @@
  */
 
 import {
-  SanitizationConfig,
-  QueryPrivacyLevel,
-  PrivacyMode,
   getGlobalConfig,
-  shouldExcludeTable,
-  shouldExcludeSchema
-} from './config'
+  PrivacyMode,
+  QueryPrivacyLevel,
+  SanitizationConfig,
+  shouldExcludeSchema,
+  shouldExcludeTable} from './config'
 import { detectCredentials, mightBeCredential } from './credential-detector'
 
 export interface QuerySanitizationResult {

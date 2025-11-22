@@ -6,8 +6,7 @@
  * @module components/saved-queries
  */
 
-export { SaveQueryDialog } from './SaveQueryDialog'
+export type { QueryCardProps } from './QueryCard'
 export { QueryCard } from './QueryCard'
 export { SavedQueriesPanel } from './SavedQueriesPanel'
-
-export type { QueryCardProps } from './QueryCard'
+export { SaveQueryDialog } from './SaveQueryDialog'

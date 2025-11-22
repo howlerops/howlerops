@@ -11,9 +11,9 @@
  * - Respect dismissals and cooldowns
  */
 
-import { useUpgradePromptStore } from '@/store/upgrade-prompt-store'
 import { useTierStore } from '@/store/tier-store'
 import type { UpgradeTrigger } from '@/store/upgrade-prompt-store'
+import { useUpgradePromptStore } from '@/store/upgrade-prompt-store'
 
 /**
  * Reminder configuration

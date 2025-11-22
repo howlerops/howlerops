@@ -11,13 +11,14 @@
  * - Click handler for tier management
  */
 
+import { Cloud, HardDrive, Users } from "lucide-react";
 import React, { useMemo } from "react";
-import { HardDrive, Cloud, Users } from "lucide-react";
+
 import { Badge } from "@/components/ui/badge";
-import { useTierStore } from "@/store/tier-store";
 import { TIER_METADATA } from "@/config/tier-limits";
-import type { TierLevel } from "@/types/tiers";
 import { cn } from "@/lib/utils";
+import { useTierStore } from "@/store/tier-store";
+import type { TierLevel } from "@/types/tiers";
 
 /**
  * Badge variant types

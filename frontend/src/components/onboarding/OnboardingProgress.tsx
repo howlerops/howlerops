@@ -1,7 +1,8 @@
-import { Button } from "@/components/ui/button"
-import { Progress } from "@/components/ui/progress"
-import { Card } from "@/components/ui/card"
 import { ArrowRight, X } from "lucide-react"
+
+import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
+import { Progress } from "@/components/ui/progress"
 import { ONBOARDING_STEPS } from "@/types/onboarding"
 
 interface OnboardingProgressProps {

@@ -9,15 +9,16 @@
 
 import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
+
 import { SyncService } from '@/lib/sync/sync-service'
 import type {
-  SyncResult,
-  SyncConfig,
   Conflict,
   ConflictResolution,
-  SyncStatus,
   DeviceInfo,
+  SyncConfig,
   SyncProgress,
+  SyncResult,
+  SyncStatus,
 } from '@/types/sync'
 import { DEFAULT_SYNC_CONFIG } from '@/types/sync'
 

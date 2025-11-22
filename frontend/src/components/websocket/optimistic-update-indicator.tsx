@@ -3,25 +3,27 @@
  * Provides visual feedback for optimistic operations
  */
 
-import React, { useState, useCallback } from 'react';
-import { Badge } from '../ui/badge';
-import { Button } from '../ui/button';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  Loader2,
+  RefreshCw,
+  XCircle,
+} from 'lucide-react';
+import React, { useCallback,useState } from 'react';
+
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import {
-  Clock,
-  CheckCircle,
-  XCircle,
-  Loader2,
-  AlertTriangle,
-  RefreshCw,
-} from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
 import { useOptimisticUpdates } from '../../hooks/websocket';
 import { OptimisticUpdate } from '../../types/websocket';
+import { Badge } from '../ui/badge';
+import { Button } from '../ui/button';
 
 interface OptimisticUpdateIndicatorProps {
   tableId?: string;

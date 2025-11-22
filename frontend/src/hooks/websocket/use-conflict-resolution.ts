@@ -3,7 +3,7 @@
  * Manages conflict states and resolution strategies
  */
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useCallback, useEffect,useRef, useState } from 'react';
 
 interface ConflictResolutionStrategy {
   id: string;

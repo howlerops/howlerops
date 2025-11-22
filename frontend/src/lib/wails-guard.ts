@@ -33,6 +33,7 @@ export async function callWails<T>(
  */
 export function subscribeToWailsEvent(
   eventName: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Wails runtime events emit untyped data payloads
   callback: (data: any) => void
 ): () => void {
   const runtime = ensureWailsRuntime()

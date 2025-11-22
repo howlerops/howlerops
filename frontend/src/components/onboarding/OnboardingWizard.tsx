@@ -1,21 +1,23 @@
-import { useState, useEffect } from "react";
+import { X } from "lucide-react";
+import { useEffect,useState } from "react";
+
+import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
-import { Button } from "@/components/ui/button";
-import { X } from "lucide-react";
-import { WelcomeStep } from "./steps/WelcomeStep";
-import { ProfileStep } from "./steps/ProfileStep";
-import { ConnectionStep } from "./steps/ConnectionStep";
-import { TourStep } from "./steps/TourStep";
-import { FirstQueryStep } from "./steps/FirstQueryStep";
-import { FeaturesStep } from "./steps/FeaturesStep";
-import { PathStep } from "./steps/PathStep";
+import { onboardingTracker } from "@/lib/analytics/onboarding-tracking";
 import {
+  ONBOARDING_STEPS,
   OnboardingState,
   UserProfile,
-  ONBOARDING_STEPS,
 } from "@/types/onboarding";
-import { onboardingTracker } from "@/lib/analytics/onboarding-tracking";
+
+import { ConnectionStep } from "./steps/ConnectionStep";
+import { FeaturesStep } from "./steps/FeaturesStep";
+import { FirstQueryStep } from "./steps/FirstQueryStep";
+import { PathStep } from "./steps/PathStep";
+import { ProfileStep } from "./steps/ProfileStep";
+import { TourStep } from "./steps/TourStep";
+import { WelcomeStep } from "./steps/WelcomeStep";
 
 const STORAGE_KEY = "sql-studio-onboarding";
 

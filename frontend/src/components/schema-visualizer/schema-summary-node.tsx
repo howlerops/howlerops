@@ -1,5 +1,6 @@
-import { NodeProps } from 'reactflow'
 import { FolderOpen, Plus } from 'lucide-react'
+import { NodeProps } from 'reactflow'
+
 import { cn } from '@/lib/utils'
 
 export interface SchemaSummaryNodeData {

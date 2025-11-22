@@ -1,11 +1,12 @@
-import { useState, useEffect, useCallback } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { ArrowLeft, ArrowRight, CheckCircle2,X } from "lucide-react"
+import { useCallback,useEffect, useState } from "react"
+
 import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Progress } from "@/components/ui/progress"
-import { X, ArrowRight, ArrowLeft, CheckCircle2 } from "lucide-react"
-import { Tutorial, TutorialProgress } from "@/types/tutorial"
 import { onboardingTracker } from "@/lib/analytics/onboarding-tracking"
 import { cn } from "@/lib/utils"
+import { Tutorial, TutorialProgress } from "@/types/tutorial"
 
 interface TutorialEngineProps {
   tutorial: Tutorial

@@ -4,6 +4,7 @@ import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
 import tseslint from 'typescript-eslint'
 import unusedImports from 'eslint-plugin-unused-imports'
+import simpleImportSort from 'eslint-plugin-simple-import-sort'
 
 export default tseslint.config(
   {
@@ -21,6 +22,7 @@ export default tseslint.config(
       'react-hooks': reactHooks,
       'react-refresh': reactRefresh,
       'unused-imports': unusedImports,
+      'simple-import-sort': simpleImportSort,
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
@@ -28,6 +30,9 @@ export default tseslint.config(
         'warn',
         { allowConstantExport: true },
       ],
+      // Auto-sort imports: standard lib → third-party → local
+      'simple-import-sort/imports': 'warn',
+      'simple-import-sort/exports': 'warn',
       // Auto-fix unused imports and variables
       'unused-imports/no-unused-imports': 'warn',
       'unused-imports/no-unused-vars': ['warn', {
@@ -50,6 +55,8 @@ export default tseslint.config(
       'react-hooks/immutability': 'warn',
       'react-hooks/set-state-in-effect': 'off',
       'react-hooks/preserve-manual-memoization': 'off',
+      // TanStack libraries (Table, Virtual) use internal state that React Compiler cannot optimize
+      'react-hooks/incompatible-library': 'off',
     },
   },
   // Relax rules for known legacy/experimental areas to avoid blocking lint
@@ -95,6 +102,15 @@ export default tseslint.config(
       'react-hooks/rules-of-hooks': 'warn',
       'react-hooks/exhaustive-deps': 'warn',
       '@typescript-eslint/no-explicit-any': 'warn',
+    }
+  },
+  // UI components that export utilities alongside components
+  {
+    files: [
+      'src/components/ui/button.tsx',
+    ],
+    rules: {
+      'react-refresh/only-export-components': 'off', // Allow exporting buttonVariants alongside Button
     }
   },
 )

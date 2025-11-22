@@ -8,8 +8,9 @@
  */
 
 import type { DatabaseConnection, SSHTunnelConfig } from '@/store/connection-store'
-import { SanitizationConfig, getGlobalConfig } from './config'
-import { detectCredentials, type CredentialDetectionResult, CredentialType } from './credential-detector'
+
+import { getGlobalConfig,SanitizationConfig } from './config'
+import { type CredentialDetectionResult, CredentialType,detectCredentials } from './credential-detector'
 
 export interface SanitizedConnection extends Omit<DatabaseConnection, 'password' | 'sshTunnel'> {
   /**

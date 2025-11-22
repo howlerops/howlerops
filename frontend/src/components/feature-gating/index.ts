@@ -31,47 +31,47 @@
 
 // Badges
 export {
-  FeatureBadge,
   AnimatedFeatureBadge,
+  FeatureBadge,
   GradientFeatureBadge,
 } from '../feature-badge'
 
 // Buttons
 export {
-  UpgradeButton,
-  UpgradeLink,
-  UpgradeBadgeButton,
   FloatingUpgradeButton,
   InlineUpgradePrompt,
+  UpgradeBadgeButton,
+  UpgradeButton,
+  UpgradeLink,
 } from '../upgrade-button'
 
 // Overlays
 export {
-  LockedFeatureOverlay,
-  MinimalLockedOverlay,
   BannerLockedOverlay,
   InlineLockedState,
+  LockedFeatureOverlay,
+  MinimalLockedOverlay,
 } from '../locked-feature-overlay'
 
 // Previews
 export {
+  CompactFeaturePreview,
   FeaturePreview,
   GridFeaturePreview,
-  CompactFeaturePreview,
 } from '../feature-preview'
 
 // Warnings
 export {
   SoftLimitWarning,
-  UsageStatsCard,
   UpgradePromptCard,
+  UsageStatsCard,
 } from '../soft-limit-warning'
 
 // Comparison
 export {
-  ValueComparisonTable,
   CompactComparisonCard,
   MobileComparison,
+  ValueComparisonTable,
 } from '../value-comparison-table'
 
 // Trial
@@ -83,21 +83,21 @@ export {
 
 // Success
 export {
+  FeatureUnlockAnimation,
   UpgradeSuccessAnimation,
   UpgradeSuccessToast,
-  FeatureUnlockAnimation,
 } from '../upgrade-success-animation'
 
 // Hooks
 export {
-  useFeatureGate,
-  useMultiFeatureGate,
-  useAvailableFeatures,
-  useIsAtLeastTier,
-  useFeatureRequirement,
-  type FeatureGateResult,
   type FeatureGateMode,
+  type FeatureGateResult,
+  useAvailableFeatures,
+  useFeatureGate,
+  useFeatureRequirement,
+  useIsAtLeastTier,
+  useMultiFeatureGate,
 } from '@/hooks/use-feature-gate'
 
 // Re-export types for convenience
-export type { TierLevel, TierFeatures } from '@/types/tiers'
+export type { TierFeatures,TierLevel } from '@/types/tiers'

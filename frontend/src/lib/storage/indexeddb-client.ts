@@ -12,20 +12,21 @@
  */
 
 import {
-  DB_NAME,
+  type PaginatedResult,
+  type QueryOptions,
+  QuotaExceededError,
+  StorageError,
+  type StoreName,
+  TransactionError,
+  VersionMismatchError,
+} from '@/types/storage'
+
+import {
   CURRENT_VERSION,
+  DB_NAME,
   getCurrentSchema,
   getSchemaVersion,
 } from './schema'
-import {
-  StorageError,
-  QuotaExceededError,
-  VersionMismatchError,
-  TransactionError,
-  type StoreName,
-  type QueryOptions,
-  type PaginatedResult,
-} from '@/types/storage'
 
 /**
  * Transaction mode types

@@ -12,8 +12,29 @@
  * - Smooth animations
  */
 
-import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import {
+  ArrowRight,
+  Brain,
+  Check,
+  Clock,
+  Cloud,
+  Database,
+  FileDown,
+  History,
+  Lock,
+  Shield,
+  Smartphone,
+  Sparkles,
+  TrendingUp,
+  Users,
+  Zap,
+} from "lucide-react";
+import React, { useEffect,useState } from "react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -21,34 +42,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Sparkles,
-  Cloud,
-  Users,
-  Zap,
-  TrendingUp,
-  Lock,
-  Check,
-  Clock,
-  Shield,
-  Database,
-  History,
-  Smartphone,
-  Brain,
-  FileDown,
-  ArrowRight,
-} from "lucide-react";
-import { useTierStore } from "@/store/tier-store";
-import {
-  useUpgradePromptStore,
-  type UpgradeTrigger,
-  DISMISSAL_DURATIONS,
-} from "@/store/upgrade-prompt-store";
 import { TIER_METADATA } from "@/config/tier-limits";
 import { cn } from "@/lib/utils";
+import { useTierStore } from "@/store/tier-store";
+import {
+  DISMISSAL_DURATIONS,
+  type UpgradeTrigger,
+  useUpgradePromptStore,
+} from "@/store/upgrade-prompt-store";
 
 /**
  * Trigger-specific messages

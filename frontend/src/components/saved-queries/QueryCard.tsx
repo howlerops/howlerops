@@ -13,8 +13,22 @@
  * @module components/saved-queries/QueryCard
  */
 
-import { useState, useEffect } from 'react'
 import { formatDistanceToNow } from 'date-fns'
+import {
+  Cloud,
+  CloudOff,
+  Copy,
+  Edit,
+  Folder,
+  MoreVertical,
+  Play,
+  Star,
+  Trash2,
+} from 'lucide-react'
+import { useEffect,useState } from 'react'
+
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
@@ -22,14 +36,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import {
   Dialog,
   DialogContent,
@@ -38,20 +44,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
 import {
-  Star,
-  MoreVertical,
-  Play,
-  Edit,
-  Copy,
-  Trash2,
-  Folder,
-  Cloud,
-  CloudOff,
-} from 'lucide-react'
-import type { SavedQueryRecord } from '@/types/storage'
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
+import type { SavedQueryRecord } from '@/types/storage'
 
 /**
  * Props for QueryCard component

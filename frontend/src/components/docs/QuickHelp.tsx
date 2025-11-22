@@ -1,11 +1,12 @@
+import { HelpCircle } from "lucide-react"
+import { ReactNode } from "react"
+
+import { Button } from "@/components/ui/button"
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { Button } from "@/components/ui/button"
-import { HelpCircle } from "lucide-react"
-import { ReactNode } from "react"
 
 interface QuickHelpProps {
   topic: string

@@ -1,14 +1,15 @@
-import { useMemo, useState, useEffect } from "react"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Button } from "@/components/ui/button"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { Textarea } from "@/components/ui/textarea"
+import { ChevronDown, ChevronRight, Database, Filter,Table } from "lucide-react"
+import { useEffect,useMemo, useState } from "react"
+
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Textarea } from "@/components/ui/textarea"
+import type { SchemaNode } from "@/hooks/use-schema-introspection"
 import { cn } from "@/lib/utils"
 import type { DatabaseConnection } from "@/store/connection-store"
-import type { SchemaNode } from "@/hooks/use-schema-introspection"
-import { ChevronDown, ChevronRight, Database, Table, Filter } from "lucide-react"
 
 interface SchemaContextSelectorProps {
   connections: DatabaseConnection[]

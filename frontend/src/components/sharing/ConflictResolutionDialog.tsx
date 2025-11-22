@@ -7,9 +7,13 @@
  * @module components/sharing/ConflictResolutionDialog
  */
 
-import { useState } from 'react'
 import { formatDistanceToNow } from 'date-fns'
-import { AlertTriangle, Check, X, Info } from 'lucide-react'
+import { AlertTriangle, Check, Info,X } from 'lucide-react'
+import { useState } from 'react'
+
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
@@ -18,9 +22,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import { cn } from '@/lib/utils'
 import type { Conflict } from '@/types/sync'
 

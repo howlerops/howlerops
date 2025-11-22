@@ -1,8 +1,9 @@
+import { CheckCircle2,Play, RotateCcw } from "lucide-react"
 import { useState } from "react"
-import { Card } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+
 import { Badge } from "@/components/ui/badge"
-import { Play, RotateCcw, CheckCircle2 } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
 import { onboardingTracker } from "@/lib/analytics/onboarding-tracking"
 import { cn } from "@/lib/utils"
 

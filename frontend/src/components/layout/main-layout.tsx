@@ -1,7 +1,9 @@
 import { useState } from "react"
+
+import { InvitationBanner } from "@/components/InvitationBanner"
+
 import { Header } from "./header"
 import { Sidebar } from "./sidebar"
-import { InvitationBanner } from "@/components/InvitationBanner"
 
 interface MainLayoutProps {
   children: React.ReactNode

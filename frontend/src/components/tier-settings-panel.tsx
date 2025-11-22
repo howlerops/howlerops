@@ -12,15 +12,14 @@
  * - Upgrade options
  */
 
+import { AlertTriangle, CheckCircle2, Loader2,XCircle } from "lucide-react";
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useTierStore } from "@/store/tier-store";
-import { useTierLimit } from "@/hooks/use-tier-limit";
-import { useFeatureGate } from "@/hooks/use-feature-gate";
+
 import { TierBadge, TierBadgeList } from "@/components/tier-badge";
+import { Alert } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Card,
   CardContent,
@@ -28,12 +27,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { Alert } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, XCircle, AlertTriangle, Loader2 } from "lucide-react";
-import { useConnectionStore } from "@/store/connection-store";
+import { useFeatureGate } from "@/hooks/use-feature-gate";
+import { useTierLimit } from "@/hooks/use-tier-limit";
 import { getQueryHistoryRepository } from "@/lib/storage/repositories/query-history-repository";
+import { useConnectionStore } from "@/store/connection-store";
+import { useTierStore } from "@/store/tier-store";
 
 /**
  * Tier Settings Panel Component

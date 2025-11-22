@@ -3,7 +3,13 @@
  * Modal for executing query templates with parameter inputs
  */
 
-import React, { useState, useMemo } from 'react'
+import { AlertCircle, CheckCircle, Clock,Play } from 'lucide-react'
+import React, { useMemo,useState } from 'react'
+
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -12,18 +18,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Badge } from '@/components/ui/badge'
-import { Play, AlertCircle, CheckCircle, Clock } from 'lucide-react'
-import type { QueryTemplate, QueryResult, TemplateParameter, TemplateParameterValue } from '@/types/templates'
-import { useTemplatesStore } from '@/store/templates-store'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { interpolateTemplate } from '@/lib/api/templates'
+import { useTemplatesStore } from '@/store/templates-store'
+import type { QueryResult, QueryTemplate, TemplateParameter, TemplateParameterValue } from '@/types/templates'
 // Using simple pre/code for SQL display - can be upgraded to CodeMirror if needed
 
 interface TemplateExecutorProps {

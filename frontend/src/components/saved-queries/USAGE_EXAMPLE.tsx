@@ -7,12 +7,14 @@
  * @module components/saved-queries/USAGE_EXAMPLE
  */
 
+import { BookMarked, Save } from 'lucide-react'
 import { useState } from 'react'
+
 import { Button } from '@/components/ui/button'
+import type { SavedQueryRecord } from '@/types/storage'
+
 import { SavedQueriesPanel } from './SavedQueriesPanel'
 import { SaveQueryDialog } from './SaveQueryDialog'
-import type { SavedQueryRecord } from '@/types/storage'
-import { BookMarked, Save } from 'lucide-react'
 
 /**
  * Example: Basic Integration

@@ -10,13 +10,14 @@
  * - Auto-fetches invitation count on mount
  */
 
+import { Mail, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useOrganizationInvitations } from '@/store/organization-store'
-import { isInvitationValid } from '@/types/organization'
+
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { Mail, X } from 'lucide-react'
+import { useOrganizationInvitations } from '@/store/organization-store'
+import { isInvitationValid } from '@/types/organization'
 
 const DISMISSAL_KEY = 'invitation-banner-dismissed'
 const DISMISSAL_DURATION = 24 * 60 * 60 * 1000 // 24 hours in milliseconds

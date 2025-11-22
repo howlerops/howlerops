@@ -1,29 +1,63 @@
+import { AlertCircle, BarChart3, Database, FileText, Lightbulb, Loader2, MessageCircle, Network, Pencil, Plus, Search, SendHorizontal, Sparkles, TrendingUp } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
 
+import { EmptyState, type ExampleQuery } from "@/components/empty-states/EmptyState"
+import { MultiDBConnectionSelector } from "@/components/multi-db-connection-selector"
+import { SchemaContextSelector } from "@/components/schema-context-selector"
+import { VirtualMessageList } from "@/components/virtual-message-list"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
-  SheetDescription,
 } from "@/components/ui/sheet"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Textarea } from "@/components/ui/textarea"
-import { Input } from "@/components/ui/input"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { SchemaContextSelector } from "@/components/schema-context-selector"
-import { useAIGeneration, useAIConfig } from "@/store/ai-store"
 import { useQueryMode } from "@/hooks/use-query-mode"
-import { AISchemaContextBuilder } from "@/lib/ai-schema-context"
-import { MultiDBConnectionSelector } from "@/components/multi-db-connection-selector"
-import { useAIMemoryStore } from "@/store/ai-memory-store"
-import type { DatabaseConnection } from "@/store/connection-store"
 import type { SchemaNode } from "@/hooks/use-schema-introspection"
+import { AISchemaContextBuilder } from "@/lib/ai-schema-context"
 import { cn } from "@/lib/utils"
-import { AlertCircle, Loader2, MessageCircle, Pencil, Plus, SendHorizontal, Sparkles, Database, Network } from "lucide-react"
+import { useAIMemoryStore } from "@/store/ai-memory-store"
+import { useAIConfig,useAIGeneration } from "@/store/ai-store"
+import type { DatabaseConnection } from "@/store/connection-store"
+
+const CHAT_EXAMPLES: ExampleQuery[] = [
+  {
+    label: "Explain query results",
+    description: "Get a plain English explanation of your SQL results",
+    query: "Explain the results of my last query in simple terms",
+    icon: FileText,
+  },
+  {
+    label: "Identify trends",
+    description: "Find patterns and trends in your data",
+    query: "What trends do you see in this data?",
+    icon: TrendingUp,
+  },
+  {
+    label: "Suggest analysis",
+    description: "Get recommendations for further analysis",
+    query: "What other questions should I ask about this dataset?",
+    icon: Lightbulb,
+  },
+  {
+    label: "Data insights",
+    description: "Discover interesting insights from your results",
+    query: "What are the most interesting insights from these results?",
+    icon: Search,
+  },
+  {
+    label: "Visualize data",
+    description: "Get suggestions for how to visualize your data",
+    query: "How should I visualize this data?",
+    icon: BarChart3,
+  },
+]
 
 interface GenericChatSidebarProps {
   open: boolean
@@ -46,7 +80,6 @@ export function GenericChatSidebar({ open, onClose, connections, schemasMap }: G
   const [systemPrompt, setSystemPrompt] = useState("")
   const [isRenaming, setIsRenaming] = useState(false)
   const [renameValue, setRenameValue] = useState("")
-  const messagesEndRef = useRef<HTMLDivElement | null>(null)
   const { mode, canToggle, toggleMode } = useQueryMode('auto')
   const [singleConnectionId, setSingleConnectionId] = useState<string>("")
   const [selectedConnectionIds, setSelectedConnectionIds] = useState<string[]>([])
@@ -86,12 +119,6 @@ export function GenericChatSidebar({ open, onClose, connections, schemasMap }: G
       setActiveSession(genericSessions[0].id)
     }
   }, [open, activeSession, genericSessions, hydrateMemoriesFromBackend, setActiveSession, startNewSession])
-
-  useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' })
-    }
-  }, [activeMessages])
 
   // Initialize selections when opening
   useEffect(() => {
@@ -315,18 +342,24 @@ export function GenericChatSidebar({ open, onClose, connections, schemasMap }: G
 
         <div className="flex flex-1 min-h-0">
           <div className="flex w-full flex-col gap-4 p-4">
-            <ScrollArea className="flex-1 rounded-lg border bg-muted/20 p-3">
-              <div className="space-y-3">
-                {activeMessages.length === 0 && (
-                  <div className="rounded-lg border border-dashed bg-background p-4 text-sm text-muted-foreground">
-                    Start the conversation by asking a question or sharing context. Previous chat history will appear here.
-                  </div>
-                )}
-                {activeMessages.map(messageEntry => (
+            {activeMessages.length === 0 ? (
+              <div className="flex-1 rounded-lg border bg-muted/20 p-3">
+                <EmptyState
+                  icon={MessageCircle}
+                  title="Start a conversation"
+                  description="Ask questions, brainstorm ideas, or discuss your SQL query results with AI."
+                  examples={CHAT_EXAMPLES}
+                  onExampleClick={(query) => setMessage(query)}
+                  className="h-full py-6"
+                />
+              </div>
+            ) : (
+              <VirtualMessageList
+                messages={activeMessages}
+                renderMessage={(messageEntry) => (
                   <div
-                    key={messageEntry.id}
                     className={cn(
-                      "max-w-[85%] rounded-lg border px-3 py-2 text-sm shadow-sm",
+                      "max-w-[85%] rounded-lg border px-3 py-2 text-sm shadow-sm mx-3 my-2",
                       messageEntry.role === 'assistant'
                         ? "ml-auto bg-primary/5 border-primary/30"
                         : "mr-auto bg-background"
@@ -344,10 +377,14 @@ export function GenericChatSidebar({ open, onClose, connections, schemasMap }: G
                       {messageEntry.content}
                     </div>
                   </div>
-                ))}
-                <div ref={messagesEndRef} />
-              </div>
-            </ScrollArea>
+                )}
+                getMessageKey={(messageEntry) => messageEntry.id}
+                estimateSize={80}
+                overscan={3}
+                className="flex-1 rounded-lg border bg-muted/20"
+                autoScroll={true}
+              />
+            )}
 
             <div className="space-y-4">
               <SchemaContextSelector

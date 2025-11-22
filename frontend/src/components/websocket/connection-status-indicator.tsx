@@ -3,29 +3,31 @@
  * Displays connection status, metrics, and health information
  */
 
+import {
+  Activity,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  RefreshCw,
+  Signal,
+  Wifi,
+  WifiOff,
+  XCircle,
+} from 'lucide-react';
 import React, { useState } from 'react';
-import { Badge } from '../ui/badge';
-import { Button } from '../ui/button';
-import { Progress } from '@/components/ui/progress';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import {
-  Wifi,
-  WifiOff,
-  AlertTriangle,
-  RefreshCw,
-  Activity,
-  Clock,
-  Signal,
-  CheckCircle,
-  XCircle,
-} from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
 import { useConnectionStatus } from '../../hooks/websocket';
 import { ConnectionStatus } from '../../types/websocket';
+import { Badge } from '../ui/badge';
+import { Button } from '../ui/button';
 
 interface ConnectionStatusIndicatorProps {
   showDetails?: boolean;

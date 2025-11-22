@@ -1,5 +1,6 @@
-import { useCallback, useRef, useEffect, useMemo } from 'react';
-import { requestAnimationFrame, cancelAnimationFrame } from '../utils/table';
+import { useCallback, useEffect, useMemo,useRef } from 'react';
+
+import { cancelAnimationFrame,requestAnimationFrame } from '../utils/table';
 
 interface UsePerformanceOptions {
   enableThrottling?: boolean;

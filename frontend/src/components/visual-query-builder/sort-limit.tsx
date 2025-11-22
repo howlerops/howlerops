@@ -3,14 +3,16 @@
  * Handles ORDER BY, LIMIT, and OFFSET clauses
  */
 
+import { ArrowDown,ArrowUp, Plus, X } from 'lucide-react'
 import { useState } from 'react'
+
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Badge } from '@/components/ui/badge'
-import { Card, CardContent } from '@/components/ui/card'
-import { Plus, X, ArrowUp, ArrowDown } from 'lucide-react'
-import { SortLimitProps, ColumnInfo, OrderBy } from './types'
+
+import { ColumnInfo, OrderBy,SortLimitProps } from './types'
 
 export function SortLimit({
   columns,

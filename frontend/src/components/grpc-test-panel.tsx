@@ -1,9 +1,10 @@
 import React, { useState } from 'react'
+
+import { useCreateGrpcConnection, useGrpcConnections, useTestGrpcConnection } from '../hooks/use-grpc-connections'
+import { useGrpcStreamingQuery } from '../hooks/use-grpc-streaming-query'
 import { Button } from './ui/button'
 import { Card } from './ui/card'
 import { Input } from './ui/input'
-import { useGrpcConnections, useCreateGrpcConnection, useTestGrpcConnection } from '../hooks/use-grpc-connections'
-import { useGrpcStreamingQuery } from '../hooks/use-grpc-streaming-query'
 
 export function GrpcTestPanel() {
   const [connectionData, setConnectionData] = useState({

@@ -1,6 +1,7 @@
+import { CheckCircle2,Database } from "lucide-react"
 import { useState } from "react"
+
 import { Button } from "@/components/ui/button"
-import { Database, CheckCircle2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface ConnectionStepProps {

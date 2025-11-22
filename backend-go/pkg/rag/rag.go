@@ -9,23 +9,24 @@ import (
 )
 
 type (
-	EmbeddingService  = internalrag.EmbeddingService
-	EmbeddingProvider = internalrag.EmbeddingProvider
-	VectorStore       = internalrag.VectorStore
-	DocumentType      = internalrag.DocumentType
-	Document          = internalrag.Document
-	CacheStats        = internalrag.CacheStats
-	SchemaIndexer     = internalrag.SchemaIndexer
-	ContextBuilder    = internalrag.ContextBuilder
-	QueryContext      = internalrag.QueryContext
-	OptimizationHint  = internalrag.OptimizationHint
-	GeneratedSQL      = internalrag.GeneratedSQL
-	SQLExplanation    = internalrag.SQLExplanation
-	ExplanationStep   = internalrag.ExplanationStep
-	OptimizedSQL      = internalrag.OptimizedSQL
-	Improvement       = internalrag.Improvement
-	SmartSQLGenerator = internalrag.SmartSQLGenerator
-	LLMProvider       = internalrag.LLMProvider
+	EmbeddingService   = internalrag.EmbeddingService
+	EmbeddingProvider  = internalrag.EmbeddingProvider
+	OllamaModelManager = internalrag.OllamaModelManager
+	VectorStore        = internalrag.VectorStore
+	DocumentType       = internalrag.DocumentType
+	Document           = internalrag.Document
+	CacheStats         = internalrag.CacheStats
+	SchemaIndexer      = internalrag.SchemaIndexer
+	ContextBuilder     = internalrag.ContextBuilder
+	QueryContext       = internalrag.QueryContext
+	OptimizationHint   = internalrag.OptimizationHint
+	GeneratedSQL       = internalrag.GeneratedSQL
+	SQLExplanation     = internalrag.SQLExplanation
+	ExplanationStep    = internalrag.ExplanationStep
+	OptimizedSQL       = internalrag.OptimizedSQL
+	Improvement        = internalrag.Improvement
+	SmartSQLGenerator  = internalrag.SmartSQLGenerator
+	LLMProvider        = internalrag.LLMProvider
 )
 
 const (
@@ -40,6 +41,14 @@ const (
 
 func NewOpenAIEmbeddingProvider(apiKey, model string, logger *logrus.Logger) EmbeddingProvider {
 	return internalrag.NewOpenAIEmbeddingProvider(apiKey, model, logger)
+}
+
+func NewOllamaEmbeddingProvider(endpoint, model string, dimension int, logger *logrus.Logger) EmbeddingProvider {
+	return internalrag.NewOllamaEmbeddingProvider(endpoint, model, dimension, logger)
+}
+
+func NewOllamaModelManager(endpoint string, logger *logrus.Logger) *OllamaModelManager {
+	return internalrag.NewOllamaModelManager(endpoint, logger)
 }
 
 func NewONNXEmbeddingProvider(modelPath string, logger *logrus.Logger) EmbeddingProvider {

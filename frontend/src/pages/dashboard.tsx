@@ -1,7 +1,8 @@
 import { useCallback, useRef, useState } from "react"
+
+import { PageErrorBoundary } from "@/components/page-error-boundary"
 import { QueryEditor, type QueryEditorHandle } from "@/components/query-editor"
 import { ResultsPanel } from "@/components/results-panel"
-import { PageErrorBoundary } from "@/components/page-error-boundary"
 import { useQueryMode } from "@/hooks/use-query-mode"
 
 const MIN_PANEL_FRACTION = 0.02

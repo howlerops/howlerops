@@ -1,4 +1,7 @@
+import { AlertCircle, Check,Database } from 'lucide-react'
 import React, { useState } from 'react'
+
+import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
@@ -7,10 +10,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { AlertCircle, Database, Check } from 'lucide-react'
-import { DatabaseConnection } from '@/store/connection-store'
 import { cn } from '@/lib/utils'
+import { DatabaseConnection } from '@/store/connection-store'
 
 interface SelectDatabasePromptProps {
   isOpen: boolean

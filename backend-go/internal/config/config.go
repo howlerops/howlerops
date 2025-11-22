@@ -22,6 +22,7 @@ type Config struct {
 	Email    EmailConfig    `mapstructure:"email"`
 	Sync     SyncConfig     `mapstructure:"sync"`
 	Turso    TursoConfig    `mapstructure:"turso"`
+	RAG      RAGConfig      `mapstructure:"rag"`
 }
 
 // ServerConfig holds server configuration
@@ -138,6 +139,40 @@ type TursoConfig struct {
 	URL            string `mapstructure:"url"`
 	AuthToken      string `mapstructure:"auth_token"`
 	MaxConnections int    `mapstructure:"max_connections"`
+}
+
+// RAGConfig holds RAG (Retrieval-Augmented Generation) configuration
+type RAGConfig struct {
+	Embedding EmbeddingConfig `mapstructure:"embedding"`
+}
+
+// EmbeddingConfig holds embedding provider configuration
+type EmbeddingConfig struct {
+	Provider string               `mapstructure:"provider"` // ollama, openai
+	Ollama   OllamaEmbedConfig    `mapstructure:"ollama"`
+	OpenAI   OpenAIEmbedConfig    `mapstructure:"openai"`
+	Cache    EmbeddingCacheConfig `mapstructure:"cache"`
+}
+
+// OllamaEmbedConfig holds Ollama embedding configuration
+type OllamaEmbedConfig struct {
+	Endpoint  string `mapstructure:"endpoint"`
+	Model     string `mapstructure:"model"`
+	Dimension int    `mapstructure:"dimension"`
+	AutoPull  bool   `mapstructure:"auto_pull"`
+}
+
+// OpenAIEmbedConfig holds OpenAI embedding configuration
+type OpenAIEmbedConfig struct {
+	Model     string `mapstructure:"model"`
+	Dimension int    `mapstructure:"dimension"`
+	APIKeyEnv string `mapstructure:"api_key_env"`
+}
+
+// EmbeddingCacheConfig holds embedding cache configuration
+type EmbeddingCacheConfig struct {
+	MaxSize int           `mapstructure:"max_size"`
+	TTL     time.Duration `mapstructure:"ttl"`
 }
 
 // Load loads configuration from various sources
@@ -350,6 +385,18 @@ func setDefaults() {
 	// Turso defaults
 	viper.SetDefault("turso.url", "file:./data/development.db")
 	viper.SetDefault("turso.max_connections", 25)
+
+	// RAG defaults
+	viper.SetDefault("rag.embedding.provider", "ollama")
+	viper.SetDefault("rag.embedding.ollama.endpoint", "http://localhost:11434")
+	viper.SetDefault("rag.embedding.ollama.model", "nomic-embed-text")
+	viper.SetDefault("rag.embedding.ollama.dimension", 768)
+	viper.SetDefault("rag.embedding.ollama.auto_pull", true)
+	viper.SetDefault("rag.embedding.openai.model", "text-embedding-3-small")
+	viper.SetDefault("rag.embedding.openai.dimension", 1536)
+	viper.SetDefault("rag.embedding.openai.api_key_env", "OPENAI_API_KEY")
+	viper.SetDefault("rag.embedding.cache.max_size", 10000)
+	viper.SetDefault("rag.embedding.cache.ttl", "24h")
 }
 
 // validate validates the configuration

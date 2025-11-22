@@ -7,10 +7,20 @@
  * @module components/sync/sync-indicator
  */
 
-import { useState, useEffect } from 'react'
-import { useSyncStatus, useSyncActions } from '@/store/sync-store'
-import { Button } from '@/components/ui/button'
+import { formatDistanceToNow } from 'date-fns'
+import {
+  AlertCircle,
+  Cloud,
+  CloudOff,
+  Loader2,
+  RefreshCw,
+  Settings,
+  WifiOff,
+} from 'lucide-react'
+import { useEffect,useState } from 'react'
+
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
@@ -19,17 +29,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import {
-  Cloud,
-  CloudOff,
-  RefreshCw,
-  AlertCircle,
-  Settings,
-  WifiOff,
-  Loader2,
-} from 'lucide-react'
-import { formatDistanceToNow } from 'date-fns'
 import { cn } from '@/lib/utils'
+import { useSyncActions,useSyncStatus } from '@/store/sync-store'
 
 /**
  * Main sync indicator component

@@ -11,8 +11,9 @@
  * - Graceful fallback to in-memory only if keychain unavailable
  */
 
-import * as App from '../../wailsjs/go/main/App'
 import { exportMasterKeyToBase64 } from '@/lib/crypto/encryption'
+
+import * as App from '../../wailsjs/go/main/App'
 
 export interface SecureCredential {
   connectionId: string

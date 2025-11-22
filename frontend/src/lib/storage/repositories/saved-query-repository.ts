@@ -11,16 +11,17 @@
  * @module lib/storage/repositories/saved-query-repository
  */
 
-import { getIndexedDBClient } from '../indexeddb-client'
-import {
-  STORE_NAMES,
-  type SavedQueryRecord,
-  type CreateInput,
-  type UpdateInput,
-  type PaginatedResult,
-  NotFoundError,
-} from '@/types/storage'
 import { useTierStore } from '@/store/tier-store'
+import {
+  type CreateInput,
+  NotFoundError,
+  type PaginatedResult,
+  type SavedQueryRecord,
+  STORE_NAMES,
+  type UpdateInput,
+} from '@/types/storage'
+
+import { getIndexedDBClient } from '../indexeddb-client'
 
 /**
  * Search options for saved queries

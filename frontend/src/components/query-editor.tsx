@@ -1,22 +1,19 @@
-import { useState, useRef, useEffect, useCallback, useMemo, forwardRef, useImperativeHandle, type SyntheticEvent } from "react"
-import { Button } from "@/components/ui/button"
+import { AlertCircle, Bug, ChevronDown, Database, Layout, Loader2, MessageCircle, Network, Pencil, Play, Plus, Save,Sparkles, Square, Trash2, Users, Wand2, X } from "lucide-react"
+import { forwardRef, lazy, type SyntheticEvent, Suspense, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react"
+
+import { AIQueryTabView } from "@/components/ai-query-tab"
+import { AISchemaDisplay } from "@/components/ai-schema-display"
+import { AISuggestionCard } from "@/components/ai-suggestion-card"
+import { CodeMirrorEditor, type CodeMirrorEditorRef } from "@/components/codemirror-editor"
+import { MultiDBDiagnostics } from "@/components/debug/multi-db-diagnostics"
+import { ModeSwitcher } from "@/components/mode-switcher"
+import { MultiDBConnectionSelector } from "@/components/multi-db-connection-selector"
+import { SavedQueriesPanel } from "@/components/saved-queries/SavedQueriesPanel"
+import { SaveQueryDialog } from "@/components/saved-queries/SaveQueryDialog"
+import { SelectDatabasePrompt } from "@/components/select-database-prompt"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet"
+import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
@@ -24,37 +21,48 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { useQueryStore, type QueryTab } from "@/store/query-store"
-import { useConnectionStore, type DatabaseConnection } from "@/store/connection-store"
-import { useTheme } from "@/hooks/use-theme"
-import { useAIConfig, useAIGeneration, useAIStore } from "@/store/ai-store"
-import { useAIQueryAgentStore } from "@/store/ai-query-agent-store"
-import { AIQueryTabView } from "@/components/ai-query-tab"
-import { Play, Square, Plus, X, Wand2, AlertCircle, Loader2, Network, Database, Bug, Sparkles, Users, Pencil, Trash2, ChevronDown, MessageCircle, Layout, Save } from "lucide-react"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AISchemaDisplay } from "@/components/ai-schema-display"
-import { cn } from "@/lib/utils"
-import { useAIMemoryStore } from "@/store/ai-memory-store"
-import { useSchemaIntrospection, type SchemaNode } from "@/hooks/use-schema-introspection"
-import { MultiDBDiagnostics } from "@/components/debug/multi-db-diagnostics"
-import { CodeMirrorEditor, type CodeMirrorEditorRef } from "@/components/codemirror-editor"
-import { type ColumnLoader } from "@/lib/codemirror-sql"
-import { ModeSwitcher } from "@/components/mode-switcher"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useQueryMode } from "@/hooks/use-query-mode"
-import { MultiDBConnectionSelector } from "@/components/multi-db-connection-selector"
-import { AISuggestionCard } from "@/components/ai-suggestion-card"
-import { GenericChatSidebar } from "@/components/generic-chat-sidebar"
-import { VisualQueryBuilder } from "@/components/visual-query-builder"
-import { QueryIR, generateSQL as generateSQLFromIR } from "@/lib/query-ir"
-import { waitForWails } from "@/lib/wails-runtime"
-import { buildExecutableSql } from "@/utils/sql"
-import { SelectDatabasePrompt } from "@/components/select-database-prompt"
-import { SaveQueryDialog } from "@/components/saved-queries/SaveQueryDialog"
-import { SavedQueriesPanel } from "@/components/saved-queries/SavedQueriesPanel"
-import { useAuthStore } from "@/store/auth-store"
+import { type SchemaNode,useSchemaIntrospection } from "@/hooks/use-schema-introspection"
+import { useTheme } from "@/hooks/use-theme"
 import { toast } from "@/hooks/use-toast"
+import { type ColumnLoader } from "@/lib/codemirror-sql"
+import { preloadComponent } from "@/lib/component-preload"
+import { generateSQL as generateSQLFromIR,QueryIR } from "@/lib/query-ir"
+import { cn } from "@/lib/utils"
+import { waitForWails } from "@/lib/wails-runtime"
+import { useAIMemoryStore } from "@/store/ai-memory-store"
+import { useAIQueryAgentStore } from "@/store/ai-query-agent-store"
+import { useAIConfig, useAIGeneration, useAIStore } from "@/store/ai-store"
+import { useAuthStore } from "@/store/auth-store"
+import { type DatabaseConnection,useConnectionStore } from "@/store/connection-store"
+import { type QueryTab,useQueryStore } from "@/store/query-store"
+import { buildExecutableSql } from "@/utils/sql"
+
+// Lazy-load heavy AI components for better initial load performance
+const GenericChatSidebar = lazy(() => import("@/components/generic-chat-sidebar").then(m => ({ default: m.GenericChatSidebar })))
+const VisualQueryBuilder = lazy(() => import("@/components/visual-query-builder").then(m => ({ default: m.VisualQueryBuilder })))
+
+// Preload these components on first interaction
+const preloadGenericChatSidebar = () => import("@/components/generic-chat-sidebar").then(m => ({ default: m.GenericChatSidebar }))
+const preloadVisualQueryBuilder = () => import("@/components/visual-query-builder").then(m => ({ default: m.VisualQueryBuilder }))
 
 
 export interface QueryEditorProps {
@@ -199,22 +207,6 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
     await executeQuery(tabId, lastResult.query, tab.connectionId, limit, offset)
   }, [tabs, results, executeQuery])
 
-  // Expose methods to parent components
-  useImperativeHandle(ref, () => ({
-    openAIFix: (error: string, query: string) => {
-      setIsFixMode(true)
-      setLastExecutionError(error)
-      if (activeTab) {
-        setEditorContent(query)
-        updateTab(activeTab.id, { content: query })
-      }
-      setShowAIDialog(true)
-      // Automatically trigger fix
-      handleFixQueryError(error, query)
-    },
-    handlePageChange
-  }), [handlePageChange])
-
   const environmentFilteredConnections = useMemo(() => {
     if (!activeEnvironmentFilter) {
       return connections
@@ -322,6 +314,50 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
   }, [environmentFilteredConnections, connections])
 
   const activeTab = tabs.find(tab => tab.id === activeTabId)
+
+  const handleFixQueryError = useCallback(async (error: string, query: string) => {
+    if (!aiEnabled) return
+
+    try {
+      const schemaDatabase = activeConnection?.database || undefined
+
+      // Prepare connections and schemas for RAG context
+      let connections = undefined
+      let schemasMap = undefined
+
+      if (mode === 'multi') {
+        connections = environmentFilteredConnections
+        schemasMap = multiDBSchemas
+      } else if (activeConnection && schema) {
+        connections = [activeConnection]
+        schemasMap = new Map([[activeConnection.id, schema]])
+      }
+
+      // Call fixSQL with full context including schemas for RAG
+      await fixSQL(query, error, schemaDatabase, mode, connections, schemasMap)
+
+      // Don't auto-apply, let user apply from suggestions in sidebar
+      // The suggestion is already added to the store by fixSQL
+    } catch (error) {
+      console.error('Failed to fix SQL:', error)
+    }
+  }, [aiEnabled, mode, environmentFilteredConnections, multiDBSchemas, activeConnection, schema, fixSQL])
+
+  // Expose methods to parent components
+  useImperativeHandle(ref, () => ({
+    openAIFix: (error: string, query: string) => {
+      setIsFixMode(true)
+      setLastExecutionError(error)
+      if (activeTab) {
+        setEditorContent(query)
+        updateTab(activeTab.id, { content: query })
+      }
+      setShowAIDialog(true)
+      // Automatically trigger fix
+      handleFixQueryError(error, query)
+    },
+    handlePageChange
+  }), [activeTab, handleFixQueryError, updateTab, handlePageChange])
 
   const handleConnectionDatabaseChange = useCallback(async (connectionId: string, database: string) => {
     if (!connectionId || !database) {
@@ -1164,37 +1200,9 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
     // Open the AI sidebar in fix mode
     setIsFixMode(true)
     setShowAIDialog(true)
-    
+
     // Call the fix handler
     await handleFixQueryError(lastExecutionError, editorContent)
-  }
-
-  const handleFixQueryError = async (error: string, query: string) => {
-    if (!aiEnabled) return
-
-    try {
-      const schemaDatabase = activeConnection?.database || undefined
-
-      // Prepare connections and schemas for RAG context
-      let connections = undefined
-      let schemasMap = undefined
-
-      if (mode === 'multi') {
-        connections = environmentFilteredConnections
-        schemasMap = multiDBSchemas
-      } else if (activeConnection && schema) {
-        connections = [activeConnection]
-        schemasMap = new Map([[activeConnection.id, schema]])
-      }
-
-      // Call fixSQL with full context including schemas for RAG
-      await fixSQL(query, error, schemaDatabase, mode, connections, schemasMap)
-
-      // Don't auto-apply, let user apply from suggestions in sidebar
-      // The suggestion is already added to the store by fixSQL
-    } catch (error) {
-      console.error('Failed to fix SQL:', error)
-    }
   }
 
   const handleApplySuggestion = (suggestionQuery: string, suggestionId: string) => {
@@ -1409,6 +1417,7 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
                       setAISheetTab('assistant')
                       setShowAIDialog(true)
                     }}
+                    onMouseEnter={() => void preloadComponent(preloadGenericChatSidebar)}
                   >
                     <MessageCircle className="mr-2 h-4 w-4" />
                     Generic Chat
@@ -2011,12 +2020,14 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
       )}
 
       {aiEnabled && aiSidebarMode === 'generic' && (
-        <GenericChatSidebar
-          open={showAIDialog}
-          onClose={() => setShowAIDialog(false)}
-          connections={editorConnections}
-          schemasMap={editorSchemas}
-        />
+        <Suspense fallback={null}>
+          <GenericChatSidebar
+            open={showAIDialog}
+            onClose={() => setShowAIDialog(false)}
+            connections={editorConnections}
+            schemasMap={editorSchemas}
+          />
+        </Suspense>
       )}
 
       <Dialog
@@ -2089,6 +2100,7 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
             variant={isVisualMode ? "default" : "outline"}
             size="sm"
             onClick={handleVisualModeToggle}
+            onMouseEnter={() => void preloadComponent(preloadVisualQueryBuilder)}
             className="ml-2"
           >
             <Layout className="h-4 w-4 mr-2" />
@@ -2146,20 +2158,26 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
       {/* Editor */}
       <div className="flex-1 min-h-0 overflow-y-auto">
         {isVisualMode ? (
-          <div className="h-full p-4">
-            <VisualQueryBuilder
-              connections={connections.map(conn => ({
-                id: conn.id,
-                name: conn.name,
-                type: conn.type,
-                isConnected: conn.isConnected
-              }))}
-              schemas={new Map()} // TODO: Convert schema format
-              onQueryChange={handleVisualQueryChange}
-              onSQLChange={handleVisualSQLChange}
-              initialQuery={visualQueryIR || undefined}
-            />
-          </div>
+          <Suspense fallback={
+            <div className="flex items-center justify-center h-full">
+              <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+            </div>
+          }>
+            <div className="h-full p-4">
+              <VisualQueryBuilder
+                connections={connections.map(conn => ({
+                  id: conn.id,
+                  name: conn.name,
+                  type: conn.type,
+                  isConnected: conn.isConnected
+                }))}
+                schemas={new Map()} // TODO: Convert schema format
+                onQueryChange={handleVisualQueryChange}
+                onSQLChange={handleVisualSQLChange}
+                initialQuery={visualQueryIR || undefined}
+              />
+            </div>
+          </Suspense>
         ) : (
           <CodeMirrorEditor
             ref={editorRef}

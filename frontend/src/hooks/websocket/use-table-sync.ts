@@ -3,16 +3,17 @@
  * Manages table edits, conflict resolution, and collaborative editing
  */
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useCallback, useEffect,useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+
 import {
+  EventHandler,
+  OptimisticState,
+  OptimisticUpdate,
   TableEdit,
   TableEditConflict,
   TableRowChange,
   UseTableSyncOptions,
-  OptimisticUpdate,
-  OptimisticState,
-  EventHandler,
 } from '../../types/websocket';
 import { useWebSocket } from './use-websocket';
 

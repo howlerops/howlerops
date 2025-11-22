@@ -16,7 +16,7 @@
  * The checksum prevents tampering and ensures license integrity.
  */
 
-import type { TierLevel, LicenseValidationResult } from '@/types/tiers'
+import type { LicenseValidationResult,TierLevel } from '@/types/tiers'
 
 /**
  * License key format regex

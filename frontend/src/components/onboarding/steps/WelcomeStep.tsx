@@ -1,5 +1,6 @@
+import { Cloud,Database, Users, Zap } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
-import { Database, Zap, Users, Cloud } from "lucide-react";
 
 interface WelcomeStepProps {
   onNext: () => void;

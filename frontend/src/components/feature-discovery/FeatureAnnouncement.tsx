@@ -1,14 +1,15 @@
-import { useState, useEffect } from "react"
+import { ArrowRight, ExternalLink,Sparkles } from "lucide-react"
+import { useEffect,useState } from "react"
+
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Sparkles, ArrowRight, ExternalLink } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
 
 interface Feature {
   title: string

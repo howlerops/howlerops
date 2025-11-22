@@ -1,28 +1,29 @@
+import {
+  BookOpen,
+  Database,
+  ExternalLink,
+  FileText,
+  MessageCircle,
+  Search,
+  Settings,
+  Users,
+  Video,
+  Zap,
+} from "lucide-react";
 import { useState } from "react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
-  SheetDescription,
 } from "@/components/ui/sheet";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
-import {
-  Search,
-  BookOpen,
-  Video,
-  MessageCircle,
-  ExternalLink,
-  FileText,
-  Zap,
-  Database,
-  Users,
-  Settings,
-} from "lucide-react";
 import { onboardingTracker } from "@/lib/analytics/onboarding-tracking";
 import { cn } from "@/lib/utils";
 

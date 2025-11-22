@@ -47,6 +47,7 @@ export function parsePublicKeyRequestOptions(optionsJSON: string): PublicKeyCred
     challenge: base64urlToBuffer(options.challenge),
     timeout: options.timeout,
     rpId: options.rpId,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- WebAuthn credential format from backend is untyped JSON
     allowCredentials: options.allowCredentials?.map((cred: any) => ({
       type: cred.type,
       id: base64urlToBuffer(cred.id),
@@ -75,6 +76,7 @@ export function parsePublicKeyCreationOptions(optionsJSON: string): PublicKeyCre
     timeout: options.timeout,
     authenticatorSelection: options.authenticatorSelection,
     attestation: options.attestation,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- WebAuthn credential format from backend is untyped JSON
     excludeCredentials: options.excludeCredentials?.map((cred: any) => ({
       type: cred.type,
       id: base64urlToBuffer(cred.id),

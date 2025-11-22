@@ -1,8 +1,9 @@
-import React, { useState, useCallback } from 'react';
 import { flexRender } from '@tanstack/react-table';
-import { ChevronUp, ChevronDown, Filter, GripVertical } from 'lucide-react';
-import { cn } from '../../utils/cn';
+import { ChevronDown, ChevronUp, Filter, GripVertical } from 'lucide-react';
+import React, { useCallback,useState } from 'react';
+
 import { ColumnHeaderProps } from '../../types/table';
+import { cn } from '../../utils/cn';
 
 export const TableHeader: React.FC<ColumnHeaderProps> = ({
   header,

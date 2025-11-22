@@ -17,11 +17,12 @@
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { importMasterKeyFromBase64 } from '@/lib/crypto/encryption'
-import type { AuthSuccessEvent, AuthRestoredEvent } from '@/types/wails-auth'
-import { subscribeToWailsEvent } from '@/lib/wails-guard'
-import { isWailsApp } from '@/lib/platform'
+
 import * as authApi from '@/lib/auth-api'
+import { importMasterKeyFromBase64 } from '@/lib/crypto/encryption'
+import { isWailsApp } from '@/lib/platform'
+import { subscribeToWailsEvent } from '@/lib/wails-guard'
+import type { AuthRestoredEvent,AuthSuccessEvent } from '@/types/wails-auth'
 
 export interface User {
   id: string

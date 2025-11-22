@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+
+import { AuthSeparator } from "@/components/auth/auth-separator";
+import { BiometricAuthButton } from "@/components/auth/biometric-auth-button";
+import { LoginForm } from "@/components/auth/login-form";
+import { OAuthButtonGroup } from "@/components/auth/oauth-button-group";
+import { SignupForm } from "@/components/auth/signup-form";
 import {
   Card,
   CardContent,
@@ -7,15 +13,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LoginForm } from "@/components/auth/login-form";
-import { SignupForm } from "@/components/auth/signup-form";
-import { OAuthButtonGroup } from "@/components/auth/oauth-button-group";
-import { BiometricAuthButton } from "@/components/auth/biometric-auth-button";
-import { AuthSeparator } from "@/components/auth/auth-separator";
 import { HowlerOpsIcon } from "@/components/ui/howlerops-icon";
-import { useAuthStore } from "@/store/auth-store";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { shouldEnforceHostedAuth } from "@/lib/environment";
+import { useAuthStore } from "@/store/auth-store";
 
 type AuthLocationState = {
   from?: {

@@ -22,12 +22,13 @@
  * ```
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useCallback, useEffect, useMemo,useState } from 'react'
 import { create } from 'zustand'
+
 import { getBroadcastSync } from '@/lib/sync/broadcast-sync'
-import { getTabLifecycleManager, type TabInfo } from '@/lib/sync/tab-lifecycle'
 import { getPasswordTransferManager, type PasswordData } from '@/lib/sync/password-transfer'
 import { getStoreRegistry } from '@/lib/sync/store-registry'
+import { getTabLifecycleManager, type TabInfo } from '@/lib/sync/tab-lifecycle'
 
 /**
  * Extended window interface for password share callbacks

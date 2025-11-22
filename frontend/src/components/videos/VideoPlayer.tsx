@@ -1,22 +1,23 @@
-import { useState, useRef, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Slider } from "@/components/ui/slider"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import {
-  Play,
+  FileText,
+  Maximize,
   Pause,
+  Play,
+  Settings,
   Volume2,
   VolumeX,
-  Maximize,
-  Settings,
-  FileText,
 } from "lucide-react"
+import { useEffect,useRef, useState } from "react"
+
+import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Slider } from "@/components/ui/slider"
 import { onboardingTracker } from "@/lib/analytics/onboarding-tracking"
 import { cn } from "@/lib/utils"
 

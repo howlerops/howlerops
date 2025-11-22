@@ -6,11 +6,12 @@
  * Integrates with Wails Go backend for WebAuthn authentication.
  */
 
-import { Button } from '@/components/ui/button'
 import { Fingerprint, Loader2 } from 'lucide-react'
-import { useState, useEffect } from 'react'
-import { parsePublicKeyRequestOptions, serializeCredentialAssertion } from '@/lib/utils/webauthn'
+import { useEffect,useState } from 'react'
+
+import { Button } from '@/components/ui/button'
 import * as authApi from '@/lib/auth-api'
+import { parsePublicKeyRequestOptions, serializeCredentialAssertion } from '@/lib/utils/webauthn'
 
 interface BiometricAuthButtonProps {
   onSuccess?: () => void

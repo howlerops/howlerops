@@ -5,13 +5,14 @@
  * Includes error handling and loading states.
  */
 
+import { Loader2 } from 'lucide-react'
 import { useState } from 'react'
-import { useAuthStore } from '@/store/auth-store'
+
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Loader2 } from 'lucide-react'
+import { useAuthStore } from '@/store/auth-store'
 
 interface LoginFormProps {
   onSuccess?: () => void

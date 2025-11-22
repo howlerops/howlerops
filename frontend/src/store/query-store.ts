@@ -1,19 +1,20 @@
 import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
-import { wailsEndpoints } from '@/lib/wails-api'
-import { EventsOn } from '../../wailsjs/runtime/runtime'
-import { useConnectionStore, type DatabaseConnection } from './connection-store'
+
 import {
-  storeQueryResult,
-  deleteQueryResult,
+  CHUNK_CONFIG,
   deleteTabResults,
-  isLargeResult,
   determineDisplayMode,
   FEATURE_FLAGS,
-  CHUNK_CONFIG,
-  type StoredQueryResult,
+  isLargeResult,
   type ResultDisplayMode,
+  type StoredQueryResult,
+  storeQueryResult,
 } from '@/lib/query-result-storage'
+import { wailsEndpoints } from '@/lib/wails-api'
+
+import { EventsOn } from '../../wailsjs/runtime/runtime'
+import { type DatabaseConnection,useConnectionStore } from './connection-store'
 // Note: Batch processing removed - Go backend now handles normalization efficiently
 
 export type QueryTabType = 'sql' | 'ai'
@@ -665,9 +666,13 @@ export const useQueryStore = create<QueryState>()(
           } = response.data
 
           // Extract pagination metadata with optional chaining (may not exist in all responses)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Backend response.data may contain optional pagination fields
           const backendTotalRows = (response.data as any).totalRows
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Backend response.data may contain optional pagination fields
           const backendPagedRows = (response.data as any).pagedRows
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Backend response.data may contain optional pagination fields
           const backendHasMore = (response.data as any).hasMore
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Backend response.data may contain optional pagination fields
           const backendOffset = (response.data as any).offset
 
           const statsRecord = (stats ?? {}) as Record<string, unknown>
@@ -993,9 +998,13 @@ export const useQueryStore = create<QueryState>()(
           } = response.data
 
           // Extract pagination metadata with optional chaining
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Backend response.data may contain optional pagination fields
           const backendTotalRows = (response.data as any).totalRows
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Backend response.data may contain optional pagination fields
           const backendPagedRows = (response.data as any).pagedRows
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Backend response.data may contain optional pagination fields
           const backendHasMore = (response.data as any).hasMore
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Backend response.data may contain optional pagination fields
           const backendOffset = (response.data as any).offset
 
           // Process new rows

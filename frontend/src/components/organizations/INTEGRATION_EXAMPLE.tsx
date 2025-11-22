@@ -7,12 +7,14 @@
 
 import * as React from 'react'
 import { useNavigate } from 'react-router-dom'
-import { OrganizationSettingsPage } from './OrganizationSettingsPage'
-import { InviteMemberModal } from './InviteMemberModal'
-import { useOrganizationStore } from '@/store/organization-store'
-import { useAuthStore } from '@/store/auth-store'
-import type { CreateInvitationInput, AuditLogQueryParams, UpdateOrganizationInput, OrganizationRole } from '@/types/organization'
 import { toast } from 'sonner'
+
+import { useAuthStore } from '@/store/auth-store'
+import { useOrganizationStore } from '@/store/organization-store'
+import type { AuditLogQueryParams, CreateInvitationInput, OrganizationRole,UpdateOrganizationInput } from '@/types/organization'
+
+import { InviteMemberModal } from './InviteMemberModal'
+import { OrganizationSettingsPage } from './OrganizationSettingsPage'
 
 /**
  * Example: Full Organization Settings Integration
@@ -339,11 +341,11 @@ export function OrganizationNav() {
 }
 
 // Type imports for examples
-import { usePermissions } from '@/hooks/usePermissions'
-import { PermissionGate, RoleGate, MultiPermissionGate } from '@/components/PermissionGate'
+import { MultiPermissionGate,PermissionGate, RoleGate } from '@/components/PermissionGate'
 import { Button } from '@/components/ui/button'
-import { Table, TableBody, TableRow, TableCell } from '@/components/ui/table'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
+import { Card, CardContent,CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Table, TableBody, TableCell,TableRow } from '@/components/ui/table'
+import { usePermissions } from '@/hooks/usePermissions'
 
 // Mock types for example
 interface Connection {

@@ -5,6 +5,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -88,6 +91,13 @@ INSERT OR IGNORE INTO collections (name, vector_size, distance, document_count, 
     ('memory', 1536, 'cosine', 0, unixepoch(), unixepoch());
 `
 
+const (
+	// DefaultRRFConstant is the default RRF constant for hybrid search
+	// Higher values give more weight to top-ranked results
+	// Lower values create more uniform weighting across ranks
+	DefaultRRFConstant = 60
+)
+
 // SQLiteVectorConfig holds SQLite vector store configuration
 type SQLiteVectorConfig struct {
 	Path        string        `json:"path"`
@@ -97,6 +107,11 @@ type SQLiteVectorConfig struct {
 	MMapSizeMB  int           `json:"mmap_size_mb"`
 	WALEnabled  bool          `json:"wal_enabled"`
 	Timeout     time.Duration `json:"timeout"`
+
+	// Hybrid search configuration
+	RRFConstant  int     `json:"rrf_constant"`  // Default: 60
+	VectorWeight float64 `json:"vector_weight"` // Optional weight for vector results (default: 1.0)
+	TextWeight   float64 `json:"text_weight"`   // Optional weight for text results (default: 1.0)
 }
 
 // SQLiteVectorStore implements VectorStore using SQLite
@@ -105,6 +120,15 @@ type SQLiteVectorStore struct {
 	collections map[string]*CollectionConfig
 	logger      *logrus.Logger
 	config      *SQLiteVectorConfig
+
+	// Hybrid search configuration
+	rrfConstant  int
+	vectorWeight float64
+	textWeight   float64
+
+	// HNSW / sqlite-vec extension state
+	hnswAvailable bool
+	vecVersion    string
 }
 
 // NewSQLiteVectorStore creates a new SQLite vector store
@@ -135,11 +159,27 @@ func NewSQLiteVectorStore(config *SQLiteVectorConfig, logger *logrus.Logger) (*S
 		}
 	}
 
+	// Initialize RRF configuration with defaults
+	rrfConstant := config.RRFConstant
+	if rrfConstant <= 0 {
+		rrfConstant = DefaultRRFConstant
+	}
+
+	vectorWeight := config.VectorWeight
+	textWeight := config.TextWeight
+	if vectorWeight == 0 && textWeight == 0 {
+		vectorWeight = 1.0
+		textWeight = 1.0
+	}
+
 	store := &SQLiteVectorStore{
-		db:          db,
-		collections: make(map[string]*CollectionConfig),
-		logger:      logger,
-		config:      config,
+		db:           db,
+		collections:  make(map[string]*CollectionConfig),
+		logger:       logger,
+		config:       config,
+		rrfConstant:  rrfConstant,
+		vectorWeight: vectorWeight,
+		textWeight:   textWeight,
 	}
 
 	return store, nil
@@ -196,6 +236,14 @@ func (s *SQLiteVectorStore) runMigrations(ctx context.Context) error {
 	} else {
 		s.logger.Info("Vector store migrations completed successfully")
 	}
+
+	// Apply HNSW migration if sqlite-vec is available
+	if s.vecVersion != "" {
+		if err := s.applyHNSWMigration(ctx); err != nil {
+			s.logger.WithError(err).Warn("Failed to apply HNSW migration, continuing with brute force")
+		}
+	}
+
 	return nil
 }
 
@@ -300,6 +348,16 @@ func (s *SQLiteVectorStore) Initialize(ctx context.Context) error {
 			Name:       name,
 			VectorSize: vectorSize,
 			Distance:   distance,
+		}
+	}
+
+	// Check if HNSW index is available (after migrations have run)
+	if s.vecVersion != "" {
+		s.hnswAvailable = s.checkHNSWAvailable()
+		if s.hnswAvailable {
+			s.logger.Info("HNSW vector index available and enabled")
+		} else {
+			s.logger.Info("HNSW index not created yet, using brute force search")
 		}
 	}
 
@@ -476,8 +534,132 @@ func (s *SQLiteVectorStore) BatchIndexDocuments(ctx context.Context, docs []*Doc
 	return nil
 }
 
+// SearchSimilarHNSW performs HNSW-accelerated vector search using sqlite-vec
+func (s *SQLiteVectorStore) SearchSimilarHNSW(ctx context.Context, embedding []float32, k int, filter map[string]interface{}) ([]*Document, error) {
+	// Convert embedding to JSON array format for sqlite-vec
+	embJSON := embeddingToJSON(embedding)
+
+	// Build query
+	query := `
+		SELECT
+			d.id,
+			d.connection_id,
+			d.type,
+			d.content,
+			d.metadata,
+			d.created_at,
+			d.updated_at,
+			d.access_count,
+			d.last_accessed,
+			vec_distance_cosine(vec.embedding, ?) as distance
+		FROM vec_embeddings vec
+		INNER JOIN documents d ON vec.document_id = d.id
+		WHERE 1=1
+	`
+
+	args := []interface{}{embJSON}
+
+	// Add metadata filters
+	if filter != nil {
+		if connID, ok := filter["connection_id"].(string); ok && connID != "" {
+			query += " AND d.connection_id = ?"
+			args = append(args, connID)
+		}
+
+		if docType, ok := filter["type"].(string); ok && docType != "" {
+			query += " AND d.type = ?"
+			args = append(args, docType)
+		}
+	}
+
+	// Add vector search with HNSW index (ORDER BY automatically uses index)
+	query += `
+		ORDER BY distance
+		LIMIT ?
+	`
+	args = append(args, k)
+
+	// Execute query
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("HNSW search failed: %w", err)
+	}
+	defer func() {
+		if err := rows.Close(); err != nil {
+			s.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
+
+	// Parse results
+	var documents []*Document
+	for rows.Next() {
+		var doc Document
+		var metadataJSON string
+		var distance float32
+		var createdAt, updatedAt, lastAccessed int64
+		var accessCount int
+
+		err := rows.Scan(
+			&doc.ID,
+			&doc.ConnectionID,
+			&doc.Type,
+			&doc.Content,
+			&metadataJSON,
+			&createdAt,
+			&updatedAt,
+			&accessCount,
+			&lastAccessed,
+			&distance,
+		)
+		if err != nil {
+			s.logger.WithError(err).Warn("Failed to scan row")
+			continue
+		}
+
+		// Parse metadata
+		if metadataJSON != "" {
+			if err := json.Unmarshal([]byte(metadataJSON), &doc.Metadata); err != nil {
+				s.logger.WithError(err).Warn("Failed to unmarshal metadata")
+				doc.Metadata = make(map[string]interface{})
+			}
+		} else {
+			doc.Metadata = make(map[string]interface{})
+		}
+
+		// Convert distance to similarity score (1 - distance for cosine)
+		doc.Score = 1.0 - distance
+
+		doc.CreatedAt = time.Unix(createdAt, 0)
+		doc.UpdatedAt = time.Unix(updatedAt, 0)
+		doc.LastAccessed = time.Unix(lastAccessed, 0)
+		doc.AccessCount = accessCount
+
+		documents = append(documents, &doc)
+	}
+
+	return documents, nil
+}
+
 // SearchSimilar searches for similar documents using vector similarity
+// Automatically uses HNSW when available, falls back to brute force
 func (s *SQLiteVectorStore) SearchSimilar(ctx context.Context, embedding []float32, k int, filter map[string]interface{}) ([]*Document, error) {
+	// Try HNSW first if available
+	if s.hnswAvailable {
+		docs, err := s.SearchSimilarHNSW(ctx, embedding, k, filter)
+		if err == nil {
+			return docs, nil
+		}
+
+		// Log error but fall back to brute force
+		s.logger.WithError(err).Warn("HNSW search failed, falling back to brute force")
+	}
+
+	// Fall back to brute force search
+	return s.searchSimilarBruteForce(ctx, embedding, k, filter)
+}
+
+// searchSimilarBruteForce is the original brute force vector search implementation
+func (s *SQLiteVectorStore) searchSimilarBruteForce(ctx context.Context, embedding []float32, k int, filter map[string]interface{}) ([]*Document, error) {
 	// Get all documents with embeddings
 	query := `
 		SELECT d.id, d.connection_id, d.type, d.content, d.metadata, d.created_at, d.updated_at, d.access_count, d.last_accessed, e.embedding
@@ -650,48 +832,6 @@ func (s *SQLiteVectorStore) SearchByText(ctx context.Context, query string, k in
 	return docs, nil
 }
 
-// HybridSearch combines vector and text search
-func (s *SQLiteVectorStore) HybridSearch(ctx context.Context, query string, embedding []float32, k int) ([]*Document, error) {
-	// Perform both searches
-	vectorResults, err := s.SearchSimilar(ctx, embedding, k*2, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	textResults, err := s.SearchByText(ctx, query, k*2, nil)
-	if err != nil {
-		s.logger.WithError(err).Warn("Text search failed, using vector results only")
-		textResults = []*Document{}
-	}
-
-	// Merge and deduplicate results
-	seen := make(map[string]bool)
-	var merged []*Document
-
-	// Add vector results first (higher weight)
-	for _, doc := range vectorResults {
-		if !seen[doc.ID] {
-			merged = append(merged, doc)
-			seen[doc.ID] = true
-		}
-	}
-
-	// Add text results
-	for _, doc := range textResults {
-		if !seen[doc.ID] {
-			doc.Score = 0.5 // Lower score for text-only matches
-			merged = append(merged, doc)
-			seen[doc.ID] = true
-		}
-	}
-
-	// Limit to k
-	if len(merged) > k {
-		merged = merged[:k]
-	}
-
-	return merged, nil
-}
 
 // GetDocument retrieves a document by ID
 func (s *SQLiteVectorStore) GetDocument(ctx context.Context, id string) (*Document, error) {
@@ -922,4 +1062,283 @@ func (s *SQLiteVectorStore) getCollectionForType(docType DocumentType) string {
 	default:
 		return "queries"
 	}
+}
+
+// loadVecExtension attempts to load the sqlite-vec extension
+func (s *SQLiteVectorStore) loadVecExtension() error {
+	// Determine extension filename based on OS
+	var extFile string
+	switch runtime.GOOS {
+	case "darwin":
+		extFile = "vec0.dylib"
+	case "linux":
+		extFile = "vec0.so"
+	case "windows":
+		extFile = "vec0.dll"
+	default:
+		return fmt.Errorf("unsupported OS: %s", runtime.GOOS)
+	}
+
+	// Find libs directory (relative to executable or workspace)
+	libsDir := filepath.Join(".", "libs")
+	extPath := filepath.Join(libsDir, extFile)
+
+	// Load extension
+	_, err := s.db.Exec("SELECT load_extension(?)", extPath)
+	if err != nil {
+		return fmt.Errorf("failed to load vec extension from %s: %w", extPath, err)
+	}
+
+	s.logger.WithField("path", extPath).Info("Loaded sqlite-vec extension")
+
+	// Verify extension loaded and get version
+	var version string
+	err = s.db.QueryRow("SELECT vec_version()").Scan(&version)
+	if err != nil {
+		return fmt.Errorf("vec extension loaded but not functional: %w", err)
+	}
+
+	s.vecVersion = version
+	s.logger.WithField("version", version).Info("sqlite-vec version")
+	return nil
+}
+
+// checkHNSWAvailable checks if HNSW index is available
+func (s *SQLiteVectorStore) checkHNSWAvailable() bool {
+	// Check if vec_embeddings table exists
+	var count int
+	err := s.db.QueryRow(`
+		SELECT COUNT(*) FROM sqlite_master
+		WHERE type='table' AND name='vec_embeddings'
+	`).Scan(&count)
+
+	return err == nil && count > 0
+}
+
+// embeddingToJSON converts []float32 to JSON array format for sqlite-vec
+func embeddingToJSON(embedding []float32) string {
+	parts := make([]string, len(embedding))
+	for i, v := range embedding {
+		parts[i] = fmt.Sprintf("%f", v)
+	}
+	return "[" + strings.Join(parts, ",") + "]"
+}
+
+// StoreDocumentWithoutEmbedding stores a document without requiring an embedding
+// Used for hierarchical child documents that are lazy-loaded
+func (s *SQLiteVectorStore) StoreDocumentWithoutEmbedding(ctx context.Context, doc *Document) error {
+	if doc.ID == "" {
+		doc.ID = uuid.New().String()
+	}
+
+	now := time.Now().Unix()
+	if doc.CreatedAt.IsZero() {
+		doc.CreatedAt = time.Now()
+	}
+	doc.UpdatedAt = time.Now()
+
+	// Serialize metadata to JSON
+	metadataJSON, err := json.Marshal(doc.Metadata)
+	if err != nil {
+		return fmt.Errorf("failed to marshal metadata: %w", err)
+	}
+
+	// Insert/update document only (no embedding)
+	_, err = s.db.ExecContext(ctx, `
+		INSERT INTO documents (id, connection_id, type, content, parent_id, level, summary, metadata, created_at, updated_at, access_count, last_accessed)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(id) DO UPDATE SET
+			content = excluded.content,
+			parent_id = excluded.parent_id,
+			level = excluded.level,
+			summary = excluded.summary,
+			metadata = excluded.metadata,
+			updated_at = excluded.updated_at
+	`, doc.ID, doc.ConnectionID, string(doc.Type), doc.Content, doc.ParentID, string(doc.Level), doc.Summary,
+		string(metadataJSON), doc.CreatedAt.Unix(), doc.UpdatedAt.Unix(), doc.AccessCount, now)
+
+	if err != nil {
+		return fmt.Errorf("failed to insert document: %w", err)
+	}
+
+	s.logger.WithFields(logrus.Fields{
+		"document_id": doc.ID,
+		"parent_id":   doc.ParentID,
+		"level":       doc.Level,
+	}).Debug("Document stored without embedding")
+
+	return nil
+}
+
+// GetDocumentsBatch retrieves multiple documents by their IDs
+func (s *SQLiteVectorStore) GetDocumentsBatch(ctx context.Context, ids []string) ([]*Document, error) {
+	if len(ids) == 0 {
+		return []*Document{}, nil
+	}
+
+	// Build placeholders for IN clause
+	placeholders := make([]string, len(ids))
+	args := make([]interface{}, len(ids))
+	for i, id := range ids {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+
+	query := fmt.Sprintf(`
+		SELECT d.id, d.connection_id, d.type, d.content, d.parent_id, d.level, d.summary, d.metadata,
+		       d.created_at, d.updated_at, d.access_count, d.last_accessed, e.embedding
+		FROM documents d
+		LEFT JOIN embeddings e ON d.id = e.document_id
+		WHERE d.id IN (%s)
+	`, strings.Join(placeholders, ","))
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query documents: %w", err)
+	}
+	defer func() {
+		if err := rows.Close(); err != nil {
+			s.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
+
+	docs := make([]*Document, 0, len(ids))
+	for rows.Next() {
+		var id, connID, docType, content, metadataJSON string
+		var parentID, level, summary sql.NullString
+		var embeddingBytes []byte
+		var createdAt, updatedAt, accessCount, lastAccessed int64
+
+		err := rows.Scan(&id, &connID, &docType, &content, &parentID, &level, &summary, &metadataJSON,
+			&createdAt, &updatedAt, &accessCount, &lastAccessed, &embeddingBytes)
+		if err != nil {
+			s.logger.WithError(err).Warn("Failed to scan document")
+			continue
+		}
+
+		doc := &Document{
+			ID:           id,
+			ConnectionID: connID,
+			Type:         DocumentType(docType),
+			Content:      content,
+			CreatedAt:    time.Unix(createdAt, 0),
+			UpdatedAt:    time.Unix(updatedAt, 0),
+			AccessCount:  int(accessCount),
+			LastAccessed: time.Unix(lastAccessed, 0),
+		}
+
+		if parentID.Valid {
+			doc.ParentID = parentID.String
+		}
+		if level.Valid {
+			doc.Level = DocumentLevel(level.String)
+		}
+		if summary.Valid {
+			doc.Summary = summary.String
+		}
+
+		// Deserialize metadata
+		if metadataJSON != "" {
+			var metadata map[string]interface{}
+			if err := json.Unmarshal([]byte(metadataJSON), &metadata); err == nil {
+				doc.Metadata = metadata
+			}
+		}
+
+		// Deserialize embedding if present
+		if embeddingBytes != nil {
+			doc.Embedding = deserializeEmbedding(embeddingBytes)
+		}
+
+		docs = append(docs, doc)
+	}
+
+	return docs, nil
+}
+
+// UpdateDocumentMetadata updates only the metadata of a document
+func (s *SQLiteVectorStore) UpdateDocumentMetadata(ctx context.Context, id string, metadata map[string]interface{}) error {
+	// Serialize metadata to JSON
+	metadataJSON, err := json.Marshal(metadata)
+	if err != nil {
+		return fmt.Errorf("failed to marshal metadata: %w", err)
+	}
+
+	now := time.Now().Unix()
+	_, err = s.db.ExecContext(ctx, `
+		UPDATE documents
+		SET metadata = ?, updated_at = ?
+		WHERE id = ?
+	`, string(metadataJSON), now, id)
+
+	if err != nil {
+		return fmt.Errorf("failed to update document metadata: %w", err)
+	}
+
+	s.logger.WithField("document_id", id).Debug("Document metadata updated")
+	return nil
+}
+
+// applyHNSWMigration applies the HNSW vector index migration
+func (s *SQLiteVectorStore) applyHNSWMigration(ctx context.Context) error {
+	// Check if migration already applied
+	var currentVersion int
+	err := s.db.QueryRowContext(ctx, `
+		SELECT COALESCE(MAX(version), 0)
+		FROM sqlite_master
+		WHERE type='table' AND name='schema_migrations'
+	`).Scan(&currentVersion)
+
+	// If schema_migrations doesn't exist, version is 0
+	if err != nil && err != sql.ErrNoRows {
+		// Create schema_migrations table if it doesn't exist
+		_, err = s.db.ExecContext(ctx, `
+			CREATE TABLE IF NOT EXISTS schema_migrations (
+				version INTEGER PRIMARY KEY,
+				applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+				description TEXT
+			)
+		`)
+		if err != nil {
+			return fmt.Errorf("failed to create schema_migrations table: %w", err)
+		}
+		currentVersion = 0
+	}
+
+	// Check current version
+	err = s.db.QueryRowContext(ctx, `
+		SELECT COALESCE(MAX(version), 0) FROM schema_migrations
+	`).Scan(&currentVersion)
+	if err != nil && err != sql.ErrNoRows {
+		return fmt.Errorf("failed to get current version: %w", err)
+	}
+
+	// Apply migration 002 if needed
+	if currentVersion < 2 {
+		s.logger.Info("Applying migration 002: Add HNSW vector index")
+
+		migrationPath := filepath.Join("internal", "rag", "migrations", "002_add_vector_index.sql")
+		migrationSQL, err := os.ReadFile(migrationPath)
+		if err != nil {
+			return fmt.Errorf("failed to read migration file: %w", err)
+		}
+
+		// Parse and execute migration statements
+		statements := s.parseSQLStatements(string(migrationSQL))
+		for _, stmt := range statements {
+			stmt = strings.TrimSpace(stmt)
+			if stmt == "" {
+				continue
+			}
+
+			_, err = s.db.ExecContext(ctx, stmt)
+			if err != nil {
+				return fmt.Errorf("failed to execute HNSW migration statement: %w", err)
+			}
+		}
+
+		s.logger.Info("Migration 002 applied successfully")
+	}
+
+	return nil
 }

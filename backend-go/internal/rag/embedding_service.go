@@ -1,11 +1,16 @@
 package rag
 
 import (
+	"bytes"
 	"context"
 	// #nosec G501 - MD5 used for cache key generation, not cryptographic security
 	"crypto/md5"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -32,12 +37,13 @@ type EmbeddingService interface {
 
 // EmbeddingCache caches embeddings to avoid redundant API calls
 type EmbeddingCache struct {
-	cache   map[string]CachedEmbedding
-	maxSize int
-	ttl     time.Duration
-	mu      sync.RWMutex
-	hits    int64
-	misses  int64
+	cache        map[string]CachedEmbedding
+	maxSize      int
+	ttl          time.Duration
+	mu           sync.RWMutex
+	hits         int64
+	misses       int64
+	evictedCount int64
 }
 
 // CachedEmbedding represents a cached embedding
@@ -338,8 +344,8 @@ func (es *DefaultEmbeddingService) getCacheKey(text string) string {
 
 // Get retrieves an embedding from cache
 func (ec *EmbeddingCache) Get(key string) ([]float32, bool) {
-	ec.mu.RLock()
-	defer ec.mu.RUnlock()
+	ec.mu.Lock() // Use write lock for modifications
+	defer ec.mu.Unlock()
 
 	if cached, found := ec.cache[key]; found {
 		// Check if not expired
@@ -348,10 +354,11 @@ func (ec *EmbeddingCache) Get(key string) ([]float32, bool) {
 			cached.AccessedAt = time.Now()
 			cached.AccessCount++
 			ec.cache[key] = cached
-			return cached.Embedding, true
+			return slices.Clone(cached.Embedding), true // Return copy to prevent external modification
 		}
 		// Expired, remove it
 		delete(ec.cache, key)
+		ec.evictedCount++
 	}
 
 	ec.misses++
@@ -390,6 +397,7 @@ func (ec *EmbeddingCache) evictLRU() {
 
 	if oldestKey != "" {
 		delete(ec.cache, oldestKey)
+		ec.evictedCount++ // Track evictions
 	}
 }
 
@@ -405,10 +413,11 @@ func (ec *EmbeddingCache) GetStats() *CacheStats {
 	}
 
 	return &CacheStats{
-		Size:    len(ec.cache),
-		Hits:    ec.hits,
-		Misses:  ec.misses,
-		HitRate: hitRate,
+		Size:         len(ec.cache),
+		Hits:         ec.hits,
+		Misses:       ec.misses,
+		HitRate:      hitRate,
+		EvictedCount: ec.evictedCount,
 	}
 }
 
@@ -420,6 +429,7 @@ func (ec *EmbeddingCache) Clear() {
 	ec.cache = make(map[string]CachedEmbedding)
 	ec.hits = 0
 	ec.misses = 0
+	ec.evictedCount = 0
 }
 
 // OpenAIEmbeddingProvider implements EmbeddingProvider using OpenAI
@@ -478,6 +488,124 @@ func (p *OpenAIEmbeddingProvider) GetDimension() int {
 
 // GetModel returns the model name
 func (p *OpenAIEmbeddingProvider) GetModel() string {
+	return p.model
+}
+
+// OllamaEmbeddingProvider implements EmbeddingProvider using Ollama
+type OllamaEmbeddingProvider struct {
+	endpoint  string
+	model     string
+	dimension int
+	client    *http.Client
+	logger    *logrus.Logger
+}
+
+// ollamaEmbedRequest represents Ollama embedding API request
+type ollamaEmbedRequest struct {
+	Model  string `json:"model"`
+	Prompt string `json:"prompt"`
+}
+
+// ollamaEmbedResponse represents Ollama embedding API response
+type ollamaEmbedResponse struct {
+	Embedding []float64 `json:"embedding"`
+}
+
+// NewOllamaEmbeddingProvider creates a new Ollama embedding provider
+func NewOllamaEmbeddingProvider(endpoint, model string, dimension int, logger *logrus.Logger) *OllamaEmbeddingProvider {
+	if endpoint == "" {
+		endpoint = "http://localhost:11434" // Default Ollama port
+	}
+
+	return &OllamaEmbeddingProvider{
+		endpoint:  endpoint,
+		model:     model,
+		dimension: dimension,
+		client: &http.Client{
+			Timeout: 30 * time.Second,
+		},
+		logger: logger,
+	}
+}
+
+// EmbedText generates embedding for text using Ollama
+func (p *OllamaEmbeddingProvider) EmbedText(ctx context.Context, text string) ([]float32, error) {
+	// Prepare request
+	reqBody := ollamaEmbedRequest{
+		Model:  p.model,
+		Prompt: text,
+	}
+
+	jsonData, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	// Call Ollama embeddings API
+	url := fmt.Sprintf("%s/api/embeddings", p.endpoint)
+	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := p.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("ollama request failed: %w", err)
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			p.logger.WithError(err).Warn("Failed to close response body")
+		}
+	}()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("ollama returned %d: %s", resp.StatusCode, string(body))
+	}
+
+	// Parse response
+	var embedResp ollamaEmbedResponse
+	if err := json.NewDecoder(resp.Body).Decode(&embedResp); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	// Convert []float64 to []float32
+	embedding := make([]float32, len(embedResp.Embedding))
+	for i, v := range embedResp.Embedding {
+		embedding[i] = float32(v)
+	}
+
+	// Validate dimension
+	if len(embedding) != p.dimension {
+		return nil, fmt.Errorf("expected %d dimensions, got %d", p.dimension, len(embedding))
+	}
+
+	return embedding, nil
+}
+
+// EmbedBatch generates embeddings for multiple texts
+func (p *OllamaEmbeddingProvider) EmbedBatch(ctx context.Context, texts []string) ([][]float32, error) {
+	embeddings := make([][]float32, len(texts))
+
+	for i, text := range texts {
+		emb, err := p.EmbedText(ctx, text)
+		if err != nil {
+			return nil, fmt.Errorf("failed to embed text %d: %w", i, err)
+		}
+		embeddings[i] = emb
+	}
+
+	return embeddings, nil
+}
+
+// GetDimension returns the embedding dimension
+func (p *OllamaEmbeddingProvider) GetDimension() int {
+	return p.dimension
+}
+
+// GetModel returns the model name
+func (p *OllamaEmbeddingProvider) GetModel() string {
 	return p.model
 }
 

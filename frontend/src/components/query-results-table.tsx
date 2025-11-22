@@ -1,19 +1,17 @@
-import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
-import { Database, Clock, Save, AlertCircle, Download, Search, Inbox, Loader2, CheckCircle2, Trash2, Plus } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Clock, Database, Download, Inbox, Loader2, Plus,Save, Trash2 } from 'lucide-react'
+import { useCallback,useEffect, useMemo, useRef, useState } from 'react'
 
+import { toast } from '../hooks/use-toast'
+import { wailsEndpoints } from '../lib/wails-api'
+import { useConnectionStore } from '../store/connection-store'
+import { type QueryEditableColumn,QueryEditableMetadata, QueryResultRow, useQueryStore } from '../store/query-store'
+import type { CellValue, EditableTableContext } from '../types/table'
+import { ExportOptions, TableColumn, TableRow } from '../types/table'
 import { EditableTable } from './editable-table/editable-table'
-import { JsonRowViewerSidebar } from './json-row-viewer-sidebar'
+import { JsonRowViewerSidebarV2 } from './json-row-viewer-sidebar-v2'
 import { PaginationControls } from './pagination-controls'
 import { Button } from './ui/button'
-import { Input } from './ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
-import { TableColumn, ExportOptions, TableRow } from '../types/table'
-import { QueryEditableMetadata, QueryResultRow, useQueryStore, type QueryEditableColumn } from '../store/query-store'
-import { useConnectionStore } from '../store/connection-store'
-import { wailsEndpoints } from '../lib/wails-api'
-import type { CellValue, EditableTableContext } from '../types/table'
-import { toast } from '../hooks/use-toast'
 
 interface QueryResultsTableProps {
   resultId: string
@@ -196,7 +194,7 @@ const ExportButton = ({ context, onExport }: { context: EditableTableContext; on
       await onExport(exportOptions)
       // Keep dialog open briefly to show success message (handled via toast)
       setTimeout(() => setShowExportDialog(false), 500)
-    } catch (error) {
+    } catch {
       // Error is handled by onExport, just reset state
       setIsExporting(false)
     } finally {
@@ -312,13 +310,14 @@ const QueryResultsToolbar = ({
   onDeleteSelected,
   canInsertRows,
   onAddRow,
-  databases,
-  currentDatabase,
-  onSelectDatabase,
-  databaseLoading,
-  databaseSwitching,
+  databases: _databases, // Database selector currently disabled
+  currentDatabase: _currentDatabase,
+  onSelectDatabase: _onSelectDatabase,
+  databaseLoading: _databaseLoading,
+  databaseSwitching: _databaseSwitching,
 }: ToolbarProps) => {
-  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  // Search is currently disabled in UI
+  const _handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     context.actions.updateGlobalFilter(event.target.value)
   }
 
@@ -331,16 +330,10 @@ const QueryResultsToolbar = ({
   return (
     <div className="flex flex-col gap-2 border-b border-gray-200 bg-background px-1 py-1">
       {/* Show non-editable reason if applicable */}
-      {!metadata?.enabled && metadata?.reason && (
-        <div className="flex items-center gap-2 rounded border border-accent bg-accent/10 px-3 py-2 text-accent-foreground text-xs">
-          <AlertCircle className="h-4 w-4" />
-          <span>{metadata.reason}</span>
-        </div>
-      )}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-1 items-center gap-3 min-w-[220px]">
-          {onSelectDatabase && databases && databases.length > 1 && (
+          {/* {onSelectDatabase && databases && databases.length > 1 && (
             <div className="flex items-center gap-2">
               <Select
                 value={currentDatabase ?? ''}
@@ -362,8 +355,8 @@ const QueryResultsToolbar = ({
                 <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
               )}
             </div>
-          )}
-          <div className="relative w-full max-w-xs">
+          )} */}
+          {/* <div className="relative w-full max-w-xs">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={context.state.globalFilter}
@@ -371,7 +364,7 @@ const QueryResultsToolbar = ({
               placeholder="Search…"
               className="h-9 w-full pl-9"
             />
-          </div>
+          </div> */}
         </div>
 
         <div className="flex items-center gap-3">
@@ -544,7 +537,7 @@ export const QueryResultsTable = ({
   chunkingEnabled = false,
   displayMode,
   totalRows,
-  hasMore = false,
+  hasMore: _hasMore = false, // Reserved for future infinite scroll feature
   offset = 0,
   onPageChange,
 }: QueryResultsTableProps) => {
@@ -568,7 +561,7 @@ export const QueryResultsTable = ({
         setCurrentPage(calculatedPage)
       }
     }
-  }, [offset, pageSize])
+  }, [offset, pageSize, currentPage])
 
   // Reset to page 1 when query changes
   useEffect(() => {
@@ -632,6 +625,7 @@ export const QueryResultsTable = ({
   const [jsonViewerOpen, setJsonViewerOpen] = useState(false)
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null)
   const [selectedRowData, setSelectedRowData] = useState<TableRow | null>(null)
+  const [selectedRowIndex, setSelectedRowIndex] = useState<number>(0)
   const [pendingDeleteIds, setPendingDeleteIds] = useState<string[]>([])
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -1225,6 +1219,7 @@ export const QueryResultsTable = ({
       if (options.format === 'csv') {
         filename = `query-results-${timestamp}.csv`
         const header = options.includeHeaders ? exportColumns.join(',') : ''
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Backend returns rows as any[] arrays from Wails
         const records = exportRows.map((row: any[]) =>
           row.map((cell) => serialiseCsvValue(cell)).join(',')
         )
@@ -1232,7 +1227,9 @@ export const QueryResultsTable = ({
       } else {
         filename = `query-results-${timestamp}.json`
         // Convert rows array to objects for JSON export
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Backend returns rows as any[] arrays and cells as any from Wails
         const jsonData = exportRows.map((row: any[]) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Cell values are unknown types from database
           const obj: Record<string, any> = {}
           exportColumns.forEach((col: string, idx: number) => {
             obj[col] = row[idx]
@@ -1286,16 +1283,37 @@ export const QueryResultsTable = ({
 
   // JSON viewer handlers
   const handleRowClick = useCallback((rowId: string, rowData: TableRow) => {
+    // Find the index of this row in the current rows array
+    const rowIndex = rows.findIndex(row => row.__rowId === rowId)
+
     setSelectedRowId(rowId)
     setSelectedRowData(rowData)
+    setSelectedRowIndex(rowIndex >= 0 ? rowIndex : 0)
     setJsonViewerOpen(true)
-  }, [])
+  }, [rows])
 
   const handleCloseJsonViewer = useCallback(() => {
     setJsonViewerOpen(false)
     setSelectedRowId(null)
     setSelectedRowData(null)
+    setSelectedRowIndex(0)
   }, [])
+
+  const handleNavigateRow = useCallback((direction: 'prev' | 'next') => {
+    const newIndex = direction === 'prev' ? selectedRowIndex - 1 : selectedRowIndex + 1
+
+    // Bounds check
+    if (newIndex < 0 || newIndex >= rows.length) return
+
+    const newRow = rows[newIndex]
+    if (!newRow) return
+
+    setSelectedRowIndex(newIndex)
+    setSelectedRowId(newRow.__rowId)
+    // Type assertion is safe because QueryResultRow extends Record<string, unknown>
+    // and we're using it as TableRow which has the same shape
+    setSelectedRowData(newRow as TableRow)
+  }, [selectedRowIndex, rows])
 
   const handleJsonViewerSave = useCallback(async (rowId: string, data: Record<string, CellValue>): Promise<boolean> => {
     if (!connectionId || !metadata?.enabled) return false
@@ -1737,11 +1755,14 @@ export const QueryResultsTable = ({
       </div>
 
       {/* JSON Row Viewer Sidebar */}
-      <JsonRowViewerSidebar
+      <JsonRowViewerSidebarV2
         open={jsonViewerOpen}
         onClose={handleCloseJsonViewer}
         rowData={selectedRowData}
         rowId={selectedRowId}
+        rowIndex={selectedRowIndex}
+        totalRows={rows.length}
+        onNavigate={handleNavigateRow}
         columns={columnNames}
         metadata={metadata}
         connectionId={connectionId}

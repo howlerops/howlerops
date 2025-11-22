@@ -155,6 +155,18 @@ func (s *TursoRemoteVectorStore) UpdateDocument(ctx context.Context, doc *Docume
 func (s *TursoRemoteVectorStore) DeleteDocument(ctx context.Context, id string) error {
 	return fmt.Errorf("not supported")
 }
+
+// Hierarchical document operations - placeholders
+func (s *TursoRemoteVectorStore) StoreDocumentWithoutEmbedding(ctx context.Context, doc *Document) error {
+	return fmt.Errorf("not supported")
+}
+func (s *TursoRemoteVectorStore) GetDocumentsBatch(ctx context.Context, ids []string) ([]*Document, error) {
+	return []*Document{}, nil
+}
+func (s *TursoRemoteVectorStore) UpdateDocumentMetadata(ctx context.Context, id string, metadata map[string]interface{}) error {
+	return fmt.Errorf("not supported")
+}
+
 func (s *TursoRemoteVectorStore) SearchSimilar(ctx context.Context, embedding []float32, k int, filter map[string]interface{}) ([]*Document, error) {
 	return []*Document{}, nil
 }

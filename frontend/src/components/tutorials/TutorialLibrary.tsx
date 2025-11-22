@@ -1,24 +1,26 @@
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Progress } from "@/components/ui/progress";
 import {
-  Play,
+  BookOpen,
+  Bot,
   CheckCircle2,
   Clock,
+  Play,
   Search,
-  BookOpen,
+  TrendingUp,
   Users,
   Zap,
-  Bot,
-  TrendingUp,
 } from "lucide-react";
-import { allTutorials } from "./tutorials";
-import { Tutorial, TutorialCategory } from "@/types/tutorial";
+import { useState } from "react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { Tutorial, TutorialCategory } from "@/types/tutorial";
+
+import { allTutorials } from "./tutorials";
 
 interface TutorialLibraryProps {
   onStartTutorial: (tutorial: Tutorial) => void;

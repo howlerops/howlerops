@@ -8,34 +8,36 @@
  * - Danger Zone: Transfer ownership, delete org (owner only)
  */
 
-import * as React from 'react'
 import {
-  Users,
-  FileText,
   AlertTriangle,
-  Settings,
   Crown,
+  FileText,
+  Settings,
   Trash2,
+  Users,
 } from 'lucide-react'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Card } from '@/components/ui/card'
-import { OrganizationSettings } from './OrganizationSettings'
-import { MembersList } from './MembersList'
-import { AuditLogViewer } from './AuditLogViewer'
-import { TransferOwnershipModal } from './TransferOwnershipModal'
-import { Button } from '@/components/ui/button'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { usePermissions } from '@/hooks/usePermissions'
+import * as React from 'react'
+
 import { RoleGate } from '@/components/PermissionGate'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { usePermissions } from '@/hooks/usePermissions'
+import { cn } from '@/lib/utils'
 import type {
+  AuditLog,
+  AuditLogQueryParams,
   Organization,
   OrganizationMember,
   UpdateOrganizationInput,
-  AuditLog,
-  AuditLogQueryParams,
 } from '@/types/organization'
 import { OrganizationRole } from '@/types/organization'
-import { cn } from '@/lib/utils'
+
+import { AuditLogViewer } from './AuditLogViewer'
+import { MembersList } from './MembersList'
+import { OrganizationSettings } from './OrganizationSettings'
+import { TransferOwnershipModal } from './TransferOwnershipModal'
 
 interface OrganizationSettingsPageProps {
   organization: Organization

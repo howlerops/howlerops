@@ -1,4 +1,5 @@
 import { Tutorial } from "@/types/tutorial"
+
 import { queryEditorBasicsTutorial } from "./query-editor-basics"
 import { savedQueriesTutorial } from "./saved-queries"
 
@@ -61,10 +62,10 @@ export function getTutorialsByCategory(category: string): Tutorial[] {
 }
 
 export {
-  queryEditorBasicsTutorial,
-  savedQueriesTutorial,
-  queryTemplatesTutorial,
-  teamCollaborationTutorial,
-  cloudSyncTutorial,
   aiAssistantTutorial,
+  cloudSyncTutorial,
+  queryEditorBasicsTutorial,
+  queryTemplatesTutorial,
+  savedQueriesTutorial,
+  teamCollaborationTutorial,
 }

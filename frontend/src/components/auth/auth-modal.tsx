@@ -6,6 +6,7 @@
  */
 
 import { useState } from "react";
+
 import {
   Dialog,
   DialogContent,
@@ -14,6 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 import { LoginForm } from "./login-form";
 import { SignupForm } from "./signup-form";
 

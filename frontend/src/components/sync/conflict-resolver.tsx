@@ -7,16 +7,17 @@
  * @module components/sync/conflict-resolver
  */
 
+import { AlertTriangle, CheckCircle, Clock, Database, FileText } from 'lucide-react'
 import { useState } from 'react'
-import { useSyncStore, useSyncActions } from '@/store/sync-store'
+
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Badge } from '@/components/ui/badge'
-import { AlertTriangle, CheckCircle, Clock, Database, FileText } from 'lucide-react'
-import type { Conflict, ConflictResolution } from '@/types/sync'
 import type { Connection } from '@/lib/api/connections'
 import type { SavedQuery } from '@/lib/api/queries'
+import { useSyncActions,useSyncStore } from '@/store/sync-store'
+import type { Conflict, ConflictResolution } from '@/types/sync'
 
 interface ConflictResolverProps {
   /** Whether to show the modal */

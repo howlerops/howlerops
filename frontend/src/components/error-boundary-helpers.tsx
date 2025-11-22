@@ -1,4 +1,5 @@
 import React, { ErrorInfo } from 'react'
+
 import ErrorBoundary from './error-boundary'
 
 export function withErrorBoundary<P extends object>(

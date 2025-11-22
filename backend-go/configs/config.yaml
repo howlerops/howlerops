@@ -226,6 +226,14 @@ rag:
     mmap_size_mb: 256
     wal_enabled: true
 
+    # HNSW Index Configuration (sqlite-vec extension)
+    enable_hnsw: true
+    hnsw:
+      m: 16 # Connections per layer (higher = better recall, slower build)
+      ef_construction: 200 # Build quality (higher = better quality, slower build)
+      ef_search: 100 # Search quality (can be tuned per query)
+      metric: "cosine" # Distance metric: cosine, euclidean, or dot_product
+
   # Embedding Configuration
   embedding:
     provider: "onnx" # onnx, openai, local

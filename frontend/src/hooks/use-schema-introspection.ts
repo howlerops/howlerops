@@ -1,6 +1,7 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useCallback,useEffect, useState } from 'react'
+
 import { useConnectionStore } from '@/store/connection-store'
-import { useSchemaStore, type SchemaNode } from '@/store/schema-store'
+import { type SchemaNode,useSchemaStore } from '@/store/schema-store'
 
 // Re-export SchemaNode from the centralized store
 export type { SchemaNode } from '@/store/schema-store'
@@ -37,7 +38,7 @@ export function useSchemaIntrospection() {
     setError(getError(sessionId) || null)
 
     // Fetch from store (relies on cache - won't hit backend if cached)
-    getSchema(sessionId, activeConnection.name)
+    getSchema(sessionId, activeConnection.name || '')
       .then((schemas) => {
         setSchema(schemas)
         setLoading(false)
@@ -49,12 +50,12 @@ export function useSchemaIntrospection() {
         setLoading(false)
         setError(err instanceof Error ? err.message : 'Failed to load schema')
       })
-  }, [activeConnection?.isConnected, activeConnection?.sessionId, getSchema, isLoading, getError])
+  }, [activeConnection?.isConnected, activeConnection?.sessionId, activeConnection?.name, getSchema, isLoading, getError])
 
   const refreshSchema = useCallback(() => {
     if (activeConnection?.isConnected && activeConnection.sessionId) {
       invalidate(activeConnection.sessionId)
-      getSchema(activeConnection.sessionId, activeConnection.name, true)
+      getSchema(activeConnection.sessionId, activeConnection.name || '', true)
         .then((schemas) => {
           setSchema(schemas)
           setLoading(false)

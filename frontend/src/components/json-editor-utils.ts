@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react'
+
 import { CellValue } from '@/types/table'
 
 export function getValueClass(value: CellValue): string {

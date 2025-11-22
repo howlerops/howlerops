@@ -1,13 +1,14 @@
-import { Button } from "@/components/ui/button";
 import {
-  FileText,
-  Users,
-  Cloud,
-  Bot,
-  Zap,
-  Shield,
   ArrowRight,
+  Bot,
+  Cloud,
+  FileText,
+  Shield,
+  Users,
+  Zap,
 } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
 
 interface FeaturesStepProps {
   onNext: () => void;

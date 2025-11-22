@@ -11,73 +11,71 @@ import type { DatabaseConnection } from '@/store/connection-store'
 
 // Configuration exports
 export {
+  createDefaultConfig,
+  getGlobalConfig,
+  isSensitiveColumn,
+  mergeConfig,
   PrivacyMode,
   QueryPrivacyLevel,
   type SanitizationConfig,
-  createDefaultConfig,
-  mergeConfig,
-  shouldExcludeTable,
+  setGlobalConfig,
   shouldExcludeSchema,
-  isSensitiveColumn,
-  getGlobalConfig,
-  setGlobalConfig
-} from './config'
+  shouldExcludeTable} from './config'
 
 // Credential detection exports
 export {
-  CredentialType,
   type CredentialDetectionResult,
+  CredentialType,
+  deepScanForCredentials,
   detectCredentials,
   detectCredentialsInBatch,
-  deepScanForCredentials,
   mightBeCredential,
   redactCredentials
 } from './credential-detector'
 
 // Query sanitization exports
 export {
-  type QuerySanitizationResult,
-  type QueryMetadata,
-  sanitizeQuery,
-  sanitizeQueries,
+  extractQueryMetadata,
   isPrivateQuery,
-  extractQueryMetadata
-} from './query-sanitizer'
+  type QueryMetadata,
+  type QuerySanitizationResult,
+  sanitizeQueries,
+  sanitizeQuery} from './query-sanitizer'
 
 // Connection sanitization exports
 export {
-  type SanitizedConnection,
-  type SanitizedSSHTunnelConfig,
   type ConnectionSanitizationResult,
+  hasRequiredCredentials,
+  prepareConnectionsForSync,
+  restoreCredentials,
   sanitizeConnection,
   sanitizeConnections,
-  prepareConnectionsForSync,
-  hasRequiredCredentials,
-  restoreCredentials,
+  type SanitizedConnection,
+  type SanitizedSSHTunnelConfig,
   validateSanitization
 } from './connection-sanitizer'
 
 import type { SanitizationConfig } from './config'
-import type { QuerySanitizationResult } from './query-sanitizer'
+import {
+  getGlobalConfig,
+  mergeConfig,
+  QueryPrivacyLevel,
+} from './config'
 import type {
   ConnectionSanitizationResult,
   SanitizedConnection,
 } from './connection-sanitizer'
+import {
+  prepareConnectionsForSync,
+  sanitizeConnection,
+} from './connection-sanitizer'
 import type { CredentialDetectionResult } from './credential-detector'
 import {
-  mergeConfig,
-  getGlobalConfig,
-  QueryPrivacyLevel,
-} from './config'
-import { sanitizeQuery } from './query-sanitizer'
-import {
-  sanitizeConnection,
-  prepareConnectionsForSync,
-} from './connection-sanitizer'
-import {
-  detectCredentials,
   deepScanForCredentials,
+  detectCredentials,
 } from './credential-detector'
+import type { QuerySanitizationResult } from './query-sanitizer'
+import { sanitizeQuery } from './query-sanitizer'
 
 /**
  * High-level sanitization interface for common use cases

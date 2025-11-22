@@ -23,7 +23,19 @@
  * ```
  */
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import {
+  AlertTriangle,
+  Check,
+  Clock,
+  Key,
+  Lock,
+  Shield,
+  X} from 'lucide-react'
+import React, { useCallback,useEffect, useMemo, useState } from 'react'
+
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
@@ -32,21 +44,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Progress } from '@/components/ui/progress'
-import {
-  Key,
-  Shield,
-  Check,
-  X,
-  AlertTriangle,
-  Clock,
-  Lock
-} from 'lucide-react'
-import { cn } from '@/lib/utils'
 import { getPasswordTransferManager, type PasswordData } from '@/lib/sync/password-transfer'
+import { cn } from '@/lib/utils'
 import type { DatabaseConnection } from '@/store/connection-store'
 
 export interface PasswordShareRequest {

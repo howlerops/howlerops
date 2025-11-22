@@ -1,15 +1,57 @@
+/**
+ * Table Type Definitions
+ *
+ * **Type System Migration (Phase 4):**
+ * - New branded types: RowId, ColumnId, CellKey (from './branded')
+ * - New discriminated unions: TableColumn variants (from './table-columns')
+ * - Legacy types marked @deprecated for gradual migration
+ * - See './type-migration.ts' for migration utilities
+ *
+ * @module types/table
+ */
+
+import { ColumnFiltersState, Header,SortingState } from '@tanstack/react-table';
 import { ReactNode } from 'react';
-import { SortingState, ColumnFiltersState, Header } from '@tanstack/react-table';
+
 import type { ResultDisplayMode } from '../lib/query-result-storage';
 
+// =============================================================================
+// Re-export new type system
+// =============================================================================
+
+export * from './branded';
+export * from './table-columns';
+
+// =============================================================================
+// Legacy Types (Backward Compatibility)
+// =============================================================================
+
+/**
+ * @deprecated Use TypedCellValue from './table-columns' instead
+ * Legacy type for backward compatibility
+ */
 export type CellValue = string | number | boolean | null | undefined;
 
+/**
+ * Represents a row in the table
+ *
+ * @future Will use branded RowId instead of string for __rowId
+ */
 export interface TableRow {
-  __rowId?: string;
+  __rowId?: string; // TODO: Change to RowId in breaking change
   __isNewRow?: boolean;
   [key: string]: CellValue | boolean | undefined;
 }
 
+/**
+ * @deprecated Use discriminated union types from './table-columns' instead
+ * Legacy interface for backward compatibility
+ *
+ * The new system provides:
+ * - TextColumn, NumberColumn, BooleanColumn, DateColumn, DateTimeColumn, SelectColumn
+ * - Type-safe validation properties per column type
+ * - Compile-time prevention of property misuse (e.g., options on NumberColumn)
+ */
 export interface TableColumn {
   id?: string;
   accessorKey?: string;
@@ -41,6 +83,16 @@ export interface TableColumn {
   autoNumber?: boolean;
   isPrimaryKey?: boolean;
 }
+
+// =============================================================================
+// Backward Compatibility Type Aliases
+// =============================================================================
+
+/** @deprecated Use branded RowId from './branded' */
+export type LegacyRowId = string;
+
+/** @deprecated Use branded ColumnId from './branded' */
+export type LegacyColumnId = string;
 
 export interface EditableTableProps {
   data: TableRow[];

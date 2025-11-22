@@ -1,11 +1,12 @@
-import React, { memo, useCallback, useRef, useEffect, useState } from 'react';
 import { AlertCircle, Eye } from 'lucide-react';
+import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
+
+import { CellEditState, CellValue, TableColumn, TableRow } from '../../types/table';
 import { cn } from '../../utils/cn';
-import { CellValue, TableColumn, CellEditState, TableRow } from '../../types/table';
 import { formatCellValue } from '../../utils/table';
-import { CellEditor } from './cell-editor';
 import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
+import { CellEditor } from './cell-editor';
 
 interface TableCellProps {
   value: CellValue;

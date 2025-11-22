@@ -5,8 +5,10 @@
  * or user menu dropdown for authenticated users.
  */
 
+import { LogOut, Settings, Shield,User } from 'lucide-react'
 import { useState } from 'react'
-import { useAuthStore } from '@/store/auth-store'
+import { useNavigate } from 'react-router-dom'
+
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -16,9 +18,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { User, LogOut, Settings, Shield } from 'lucide-react'
+import { useAuthStore } from '@/store/auth-store'
+
 import { AuthModal } from './auth-modal'
-import { useNavigate } from 'react-router-dom'
 
 export function AuthButton() {
   const { isAuthenticated, user, signOut } = useAuthStore()

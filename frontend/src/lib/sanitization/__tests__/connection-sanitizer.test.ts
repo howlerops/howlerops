@@ -5,17 +5,19 @@
  * CRITICAL: Ensures no passwords or private keys are ever synced to cloud.
  */
 
-import { describe, it, expect } from 'vitest'
+import { describe, expect,it } from 'vitest'
+
+import type { DatabaseConnection } from '@/store/connection-store'
+
+import { createDefaultConfig } from '../config'
 import {
+  hasRequiredCredentials,
+  prepareConnectionsForSync,
+  restoreCredentials,
   sanitizeConnection,
   sanitizeConnections,
-  prepareConnectionsForSync,
-  hasRequiredCredentials,
-  restoreCredentials,
   validateSanitization
 } from '../connection-sanitizer'
-import type { DatabaseConnection } from '@/store/connection-store'
-import { createDefaultConfig } from '../config'
 
 describe('Connection Sanitizer', () => {
   const config = createDefaultConfig()

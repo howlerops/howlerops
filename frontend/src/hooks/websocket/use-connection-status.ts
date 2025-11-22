@@ -3,9 +3,10 @@
  * Provides detailed connection information and health metrics
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { useWebSocket } from './use-websocket';
+import { useCallback, useEffect, useRef,useState } from 'react';
+
 import { ConnectionStatus } from '../../types/websocket';
+import { useWebSocket } from './use-websocket';
 
 interface ConnectionMetrics {
   latency: number | null;

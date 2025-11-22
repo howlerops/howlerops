@@ -1,5 +1,5 @@
 import * as App from '../../wailsjs/go/main/App'
-import { waitForWails, isWailsReady } from './wails-runtime'
+import { isWailsReady,waitForWails } from './wails-runtime'
 
 // Wails-based API client for desktop application
 export class WailsApiClient {

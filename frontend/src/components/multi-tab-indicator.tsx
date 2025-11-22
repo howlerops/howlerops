@@ -20,26 +20,26 @@
  * ```
  */
 
+import {
+  Clock,
+  Crown,
+  Info,
+  Key,
+  Users,
+  Wifi,
+  WifiOff} from 'lucide-react'
 import React, { useMemo } from 'react'
+
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
-import {
-  Wifi,
-  WifiOff,
-  Users,
-  Crown,
-  Key,
-  Clock,
-  Info
-} from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useMultiTabSync } from '@/hooks/use-multi-tab-sync'
+import { cn } from '@/lib/utils'
 
 export interface MultiTabIndicatorProps {
   /**

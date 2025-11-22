@@ -16,18 +16,26 @@
  * @module components/saved-queries/SavedQueriesPanel
  */
 
-import { useState, useEffect, useMemo } from 'react'
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
+  AlertCircle,
+  ArrowDown,
+  ArrowUp,
+  Filter,
+  Folder,
+  Inbox,
+  Loader2,
+  Search,
+  Star,
+  Tag,
+  X,
+} from 'lucide-react'
+import { useEffect, useMemo,useState } from 'react'
+
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Progress } from '@/components/ui/progress'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Select,
   SelectContent,
@@ -35,27 +43,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import {
-  Search,
-  X,
-  Star,
-  ArrowUp,
-  ArrowDown,
-  Folder,
-  Tag,
-  AlertCircle,
-  Loader2,
-  Inbox,
-  Filter,
-} from 'lucide-react'
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
+import { cn } from '@/lib/utils'
 import { useSavedQueriesStore } from '@/store/saved-queries-store'
 import { useTierStore } from '@/store/tier-store'
 import type { SavedQueryRecord } from '@/types/storage'
+
 import { QueryCard } from './QueryCard'
 import { SaveQueryDialog } from './SaveQueryDialog'
-import { cn } from '@/lib/utils'
 
 interface SavedQueriesPanelProps {
   /** Whether the panel is open */

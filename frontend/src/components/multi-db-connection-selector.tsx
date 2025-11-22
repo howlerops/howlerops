@@ -5,7 +5,12 @@
  * Defaults to all connections but allows selective override
  */
 
-import { useState, useEffect } from 'react'
+import { CheckCircle2, Circle,Network } from 'lucide-react'
+import { useEffect,useState } from 'react'
+
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -13,12 +18,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Badge } from '@/components/ui/badge'
-import { Network, CheckCircle2, Circle } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useConnectionStore, type DatabaseConnection } from '@/store/connection-store'
+import { type DatabaseConnection,useConnectionStore } from '@/store/connection-store'
 
 export interface MultiDBConnectionSelectorProps {
   open: boolean

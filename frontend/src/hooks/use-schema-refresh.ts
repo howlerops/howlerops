@@ -1,5 +1,7 @@
-import { useEffect, useRef, useCallback } from 'react'
+import { useCallback,useEffect, useRef } from 'react'
+
 import { useConnectionStore } from '@/store/connection-store'
+
 import { RefreshSchema } from '../../wailsjs/go/main/App'
 
 export function useSchemaRefresh(intervalMs = 60000) {

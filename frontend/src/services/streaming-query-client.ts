@@ -1,14 +1,15 @@
 import { EventEmitter } from 'events';
-import { grpcWebClient } from '../lib/grpc-web-client';
+
 import {
-  StreamingQueryResponse,
-  StreamResponseType,
-  QueryOptions,
-  DataFormat,
   // QueryProgress as GrpcQueryProgress,
-  ColumnMetadata
+  ColumnMetadata,
+  DataFormat,
+  QueryOptions,
+  StreamingQueryResponse,
+  StreamResponseType
   // QueryRow
 } from '../generated/query';
+import { grpcWebClient } from '../lib/grpc-web-client';
 
 export interface StreamingOptions {
   chunkSize?: number;

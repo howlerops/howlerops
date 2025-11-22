@@ -6,8 +6,14 @@
  * Shows clear warnings about consequences.
  */
 
+import { AlertTriangle, ArrowRight,Crown, Key, Loader2, User } from 'lucide-react'
 import * as React from 'react'
-import { Crown, AlertTriangle, Loader2, Key, User, ArrowRight } from 'lucide-react'
+import { toast } from 'sonner'
+
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -16,10 +22,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
   Select,
   SelectContent,
@@ -27,12 +31,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Badge } from '@/components/ui/badge'
+import { cn } from '@/lib/utils'
 import type { OrganizationMember } from '@/types/organization'
 import { OrganizationRole } from '@/types/organization'
-import { cn } from '@/lib/utils'
-import { toast } from 'sonner'
 
 interface TransferOwnershipModalProps {
   open: boolean

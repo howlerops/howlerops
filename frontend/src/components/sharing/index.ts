@@ -6,11 +6,11 @@
  * @module components/sharing
  */
 
-export { VisibilityToggle } from './VisibilityToggle'
-export { SharedResourceCard } from './SharedResourceCard'
 export { ConflictResolutionDialog } from './ConflictResolutionDialog'
+export { SharedResourceCard } from './SharedResourceCard'
+export { VisibilityToggle } from './VisibilityToggle'
 
 // Re-export types for convenience
 export type { Connection, CreateConnectionInput, UpdateConnectionInput } from '@/lib/api/connections'
-export type { SavedQuery, CreateQueryInput, UpdateQueryInput } from '@/lib/api/queries'
+export type { CreateQueryInput, SavedQuery, UpdateQueryInput } from '@/lib/api/queries'
 export type { Conflict, ConflictResolution } from '@/types/sync'

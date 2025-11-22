@@ -3,7 +3,7 @@
  * Enables efficient memory sharing between workers and main thread
  */
 
-import { QueryResult, ColumnDefinition, DataType } from './types';
+import { ColumnDefinition, DataType,QueryResult } from './types';
 
 export interface SharedBufferConfig {
   rowCount: number;

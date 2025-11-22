@@ -18,13 +18,15 @@
  * ```
  */
 
-import * as React from 'react'
 import { motion } from 'framer-motion'
-import { Sparkles, Lock, Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff,Lock, Sparkles } from 'lucide-react'
+import * as React from 'react'
+
 import { cn } from '@/lib/utils'
-import { FeatureBadge, GradientFeatureBadge } from './feature-badge'
-import { UpgradeButton, FloatingUpgradeButton } from './upgrade-button'
 import type { TierLevel } from '@/types/tiers'
+
+import { FeatureBadge, GradientFeatureBadge } from './feature-badge'
+import { FloatingUpgradeButton,UpgradeButton } from './upgrade-button'
 
 interface FeaturePreviewProps {
   feature: string

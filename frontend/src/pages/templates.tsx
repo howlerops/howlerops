@@ -3,10 +3,23 @@
  * Main page for browsing and managing query templates
  */
 
-import React, { useState, useEffect, useMemo } from 'react'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
+import {
+  AlertCircle,
+  FileCode,
+  Filter,
+  Plus,
+  Search,
+  X,
+} from 'lucide-react'
+import React, { useEffect, useMemo,useState } from 'react'
+
+import { ScheduleCreator } from '@/components/templates/ScheduleCreator'
+import { TemplateCard, TemplateCardSkeleton } from '@/components/templates/TemplateCard'
+import { TemplateExecutor } from '@/components/templates/TemplateExecutor'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
@@ -15,19 +28,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import {
-  Search,
-  Plus,
-  Filter,
-  X,
-  AlertCircle,
-  FileCode,
-} from 'lucide-react'
 import { useTemplatesStore } from '@/store/templates-store'
-import { TemplateCard, TemplateCardSkeleton } from '@/components/templates/TemplateCard'
-import { TemplateExecutor } from '@/components/templates/TemplateExecutor'
-import { ScheduleCreator } from '@/components/templates/ScheduleCreator'
 import type { QueryTemplate, TemplateSortBy } from '@/types/templates'
 
 const CATEGORIES = [

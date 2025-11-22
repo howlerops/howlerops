@@ -7,28 +7,28 @@
  * @module lib/sync/sync-service
  */
 
-import { getIndexedDBClient } from '@/lib/storage/indexeddb-client'
 import { getSyncClient } from '@/lib/api/sync-client'
 import {
   prepareConnectionsForSync,
   type SanitizedConnection,
 } from '@/lib/sanitization/connection-sanitizer'
+import { getIndexedDBClient } from '@/lib/storage/indexeddb-client'
 import { useTierStore } from '@/store/tier-store'
-import { STORE_NAMES } from '@/types/storage'
 import type {
   ConnectionRecord,
-  SavedQueryRecord,
   QueryHistoryRecord,
   ReportRecord,
+  SavedQueryRecord,
 } from '@/types/storage'
+import { STORE_NAMES } from '@/types/storage'
 import type {
-  SyncResult,
-  SyncConfig,
+  ChangeSet,
   Conflict,
   ConflictResolution,
-  ChangeSet,
   DeviceInfo,
+  SyncConfig,
   SyncProgress,
+  SyncResult,
   UploadChangesRequest,
 } from '@/types/sync'
 import { generateDeviceId } from '@/types/sync'

@@ -4,13 +4,13 @@ export { TutorialTrigger } from "./TutorialTrigger"
 
 // Export tutorial definitions
 export {
+  aiAssistantTutorial,
   allTutorials,
+  cloudSyncTutorial,
   getTutorialById,
   getTutorialsByCategory,
   queryEditorBasicsTutorial,
-  savedQueriesTutorial,
   queryTemplatesTutorial,
+  savedQueriesTutorial,
   teamCollaborationTutorial,
-  cloudSyncTutorial,
-  aiAssistantTutorial,
 } from "./tutorials"

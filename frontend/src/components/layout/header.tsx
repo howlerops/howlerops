@@ -1,4 +1,9 @@
+import { Database,Moon, Plus, Settings, Sparkles, Sun } from "lucide-react"
 import { Link, useLocation } from "react-router-dom"
+import { useNavigate } from "react-router-dom"
+
+import { AuthButton } from "@/components/auth/auth-button"
+import { TierBadge } from "@/components/tier-badge"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -6,18 +11,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { HowlerOpsIcon } from "@/components/ui/howlerops-icon"
 import { Switch } from "@/components/ui/switch"
 import { useTheme } from "@/hooks/use-theme"
-import { useQueryStore } from "@/store/query-store"
-import { useConnectionStore } from "@/store/connection-store"
-import { useAIConfig } from "@/store/ai-store"
-import { useAIQueryAgentStore } from "@/store/ai-query-agent-store"
-import { Moon, Sun, Plus, Settings, Sparkles, Database } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { useNavigate } from "react-router-dom"
-import { HowlerOpsIcon } from "@/components/ui/howlerops-icon"
-import { TierBadge } from "@/components/tier-badge"
-import { AuthButton } from "@/components/auth/auth-button"
+import { useAIQueryAgentStore } from "@/store/ai-query-agent-store"
+import { useAIConfig } from "@/store/ai-store"
+import { useConnectionStore } from "@/store/connection-store"
+import { useQueryStore } from "@/store/query-store"
 
 export function Header() {
   const location = useLocation()

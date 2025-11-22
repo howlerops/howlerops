@@ -3,16 +3,18 @@
  * Handles JOIN clause construction for single-connection queries
  */
 
-import { useState, useEffect } from 'react'
+import { ArrowRight,Link, Plus, X } from 'lucide-react'
+import { useEffect,useState } from 'react'
+
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
-import { Plus, X, Link, ArrowRight } from 'lucide-react'
-import { JoinBuilderProps, TableInfo } from './types'
-import { TableRef, Expr, Predicate } from '@/lib/query-ir'
+import { Expr, Predicate,TableRef } from '@/lib/query-ir'
 import { FilterOperator } from '@/workers/types'
+
+import { JoinBuilderProps, TableInfo } from './types'
 
 export function JoinBuilder({
   availableTables,

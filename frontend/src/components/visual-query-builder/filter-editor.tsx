@@ -3,16 +3,18 @@
  * Handles WHERE clause construction with typed inputs
  */
 
-import { useState, useEffect, startTransition } from 'react'
+import { Plus, Trash2,X } from 'lucide-react'
+import { startTransition,useEffect, useState } from 'react'
+
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
-import { Plus, X, Trash2 } from 'lucide-react'
-import { FilterEditorProps, ColumnInfo, FilterCondition, FilterGroup } from './types'
-import { FilterOperator } from '@/workers/types'
+import { Expr, Group,Predicate } from '@/lib/query-ir'
 import { typeRegistry } from '@/lib/type-registry'
-import { Expr, Predicate, Group } from '@/lib/query-ir'
+import { FilterOperator } from '@/workers/types'
+
+import { ColumnInfo, FilterCondition, FilterEditorProps, FilterGroup } from './types'
 
 const convertConditionToExpr = (condition: FilterCondition | FilterGroup): Expr => {
   if ('column' in condition) {

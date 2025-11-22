@@ -3,8 +3,23 @@
  * Displays a single query template in a card layout
  */
 
-import React from 'react'
+import { formatDistanceToNow } from 'date-fns'
+import {
+  Calendar,
+  Copy,
+  Edit,
+  Lock,
+  MoreVertical,
+  Play,
+  Trash2,
+  TrendingUp,
+  Users,
+} from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import React from 'react'
+
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
@@ -13,8 +28,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,19 +35,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import {
-  Play,
-  Copy,
-  Edit,
-  Trash2,
-  Calendar,
-  MoreVertical,
-  Users,
-  Lock,
-  TrendingUp,
-} from 'lucide-react'
 import type { QueryTemplate } from '@/types/templates'
-import { formatDistanceToNow } from 'date-fns'
 
 interface TemplateCardProps {
   template: QueryTemplate

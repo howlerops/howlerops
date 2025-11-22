@@ -1,8 +1,9 @@
-import React from 'react'
-import { Handle, Position, NodeProps } from 'reactflow'
 import { Key, Link } from 'lucide-react'
+import React from 'react'
+import { Handle, NodeProps,Position } from 'reactflow'
+
 import { cn } from '@/lib/utils'
-import { TableConfig, ColumnConfig } from '@/types/schema-visualizer'
+import { ColumnConfig,TableConfig } from '@/types/schema-visualizer'
 
 interface TableNodeData extends TableConfig {
   schemaColor?: string

@@ -12,13 +12,21 @@
  * - Redirects to signup if not authenticated
  */
 
+import {
+  AlertCircle,
+  Calendar,
+  CheckCircle,
+  Loader2,
+  Mail,
+  Shield,
+  Users} from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useNavigate,useParams } from 'react-router-dom'
 import { toast } from 'sonner'
-import { useAuthStore } from '@/store/auth-store'
-import { useOrganizationStore } from '@/store/organization-store'
-import { authFetch, AuthApiError } from '@/lib/api/auth-client'
-import { OrganizationRole } from '@/types/organization'
+
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
@@ -27,18 +35,10 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
-import {
-  AlertCircle,
-  CheckCircle,
-  Users,
-  Mail,
-  Calendar,
-  Shield,
-  Loader2
-} from 'lucide-react'
+import { AuthApiError,authFetch } from '@/lib/api/auth-client'
+import { useAuthStore } from '@/store/auth-store'
+import { useOrganizationStore } from '@/store/organization-store'
+import { OrganizationRole } from '@/types/organization'
 
 interface InvitationDetails {
   id: string

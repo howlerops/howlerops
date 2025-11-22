@@ -1,7 +1,8 @@
 import React from 'react';
-import iconLight from '@/assets/howlerops-icon-light.png';
-import iconDark from '@/assets/howlerops-icon-dark.png';
+
 import iconDefault from '@/assets/howlerops-icon.png';
+import iconDark from '@/assets/howlerops-icon-dark.png';
+import iconLight from '@/assets/howlerops-icon-light.png';
 
 interface HowlerOpsIconProps {
   size?: number;

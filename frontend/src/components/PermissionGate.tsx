@@ -31,13 +31,14 @@
  */
 
 import * as React from 'react'
-import { usePermissions, type Permission } from '@/hooks/usePermissions'
+
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { type Permission,usePermissions } from '@/hooks/usePermissions'
 
 interface PermissionGateProps {
   /** Permission required to show children */

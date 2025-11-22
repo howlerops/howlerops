@@ -3,11 +3,25 @@
  * Shows connection status, events, and performance metrics
  */
 
-import React, { useState, useCallback, useEffect } from 'react';
-import { Button } from '../ui/button';
+import {
+  Bug,
+  Download,
+  Pause,
+  // RefreshCw,
+  Play,
+  // Activity,
+  // BarChart3,
+  // Settings,
+  Trash2,
+} from 'lucide-react';
+import React, { useCallback, useEffect,useState } from 'react';
+
+import { useWebSocketContext } from '../../hooks/websocket';
+import { useConnectionStatus } from '../../hooks/websocket';
+import { useOptimisticUpdates } from '../../hooks/websocket';
+import { useConflictResolution } from '../../hooks/websocket';
 import { Badge } from '../ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
-import { ScrollArea } from '../ui/scroll-area';
+import { Button } from '../ui/button';
 import {
   Card,
   CardContent,
@@ -15,21 +29,8 @@ import {
   CardHeader,
   CardTitle,
 } from '../ui/card';
-import {
-  Bug,
-  // Activity,
-  // BarChart3,
-  // Settings,
-  Trash2,
-  Download,
-  // RefreshCw,
-  Play,
-  Pause,
-} from 'lucide-react';
-import { useWebSocketContext } from '../../hooks/websocket';
-import { useConnectionStatus } from '../../hooks/websocket';
-import { useOptimisticUpdates } from '../../hooks/websocket';
-import { useConflictResolution } from '../../hooks/websocket';
+import { ScrollArea } from '../ui/scroll-area';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 
 interface WebSocketEvent {
   id: string;

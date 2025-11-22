@@ -4,16 +4,15 @@
  */
 
 import {
-  WorkerPoolConfig,
-  WorkerState,
-  WorkerStatus,
+  MemoryUsage,
+  Priority,
   QueuedTask,
   TaskStatus,
-  Priority,
+  WorkerMessageType,
+  WorkerPoolConfig,
   WorkerResponse,
-  MemoryUsage,
-  WorkerMessageType
-} from './types';
+  WorkerState,
+  WorkerStatus} from './types';
 
 export interface PooledWorker {
   id: string;

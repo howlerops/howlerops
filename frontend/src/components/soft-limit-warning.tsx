@@ -16,14 +16,16 @@
  * ```
  */
 
+import { AnimatePresence,motion } from 'framer-motion'
+import { AlertCircle, AlertTriangle, Info, TrendingUp, X, Zap } from 'lucide-react'
 import * as React from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { AlertCircle, AlertTriangle, Info, X, TrendingUp, Zap } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { UpgradeButton, UpgradeLink } from './upgrade-button'
-import { FeatureBadge } from './feature-badge'
+
 import { Progress } from '@/components/ui/progress'
+import { cn } from '@/lib/utils'
 import type { TierLevel } from '@/types/tiers'
+
+import { FeatureBadge } from './feature-badge'
+import { UpgradeButton, UpgradeLink } from './upgrade-button'
 
 interface SoftLimitWarningProps {
   limit: string

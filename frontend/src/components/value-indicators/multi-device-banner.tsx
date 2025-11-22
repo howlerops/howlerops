@@ -5,15 +5,16 @@
  * Dismissible for 30 days.
  */
 
-import React, { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Button } from '@/components/ui/button'
+import { AnimatePresence,motion } from 'framer-motion'
+import { Cloud, Smartphone, Sparkles,X } from 'lucide-react'
+import React, { useEffect,useState } from 'react'
+
 import { Badge } from '@/components/ui/badge'
-import { Smartphone, Cloud, X, Sparkles } from 'lucide-react'
-import { useTierStore } from '@/store/tier-store'
-import { useUpgradePromptStore, DISMISSAL_DURATIONS } from '@/store/upgrade-prompt-store'
+import { Button } from '@/components/ui/button'
 import { useUpgradeModal } from '@/components/upgrade-modal'
 import { cn } from '@/lib/utils'
+import { useTierStore } from '@/store/tier-store'
+import { DISMISSAL_DURATIONS,useUpgradePromptStore } from '@/store/upgrade-prompt-store'
 
 export interface MultiDeviceBannerProps {
   /**

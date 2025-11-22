@@ -7,15 +7,16 @@
  * - Enables 60fps scrolling for large datasets
  */
 
-import React, { memo, CSSProperties, useCallback } from 'react';
-import { Row, flexRender } from '@tanstack/react-table';
+import { flexRender,Row } from '@tanstack/react-table';
 import { VirtualItem } from '@tanstack/react-virtual';
+import React, { CSSProperties, memo, useCallback } from 'react';
+
 import { TableRow } from '../../types/table';
 
 interface TransformRowProps {
   row: Row<TableRow>;
   virtualItem: VirtualItem;
-  columns: { id: string; getSize: () => number }[];
+  columns: { id: string; getSize: () => number }[]; // Used for column alignment, not directly accessed
   columnWidths: number[];
   measureElement?: (node: Element | null) => void;
   onRowClick?: (rowId: string, rowData: TableRow) => void;
@@ -23,7 +24,7 @@ interface TransformRowProps {
 
 export const TransformRow = memo(
   React.forwardRef<HTMLDivElement, TransformRowProps>(
-    ({ row, virtualItem, columns, columnWidths, measureElement, onRowClick }, ref) => {
+    ({ row, virtualItem, columns: _columns, columnWidths, measureElement, onRowClick }, ref) => {
       const rowData = row.original;
       const rowId = rowData.__rowId || String(row.id);
 

@@ -5,13 +5,14 @@
  * Integrates with Wails Go backend for OAuth flow via system browser.
  */
 
-import { Button } from '@/components/ui/button'
 import { Github, Loader2 } from 'lucide-react'
-import { useState, useEffect } from 'react'
-import type { AuthSuccessEvent } from '@/types/wails-auth'
-import { subscribeToWailsEvent } from '@/lib/wails-guard'
-import { isWailsApp } from '@/lib/platform'
+import { useEffect,useState } from 'react'
+
+import { Button } from '@/components/ui/button'
 import * as authApi from '@/lib/auth-api'
+import { isWailsApp } from '@/lib/platform'
+import { subscribeToWailsEvent } from '@/lib/wails-guard'
+import type { AuthSuccessEvent } from '@/types/wails-auth'
 
 interface OAuthButtonGroupProps {
   onSuccess?: () => void

@@ -1,12 +1,15 @@
-import { useState, useCallback, useMemo, useRef, useEffect, type SetStateAction } from 'react';
-import { SortingState, ColumnFiltersState } from '@tanstack/react-table';
+import { ColumnFiltersState,SortingState } from '@tanstack/react-table';
+import { type SetStateAction,useCallback, useEffect, useMemo, useRef, useState } from 'react';
+
+import type { EditStateValue } from '../components/editable-table/context/edit-state-context';
+import type { SelectionStateValue } from '../components/editable-table/context/selection-state-context';
 import {
-  TableState,
-  TableAction,
-  TableRow,
   CellValue,
-  TableConfig,
   EditableTableActions,
+  TableAction,
+  TableConfig,
+  TableRow,
+  TableState,
 } from '../types/table';
 import { isEqual } from '../utils/table';
 
@@ -581,6 +584,23 @@ export const useTableState = (
   // Safe getter for event manager (avoids ref access during render)
   const getEventManager = useCallback(() => eventManager.current, []);
 
+  // NEW: Separate context values for new provider architecture
+  const editStateValue = useMemo<EditStateValue>(() => ({
+    editingCell: state.editingCell,
+    invalidCells: state.invalidCells,
+    dirtyRows: state.dirtyRows,
+    undoStack: state.undoStack,
+    redoStack: state.redoStack,
+    hasUndoActions: state.undoStack.length > 0,
+    hasRedoActions: state.redoStack.length > 0,
+  }), [state.editingCell, state.invalidCells, state.dirtyRows, state.undoStack, state.redoStack]);
+
+  const selectionStateValue = useMemo<SelectionStateValue>(() => ({
+    selectedRows: state.selectedRows,
+    selectAllPagesMode: state.selectAllPagesMode,
+    selectedCount: state.selectedRows.length,
+  }), [state.selectedRows, state.selectAllPagesMode]);
+
   return {
     data,
     setData,
@@ -588,6 +608,9 @@ export const useTableState = (
     actions: tableActions,
     config: mergedConfig,
     getEventManager,
+    // NEW: Separate context values
+    editStateValue,
+    selectionStateValue,
   };
 };
 

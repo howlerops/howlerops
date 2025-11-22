@@ -1,11 +1,34 @@
 import { create } from 'zustand'
-import { persist, createJSONStorage } from 'zustand/middleware'
-import { testAIProviderConnection, showHybridNotification } from '@/lib/wails-ai-api'
-import { LoadAIMemorySessions, SaveAIMemorySessions, RecallAIMemorySessions, DeleteAIMemorySession, ConfigureAIProvider } from '../../wailsjs/go/main/App'
-import { main as wailsModels } from '../../wailsjs/go/models'
+import { createJSONStorage,persist } from 'zustand/middleware'
+
 import type { SchemaNode } from '@/hooks/use-schema-introspection'
+import { handleVoidPromise } from '@/lib/ai-error-handling'
+import {
+  buildMemoryContext,
+  buildGenerateSQLBackendRequest,
+  buildFixSQLBackendRequest,
+  buildGenericMessageBackendRequest,
+  ensureActiveSession,
+  getRecallContext,
+  normalizeError,
+  parseFixSQLResponse,
+  parseGenerateSQLResponse,
+  parseGenericMessageResponse,
+  recordAssistantMessage,
+  recordUserMessage,
+  validateAIEnabled,
+  validateFixSQLRequest,
+  validateGenerateSQLRequest,
+  validateGenericMessageRequest,
+} from '@/lib/ai'
+import { detectsMultiDB } from '@/lib/ai-schema-context-builder'
+import { showHybridNotification,testAIProviderConnection } from '@/lib/wails-ai-api'
+import { type AIMemorySession as MemorySession,estimateTokens as estimateMemoryTokens, useAIMemoryStore } from '@/store/ai-memory-store'
 import type { DatabaseConnection } from '@/store/connection-store'
-import { useAIMemoryStore, estimateTokens as estimateMemoryTokens, type AIMemorySession as MemorySession } from '@/store/ai-memory-store'
+import type { AISessionId } from '@/types/ai'
+
+import { ConfigureAIProvider,DeleteAIMemorySession, LoadAIMemorySessions, SaveAIMemorySessions } from '../../wailsjs/go/main/App'
+import { main as wailsModels } from '../../wailsjs/go/models'
 
 // Normalize endpoint URL
 function normalizeEndpoint(endpoint: string | undefined): string {
@@ -212,7 +235,7 @@ const deserializeMemorySessions = (payload: WailsMemorySession[]): MemorySession
   }))
 }
 
-// Secure storage for API keys
+// Secure storage for API keys - Synchronous version for Zustand
 class SecureStorage {
   private static instance: SecureStorage
   private keyPrefix = 'ai-secure-'
@@ -225,7 +248,7 @@ class SecureStorage {
     return SecureStorage.instance
   }
 
-  async setItem(key: string, value: string): Promise<void> {
+  setItem(key: string, value: string): void {
     try {
       sessionStorage.setItem(this.keyPrefix + key, value)
       this.fallback.delete(this.keyPrefix + key)
@@ -236,11 +259,10 @@ class SecureStorage {
         return
       }
       console.error('Failed to store secure item:', error)
-      throw new Error('Failed to store secure data')
     }
   }
 
-  async getItem(key: string): Promise<string | null> {
+  getItem(key: string): string | null {
     try {
       const value = sessionStorage.getItem(this.keyPrefix + key)
       if (value !== null) {
@@ -252,7 +274,7 @@ class SecureStorage {
     return this.fallback.get(this.keyPrefix + key) ?? null
   }
 
-  async removeItem(key: string): Promise<void> {
+  removeItem(key: string): void {
     try {
       sessionStorage.removeItem(this.keyPrefix + key)
     } catch (error) {
@@ -261,7 +283,7 @@ class SecureStorage {
     this.fallback.delete(this.keyPrefix + key)
   }
 
-  async clear(): Promise<void> {
+  clear(): void {
     try {
       const keys = Object.keys(sessionStorage).filter(key => key.startsWith(this.keyPrefix))
       keys.forEach(key => sessionStorage.removeItem(key))
@@ -270,14 +292,27 @@ class SecureStorage {
     }
     this.fallback.clear()
   }
+
+  // Helper methods for API key management
+  storeApiKey(provider: string, apiKey: string): void {
+    this.setItem(`${provider}-api-key`, apiKey)
+  }
+
+  getApiKey(provider: string): string | null {
+    return this.getItem(`${provider}-api-key`)
+  }
+
+  removeApiKey(provider: string): void {
+    this.removeItem(`${provider}-api-key`)
+  }
 }
 
-// Custom storage for sensitive data
+// Custom storage for sensitive data - SYNCHRONOUS to match localStorage behavior
 const createSecureStorage = () => {
   const storage = SecureStorage.getInstance()
 
   return {
-    getItem: async (name: string): Promise<string | null> => {
+    getItem: (name: string): string | null => {
       const value = localStorage.getItem(name)
       if (!value) return null
 
@@ -287,13 +322,13 @@ const createSecureStorage = () => {
         if (parsed.state?.config) {
           const config = parsed.state.config
           if (config.openaiApiKey === 'STORED_SECURELY') {
-            config.openaiApiKey = await storage.getItem('openai-api-key') || ''
+            config.openaiApiKey = storage.getItem('openai-api-key') || ''
           }
           if (config.anthropicApiKey === 'STORED_SECURELY') {
-            config.anthropicApiKey = await storage.getItem('anthropic-api-key') || ''
+            config.anthropicApiKey = storage.getItem('anthropic-api-key') || ''
           }
           if (config.codexApiKey === 'STORED_SECURELY') {
-            config.codexApiKey = await storage.getItem('codex-api-key') || ''
+            config.codexApiKey = storage.getItem('codex-api-key') || ''
           }
         }
 
@@ -303,7 +338,7 @@ const createSecureStorage = () => {
       }
     },
 
-    setItem: async (name: string, value: string): Promise<void> => {
+    setItem: (name: string, value: string): void => {
       try {
         const parsed = JSON.parse(value)
 
@@ -311,17 +346,17 @@ const createSecureStorage = () => {
           const config = parsed.state.config
 
           if (config.openaiApiKey && config.openaiApiKey !== 'STORED_SECURELY') {
-            await storage.setItem('openai-api-key', config.openaiApiKey)
+            storage.setItem('openai-api-key', config.openaiApiKey)
             config.openaiApiKey = 'STORED_SECURELY'
           }
 
           if (config.anthropicApiKey && config.anthropicApiKey !== 'STORED_SECURELY') {
-            await storage.setItem('anthropic-api-key', config.anthropicApiKey)
+            storage.setItem('anthropic-api-key', config.anthropicApiKey)
             config.anthropicApiKey = 'STORED_SECURELY'
           }
 
           if (config.codexApiKey && config.codexApiKey !== 'STORED_SECURELY') {
-            await storage.setItem('codex-api-key', config.codexApiKey)
+            storage.setItem('codex-api-key', config.codexApiKey)
             config.codexApiKey = 'STORED_SECURELY'
           }
         }
@@ -332,7 +367,7 @@ const createSecureStorage = () => {
       }
     },
 
-    removeItem: async (name: string): Promise<void> => {
+    removeItem: (name: string): void => {
       localStorage.removeItem(name)
     },
   }
@@ -352,11 +387,12 @@ export const useAIStore = create<AIState & AIActions>()(
 
         if (configUpdate.syncMemories !== undefined && configUpdate.syncMemories !== previousConfig.syncMemories) {
           if (configUpdate.syncMemories) {
-            get().hydrateMemoriesFromBackend()
-              .catch((error) => console.error('Failed to hydrate AI memories:', error))
-              .finally(() => {
-                void get().persistMemoriesIfEnabled()
-              })
+            // Use handleVoidPromise to properly handle async operations
+            handleVoidPromise(
+              get().hydrateMemoriesFromBackend()
+                .then(() => get().persistMemoriesIfEnabled()),
+              'updateConfig: syncMemories enabled'
+            )
           } else {
             set({ memoriesHydrated: false })
           }
@@ -520,156 +556,113 @@ export const useAIStore = create<AIState & AIActions>()(
         }
       },
 
+      /**
+       * Generates SQL from natural language prompt
+       *
+       * This is the main entry point for AI-powered SQL generation.
+       * It validates the request, builds context, calls the AI provider,
+       * and records the interaction in memory.
+       *
+       * @param prompt - Natural language description of desired query
+       * @param schema - Optional schema context string
+       * @param mode - Query mode (single/multi database)
+       * @param connections - Active database connections
+       * @param schemasMap - Schema information for each connection
+       * @returns Generated SQL query string
+       * @throws {AIError} If validation fails or AI request fails
+       */
       generateSQL: async (prompt: string, schema?: string, mode?: 'single' | 'multi', connections?: DatabaseConnection[], schemasMap?: Map<string, SchemaNode[]>): Promise<string> => {
         const { config, setIsGenerating, addSuggestion, setLastError } = get()
-        const memoryStore = useAIMemoryStore.getState()
 
-        const provider = (config.provider || 'openai').toLowerCase()
-        const sessionId = memoryStore.ensureActiveSession({
-          title: `Session ${new Date().toLocaleString()}`,
+        // Determine effective mode: auto-detect or use provided mode
+        const wantsMultiDB = detectsMultiDB(prompt)
+        const effectiveMode = wantsMultiDB ? 'multi' : (mode || 'single')
+
+        console.log(`🤖 AI Query Mode Detection:`, {
+          providedMode: mode,
+          detectedMultiDB: wantsMultiDB,
+          effectiveMode,
+          hasConnections: !!connections && connections.length > 0
         })
-
-        if (!config.enabled) {
-          throw new Error('AI features are disabled')
-        }
 
         setIsGenerating(true)
         setLastError(null)
 
         try {
+          // Validate configuration and request
+          validateAIEnabled(config)
+          validateGenerateSQLRequest({ prompt, mode: effectiveMode, connections, schema, schemasMap })
           await get().ensureProviderConfigured()
 
-          // Import Wails bindings
-          const { GenerateSQLFromNaturalLanguage } = await import('../../wailsjs/go/main/App')
-          const { AISchemaContextBuilder } = await import('@/lib/ai-schema-context')
+          // Set up session and memory
+          const sessionId = ensureActiveSession({
+            title: `Session ${new Date().toLocaleString()}`,
+          }) as AISessionId
 
-          // Auto-detect if user wants multi-DB query based on prompt
-          const detectsMultiDB = (prompt: string): boolean => {
-            const multiDBKeywords = [
-              /join.*from.*and.*from/i,
-              /across.*database/i,
-              /between.*database/i,
-              /from.*database.*and.*database/i,
-              /@\w+\./,  // Already using @connection syntax
-              /compare.*from.*and/i,
-              /merge.*from.*and/i,
-              /combine.*from.*and/i,
-              /different.*database/i,
-              /multiple.*database/i,
-            ]
-            return multiDBKeywords.some(pattern => pattern.test(prompt))
-          }
+          const provider = (config.provider || 'openai').toLowerCase()
 
-          // Determine effective mode: auto-detect or use provided mode
-          const wantsMultiDB = detectsMultiDB(prompt)
-          const effectiveMode = wantsMultiDB ? 'multi' : (mode || 'single')
-          
-          console.log(`🤖 AI Query Mode Detection:`, {
-            providedMode: mode,
-            detectedMultiDB: wantsMultiDB,
-            effectiveMode,
-            hasConnections: !!connections && connections.length > 0
-          })
-
-          // Build schema context based on effective mode
-          let context = ''
-          let enhancedPrompt = prompt
-
-          const memoryContext = memoryStore.buildContext({
+          // Record user message
+          recordUserMessage({
             sessionId,
-            provider,
-            model: config.selectedModel,
-            maxTokens: config.maxTokens,
-          })
-
-          memoryStore.recordMessage({
-            sessionId,
-            role: 'user',
             content: prompt,
             metadata: {
               mode: effectiveMode,
               provider,
             },
           })
-          
-          if (effectiveMode === 'multi' && connections && schemasMap && connections.length > 1) {
-            // Multi-database mode: build comprehensive context
-            const multiContext = AISchemaContextBuilder.buildMultiDatabaseContext(
-              connections.filter(c => c.isConnected),
-              schemasMap,
-              undefined // Active connection ID not available here
-            )
-            context = AISchemaContextBuilder.generateCompactSchemaContext(multiContext)
 
-            // Enhance prompt with multi-DB syntax instructions
-            enhancedPrompt = `${prompt}\n\nIMPORTANT: This is a multi-database query. Use @connection_name.table syntax to reference tables from different databases. Available connections: ${connections.filter(c => c.isConnected).map(c => c.name).join(', ')}`
-          } else if (schema) {
-            // Single database mode: use simple schema context
-            context = `Database: ${schema}`
-          }
-
-          if (memoryContext) {
-            context = context
-              ? `${context}\n\n---\n\nConversation Memory:\n${memoryContext}`
-              : `Conversation Memory:\n${memoryContext}`
-          }
-
-          let recallContext = ''
-          if (config.syncMemories) {
-            try {
-              const recalled = await RecallAIMemorySessions(prompt, 5)
-              if (Array.isArray(recalled) && recalled.length > 0) {
-                recallContext = recalled
-                  .map((item) => {
-                    const summary = item.summary ? `Summary: ${item.summary}\n` : ''
-                    return `Session: ${item.title}\n${summary}Memory:\n${item.content}`
-                  })
-                  .join('\n---\n')
-              }
-            } catch (error) {
-              console.error('Failed to recall AI memories:', error)
-            }
-          }
-
-          if (recallContext) {
-            context = context
-              ? `${context}\n\n---\n\nRelated Sessions:\n${recallContext}`
-              : `Related Sessions:\n${recallContext}`
-          }
-
-          // Call the Wails backend method
-          const model = config.selectedModel || 'gpt-4o-mini'
-
-          // Prefer a connected DB and pass sessionId when available
-          const primaryConn = (connections || []).find(c => c.isConnected) || connections?.[0]
-          const effectiveConnectionId = primaryConn ? (primaryConn.sessionId || primaryConn.id) : ''
-          const request = {
-            prompt: enhancedPrompt,
-            connectionId: effectiveConnectionId,
-            context,
+          // Build memory context
+          const memoryContext = buildMemoryContext({
+            sessionId,
             provider,
-            model,
+            model: config.selectedModel,
             maxTokens: config.maxTokens,
-            temperature: config.temperature,
+          })
+
+          // Get recall context if enabled
+          const recallContext = config.syncMemories
+            ? await getRecallContext(prompt, 5)
+            : undefined
+
+          // Build backend request
+          const request = buildGenerateSQLBackendRequest(
+            {
+              prompt,
+              schema,
+              mode: effectiveMode,
+              connections,
+              schemasMap,
+              sessionId,
+              memoryContext,
+            },
+            config
+          )
+
+          // Add recall context to request if available
+          if (recallContext) {
+            const { addRecallContext } = await import('@/lib/ai-schema-context-builder')
+            request.context = addRecallContext(request.context, recallContext)
           }
 
-          const result = await GenerateSQLFromNaturalLanguage(request)
+          // Import and execute Wails binding
+          const { GenerateSQLFromNaturalLanguage } = await import('../../wailsjs/go/main/App')
+          const rawResult = await GenerateSQLFromNaturalLanguage(request)
 
-          if (!result) {
-            throw new Error('No response from AI service')
-          }
+          // Parse and validate response
+          const result = parseGenerateSQLResponse(rawResult)
 
+          // Record results in suggestions
           addSuggestion({
             query: result.sql,
             explanation: result.explanation || '',
-            confidence: result.confidence || 0.8,
+            confidence: result.confidence ?? 0.8,
             provider: config.provider,
             model: config.selectedModel,
           })
 
-          memoryStore.recordMessage({
+          // Record assistant response in memory
+          recordAssistantMessage({
             sessionId,
-            role: 'assistant',
             content: result.sql,
             metadata: {
               type: 'generation',
@@ -677,75 +670,55 @@ export const useAIStore = create<AIState & AIActions>()(
             },
           })
 
-          void get().persistMemoriesIfEnabled()
+          handleVoidPromise(get().persistMemoriesIfEnabled(), 'generateSQL: success')
           return result.sql
         } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-          setLastError(errorMessage)
-          void get().persistMemoriesIfEnabled()
+          const normalizedError = normalizeError(error)
+          setLastError(normalizedError.message)
+          handleVoidPromise(get().persistMemoriesIfEnabled(), 'generateSQL: error')
           throw error
         } finally {
           setIsGenerating(false)
         }
       },
 
+      /**
+       * Fixes SQL query based on error message
+       *
+       * Takes a failed query and error message, then uses AI to generate
+       * a corrected version of the query.
+       *
+       * @param query - The SQL query that failed
+       * @param error - Error message from database
+       * @param schema - Optional schema context string
+       * @param mode - Query mode (single/multi database)
+       * @param connections - Active database connections
+       * @param schemasMap - Schema information for each connection
+       * @returns Fixed SQL query string
+       * @throws {AIError} If validation fails or AI request fails
+       */
       fixSQL: async (query: string, error: string, schema?: string, mode?: 'single' | 'multi', connections?: DatabaseConnection[], schemasMap?: Map<string, SchemaNode[]>): Promise<string> => {
         const { config, setIsGenerating, addSuggestion, setLastError } = get()
-        const memoryStore = useAIMemoryStore.getState()
-        const provider = (config.provider || 'openai').toLowerCase()
-        const sessionId = memoryStore.ensureActiveSession({
-          title: `Session ${new Date().toLocaleString()}`,
-        })
-
-        if (!config.enabled) {
-          throw new Error('AI features are disabled')
-        }
 
         setIsGenerating(true)
         setLastError(null)
 
         try {
+          // Validate configuration and request
+          validateAIEnabled(config)
+          validateFixSQLRequest({ query, error, mode, connections, schema, schemasMap })
           await get().ensureProviderConfigured()
 
-          // Import Wails bindings
-          const { FixSQLErrorWithOptions } = await import('../../wailsjs/go/main/App')
-          const { AISchemaContextBuilder } = await import('@/lib/ai-schema-context')
+          // Set up session and memory
+          const sessionId = ensureActiveSession({
+            title: `Session ${new Date().toLocaleString()}`,
+          }) as AISessionId
 
-          // Build schema context for RAG
-          let context = ''
-          let enhancedError = error
+          const provider = (config.provider || 'openai').toLowerCase()
 
-          if (mode === 'multi' && connections && schemasMap && connections.length > 1) {
-            // Multi-database mode: build comprehensive context
-            const multiContext = AISchemaContextBuilder.buildMultiDatabaseContext(
-              connections.filter(c => c.isConnected),
-              schemasMap,
-              undefined
-            )
-            context = AISchemaContextBuilder.generateCompactSchemaContext(multiContext)
-
-            enhancedError = `${error}\n\nNote: This is a multi-database query. Tables should use @connection_name.table syntax. Available connections: ${connections.filter(c => c.isConnected).map(c => c.name).join(', ')}`
-          } else if (schema) {
-            // Single database mode: use simple schema context
-            context = `Database: ${schema}`
-          }
-
-          const memoryContext = memoryStore.buildContext({
+          // Record user message
+          recordUserMessage({
             sessionId,
-            provider,
-            model: config.selectedModel,
-            maxTokens: config.maxTokens,
-          })
-
-          if (memoryContext) {
-            context = context
-              ? `${context}\n\n---\n\nConversation Memory:\n${memoryContext}`
-              : `Conversation Memory:\n${memoryContext}`
-          }
-
-          memoryStore.recordMessage({
-            sessionId,
-            role: 'user',
             content: `Fix query:\n${query}\n\nError:\n${error}`,
             metadata: {
               type: 'fix-request',
@@ -753,38 +726,48 @@ export const useAIStore = create<AIState & AIActions>()(
             },
           })
 
-          // Call the Wails backend method with context
-          const primaryConn = (connections || []).find(c => c.isConnected) || connections?.[0]
-          const connectionId = primaryConn ? (primaryConn.sessionId || primaryConn.id) : ''
-          const model = config.selectedModel || ''
-          const request = {
-            query,
-            error: enhancedError,
-            connectionId,
-            context,
+          // Build memory context
+          const memoryContext = buildMemoryContext({
+            sessionId,
             provider,
-            model,
+            model: config.selectedModel,
             maxTokens: config.maxTokens,
-            temperature: config.temperature,
-          }
+          })
 
-          const result = await FixSQLErrorWithOptions(request)
+          // Build backend request
+          const request = buildFixSQLBackendRequest(
+            {
+              query,
+              error,
+              schema,
+              mode: mode || 'single',
+              connections,
+              schemasMap,
+              sessionId,
+              memoryContext,
+            },
+            config
+          )
 
-          if (!result) {
-            throw new Error('No response from AI service')
-          }
+          // Import and execute Wails binding
+          const { FixSQLErrorWithOptions } = await import('../../wailsjs/go/main/App')
+          const rawResult = await FixSQLErrorWithOptions(request)
 
+          // Parse and validate response
+          const result = parseFixSQLResponse(rawResult)
+
+          // Record results in suggestions
           addSuggestion({
             query: result.sql,
-            explanation: result.explanation || 'Fixed SQL query',
-            confidence: 0.9,
+            explanation: result.explanation ?? 'Fixed SQL query',
+            confidence: result.confidence ?? 0.9,
             provider: config.provider,
             model: config.selectedModel,
           })
 
-          memoryStore.recordMessage({
+          // Record assistant response in memory
+          recordAssistantMessage({
             sessionId,
-            role: 'assistant',
             content: result.sql,
             metadata: {
               type: 'fix-response',
@@ -792,71 +775,57 @@ export const useAIStore = create<AIState & AIActions>()(
             },
           })
 
-          void get().persistMemoriesIfEnabled()
+          handleVoidPromise(get().persistMemoriesIfEnabled(), 'fixSQL: success')
           return result.sql
         } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-          setLastError(errorMessage)
-          void get().persistMemoriesIfEnabled()
+          const normalizedError = normalizeError(error)
+          setLastError(normalizedError.message)
+          handleVoidPromise(get().persistMemoriesIfEnabled(), 'fixSQL: error')
           throw error
         } finally {
           setIsGenerating(false)
         }
       },
 
+      /**
+       * Sends a generic message to the AI (non-SQL use case)
+       *
+       * Used for general chat or non-database-specific AI interactions.
+       * Automatically manages chat-specific session context.
+       *
+       * @param prompt - User message/question
+       * @param options - Additional options (context, system prompt, metadata)
+       * @returns AI response with metadata
+       * @throws {AIError} If validation fails or AI request fails
+       */
       sendGenericMessage: async (prompt: string, options?: {
         context?: string
         systemPrompt?: string
         metadata?: Record<string, string>
       }) => {
         const { config, setIsGenerating, setLastError } = get()
-        const memoryStore = useAIMemoryStore.getState()
-
-        if (!config.enabled) {
-          throw new Error('AI features are disabled')
-        }
-
-        const provider = (config.provider || 'openai').toLowerCase()
-        let sessionId = memoryStore.ensureActiveSession({
-          title: `Chat Session ${new Date().toLocaleString()}`,
-          metadata: {
-            chatType: 'generic',
-          },
-        })
-
-        const activeSession = memoryStore.sessions[sessionId]
-        if (activeSession?.metadata?.chatType !== 'generic') {
-          sessionId = memoryStore.startNewSession({
-            title: `Chat Session ${new Date().toLocaleString()}`,
-            metadata: { chatType: 'generic' },
-          })
-          memoryStore.setActiveSession(sessionId)
-        }
 
         setIsGenerating(true)
         setLastError(null)
 
         try {
+          // Validate configuration and request
+          validateAIEnabled(config)
+          validateGenericMessageRequest({ prompt, ...options })
           await get().ensureProviderConfigured()
 
-          const baseContext = options?.context?.trim() ?? ''
-          const memoryContext = memoryStore.buildContext({
-            sessionId,
-            provider,
-            model: config.selectedModel,
-            maxTokens: config.maxTokens,
-          })
+          // Ensure appropriate session for generic chat
+          const { ensureSessionForChatType } = await import('@/lib/ai')
+          const sessionId = ensureSessionForChatType({
+            chatType: 'generic',
+            title: `Chat Session ${new Date().toLocaleString()}`,
+          }) as AISessionId
 
-          let combinedContext = baseContext
-          if (memoryContext) {
-            combinedContext = combinedContext
-              ? `${combinedContext}\n\n---\n\nConversation Memory:\n${memoryContext}`
-              : `Conversation Memory:\n${memoryContext}`
-          }
+          const provider = (config.provider || 'openai').toLowerCase()
 
-          memoryStore.recordMessage({
+          // Record user message
+          recordUserMessage({
             sessionId,
-            role: 'user',
             content: prompt,
             metadata: {
               type: 'chat:user',
@@ -864,48 +833,56 @@ export const useAIStore = create<AIState & AIActions>()(
             },
           })
 
-          const { GenericChat } = await import('../../wailsjs/go/main/App')
-          const response = await GenericChat({
-            prompt,
-            context: combinedContext,
-            system: options?.systemPrompt,
+          // Build memory context
+          const memoryContext = buildMemoryContext({
+            sessionId,
             provider,
             model: config.selectedModel,
             maxTokens: config.maxTokens,
-            temperature: config.temperature,
-            metadata: {
-              sessionId,
-              chatType: 'generic',
-              ...options?.metadata,
-            },
           })
 
-          const assistantContent = response?.content ?? ''
+          // Build backend request
+          const request = buildGenericMessageBackendRequest(
+            {
+              prompt,
+              context: options?.context,
+              systemPrompt: options?.systemPrompt,
+              metadata: {
+                sessionId,
+                chatType: 'generic',
+                ...options?.metadata,
+              },
+              sessionId,
+              memoryContext,
+            },
+            config
+          )
 
-          memoryStore.recordMessage({
+          // Import and execute Wails binding
+          const { GenericChat } = await import('../../wailsjs/go/main/App')
+          const rawResponse = await GenericChat(request)
+
+          // Parse and validate response
+          const response = parseGenericMessageResponse(rawResponse, provider, config.selectedModel)
+
+          // Record assistant response in memory
+          recordAssistantMessage({
             sessionId,
-            role: 'assistant',
-            content: assistantContent,
+            content: response.content,
             metadata: {
               type: 'chat:assistant',
-              provider: response?.provider || provider,
-              tokensUsed: response?.tokensUsed ?? 0,
+              provider: response.provider,
+              tokensUsed: response.tokensUsed,
             },
           })
 
-          return {
-            content: assistantContent,
-            provider: response?.provider || provider,
-            model: response?.model || config.selectedModel,
-            tokensUsed: response?.tokensUsed ?? 0,
-            metadata: response?.metadata,
-          }
+          return response
         } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-          setLastError(errorMessage)
+          const normalizedError = normalizeError(error)
+          setLastError(normalizedError.message)
           throw error
         } finally {
-          void get().persistMemoriesIfEnabled()
+          handleVoidPromise(get().persistMemoriesIfEnabled(), 'sendGenericMessage: finally')
           setIsGenerating(false)
         }
       },
@@ -927,7 +904,7 @@ export const useAIStore = create<AIState & AIActions>()(
           isGenerating: false,
         })
 
-        void get().persistMemoriesIfEnabled()
+        handleVoidPromise(get().persistMemoriesIfEnabled(), 'resetSession')
       },
 
       hydrateMemoriesFromBackend: async () => {

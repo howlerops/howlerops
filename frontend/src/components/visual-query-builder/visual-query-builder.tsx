@@ -3,21 +3,23 @@
  * Orchestrates all sub-components for building queries visually
  */
 
-import { useState, useEffect, useCallback } from 'react'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import { AlertCircle, ArrowUpDown, Code, Database, Filter, Link,Table } from 'lucide-react'
+import { useCallback,useEffect, useState } from 'react'
+
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Database, Table, Filter, ArrowUpDown, Code, AlertCircle, Link } from 'lucide-react'
-import { VisualQueryBuilderProps, VisualQueryState, TableInfo, ColumnInfo } from './types'
-import { QueryIR, TableRef, SelectItem, OrderBy } from '@/lib/query-ir'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { createMultiConnectionExecutor, MergedResult } from '@/lib/multi-connection-executor'
-import { SourcePicker } from './source-picker'
+import { OrderBy,QueryIR, SelectItem, TableRef } from '@/lib/query-ir'
+
 import { ColumnPicker } from './column-picker'
 import { FilterEditor } from './filter-editor'
 import { JoinBuilder } from './join-builder'
 import { SortLimit } from './sort-limit'
+import { SourcePicker } from './source-picker'
 import { SqlPreview } from './sql-preview'
+import { ColumnInfo,TableInfo, VisualQueryBuilderProps, VisualQueryState } from './types'
 
 export function VisualQueryBuilder({
   connections,

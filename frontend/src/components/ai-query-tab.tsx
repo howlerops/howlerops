@@ -1,20 +1,59 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import { BarChart3, Copy, Download, GitCompare, Loader2, MessageSquare, Pencil, Play, Search, SendHorizontal, Sparkles, Table2, TrendingUp, Wand2 } from "lucide-react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
+import { EmptyState, type ExampleQuery } from "@/components/empty-states/EmptyState"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { VirtualMessageList } from "@/components/virtual-message-list"
+import type { SchemaNode } from "@/hooks/use-schema-introspection"
 import { AISchemaContextBuilder } from "@/lib/ai-schema-context"
 import { cn } from "@/lib/utils"
-import { useAIConfig } from "@/store/ai-store"
-import { useAIQueryAgentStore, type AgentAttachment, type AgentMessage, type AgentResultAttachment } from "@/store/ai-query-agent-store"
-import type { SchemaNode } from "@/hooks/use-schema-introspection"
-import type { DatabaseConnection } from "@/store/connection-store"
 import { showHybridNotification } from "@/lib/wails-ai-api"
+import { type AgentAttachment, type AgentMessage, type AgentResultAttachment,useAIQueryAgentStore } from "@/store/ai-query-agent-store"
+import { useAIConfig } from "@/store/ai-store"
+import type { DatabaseConnection } from "@/store/connection-store"
 
-import { Download, Loader2, MessageSquare, Pencil, Play, SendHorizontal, Sparkles, Table2, Wand2, Copy } from "lucide-react"
+import { SQLAttachment } from "./ai-query-tab/SQLAttachment"
+import { ResultAttachment } from "./ai-query-tab/ResultAttachment"
+import { ChartAttachment } from "./ai-query-tab/ChartAttachment"
+import { ReportAttachment } from "./ai-query-tab/ReportAttachment"
+import { InsightAttachment } from "./ai-query-tab/InsightAttachment"
+
+const DEFAULT_EXAMPLES: ExampleQuery[] = [
+  {
+    label: "Show all tables",
+    description: "Get a list of all tables in the database",
+    query: "Show me all tables in this database",
+    icon: Table2,
+  },
+  {
+    label: "Top customers by revenue",
+    description: "Find the highest revenue generating customers",
+    query: "Find the top 10 customers by total revenue",
+    icon: TrendingUp,
+  },
+  {
+    label: "Table relationships",
+    description: "Understand how tables connect via foreign keys",
+    query: "Explain the relationship between users and orders tables",
+    icon: GitCompare,
+  },
+  {
+    label: "Recent activity",
+    description: "Query recent records or transactions",
+    query: "Show me the most recent 20 orders from the last 7 days",
+    icon: Search,
+  },
+  {
+    label: "Data statistics",
+    description: "Get aggregated statistics about your data",
+    query: "What are the total sales by product category this month?",
+    icon: BarChart3,
+  },
+]
 
 interface AIQueryTabViewProps {
   tab: {
@@ -86,8 +125,6 @@ export function AIQueryTabView({
   const [isRenaming, setIsRenaming] = useState(false)
   const [draftTitle, setDraftTitle] = useState<string | null>(null)
 
-  const endRef = useRef<HTMLDivElement | null>(null)
-
   const activeConnection = useMemo(
     () => connections.find(connection => connection.id === tab.connectionId),
     [connections, tab.connectionId],
@@ -98,12 +135,6 @@ export function AIQueryTabView({
       setActiveSession(session.id)
     }
   }, [session?.id, setActiveSession])
-
-  useEffect(() => {
-    if (endRef.current) {
-      endRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' })
-    }
-  }, [session?.messages.length, streamingTurnId])
 
   const schemaContext = useMemo(() => {
     if (tab.selectedConnectionIds && tab.selectedConnectionIds.length > 1) {
@@ -126,7 +157,7 @@ export function AIQueryTabView({
     return ''
   }, [activeConnection, connections, schemasMap, tab.connectionId, tab.selectedConnectionIds])
 
-  const handleSend = async () => {
+  const handleSend = useCallback(async () => {
     if (!tab.aiSessionId || !input.trim()) {
       return
     }
@@ -149,9 +180,9 @@ export function AIQueryTabView({
       const description = error instanceof Error ? error.message : 'Failed to send AI query'
       showHybridNotification('AI Query Agent Error', description, true)
     }
-  }
+  }, [tab.aiSessionId, tab.connectionId, tab.selectedConnectionIds, input, sendMessage, aiConfig, schemaContext])
 
-  const handleCopySQL = async (sql: string) => {
+  const handleCopySQL = useCallback(async (sql: string) => {
     try {
       await navigator.clipboard.writeText(sql)
       showHybridNotification('SQL Copied', 'The generated SQL has been copied to your clipboard.', false)
@@ -159,14 +190,14 @@ export function AIQueryTabView({
       const description = error instanceof Error ? error.message : 'Unable to access clipboard'
       showHybridNotification('Copy failed', description, true)
     }
-  }
+  }, [])
 
-  const handleExportResult = (attachment: AgentResultAttachment) => {
+  const handleExportResult = useCallback((attachment: AgentResultAttachment) => {
     const filename = `ai-query-result-${new Date().toISOString().replace(/[:.]/g, '-')}.csv`
     downloadCSV(attachment, filename)
-  }
+  }, [])
 
-  const handleRename = () => {
+  const handleRename = useCallback(() => {
     if (!tab.aiSessionId) {
       return
     }
@@ -179,142 +210,26 @@ export function AIQueryTabView({
     onRenameSession(tab.aiSessionId, trimmed)
     setIsRenaming(false)
     setDraftTitle(null)
-  }
+  }, [tab.aiSessionId, draftTitle, onRenameSession])
 
-  const renderAttachment = (attachment: AgentAttachment, index: number) => {
+  const renderAttachment = useCallback((attachment: AgentAttachment, index: number) => {
     switch (attachment.type) {
       case 'sql':
-        if (!attachment.sql) {
-          return null
-        }
-        return (
-          <div key={`sql-${index}`} className="rounded-xl border border-border/60 bg-background/80 p-3 shadow-sm space-y-3">
-            <div className="flex items-center justify-between text-sm font-medium">
-              <span className="flex items-center gap-2 text-primary">
-                <Sparkles className="h-4 w-4" />
-                Generated SQL
-              </span>
-              <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon" onClick={() => handleCopySQL(attachment.sql!.query)} title="Copy SQL">
-                  <Copy className="h-4 w-4" />
-                </Button>
-                <Button size="sm" onClick={() => onUseSQL(attachment.sql!.query, attachment.sql?.connectionId)}>
-                  <Play className="h-4 w-4 mr-2" />
-                  Use in Editor
-                </Button>
-              </div>
-            </div>
-            <pre className="rounded-md bg-muted/60 p-3 text-xs font-mono whitespace-pre-wrap border border-border/40">
-              {attachment.sql.query}
-            </pre>
-            {attachment.sql.explanation && (
-              <p className="text-xs text-muted-foreground">
-                {attachment.sql.explanation}
-              </p>
-            )}
-          </div>
-        )
+        return <SQLAttachment key={`sql-${index}`} attachment={attachment} onCopySQL={handleCopySQL} onUseSQL={onUseSQL} />
       case 'result':
-        if (!attachment.result) {
-          return null
-        }
-        return (
-          <div key={`result-${index}`} className="rounded-xl border border-border/60 bg-background/80 p-3 shadow-sm space-y-3">
-            <div className="flex items-center justify-between text-sm font-medium">
-              <span className="flex items-center gap-2 text-primary">
-                <Table2 className="h-4 w-4" />
-                Result Preview ({attachment.result.rowCount} rows)
-              </span>
-              <Button variant="outline" size="sm" onClick={() => handleExportResult(attachment.result!)}>
-                <Download className="h-4 w-4 mr-2" />
-                Export CSV
-              </Button>
-            </div>
-            <div className="overflow-x-auto rounded-md border border-border/40">
-              <table className="w-full text-xs">
-                <thead className="bg-muted/60">
-                  <tr>
-                    {attachment.result.columns.map(column => (
-                      <th key={column} className="px-2 py-1 text-left font-semibold text-muted-foreground">
-                        {column}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {attachment.result.rows.slice(0, 20).map((row, rowIndex) => (
-                    <tr key={rowIndex} className="border-t border-border/30">
-                      {attachment.result!.columns.map(column => (
-                        <td key={column} className="px-2 py-1 text-muted-foreground">
-                          {String(row[column] ?? '')}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {attachment.result.rows.length > 20 && (
-              <p className="text-xs text-muted-foreground">
-                Showing the first 20 rows. Export for the full result set.
-              </p>
-            )}
-          </div>
-        )
+        return <ResultAttachment key={`result-${index}`} attachment={attachment} onExport={handleExportResult} />
       case 'chart':
-        if (!attachment.chart) {
-          return null
-        }
-        return (
-          <div key={`chart-${index}`} className="rounded-xl border border-border/60 bg-background/70 p-3 shadow-sm text-xs text-muted-foreground space-y-1">
-            <div className="flex items-center gap-2 text-sm font-semibold text-primary">
-              <Wand2 className="h-4 w-4" />
-              Suggested Chart
-            </div>
-            <p><strong>Type:</strong> {attachment.chart.type}</p>
-            <p><strong>X Axis:</strong> {attachment.chart.xField}</p>
-            <p><strong>Y Axis:</strong> {attachment.chart.yFields.join(', ')}</p>
-            {attachment.chart.seriesField && <p><strong>Series:</strong> {attachment.chart.seriesField}</p>}
-            {attachment.chart.description && <p>{attachment.chart.description}</p>}
-            <p className="italic">Use this as guidance when building a visualization.</p>
-          </div>
-        )
+        return <ChartAttachment key={`chart-${index}`} attachment={attachment} />
       case 'report':
-        if (!attachment.report) {
-          return null
-        }
-        return (
-          <div key={`report-${index}`} className="rounded-xl border border-border/60 bg-background/80 p-3 shadow-sm text-sm text-muted-foreground">
-            <div className="flex items-center gap-2 text-sm font-semibold text-primary mb-2">
-              <MessageSquare className="h-4 w-4" />
-              Report Draft
-            </div>
-            <pre className="whitespace-pre-wrap font-sans">{attachment.report.body}</pre>
-          </div>
-        )
+        return <ReportAttachment key={`report-${index}`} attachment={attachment} />
       case 'insight':
-        if (!attachment.insight) {
-          return null
-        }
-        return (
-          <div key={`insight-${index}`} className="rounded-xl border border-border/60 bg-background/80 p-3 shadow-sm">
-            <div className="flex items-center gap-2 text-sm font-semibold text-primary mb-2">
-              <Sparkles className="h-4 w-4" />
-              Key Insights
-            </div>
-            <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
-              {attachment.insight.highlights.map((insight, idx) => (
-                <li key={idx}>{insight}</li>
-              ))}
-            </ul>
-          </div>
-        )
+        return <InsightAttachment key={`insight-${index}`} attachment={attachment} />
       default:
         return null
     }
-  }
+  }, [handleCopySQL, handleExportResult, onUseSQL])
 
-  const renderMessage = (message: AgentMessage) => {
+  const renderMessage = useCallback((message: AgentMessage) => {
     const isUser = message.role === 'user'
     const bubbleClasses = isUser
       ? "bg-primary text-primary-foreground rounded-2xl rounded-tr-none"
@@ -353,7 +268,7 @@ export function AIQueryTabView({
         </div>
       </div>
     )
-  }
+  }, [renderAttachment])
 
   return (
     <div className="flex h-full flex-col">
@@ -437,22 +352,32 @@ export function AIQueryTabView({
       </div>
 
       <div className="flex-1 overflow-hidden">
-        <ScrollArea className="h-full px-4 py-6">
-          <div className="space-y-4">
-            {session && session.messages.length === 0 && (
-              <div className="rounded-lg border bg-muted/30 p-6 text-sm text-muted-foreground">
-                <p className="font-medium">Start the conversation</p>
-                <p className="mt-2">
-                  Ask natural language questions like "Show the top performing products over the last 7 days"
-                  and I'll generate SQL, run it safely in read-only mode, and provide insights.
-                </p>
+        {session && session.messages.length === 0 ? (
+          <div className="h-full">
+            <EmptyState
+              icon={Sparkles}
+              title="Start your AI conversation"
+              description="Ask natural language questions and I'll generate SQL, execute it safely in read-only mode, and provide insights about your data."
+              examples={DEFAULT_EXAMPLES}
+              onExampleClick={(query) => setInput(query)}
+              className="h-full"
+            />
+          </div>
+        ) : (
+          <VirtualMessageList
+            messages={session?.messages ?? []}
+            renderMessage={(message) => (
+              <div className="px-4 py-2">
+                {renderMessage(message)}
               </div>
             )}
-
-            {session?.messages.map(renderMessage)}
-            <div ref={endRef} />
-          </div>
-        </ScrollArea>
+            getMessageKey={(message) => message.id}
+            estimateSize={150}
+            overscan={3}
+            className="h-full"
+            autoScroll={true}
+          />
+        )}
       </div>
 
       <div className="border-t bg-background/80 px-4 py-3">

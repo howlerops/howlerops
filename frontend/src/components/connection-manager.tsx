@@ -1,11 +1,17 @@
+import { ChevronDown, ChevronRight, Cloud, Database, Loader2, Lock, Pencil, Play, Plus, Server, Square, Tag,Trash2, X } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
+
+import { PemKeyUpload } from "@/components/pem-key-upload"
+import { SecretInput } from "@/components/secret-input"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
-import { Switch } from "@/components/ui/switch"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 import {
   Dialog,
   DialogContent,
@@ -15,6 +21,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
   Select,
   SelectContent,
@@ -22,18 +30,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible"
-import { SecretInput } from "@/components/secret-input"
-import { PemKeyUpload } from "@/components/pem-key-upload"
-import { useConnectionStore, DatabaseTypeString, SSHTunnelConfig, VPCConfig } from "@/store/connection-store"
-import { DatabaseConnection } from "@/store/connection-store"
+import { Switch } from "@/components/ui/switch"
 import { SSHAuthMethod } from "@/generated/database"
-import { Database, Plus, Trash2, Play, Square, Loader2, ChevronDown, ChevronRight, Lock, Server, Cloud, Pencil, X, Tag } from "lucide-react"
 import { wailsEndpoints } from "@/lib/wails-api"
+import { DatabaseTypeString, SSHTunnelConfig, useConnectionStore, VPCConfig } from "@/store/connection-store"
+import { DatabaseConnection } from "@/store/connection-store"
 
 interface ConnectionFormData {
   name: string

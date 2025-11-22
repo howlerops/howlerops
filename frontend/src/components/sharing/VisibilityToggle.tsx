@@ -7,9 +7,11 @@
  * @module components/sharing/VisibilityToggle
  */
 
+import { Globe, Loader2,Lock } from 'lucide-react'
 import { useState } from 'react'
-import { Globe, Lock, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
+
+import { Badge } from '@/components/ui/badge'
 import {
   Select,
   SelectContent,
@@ -17,9 +19,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Badge } from '@/components/ui/badge'
-import { useOrganizationStore } from '@/store/organization-store'
 import { usePermissions } from '@/hooks/usePermissions'
+import { useOrganizationStore } from '@/store/organization-store'
 
 interface VisibilityToggleProps {
   /** Resource ID */

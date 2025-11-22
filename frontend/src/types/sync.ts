@@ -7,8 +7,9 @@
  * @module types/sync
  */
 
-import type { SavedQueryRecord, QueryHistoryRecord, ReportRecord } from './storage'
 import type { SanitizedConnection } from '@/lib/sanitization/connection-sanitizer'
+
+import type { QueryHistoryRecord, ReportRecord,SavedQueryRecord } from './storage'
 
 /**
  * Sync operation types for change tracking

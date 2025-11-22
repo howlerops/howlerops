@@ -12,13 +12,15 @@
  * @module store/saved-queries-store
  */
 
-import { create } from 'zustand'
 import { useEffect } from 'react'
+import { create } from 'zustand'
+
 import {
   getSavedQueryRepository,
   type SavedQuerySearchOptions,
 } from '@/lib/storage'
 import type { SavedQueryRecord } from '@/types/storage'
+
 import { useTierStore } from './tier-store'
 
 interface SavedQueriesState {

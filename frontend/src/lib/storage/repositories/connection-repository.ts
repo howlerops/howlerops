@@ -13,15 +13,16 @@
  * @module lib/storage/repositories/connection-repository
  */
 
-import { getIndexedDBClient } from '../indexeddb-client'
 import {
-  STORE_NAMES,
   type ConnectionRecord,
   type CreateInput,
-  type UpdateInput,
   type DatabaseType,
   NotFoundError,
+  STORE_NAMES,
+  type UpdateInput,
 } from '@/types/storage'
+
+import { getIndexedDBClient } from '../indexeddb-client'
 
 /**
  * Connection search options

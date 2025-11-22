@@ -1,7 +1,8 @@
-import React from 'react';
-import { Clock, Database, Filter, CheckCircle, AlertCircle } from 'lucide-react';
-import { cn } from '../../utils/cn';
+import { AlertCircle,CheckCircle, Clock, Database, Filter } from 'lucide-react';
+import React, { useDeferredValue } from 'react';
+
 import { StatusBarProps } from '../../types/table';
+import { cn } from '../../utils/cn';
 
 export const StatusBar: React.FC<StatusBarProps> = ({
   totalRows,
@@ -12,6 +13,12 @@ export const StatusBar: React.FC<StatusBarProps> = ({
   lastUpdated,
   customStatus,
 }) => {
+  // Defer values that change frequently to prevent re-renders during typing
+  const deferredDirtyRows = useDeferredValue(dirtyRows);
+  const deferredSelectedRows = useDeferredValue(selectedRows);
+
+  // Track if we're showing stale data
+  const isPending = dirtyRows !== deferredDirtyRows || selectedRows !== deferredSelectedRows;
   const formatTime = (date: Date) => {
     return new Intl.DateTimeFormat('en-US', {
       hour: '2-digit',
@@ -25,7 +32,10 @@ export const StatusBar: React.FC<StatusBarProps> = ({
   };
 
   return (
-    <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-t border-gray-200 text-sm text-gray-600">
+    <div className={cn(
+      "flex items-center justify-between px-4 py-2 bg-gray-50 border-t border-gray-200 text-sm text-gray-600",
+      isPending && "opacity-70 transition-opacity"
+    )}>
       {/* Left side - Row information */}
       <div className="flex items-center gap-6">
         {/* Total rows */}
@@ -47,21 +57,21 @@ export const StatusBar: React.FC<StatusBarProps> = ({
         )}
 
         {/* Selected rows */}
-        {selectedRows > 0 && (
+        {deferredSelectedRows > 0 && (
           <div className="flex items-center gap-1 text-primary font-medium">
             <CheckCircle className="h-4 w-4" />
             <span>
-              {formatNumber(selectedRows)} selected
+              {formatNumber(deferredSelectedRows)} selected
             </span>
           </div>
         )}
 
         {/* Dirty rows */}
-        {dirtyRows > 0 && (
+        {deferredDirtyRows > 0 && (
           <div className="flex items-center gap-1 text-accent-foreground font-medium">
             <AlertCircle className="h-4 w-4" />
             <span>
-              {formatNumber(dirtyRows)} modified
+              {formatNumber(deferredDirtyRows)} modified
             </span>
           </div>
         )}
@@ -101,7 +111,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
               'w-2 h-2 rounded-full',
               loading
                 ? 'bg-accent'
-                : dirtyRows > 0
+                : deferredDirtyRows > 0
                 ? 'bg-accent'
                 : 'bg-primary'
             )}
@@ -109,7 +119,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
           <span className="text-xs">
             {loading
               ? 'Syncing'
-              : dirtyRows > 0
+              : deferredDirtyRows > 0
               ? 'Modified'
               : 'Synced'
             }

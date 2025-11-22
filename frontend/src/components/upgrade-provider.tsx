@@ -8,14 +8,16 @@
  * Wrap your app with this provider to enable upgrade prompts globally.
  */
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
-import { UpgradeModal } from './upgrade-modal'
-import { MultiDeviceBanner } from './value-indicators/multi-device-banner'
-import { useUpgradePromptStore, type UpgradeTrigger } from '@/store/upgrade-prompt-store'
+import React, { createContext, useCallback,useContext, useEffect, useState } from 'react'
+
 import {
   initializeReminderSystem,
   registerReminderListeners,
 } from '@/lib/upgrade-reminders'
+import { type UpgradeTrigger,useUpgradePromptStore } from '@/store/upgrade-prompt-store'
+
+import { UpgradeModal } from './upgrade-modal'
+import { MultiDeviceBanner } from './value-indicators/multi-device-banner'
 
 interface UpgradeContextValue {
   /**

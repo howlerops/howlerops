@@ -1,8 +1,10 @@
+import { User } from "lucide-react";
 import { useState } from "react";
+
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -11,13 +13,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  UserProfile,
-  UseCase,
-  UserRole,
   USE_CASE_LABELS,
+  UseCase,
   USER_ROLE_LABELS,
+  UserProfile,
+  UserRole,
 } from "@/types/onboarding";
-import { User } from "lucide-react";
 
 interface ProfileStepProps {
   onNext: (profile: UserProfile) => void;

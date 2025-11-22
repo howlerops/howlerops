@@ -2,52 +2,52 @@
 export { EditableTable } from './editable-table';
 
 // Sub-components
+export { CellEditor } from './cell-editor';
+export { StatusBar } from './status-bar';
 export { TableCell } from './table-cell';
 export { TableHeader } from './table-header';
 export { TableToolbar } from './table-toolbar';
-export { StatusBar } from './status-bar';
-export { CellEditor } from './cell-editor';
 
 // Hooks
-export { useTableState } from '../../hooks/use-table-state';
 export { useKeyboardNavigation } from '../../hooks/use-keyboard-navigation';
 export { useOptimisticUpdates } from '../../hooks/use-optimistic-updates';
 export { usePerformance, useRenderPerformance, useVirtualScrollingOptimization } from '../../hooks/use-performance';
+export { useTableState } from '../../hooks/use-table-state';
 
 // Utilities
 export {
-  validateCellValue,
-  formatCellValue,
-  parseCellValue,
-  copyToClipboard,
-  pasteFromClipboard,
-  exportData,
-  debounce,
-  throttle,
-  getColumnWidth,
-  generateTableId,
-  isEqual,
   cloneDeep,
+  copyToClipboard,
+  debounce,
+  exportData,
+  formatCellValue,
+  generateTableId,
+  getColumnWidth,
+  isEqual,
+  parseCellValue,
+  pasteFromClipboard,
+  throttle,
+  validateCellValue,
 } from '../../utils/table';
 
 // Types
 export type {
-  EditableTableProps,
-  TableRow,
-  TableColumn,
-  CellValue,
-  TableState,
-  TableAction,
+  CellEditorProps,
   CellEditState,
-  ValidationResult,
+  CellValue,
   ClipboardData,
+  ColumnHeaderProps,
+  EditableTableProps,
   ExportOptions,
   FilterOption,
-  TableToolbarProps,
-  StatusBarProps,
-  ColumnHeaderProps,
-  CellEditorProps,
   KeyboardNavigationState,
+  StatusBarProps,
+  TableAction,
+  TableColumn,
   TableConfig,
   TableMetrics,
+  TableRow,
+  TableState,
+  TableToolbarProps,
+  ValidationResult,
 } from '../../types/table';

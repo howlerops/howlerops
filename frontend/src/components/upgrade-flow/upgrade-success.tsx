@@ -5,20 +5,21 @@
  * Shows next steps and features to explore.
  */
 
-import React, { useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import {
+  ArrowRight,
+  Brain,
+  Calendar,
   CheckCircle2,
   Cloud,
   Smartphone,
   Users,
-  Brain,
-  ArrowRight,
-  Calendar,
 } from 'lucide-react'
+import React, { useEffect } from 'react'
+
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
 
 export interface UpgradeSuccessProps {
   /**

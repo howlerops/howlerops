@@ -1,23 +1,24 @@
-import React, { useState, useCallback, useMemo } from 'react'
-import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import {
+  AlertCircle,
   ChevronDown,
   ChevronRight,
-  ExternalLink,
   Database,
-  Loader2,
-  AlertCircle,
+  ExternalLink,
   Eye,
-  Key
+  Key,
+  Loader2
 } from 'lucide-react'
+import React, { useCallback, useMemo, useState } from 'react'
+
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { toast } from '@/hooks/use-toast'
+import { wailsEndpoints } from '@/lib/wails-api'
+import { useConnectionStore } from '@/store/connection-store'
 import { QueryEditableMetadata } from '@/store/query-store'
 import { CellValue } from '@/types/table'
-import { wailsEndpoints } from '@/lib/wails-api'
-import { toast } from '@/hooks/use-toast'
-import { useConnectionStore } from '@/store/connection-store'
 
 interface ForeignKeyRecord {
   [key: string]: CellValue
@@ -47,7 +48,7 @@ export function ForeignKeyCard({
   fieldKey,
   value,
   metadata,
-  connectionId,
+  connectionId: _connectionId,
   isExpanded,
   onToggle,
   onLoadData
@@ -56,14 +57,13 @@ export function ForeignKeyCard({
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Get current connections to find an active one
   const { connections } = useConnectionStore()
 
   // Find foreign key metadata for this column
   const foreignKeyInfo = useMemo(() => {
     if (!metadata?.columns) return null
 
-    const column = metadata.columns.find(col => 
+    const column = metadata.columns.find(col =>
       (col.name || col.resultName)?.toLowerCase() === fieldKey.toLowerCase()
     )
 
@@ -79,11 +79,10 @@ export function ForeignKeyCard({
   const loadForeignKeyData = useCallback(async () => {
     if (!foreignKeyInfo || isLoading) return
 
-    // Get the first connected connection directly from the store
     const activeConnection = connections.find(c => c.isConnected)
 
     if (!activeConnection || !activeConnection.sessionId) {
-      console.error('[FK] No active connection found. Connections:', connections)
+      console.error('[FK] No active connection found')
       toast({
         title: 'No Active Connection',
         description: 'Please connect to a database to explore foreign key relationships.',
@@ -93,14 +92,6 @@ export function ForeignKeyCard({
     }
 
     const actualConnectionId = activeConnection.sessionId
-    console.log('[FK] Using active connection:', {
-      connectionName: activeConnection.name,
-      sessionId: actualConnectionId,
-      propConnectionId: connectionId,
-      fieldKey,
-      foreignKeyInfo,
-      value
-    })
 
     setIsLoading(true)
     setError(null)
@@ -112,19 +103,8 @@ export function ForeignKeyCard({
       const escapedValue = typeof value === 'string' ? `'${value.replace(/'/g, "''")}'` : String(value)
       const query = `SELECT * FROM ${foreignKeyInfo.schema ? `"${foreignKeyInfo.schema}"."${foreignKeyInfo.tableName}"` : `"${foreignKeyInfo.tableName}"`} WHERE "${foreignKeyInfo.columnName}" = ${escapedValue} LIMIT 10`
 
-      console.log('[FK] Executing query:', query)
-
-      // Execute query with the ACTUAL active connection, not the prop
+      // Execute query
       const response = await wailsEndpoints.queries.execute(actualConnectionId, query, 10)
-
-      console.log('[FK] Query response:', response)
-      console.log('[FK] Response data structure:', {
-        hasData: !!response.data,
-        columns: response.data?.columns,
-        rowsLength: response.data?.rows?.length,
-        firstRow: response.data?.rows?.[0],
-        rowCount: response.data?.rowCount
-      })
 
       if (!response.success || response.message) {
         throw new Error(response.message || 'Query execution failed')
@@ -139,8 +119,6 @@ export function ForeignKeyCard({
         return record
       })
 
-      console.log('[FK] Mapped relatedRows:', relatedRows)
-
       const newFKData = {
         tableName: foreignKeyInfo.tableName,
         columnName: foreignKeyInfo.columnName,
@@ -150,13 +128,11 @@ export function ForeignKeyCard({
         totalCount: response.data.rowCount
       }
 
-      console.log('[FK] Setting foreignKeyData state to:', newFKData)
       setForeignKeyData(newFKData)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load foreign key data'
       console.error('[FK] Error loading foreign key data:', err)
 
-      // Check if it's a connection error
       if (errorMessage.includes('connection not found')) {
         toast({
           title: 'Connection Error',
@@ -177,7 +153,7 @@ export function ForeignKeyCard({
     } finally {
       setIsLoading(false)
     }
-  }, [foreignKeyInfo, connections, connectionId, isLoading, fieldKey, onLoadData, value])
+  }, [foreignKeyInfo, connections, isLoading, fieldKey, onLoadData, value])
 
   const handleToggle = useCallback(async () => {
     onToggle(fieldKey)
@@ -196,7 +172,7 @@ export function ForeignKeyCard({
   return (
     <div className="border border-border rounded-lg bg-muted/30 overflow-hidden w-full">
       {/* Header */}
-      <div 
+      <div
         className="flex items-center justify-between p-3 cursor-pointer hover:bg-muted/50 transition-colors"
         onClick={handleToggle}
       >
@@ -209,7 +185,7 @@ export function ForeignKeyCard({
             )}
             <Key className="h-3 w-3 text-blue-500" />
           </div>
-          
+
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <span className="font-medium text-sm truncate">{fieldKey}</span>
@@ -275,30 +251,24 @@ export function ForeignKeyCard({
 
               <ScrollArea className="max-h-64">
                 <div className="flex flex-col gap-2 pr-4 overflow-hidden">
-                  {foreignKeyData.relatedRows.map((row, index) => {
-                    console.log('[FK] Rendering row:', row)
-                    return (
-                      <Card key={index} className="bg-background/50 overflow-hidden">
-                        <CardContent className="p-3">
-                          <div className="flex flex-col gap-2">
-                            {Object.entries(row).map(([key, value]) => {
-                              console.log('[FK] Rendering field:', key, '=', value)
-                              return (
-                              <div key={key} className="flex items-start gap-2 text-xs overflow-hidden">
-                                <span className="font-medium text-muted-foreground flex-shrink-0 max-w-[40%] truncate">
-                                  {key}:
-                                </span>
-                                <span className="font-mono text-foreground break-words overflow-hidden flex-1">
-                                  {formatValue(value)}
-                                </span>
-                              </div>
-                              )
-                            })}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    )
-                  })}
+                  {foreignKeyData.relatedRows.map((row, index) => (
+                    <Card key={index} className="bg-background/50 overflow-hidden">
+                      <CardContent className="p-3">
+                        <div className="flex flex-col gap-2">
+                          {Object.entries(row).map(([key, value]) => (
+                            <div key={key} className="flex items-start gap-2 text-xs overflow-hidden">
+                              <span className="font-medium text-muted-foreground flex-shrink-0 max-w-[40%] truncate">
+                                {key}:
+                              </span>
+                              <span className="font-mono text-foreground break-words overflow-hidden flex-1">
+                                {formatValue(value)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
               </ScrollArea>
             </div>
@@ -319,7 +289,6 @@ function formatValue(value: CellValue): string {
   if (value === null) return 'NULL'
   if (value === undefined) return 'undefined'
   if (typeof value === 'string') {
-    // Truncate long strings
     return value.length > 50 ? value.substring(0, 50) + '...' : value
   }
   if (typeof value === 'object') {

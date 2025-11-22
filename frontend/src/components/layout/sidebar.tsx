@@ -1,35 +1,40 @@
-import { useState, useEffect, useCallback, useRef } from "react"
-import { useNavigate } from "react-router-dom"
-import { createPortal } from "react-dom"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { useConnectionStore, type DatabaseConnection } from "@/store/connection-store"
-import { useQueryStore } from "@/store/query-store"
-import { SchemaVisualizerWrapper } from "@/components/schema-visualizer/schema-visualizer"
-import { ConnectionSchemaViewer } from "@/components/connection-schema-viewer"
-import { EnvironmentManager } from "@/components/environment-manager"
-import type { SchemaNode } from "@/hooks/use-schema-introspection"
 import {
-  Database,
-  Table,
-  Plus,
   ChevronDown,
   ChevronRight,
-  Loader2,
-  Network,
+  Columns,
+  Database,
   Filter,
-  Tag,
-  PanelLeftClose,
-  PanelRightOpen,
   Folder,
   FolderOpen,
-  Columns,
   Key,
+  Loader2,
+  Network,
+  PanelLeftClose,
+  PanelRightOpen,
+  Plus,
+  Table,
+  Tag,
 } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { lazy, Suspense, useCallback, useEffect, useRef,useState } from "react"
+import { createPortal } from "react-dom"
+import { useNavigate } from "react-router-dom"
+
+import { ConnectionSchemaViewer } from "@/components/connection-schema-viewer"
+import { EnvironmentManager } from "@/components/environment-manager"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import type { SchemaNode } from "@/hooks/use-schema-introspection"
 import { toast } from "@/hooks/use-toast"
+import { cn } from "@/lib/utils"
+import { preloadComponent } from "@/lib/component-preload"
+import { type DatabaseConnection,useConnectionStore } from "@/store/connection-store"
+import { useQueryStore } from "@/store/query-store"
+
+// Lazy-load the heavy schema visualizer (uses reactflow)
+const SchemaVisualizerWrapper = lazy(() => import("@/components/schema-visualizer/schema-visualizer").then(m => ({ default: m.SchemaVisualizerWrapper })))
+const preloadSchemaVisualizer = () => import("@/components/schema-visualizer/schema-visualizer").then(m => ({ default: m.SchemaVisualizerWrapper }))
 
 interface SchemaTreeProps {
   nodes: SchemaNode[]
@@ -512,6 +517,7 @@ export function Sidebar({ onToggle, isCollapsed = false }: SidebarProps) {
                                 size="sm"
                                 className="h-6 w-6 p-0"
                                 onClick={() => handleViewDiagram(connection.id)}
+                                onMouseEnter={() => void preloadComponent(preloadSchemaVisualizer)}
                                 title="View Schema Diagram"
                               >
                                 <Network className="h-3 w-3" />
@@ -609,11 +615,17 @@ export function Sidebar({ onToggle, isCollapsed = false }: SidebarProps) {
       
       {/* Connection Diagram Modal */}
       {diagramConnectionId && createPortal(
-        <SchemaVisualizerWrapper 
-          schema={[]} 
-          connectionId={diagramConnectionId}
-          onClose={() => setDiagramConnectionId(null)} 
-        />,
+        <Suspense fallback={
+          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
+            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+          </div>
+        }>
+          <SchemaVisualizerWrapper
+            schema={[]}
+            connectionId={diagramConnectionId}
+            onClose={() => setDiagramConnectionId(null)}
+          />
+        </Suspense>,
         document.body
       )}
       

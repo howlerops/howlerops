@@ -5,21 +5,21 @@
  * for both single-database and multi-database queries with @connection.table syntax
  */
 
-import { EditorView, keymap, ViewUpdate } from '@codemirror/view'
-import { EditorState, Extension, StateEffect, StateField } from '@codemirror/state'
-import { sql, SQLDialect } from '@codemirror/lang-sql'
 import {
+  acceptCompletion,
   autocompletion,
   Completion,
   CompletionContext,
   CompletionResult,
-  startCompletion,
-  acceptCompletion
-} from '@codemirror/autocomplete'
-import { defaultKeymap, historyKeymap, history, indentMore } from '@codemirror/commands'
+  startCompletion} from '@codemirror/autocomplete'
+import { defaultKeymap, history, historyKeymap, indentMore } from '@codemirror/commands'
+import { sql, SQLDialect } from '@codemirror/lang-sql'
 import { searchKeymap } from '@codemirror/search'
+import { EditorState, Extension, StateEffect, StateField } from '@codemirror/state'
 import { oneDark } from '@codemirror/theme-one-dark'
-import { parseQueryContext, isAlias, resolveAlias, getTablesInScope } from './sql-context-parser'
+import { EditorView, keymap, ViewUpdate } from '@codemirror/view'
+
+import { getTablesInScope,isAlias, parseQueryContext, resolveAlias } from './sql-context-parser'
 
 export interface Connection {
   id: string

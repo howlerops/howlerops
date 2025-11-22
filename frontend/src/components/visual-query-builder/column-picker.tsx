@@ -3,15 +3,17 @@
  * Handles column selection and aliasing
  */
 
+import { Calendar, Hash, Key,Text, ToggleLeft } from 'lucide-react'
 import { useState } from 'react'
+
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Hash, Text, Calendar, ToggleLeft, Key } from 'lucide-react'
-import { ColumnPickerProps, ColumnInfo } from './types'
 import { typeRegistry } from '@/lib/type-registry'
+
+import { ColumnInfo,ColumnPickerProps } from './types'
 
 export function ColumnPicker({
   table,

@@ -3,7 +3,11 @@
  * Modal for creating and editing scheduled queries
  */
 
-import React, { useState, useEffect } from 'react'
+import { Calendar, Info } from 'lucide-react'
+import React, { useEffect,useState } from 'react'
+
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
@@ -12,9 +16,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Select,
   SelectContent,
@@ -22,11 +26,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { Calendar, Info } from 'lucide-react'
-import type { QueryTemplate, CreateScheduleInput, TemplateParameterValue } from '@/types/templates'
 import { useTemplatesStore } from '@/store/templates-store'
+import type { CreateScheduleInput, QueryTemplate, TemplateParameterValue } from '@/types/templates'
+
 import { CronBuilder } from './CronBuilder'
 // Using simple pre/code for SQL display - can be upgraded to CodeMirror if needed
 

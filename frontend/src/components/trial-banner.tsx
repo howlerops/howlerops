@@ -14,13 +14,15 @@
  * ```
  */
 
+import { AnimatePresence,motion } from 'framer-motion'
+import { ArrowRight, CheckCircle, Clock, Gift,Sparkles, X, Zap } from 'lucide-react'
 import * as React from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Sparkles, X, Clock, CheckCircle, ArrowRight, Zap, Gift } from 'lucide-react'
+
 import { cn } from '@/lib/utils'
-import { UpgradeButton, FloatingUpgradeButton } from './upgrade-button'
-import { FeatureBadge } from './feature-badge'
 import type { TierLevel } from '@/types/tiers'
+
+import { FeatureBadge } from './feature-badge'
+import { FloatingUpgradeButton,UpgradeButton } from './upgrade-button'
 
 interface TrialBannerProps {
   tier?: TierLevel

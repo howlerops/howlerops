@@ -17,12 +17,14 @@
  * ```
  */
 
-import * as React from 'react'
 import { motion } from 'framer-motion'
-import { Check, X, Sparkles, Users, Zap } from 'lucide-react'
+import { Check, Sparkles, Users, X, Zap } from 'lucide-react'
+import * as React from 'react'
+
 import { cn } from '@/lib/utils'
-import { UpgradeButton } from './upgrade-button'
 import type { TierLevel } from '@/types/tiers'
+
+import { UpgradeButton } from './upgrade-button'
 
 type FeatureValue = string | number | boolean
 

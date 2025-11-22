@@ -11,46 +11,45 @@
 export { SyncService } from './sync-service'
 
 // Sync API client
-export { getSyncClient, resetSyncClient, isSyncAvailable } from '@/lib/api/sync-client'
+export { getSyncClient, isSyncAvailable,resetSyncClient } from '@/lib/api/sync-client'
 export {
-  SyncClient,
-  SyncClientError,
   AuthenticationError,
   NetworkError,
   ServerError,
+  SyncClient,
+  SyncClientError,
 } from '@/lib/api/sync-client'
 
 // Type definitions
 export type {
-  SyncAction,
-  SyncEntityType,
-  SyncStatus,
-  ConflictResolution,
   ChangeSet,
+  Conflict,
+  ConflictResolution,
+  DeviceInfo,
+  DownloadChangesResponse,
+  MergeStrategy,
+  SyncAction,
+  SyncConfig,
+  SyncEntityType,
+  SyncEvent,
+  SyncProgress,
+  SyncQueueEntry,
+  SyncResult,
+  SyncStateSnapshot,
+  SyncStatus,
   UploadChangesRequest,
   UploadChangesResponse,
-  DownloadChangesResponse,
-  Conflict,
-  SyncResult,
-  SyncConfig,
-  DeviceInfo,
-  SyncQueueEntry,
-  SyncProgress,
-  SyncEvent,
-  SyncStateSnapshot,
-  MergeStrategy,
 } from '@/types/sync'
-
 export {
   DEFAULT_SYNC_CONFIG,
-  isSyncEntityType,
-  isConflictResolution,
   generateDeviceId,
+  isConflictResolution,
+  isSyncEntityType,
 } from '@/types/sync'
 
 // Re-export sanitization utilities
-export { sanitizeConnection, prepareConnectionsForSync } from '@/lib/sanitization/connection-sanitizer'
 export type { SanitizedConnection } from '@/lib/sanitization/connection-sanitizer'
+export { prepareConnectionsForSync,sanitizeConnection } from '@/lib/sanitization/connection-sanitizer'
 
 /**
  * Initialize cloud sync system

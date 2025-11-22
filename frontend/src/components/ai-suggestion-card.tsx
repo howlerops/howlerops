@@ -1,6 +1,9 @@
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { CheckCircle2 } from 'lucide-react'
+import { memo } from 'react'
+
+import { ConfidenceIndicator } from '@/components/ConfidenceIndicator'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import type { SQLSuggestion } from '@/store/ai-store'
 
 interface AISuggestionCardProps {
@@ -9,7 +12,7 @@ interface AISuggestionCardProps {
   isApplied?: boolean
 }
 
-export function AISuggestionCard({ suggestion, onApply, isApplied }: AISuggestionCardProps) {
+export const AISuggestionCard = memo(function AISuggestionCard({ suggestion, onApply, isApplied }: AISuggestionCardProps) {
   return (
     <div className="p-4 border rounded-lg bg-card hover:shadow-sm transition-shadow flex flex-col gap-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -18,9 +21,7 @@ export function AISuggestionCard({ suggestion, onApply, isApplied }: AISuggestio
             <span className="text-xs font-medium text-muted-foreground">
               {suggestion.provider} • {suggestion.model}
             </span>
-            <Badge variant="secondary" className="text-xs">
-              {Math.round(suggestion.confidence * 100)}% confidence
-            </Badge>
+            <ConfidenceIndicator confidence={suggestion.confidence} size="sm" />
           </div>
           {isApplied && (
             <Badge variant="default" className="text-xs gap-1">
@@ -53,4 +54,4 @@ export function AISuggestionCard({ suggestion, onApply, isApplied }: AISuggestio
       </pre>
     </div>
   )
-}
+})

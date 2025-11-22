@@ -9,8 +9,9 @@
 
 // For React Router (Vite/React)
 import { createBrowserRouter } from 'react-router-dom'
-import { TemplatesPage } from './pages/TemplatesPage'
+
 import { SchedulesPage } from './pages/SchedulesPage'
+import { TemplatesPage } from './pages/TemplatesPage'
 
 // This is an example file that intentionally exports multiple examples
 // eslint-disable-next-line react-refresh/only-export-components
@@ -35,8 +36,8 @@ export const exampleRouter = createBrowserRouter([
 // 2. NAVIGATION MENU
 // ============================================================================
 
+import { Calendar,FileCode } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { FileCode, Calendar } from 'lucide-react'
 
 function AppNavigation() {
   return (
@@ -63,9 +64,10 @@ function AppNavigation() {
 // 3. USING TEMPLATES IN YOUR COMPONENTS
 // ============================================================================
 
-import { useTemplatesStore } from '@/store/templates-store'
+import { useEffect,useState } from 'react'
+
 import { TemplateExecutor } from '@/components/templates'
-import { useState, useEffect } from 'react'
+import { useTemplatesStore } from '@/store/templates-store'
 
 function QueryEditorWithTemplates() {
   const { templates, fetchTemplates, loading } = useTemplatesStore()
@@ -458,7 +460,7 @@ function StatCard({ label, value }) {
 // 11. TESTING WITH MOCK DATA
 // ============================================================================
 
-import { mockTemplates, mockSchedules, mockExecutions } from '@/lib/mocks/templates-mock-data'
+import { mockExecutions,mockSchedules, mockTemplates } from '@/lib/mocks/templates-mock-data'
 
 function TestingExample() {
   // Use mock data in development
@@ -521,14 +523,14 @@ function ErrorHandlingExample() {
 
 export {
   AppNavigation,
-  QueryEditorWithTemplates,
-  CreateTemplateExample,
-  ExecuteTemplateExample,
   CreateScheduleExample,
-  ScheduleFormExample,
-  TemplateSearchExample,
-  ScheduleDetailExample,
-  TemplatesDashboard,
-  TestingExample,
+  CreateTemplateExample,
   ErrorHandlingExample,
+  ExecuteTemplateExample,
+  QueryEditorWithTemplates,
+  ScheduleDetailExample,
+  ScheduleFormExample,
+  TemplatesDashboard,
+  TemplateSearchExample,
+  TestingExample,
 }

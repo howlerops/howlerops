@@ -13,15 +13,16 @@
  * @module lib/storage/repositories/sync-queue-repository
  */
 
-import { getIndexedDBClient } from '../indexeddb-client'
 import {
-  STORE_NAMES,
-  type SyncQueueRecord,
   type CreateInput,
   type EntityType,
-  type SyncOperation,
   NotFoundError,
+  STORE_NAMES,
+  type SyncOperation,
+  type SyncQueueRecord,
 } from '@/types/storage'
+
+import { getIndexedDBClient } from '../indexeddb-client'
 
 /**
  * Sync queue search options

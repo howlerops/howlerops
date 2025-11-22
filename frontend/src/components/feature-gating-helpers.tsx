@@ -5,8 +5,9 @@
  * These are used by useFeatureGate's render helpers.
  */
 
-import * as React from 'react'
 import type { ReactNode } from 'react'
+import * as React from 'react'
+
 import type { TierLevel } from '@/types/tiers'
 
 // Lazy load components to avoid circular dependencies

@@ -3,7 +3,7 @@
  * Defines features and resource limits for each tier
  */
 
-import type { TierFeatures, TierLimits, TierLevel } from '@/types/tiers'
+import type { TierFeatures, TierLevel,TierLimits } from '@/types/tiers'
 
 /**
  * Resource limits for each tier

@@ -1,22 +1,23 @@
-import { useState, useEffect, useCallback } from "react"
-import { createPortal } from "react-dom"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { useConnectionStore } from "@/store/connection-store"
-import { SchemaTree } from "@/components/layout/sidebar"
-import { SchemaVisualizerWrapper } from "@/components/schema-visualizer/schema-visualizer"
 import {
-  X,
-  Database,
-  Table,
-  RefreshCw,
   AlertCircle,
+  Database,
   Loader2,
   Network,
+  RefreshCw,
+  Table,
+  X,
 } from "lucide-react"
+import { useCallback,useEffect, useState } from "react"
+import { createPortal } from "react-dom"
+
+import { SchemaTree } from "@/components/layout/sidebar"
+import { SchemaVisualizerWrapper } from "@/components/schema-visualizer/schema-visualizer"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
+import { useConnectionStore } from "@/store/connection-store"
 
 interface ConnectionSchemaViewerProps {
   connectionId: string | null

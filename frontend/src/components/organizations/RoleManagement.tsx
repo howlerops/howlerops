@@ -6,15 +6,13 @@
  * Supports optimistic updates with automatic rollback on errors.
  */
 
+import { AlertCircle,Check, Loader2, Shield } from 'lucide-react'
 import * as React from 'react'
-import { Shield, Check, Loader2, AlertCircle } from 'lucide-react'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { toast } from 'sonner'
+
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
@@ -24,19 +22,22 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { OrganizationRole, getRoleDisplayName } from '@/types/organization'
-import type { OrganizationMember } from '@/types/organization'
 import { usePermissions } from '@/hooks/usePermissions'
 import { cn } from '@/lib/utils'
-import { toast } from 'sonner'
+import type { OrganizationMember } from '@/types/organization'
+import { getRoleDisplayName,OrganizationRole } from '@/types/organization'
 
 interface RoleManagementProps {
   member: OrganizationMember

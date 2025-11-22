@@ -15,23 +15,24 @@
 
 import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
-import type {
-  TierLevel,
-  TierPersistence,
-  TeamRole,
-  TierFeatures,
-  TierLimits,
-  LimitCheckResult,
-} from '@/types/tiers'
+
 import {
+  getRequiredTier,
+  isTierAtLeast,
   TIER_FEATURES,
   TIER_LIMITS,
   TIER_METADATA,
   tierHasFeature,
-  isTierAtLeast,
-  getRequiredTier,
 } from '@/config/tier-limits'
 import { validateLicenseKey } from '@/lib/tiers/license-validator'
+import type {
+  LimitCheckResult,
+  TeamRole,
+  TierFeatures,
+  TierLevel,
+  TierLimits,
+  TierPersistence,
+} from '@/types/tiers'
 
 /**
  * Tier store state interface

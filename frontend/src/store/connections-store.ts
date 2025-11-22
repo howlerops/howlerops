@@ -9,16 +9,17 @@
 
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
+
 import {
-  getConnections,
+  type Connection,
   createConnection as apiCreateConnection,
-  updateConnection as apiUpdateConnection,
+  type CreateConnectionInput,
   deleteConnection as apiDeleteConnection,
+  getConnections,
+  getOrganizationConnections,
   shareConnection as apiShareConnection,
   unshareConnection as apiUnshareConnection,
-  getOrganizationConnections,
-  type Connection,
-  type CreateConnectionInput,
+  updateConnection as apiUpdateConnection,
   type UpdateConnectionInput,
 } from '@/lib/api/connections'
 

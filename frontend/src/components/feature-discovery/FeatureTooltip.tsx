@@ -1,11 +1,12 @@
-import { useState, useEffect, ReactNode } from "react"
+import { Sparkles,X } from "lucide-react"
+import { ReactNode,useEffect, useState } from "react"
+
+import { Button } from "@/components/ui/button"
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { Button } from "@/components/ui/button"
-import { X, Sparkles } from "lucide-react"
 import { onboardingTracker } from "@/lib/analytics/onboarding-tracking"
 
 interface FeatureTooltipProps {

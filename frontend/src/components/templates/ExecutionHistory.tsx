@@ -3,7 +3,20 @@
  * Display execution history for scheduled queries with timeline and charts
  */
 
+import { format,formatDistanceToNow } from 'date-fns'
+import {
+  AlertCircle,
+  BarChart3,
+  CheckCircle,
+  Clock,
+  Database,
+  TrendingUp,
+  XCircle,
+} from 'lucide-react'
 import React, { useEffect, useState } from 'react'
+
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
 import {
   Dialog,
   DialogContent,
@@ -11,21 +24,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import {
-  CheckCircle,
-  XCircle,
-  Clock,
-  AlertCircle,
-  TrendingUp,
-  Database,
-  BarChart3,
-} from 'lucide-react'
 import { useTemplatesStore } from '@/store/templates-store'
 import type { ScheduleExecution } from '@/types/templates'
-import { formatDistanceToNow, format } from 'date-fns'
 
 interface ExecutionHistoryProps {
   scheduleId: string

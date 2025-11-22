@@ -2,11 +2,12 @@
  * Tests for credential migration utility
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
 import {
-  migrateCredentialsToKeychain,
-  getMigrationStatus,
   clearMigrationFlag,
+  getMigrationStatus,
+  migrateCredentialsToKeychain,
   retryMigration,
   type StoredCredential,
 } from './migrate-credentials'

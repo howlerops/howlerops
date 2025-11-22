@@ -1,8 +1,9 @@
+import { Download, ExternalLink,X } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { X, Download, ExternalLink } from 'lucide-react';
+
+import { useUpdateChecker } from '../hooks/use-update-checker';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
-import { useUpdateChecker } from '../hooks/use-update-checker';
 
 export function UpdateNotification() {
   const {

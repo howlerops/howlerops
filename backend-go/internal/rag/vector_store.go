@@ -22,12 +22,26 @@ const (
 	DocumentTypeMemory      DocumentType = "memory"
 )
 
+// DocumentLevel represents the hierarchical level of a document
+type DocumentLevel string
+
+const (
+	DocumentLevelTable        DocumentLevel = "table"
+	DocumentLevelColumn       DocumentLevel = "column"
+	DocumentLevelIndex        DocumentLevel = "index"
+	DocumentLevelRelationship DocumentLevel = "relationship"
+)
+
 // Document represents an embedded document in the vector store
 type Document struct {
 	ID           string                 `json:"id"`
+	ParentID     string                 `json:"parent_id,omitempty"` // Reference to parent document
+	ChildIDs     []string               `json:"child_ids,omitempty"` // List of child document IDs
+	Level        DocumentLevel          `json:"level,omitempty"`     // Hierarchical level
 	ConnectionID string                 `json:"connection_id"`
 	Type         DocumentType           `json:"type"`
 	Content      string                 `json:"content"`
+	Summary      string                 `json:"summary,omitempty"` // Short summary for parent docs
 	Embedding    []float32              `json:"embedding"`
 	Metadata     map[string]interface{} `json:"metadata"`
 	CreatedAt    time.Time              `json:"created_at"`
@@ -48,6 +62,11 @@ type VectorStore interface {
 	GetDocument(ctx context.Context, id string) (*Document, error)
 	UpdateDocument(ctx context.Context, doc *Document) error
 	DeleteDocument(ctx context.Context, id string) error
+
+	// Hierarchical document operations
+	StoreDocumentWithoutEmbedding(ctx context.Context, doc *Document) error
+	GetDocumentsBatch(ctx context.Context, ids []string) ([]*Document, error)
+	UpdateDocumentMetadata(ctx context.Context, id string, metadata map[string]interface{}) error
 
 	// Search operations
 	SearchSimilar(ctx context.Context, embedding []float32, k int, filter map[string]interface{}) ([]*Document, error)

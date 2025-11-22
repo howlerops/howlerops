@@ -7,8 +7,8 @@
  * - Performance hints
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { Database, Clock, TrendingUp, AlertTriangle, Table2, Info } from 'lucide-react';
+import { AlertTriangle, Clock, Database, Info,Table2, TrendingUp } from 'lucide-react';
+import React, { useCallback,useEffect, useState } from 'react';
 
 interface QueryContext {
   relevantTables: TableContext[];

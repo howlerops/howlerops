@@ -10,8 +10,8 @@
  */
 
 import {
-  STORE_NAMES,
   type SchemaVersion,
+  STORE_NAMES,
   type StoreConfig,
 } from '@/types/storage'
 

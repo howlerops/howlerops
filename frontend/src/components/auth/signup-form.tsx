@@ -5,14 +5,15 @@
  * Includes password strength indicators and confirmation.
  */
 
+import { Check, Loader2, X } from 'lucide-react'
 import { useState } from 'react'
-import { useAuthStore } from '@/store/auth-store'
+
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Loader2, Check, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useAuthStore } from '@/store/auth-store'
 
 interface SignupFormProps {
   onSuccess?: () => void

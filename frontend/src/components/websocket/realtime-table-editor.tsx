@@ -3,11 +3,18 @@
  * Combines optimistic updates, conflict resolution, and collaborative editing
  */
 
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Badge } from '../ui/badge';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  Edit3,
+  Loader2,
+  Save,
+  Users,
+  X,
+} from 'lucide-react';
+import React, { useCallback, useEffect, useMemo,useState } from 'react';
+
 import {
   Table,
   TableBody,
@@ -16,20 +23,15 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Edit3,
-  Save,
-  X,
-  Users,
-  AlertTriangle,
-  Clock,
-  CheckCircle,
-  Loader2,
-} from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
 import { useTableSync } from '../../hooks/websocket';
 import { useConflictResolution } from '../../hooks/websocket';
-import { OptimisticUpdateIndicator } from './optimistic-update-indicator';
+import { Badge } from '../ui/badge';
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
 import { ConflictResolutionModal } from './conflict-resolution-modal';
+import { OptimisticUpdateIndicator } from './optimistic-update-indicator';
 // import { TableEdit, TableEditConflict } from '../../types/websocket'; // Will be used for future conflict resolution features
 
 interface Column {

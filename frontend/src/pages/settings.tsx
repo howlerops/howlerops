@@ -1,18 +1,19 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { AlertTriangle, ArrowLeft, Brain, CheckCircle,Download, Key, Play, Server } from "lucide-react"
+import { useCallback,useEffect, useRef, useState } from "react"
+import { useNavigate } from "react-router-dom"
+
+import { PageErrorBoundary } from "@/components/page-error-boundary"
 import { Button } from "@/components/ui/button"
-import { Switch } from "@/components/ui/switch"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { PageErrorBoundary } from "@/components/page-error-boundary"
-import { useTheme } from "@/hooks/use-theme"
-import { ArrowLeft, Brain, Key, Server, AlertTriangle, Download, Play, CheckCircle } from "lucide-react"
-import { useNavigate } from "react-router-dom"
-import { useEffect, useState, useRef, useCallback } from "react"
-import { useAIConfig } from "@/store/ai-store"
+import { Switch } from "@/components/ui/switch"
 import { useOllamaDetection } from "@/hooks/use-ollama-detection"
+import { useTheme } from "@/hooks/use-theme"
 import { useToast } from "@/hooks/use-toast"
-import { PreferenceRepository, PreferenceCategory } from '@/lib/storage/repositories/preference-repository'
+import { PreferenceCategory,PreferenceRepository } from '@/lib/storage/repositories/preference-repository'
+import { useAIConfig } from "@/store/ai-store"
 
 const prefRepo = new PreferenceRepository()
 const DEVICE_USER = 'local-user'

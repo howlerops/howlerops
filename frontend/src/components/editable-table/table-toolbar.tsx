@@ -1,18 +1,17 @@
-import React, { useCallback, useMemo, useState } from 'react';
 import {
-  Search,
+  Copy,
   Download,
-  Upload,
-  RefreshCw,
   Filter,
   MoreHorizontal,
-  Undo,
   Redo,
+  RefreshCw,
   Trash,
-  Copy
-} from 'lucide-react';
+  Undo,
+  Upload} from 'lucide-react';
+import React, { useCallback, useMemo, useState } from 'react';
+
+import { ExportOptions,TableToolbarProps } from '../../types/table';
 import { cn } from '../../utils/cn';
-import { TableToolbarProps, ExportOptions } from '../../types/table';
 import { debounce } from '../../utils/table';
 
 export const TableToolbar: React.FC<TableToolbarProps> = ({
@@ -43,7 +42,8 @@ export const TableToolbar: React.FC<TableToolbarProps> = ({
     [onSearchChange]
   );
 
-  const handleSearchChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+  // Search is currently disabled in UI, but function kept for future use
+  const _handleSearchChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const value = event.target.value;
     debouncedSearch(value);
   }, [debouncedSearch]);
@@ -69,7 +69,7 @@ export const TableToolbar: React.FC<TableToolbarProps> = ({
       {/* Left side - Search and filters */}
       <div className="flex items-center gap-4 flex-1">
         {/* Search */}
-        <div className="relative">
+        {/* <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input
             type="text"
@@ -78,7 +78,7 @@ export const TableToolbar: React.FC<TableToolbarProps> = ({
             onChange={handleSearchChange}
             className="pl-10 pr-4 py-2 w-64 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
           />
-        </div>
+        </div> */}
 
         {/* Filter indicator */}
         {searchValue && (

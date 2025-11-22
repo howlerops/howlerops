@@ -3,7 +3,7 @@
  * Handles parallel execution across multiple database connections
  */
 
-import { QueryIR, generateSQL } from './query-ir'
+import { generateSQL,QueryIR } from './query-ir'
 import { wailsEndpoints } from './wails-api'
 
 export interface MultiConnectionResult {

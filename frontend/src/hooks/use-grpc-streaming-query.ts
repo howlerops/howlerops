@@ -1,6 +1,7 @@
-import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
-import { streamingQueryClient, QueryResult, QueryProgress, StreamingOptions } from '../services/streaming-query-client'
+import { useCallback, useEffect, useMemo,useRef, useState } from 'react'
+
 import { ColumnMetadata } from '../generated/query'
+import { QueryProgress, QueryResult, StreamingOptions,streamingQueryClient } from '../services/streaming-query-client'
 
 export interface StreamingQueryState {
   isLoading: boolean

@@ -9,14 +9,16 @@
 
 
 import { useState } from 'react'
-import { VisibilityToggle } from './VisibilityToggle'
-import { SharedResourceCard } from './SharedResourceCard'
-import { ConflictResolutionDialog } from './ConflictResolutionDialog'
-import { useConnectionsStore } from '@/store/connections-store'
-import { useQueriesStore } from '@/store/queries-store'
+
 import type { Connection, ConnectionVisibility, CreateConnectionInput } from '@/lib/api/connections'
 import type { SavedQuery } from '@/lib/api/queries'
+import { useConnectionsStore } from '@/store/connections-store'
+import { useQueriesStore } from '@/store/queries-store'
 import type { Conflict } from '@/types/sync'
+
+import { ConflictResolutionDialog } from './ConflictResolutionDialog'
+import { SharedResourceCard } from './SharedResourceCard'
+import { VisibilityToggle } from './VisibilityToggle'
 
 // ============================================================================
 // Example 1: Connection Card with Visibility Toggle

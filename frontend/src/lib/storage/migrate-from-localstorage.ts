@@ -9,8 +9,8 @@
 
 import {
   getConnectionRepository,
-  getQueryHistoryRepository,
   getPreferenceRepository,
+  getQueryHistoryRepository,
 } from './repositories'
 
 /**

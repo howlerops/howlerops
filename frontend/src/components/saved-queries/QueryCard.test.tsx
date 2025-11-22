@@ -4,11 +4,13 @@
  * Basic test suite for QueryCard component functionality
  */
 
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { fireEvent,render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { QueryCard } from './QueryCard'
+import { describe, expect, it, vi } from 'vitest'
+
 import type { SavedQueryRecord } from '@/types/storage'
+
+import { QueryCard } from './QueryCard'
 
 // Mock date-fns to avoid timezone issues in tests
 vi.mock('date-fns', () => ({

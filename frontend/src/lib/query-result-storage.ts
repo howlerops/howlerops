@@ -8,7 +8,7 @@
  * This prevents memory issues when loading very large datasets.
  */
 
-import { get, set, del, createStore, UseStore } from 'idb-keyval'
+import { createStore, del, get, set, UseStore } from 'idb-keyval'
 
 // Custom IndexedDB store for query results
 const queryResultStore: UseStore = createStore('sql-studio-db', 'query-results')

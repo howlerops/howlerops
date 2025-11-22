@@ -4,10 +4,12 @@
  * Demonstrates how to use the QueryCard component in different scenarios
  */
 
-import { QueryCard } from './QueryCard'
-import type { SavedQueryRecord } from '@/types/storage'
-import { useSavedQueriesStore } from '@/store/saved-queries-store'
 import { toast } from 'sonner'
+
+import { useSavedQueriesStore } from '@/store/saved-queries-store'
+import type { SavedQueryRecord } from '@/types/storage'
+
+import { QueryCard } from './QueryCard'
 
 /**
  * Example 1: Basic QueryCard usage in a list

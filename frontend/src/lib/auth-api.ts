@@ -8,7 +8,7 @@
  * The caller doesn't need to know which mode is active - this module handles it transparently.
  */
 
-import { isWailsApp, getApiBaseUrl } from './platform'
+import { getApiBaseUrl,isWailsApp } from './platform'
 import { callWails } from './wails-guard'
 
 // ============================================================================
