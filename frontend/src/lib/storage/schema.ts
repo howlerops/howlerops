@@ -19,7 +19,7 @@ import {
  * Current database version
  * Increment this when making schema changes
  */
-export const CURRENT_VERSION = 1
+export const CURRENT_VERSION = 2
 
 /**
  * Database name
@@ -162,6 +162,42 @@ const savedQueriesStore: StoreConfig = {
     {
       name: 'user_favorites',
       keyPath: ['user_id', 'is_favorite'],
+      unique: false,
+    },
+  ],
+}
+
+/**
+ * Reports store configuration
+ */
+const reportsStore: StoreConfig = {
+  name: STORE_NAMES.REPORTS,
+  keyPath: 'id',
+  indexes: [
+    {
+      name: 'name',
+      keyPath: 'name',
+      unique: false,
+    },
+    {
+      name: 'folder',
+      keyPath: 'folder',
+      unique: false,
+    },
+    {
+      name: 'tags',
+      keyPath: 'tags',
+      unique: false,
+      multiEntry: true,
+    },
+    {
+      name: 'updated_at',
+      keyPath: 'updated_at',
+      unique: false,
+    },
+    {
+      name: 'synced',
+      keyPath: 'synced',
       unique: false,
     },
   ],
@@ -383,10 +419,40 @@ const schemaV1: SchemaVersion = {
 }
 
 /**
+ * Schema version 2 - Adds report definitions store
+ */
+const schemaV2: SchemaVersion = {
+  version: 2,
+  stores: [
+    connectionsStore,
+    queryHistoryStore,
+    savedQueriesStore,
+    reportsStore,
+    aiSessionsStore,
+    aiMessagesStore,
+    exportFilesStore,
+    syncQueueStore,
+    uiPreferencesStore,
+  ],
+  migrate: async (db: IDBDatabase, transaction: IDBTransaction) => {
+    console.log('Migrating Howlerops database to v2 (reports)', db.name, transaction.mode)
+    if (!db.objectStoreNames.contains(STORE_NAMES.REPORTS)) {
+      const store = db.createObjectStore(STORE_NAMES.REPORTS, { keyPath: 'id' })
+      reportsStore.indexes?.forEach((index) => {
+        store.createIndex(index.name, index.keyPath, {
+          unique: index.unique ?? false,
+          multiEntry: index.multiEntry ?? false,
+        })
+      })
+    }
+  },
+}
+
+/**
  * All schema versions
  * Add new versions here when making schema changes
  */
-export const SCHEMA_VERSIONS: SchemaVersion[] = [schemaV1]
+export const SCHEMA_VERSIONS: SchemaVersion[] = [schemaV1, schemaV2]
 
 /**
  * Get the current schema version

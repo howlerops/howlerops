@@ -56,6 +56,7 @@ type App struct {
 	embeddingService  rag.EmbeddingService
 	duckdbEngine      *duckdb.Engine
 	syntheticViews    *storage.SyntheticViewStorage
+	reportService     *services.ReportService
 	// OAuth authentication
 	githubOAuth   *auth.OAuth2Manager
 	googleOAuth   *auth.OAuth2Manager
@@ -502,6 +503,7 @@ func NewApp() *App {
 	keyboardService := services.NewKeyboardService(logger)
 	credentialService := services.NewCredentialService(logger)
 	updateChecker := NewUpdateChecker()
+	reportService := services.NewReportService(logger, databaseService)
 
 	// Initialize OAuth managers (credentials from environment variables)
 	var githubOAuth, googleOAuth *auth.OAuth2Manager
@@ -534,6 +536,7 @@ func NewApp() *App {
 		credentialService: credentialService,
 		aiConfig:          ai.DefaultRuntimeConfig(),
 		updateChecker:     updateChecker,
+		reportService:     reportService,
 		githubOAuth:       githubOAuth,
 		googleOAuth:       googleOAuth,
 		secureStorage:     auth.NewSecureStorage(),
@@ -567,6 +570,9 @@ func (a *App) OnStartup(ctx context.Context) {
 	a.fileService.SetContext(ctx)
 	a.keyboardService.SetContext(ctx)
 	a.credentialService.SetContext(ctx)
+	if a.reportService != nil {
+		a.reportService.SetContext(ctx)
+	}
 	a.updateChecker.ctx = ctx
 
 	// Initialize storage manager
@@ -662,6 +668,14 @@ func (a *App) initializeStorageManager(ctx context.Context) error {
 	}
 	a.syntheticViews = syntheticViewsStorage
 
+	// Initialize report storage
+	reportStorage := storage.NewReportStorage(manager.GetDB(), a.logger)
+	if err := reportStorage.EnsureSchema(); err != nil {
+		a.logger.WithError(err).Warn("Failed to ensure reports table")
+	} else if a.reportService != nil {
+		a.reportService.SetStorage(reportStorage)
+	}
+
 	// Initialize DuckDB federation engine
 	duckdbEngine := duckdb.NewEngine(a.logger, a.databaseService.GetManager())
 	if err := duckdbEngine.Initialize(ctx); err != nil {
@@ -729,6 +743,9 @@ func (a *App) applyAIConfiguration() error {
 			a.aiService = nil
 		}
 		a.embeddingService = nil
+		if a.reportService != nil {
+			a.reportService.SetAIService(nil)
+		}
 		return fmt.Errorf("no AI providers configured")
 	}
 
@@ -750,6 +767,9 @@ func (a *App) applyAIConfiguration() error {
 	}
 
 	a.aiService = service
+	if a.reportService != nil {
+		a.reportService.SetAIService(service)
+	}
 	a.logger.Info("AI service configured successfully")
 
 	a.rebuildEmbeddingService()
@@ -793,6 +813,10 @@ func (a *App) OnShutdown(ctx context.Context) {
 		if err := a.storageManager.Close(); err != nil {
 			a.logger.WithError(err).Error("Failed to close storage manager")
 		}
+	}
+
+	if a.reportService != nil {
+		a.reportService.Shutdown()
 	}
 
 	// Stop AI service

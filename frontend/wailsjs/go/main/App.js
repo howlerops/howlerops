@@ -66,6 +66,10 @@ export function DeleteQueryRows(arg1) {
   return window['go']['main']['App']['DeleteQueryRows'](arg1);
 }
 
+export function DeleteReport(arg1) {
+  return window['go']['main']['App']['DeleteReport'](arg1);
+}
+
 export function DeleteSyntheticView(arg1) {
   return window['go']['main']['App']['DeleteSyntheticView'](arg1);
 }
@@ -234,6 +238,10 @@ export function GetRecentFiles() {
   return window['go']['main']['App']['GetRecentFiles']();
 }
 
+export function GetReport(arg1) {
+  return window['go']['main']['App']['GetReport'](arg1);
+}
+
 export function GetSchemaCacheStats() {
   return window['go']['main']['App']['GetSchemaCacheStats']();
 }
@@ -314,6 +322,10 @@ export function ListConnections() {
   return window['go']['main']['App']['ListConnections']();
 }
 
+export function ListReports() {
+  return window['go']['main']['App']['ListReports']();
+}
+
 export function ListSyntheticViews() {
   return window['go']['main']['App']['ListSyntheticViews']();
 }
@@ -374,6 +386,10 @@ export function ResetKeyboardBindings() {
   return window['go']['main']['App']['ResetKeyboardBindings']();
 }
 
+export function RunReport(arg1) {
+  return window['go']['main']['App']['RunReport'](arg1);
+}
+
 export function SaveAIMemorySessions(arg1) {
   return window['go']['main']['App']['SaveAIMemorySessions'](arg1);
 }
@@ -384,6 +400,10 @@ export function SaveConnection(arg1) {
 
 export function SaveFileDialog() {
   return window['go']['main']['App']['SaveFileDialog']();
+}
+
+export function SaveReport(arg1) {
+  return window['go']['main']['App']['SaveReport'](arg1);
 }
 
 export function SaveSyntheticView(arg1) {

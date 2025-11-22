@@ -335,6 +335,7 @@ export class SyncQueueRepository {
       query: 0,
       preference: 0,
       ai_session: 0,
+      report: 0,
     }
 
     let failedItems = 0

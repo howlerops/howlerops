@@ -5,10 +5,17 @@
  * - Connection metadata (no passwords)
  * - Query history and saved queries
  * - AI conversation sessions
+ * - Report definitions + layouts
  * - Export files and blobs
  * - Offline sync queue
  * - UI preferences
  */
+
+import type {
+  ReportDefinition,
+  ReportFilterDefinition,
+  ReportSyncOptions,
+} from './reports'
 
 // ============================================================================
 // Base Types and Enums
@@ -42,7 +49,7 @@ export type SyncOperation = 'create' | 'update' | 'delete';
 /**
  * Entity types for sync queue
  */
-export type EntityType = 'connection' | 'query' | 'preference' | 'ai_session';
+export type EntityType = 'connection' | 'query' | 'preference' | 'ai_session' | 'report';
 
 /**
  * SSL/TLS modes for database connections
@@ -194,6 +201,60 @@ export interface SavedQueryRecord {
   created_at: Date;
 
   /** When query was last modified */
+  updated_at: Date;
+
+  /** Whether synced to server */
+  synced: boolean;
+
+  /** Server sync version */
+  sync_version: number;
+}
+
+// ============================================================================
+// Reports Store
+// ============================================================================
+
+/**
+ * Report definitions for the drag-and-drop builder
+ */
+export interface ReportRecord {
+  /** Unique report ID */
+  id: string;
+
+  /** Report display name */
+  name: string;
+
+  /** Optional description */
+  description?: string;
+
+  /** Folder for organization */
+  folder?: string;
+
+  /** Tag metadata */
+  tags: string[];
+
+  /** Layout + components */
+  definition: ReportDefinition;
+
+  /** Top-level filter config */
+  filter: ReportFilterDefinition;
+
+  /** Sync + scheduling options */
+  sync_options: ReportSyncOptions;
+
+  /** Last execution timestamp */
+  last_run_at?: Date;
+
+  /** Last execution status */
+  last_run_status?: string;
+
+  /** Arbitrary metadata */
+  metadata?: Record<string, string>;
+
+  /** Created timestamp */
+  created_at: Date;
+
+  /** Updated timestamp */
   updated_at: Date;
 
   /** Whether synced to server */
@@ -563,6 +624,7 @@ export const STORE_NAMES = {
   CONNECTIONS: 'connections',
   QUERY_HISTORY: 'query_history',
   SAVED_QUERIES: 'saved_queries',
+  REPORTS: 'reports',
   AI_SESSIONS: 'ai_sessions',
   AI_MESSAGES: 'ai_messages',
   EXPORT_FILES: 'export_files',

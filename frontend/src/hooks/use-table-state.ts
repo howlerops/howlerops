@@ -100,6 +100,7 @@ export const useTableState = (
   const [state, setState] = useState<TableState>({
     editingCell: null,
     selectedRows: [],
+    selectAllPagesMode: false,
     sorting: [],
     columnFilters: [],
     globalFilter: '',
@@ -282,6 +283,28 @@ export const useTableState = (
             .map(row => row.__rowId)
             .filter((id): id is string => Boolean(id))
         : [],
+      selectAllPagesMode: false, // Reset select all pages mode when manually toggling
+    }));
+  }, []);
+
+  const setSelectedRows = useCallback((rowIds: string[]) => {
+    console.log('[setSelectedRows] Called with:', rowIds);
+    setState(prev => {
+      console.log('[setSelectedRows] Previous selectedRows:', prev.selectedRows);
+      const newState = {
+        ...prev,
+        selectedRows: rowIds,
+        selectAllPagesMode: false, // Reset select all pages mode when manually changing selection
+      };
+      console.log('[setSelectedRows] New selectedRows:', newState.selectedRows);
+      return newState;
+    });
+  }, []);
+
+  const setSelectAllPagesMode = useCallback((enabled: boolean) => {
+    setState(prev => ({
+      ...prev,
+      selectAllPagesMode: enabled,
     }));
   }, []);
 
@@ -436,6 +459,7 @@ export const useTableState = (
     setState({
       editingCell: null,
       selectedRows: [],
+      selectAllPagesMode: false,
       sorting: [],
       columnFilters: [],
       globalFilter: '',
@@ -472,6 +496,7 @@ export const useTableState = (
         ...prev,
         editingCell: null,
         selectedRows: [],
+        selectAllPagesMode: false,
         dirtyRows: new Set(),
         invalidCells: new Map(),
         undoStack: [],
@@ -499,6 +524,8 @@ export const useTableState = (
     saveEditing,
     toggleRowSelection,
     selectAllRows,
+    setSelectedRows,
+    setSelectAllPagesMode,
     updateSorting,
     updateColumnFilters,
     updateGlobalFilter,
@@ -522,6 +549,8 @@ export const useTableState = (
     saveEditing,
     toggleRowSelection,
     selectAllRows,
+    setSelectedRows,
+    setSelectAllPagesMode,
     updateSorting,
     updateColumnFilters,
     updateGlobalFilter,

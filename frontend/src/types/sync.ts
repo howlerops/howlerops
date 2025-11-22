@@ -7,7 +7,7 @@
  * @module types/sync
  */
 
-import type { SavedQueryRecord, QueryHistoryRecord } from './storage'
+import type { SavedQueryRecord, QueryHistoryRecord, ReportRecord } from './storage'
 import type { SanitizedConnection } from '@/lib/sanitization/connection-sanitizer'
 
 /**
@@ -18,7 +18,7 @@ export type SyncAction = 'create' | 'update' | 'delete'
 /**
  * Entity types that can be synced
  */
-export type SyncEntityType = 'connection' | 'saved_query' | 'query_history'
+export type SyncEntityType = 'connection' | 'saved_query' | 'query_history' | 'report'
 
 /**
  * Sync status indicators
@@ -75,6 +75,9 @@ export interface UploadChangesRequest {
   /** Saved query changes */
   savedQueries: ChangeSet<Omit<SavedQueryRecord, 'synced' | 'sync_version'>>[]
 
+  /** Report builder changes */
+  reports: ChangeSet<Omit<ReportRecord, 'synced' | 'sync_version'>>[]
+
   /** Query history changes (optional, can be disabled) */
   queryHistory?: ChangeSet<Omit<QueryHistoryRecord, 'synced' | 'sync_version'>>[]
 }
@@ -111,6 +114,9 @@ export interface DownloadChangesResponse {
 
   /** Saved queries from server */
   savedQueries: SavedQueryRecord[]
+
+  /** Reports from server */
+  reports?: ReportRecord[]
 
   /** Query history from server (optional) */
   queryHistory?: QueryHistoryRecord[]
@@ -194,6 +200,8 @@ export interface SyncResult {
     connectionsDownloaded: number
     queriesUploaded: number
     queriesDownloaded: number
+    reportsUploaded: number
+    reportsDownloaded: number
     historyUploaded: number
     historyDownloaded: number
   }
@@ -394,7 +402,7 @@ export const DEFAULT_SYNC_CONFIG: SyncConfig = {
  * Type guard for checking if a value is a valid sync entity type
  */
 export function isSyncEntityType(value: string): value is SyncEntityType {
-  return ['connection', 'saved_query', 'query_history'].includes(value)
+  return ['connection', 'saved_query', 'query_history', 'report'].includes(value)
 }
 
 /**

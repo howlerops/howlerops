@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback, useRef, useEffect, memo } from 'react';
+import React, { useMemo, useCallback, useRef, useEffect, useState, memo } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
@@ -127,6 +127,7 @@ export const EditableTable: React.FC<EditableTableProps> = ({
   onSort,
   onFilter,
   onExport,
+  onSelectAllPages,
   loading = false,
   error = null,
   virtualScrolling = true,
@@ -264,24 +265,39 @@ export const EditableTable: React.FC<EditableTableProps> = ({
     if (enableMultiSelect) {
       baseColumns.unshift({
         id: 'select',
-        header: ({ table }) => (
-          <input
-            type="checkbox"
-            checked={table.getIsAllRowsSelected()}
-            onChange={table.getToggleAllRowsSelectedHandler()}
-            className="rounded border-border focus:ring-2 focus:ring-ring"
-            aria-label="Select all rows"
-          />
-        ),
-        cell: ({ row }) => (
-          <input
-            type="checkbox"
-            checked={row.getIsSelected()}
-            onChange={row.getToggleSelectedHandler()}
-            className="rounded border-border focus:ring-2 focus:ring-ring"
-            aria-label={`Select row ${row.index + 1}`}
-          />
-        ),
+        header: ({ table }) => {
+          const allSelected = table.getIsAllRowsSelected();
+          const someSelected = table.getIsSomeRowsSelected();
+
+          return (
+            <input
+              type="checkbox"
+              checked={allSelected}
+              ref={(el) => {
+                if (el) {
+                  el.indeterminate = someSelected && !allSelected;
+                }
+              }}
+              onChange={table.getToggleAllRowsSelectedHandler()}
+              className="rounded border-border focus:ring-2 focus:ring-ring"
+              aria-label="Select all rows"
+            />
+          );
+        },
+        cell: ({ row }) => {
+          const isSelected = row.getIsSelected();
+          console.log(`[Cell Renderer] Row ${row.index} (ID: ${row.original.__rowId}): getIsSelected() = ${isSelected}`);
+
+          return (
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={row.getToggleSelectedHandler()}
+              className="rounded border-border focus:ring-2 focus:ring-ring"
+              aria-label={`Select row ${row.index + 1}`}
+            />
+          );
+        },
         size: 40,
         enableSorting: false,
         enableColumnFilter: false,
@@ -306,6 +322,23 @@ export const EditableTable: React.FC<EditableTableProps> = ({
   const rowCount = data.length;
   const isVeryLarge = rowCount > 10000;
 
+  // TanStack Table's row selection state - this is the SINGLE source of truth
+  const [internalRowSelection, setInternalRowSelection] = useState<Record<string, boolean>>({});
+
+  // Sync internal selection to external state (for callbacks like onRowSelect)
+  useEffect(() => {
+    const selectedIds = Object.keys(internalRowSelection)
+      .filter(key => internalRowSelection[key] === true)
+      .map((indexStr) => {
+        const index = parseInt(indexStr, 10);
+        return data[index]?.__rowId;
+      })
+      .filter((id): id is string => Boolean(id));
+
+    console.log('[Effect] Syncing internal selection to external state:', selectedIds);
+    actions.setSelectedRows(selectedIds);
+  }, [internalRowSelection, data, actions]);
+
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data,
@@ -319,19 +352,18 @@ export const EditableTable: React.FC<EditableTableProps> = ({
     // Disable expensive features for very large datasets
     enableMultiSort: !isVeryLarge, // Disable multi-column sort for 10K+ rows
     enableGlobalFilter: !isVeryLarge && enableGlobalFilter, // Disable global filter for 10K+ rows
+    // Use row index as the row ID for TanStack Table
+    getRowId: (row, index) => {
+      console.log(`[getRowId] Row ${index}: __rowId = ${row.__rowId}`);
+      return String(index);
+    },
     state: {
       sorting: state.sorting,
       columnFilters: state.columnFilters,
       globalFilter: state.globalFilter,
       columnVisibility: state.columnVisibility,
       columnSizing: state.columnSizing,
-      rowSelection: state.selectedRows.reduce((acc, id) => {
-        const rowIndex = data.findIndex(row => row.__rowId === id);
-        if (rowIndex !== -1) {
-          acc[rowIndex] = true;
-        }
-        return acc;
-      }, {} as Record<string, boolean>),
+      rowSelection: internalRowSelection,
     },
     onSortingChange: (updater) => {
       const next = typeof updater === 'function' ? updater(table.getState().sorting) : updater
@@ -354,19 +386,7 @@ export const EditableTable: React.FC<EditableTableProps> = ({
       const next = typeof updater === 'function' ? updater(table.getState().columnSizing) : updater
       actions.updateColumnSizing(next)
     },
-    onRowSelectionChange: (updater) => {
-      const newSelection = typeof updater === 'function'
-        ? updater(table.getState().rowSelection)
-        : updater;
-
-      const selectedIds = Object.keys(newSelection)
-        .filter(key => newSelection[key])
-        .map((index) => data[parseInt(index)]?.__rowId)
-        .filter((id): id is string => Boolean(id));
-
-      actions.selectAllRows(false);
-      selectedIds.forEach(id => actions.toggleRowSelection(id, true));
-    },
+    onRowSelectionChange: setInternalRowSelection,
     enableRowSelection: enableMultiSelect && !isVeryLarge, // Disable row selection for 10K+ rows (expensive)
     enableColumnResizing: enableColumnResizing && !isVeryLarge, // Disable column resizing for 10K+ rows
     columnResizeMode: 'onChange',
@@ -512,6 +532,21 @@ export const EditableTable: React.FC<EditableTableProps> = ({
   const shouldShowDefaultToolbar = !renderedToolbar && (enableGlobalFilter || enableExport);
   const shouldRenderToolbar = Boolean(renderedToolbar || shouldShowDefaultToolbar);
 
+  // Determine if we should show the "Select All Pages" banner
+  const allVisibleRowsSelected = rows.length > 0 && table.getIsAllRowsSelected();
+  const hasPaginatedData = totalRows && totalRows > data.length;
+  const shouldShowSelectAllBanner = allVisibleRowsSelected && hasPaginatedData && !state.selectAllPagesMode && enableMultiSelect;
+
+  const handleSelectAllPages = useCallback(() => {
+    actions.setSelectAllPagesMode(true);
+    onSelectAllPages?.();
+  }, [actions, onSelectAllPages]);
+
+  const handleClearSelection = useCallback(() => {
+    actions.selectAllRows(false);
+    actions.setSelectAllPagesMode(false);
+  }, [actions]);
+
   // Get virtual items following official pattern
   const virtualItems = virtualizerWorking ? virtualizer.getVirtualItems() : EMPTY_VIRTUAL_ITEMS;
   const totalSize = virtualizerWorking ? virtualizer.getTotalSize() : undefined;
@@ -566,6 +601,48 @@ export const EditableTable: React.FC<EditableTableProps> = ({
               showExport={enableExport}
             />
           )}
+        </div>
+      )}
+
+      {/* Select All Pages Banner */}
+      {shouldShowSelectAllBanner && (
+        <div className="flex-shrink-0 bg-blue-50 dark:bg-blue-950 border-b border-blue-200 dark:border-blue-800 px-4 py-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-blue-900 dark:text-blue-100">
+              All {data.length} rows on this page are selected.
+            </span>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleSelectAllPages}
+                className="text-sm font-medium text-blue-700 dark:text-blue-300 hover:text-blue-900 dark:hover:text-blue-100 underline"
+              >
+                Select all {totalRows?.toLocaleString()} rows
+              </button>
+              <button
+                onClick={handleClearSelection}
+                className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200"
+              >
+                Clear selection
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Select All Pages Active Banner */}
+      {state.selectAllPagesMode && (
+        <div className="flex-shrink-0 bg-blue-100 dark:bg-blue-900 border-b border-blue-300 dark:border-blue-700 px-4 py-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
+              All {totalRows?.toLocaleString()} rows are selected.
+            </span>
+            <button
+              onClick={handleClearSelection}
+              className="text-sm text-blue-700 dark:text-blue-300 hover:text-blue-900 dark:hover:text-blue-100 underline"
+            >
+              Clear selection
+            </button>
+          </div>
         </div>
       )}
 

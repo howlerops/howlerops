@@ -38,6 +38,8 @@ export function DeletePassword(arg1:string):Promise<void>;
 
 export function DeleteQueryRows(arg1:main.QueryRowDeleteRequest):Promise<main.QueryRowDeleteResponse>;
 
+export function DeleteReport(arg1:string):Promise<void>;
+
 export function DeleteSyntheticView(arg1:string):Promise<void>;
 
 export function DeleteWebAuthnCredential(arg1:string):Promise<void>;
@@ -122,6 +124,8 @@ export function GetQuerySuggestions(arg1:string,arg2:string):Promise<Array<main.
 
 export function GetRecentFiles():Promise<Array<services.RecentFile>>;
 
+export function GetReport(arg1:string):Promise<storage.Report>;
+
 export function GetSchemaCacheStats():Promise<Record<string, any>>;
 
 export function GetSchemas(arg1:string):Promise<Array<string>>;
@@ -162,6 +166,8 @@ export function ListConnectionDatabases(arg1:string):Promise<main.ListDatabasesR
 
 export function ListConnections():Promise<Array<string>>;
 
+export function ListReports():Promise<Array<storage.ReportSummary>>;
+
 export function ListSyntheticViews():Promise<Array<main.SyntheticViewSummary>>;
 
 export function LoadAIMemorySessions():Promise<Array<main.AIMemorySessionPayload>>;
@@ -192,11 +198,15 @@ export function RemoveKeyboardBinding(arg1:string):Promise<void>;
 
 export function ResetKeyboardBindings():Promise<void>;
 
+export function RunReport(arg1:services.ReportRunRequest):Promise<services.ReportRunResponse>;
+
 export function SaveAIMemorySessions(arg1:Array<main.AIMemorySessionPayload>):Promise<void>;
 
 export function SaveConnection(arg1:main.ConnectionRequest):Promise<void>;
 
 export function SaveFileDialog():Promise<string>;
+
+export function SaveReport(arg1:storage.Report):Promise<storage.Report>;
 
 export function SaveSyntheticView(arg1:storage.ViewDefinition):Promise<string>;
 

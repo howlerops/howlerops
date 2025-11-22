@@ -259,8 +259,10 @@ export const useSchemaStore = create<SchemaStoreState>()(
           if (cached) {
             const age = Date.now() - cached.timestamp
             if (age < CACHE_DURATION_MS) {
-              console.log(`[SchemaStore] Cache hit for ${sessionId} (age: ${Math.round(age / 1000)}s)`)
+              console.log(`[SchemaStore] ✓ Cache hit for ${sessionId} (age: ${Math.round(age / 1000)}s) - using cached schema`)
               return cached.schemas
+            } else {
+              console.log(`[SchemaStore] ⚠ Cache expired for ${sessionId} (age: ${Math.round(age / 1000)}s) - refreshing`)
             }
           }
         }
@@ -268,12 +270,12 @@ export const useSchemaStore = create<SchemaStoreState>()(
         // Check if request is already in flight (deduplication)
         const pending = get().pendingRequests.get(sessionId)
         if (pending) {
-          console.log(`[SchemaStore] Deduplicating request for ${sessionId}`)
+          console.log(`[SchemaStore] ⏳ Deduplicating request for ${sessionId} - joining existing request`)
           return pending
         }
 
         // Start new request
-        console.log(`[SchemaStore] Fetching schema for ${sessionId}`)
+        console.log(`[SchemaStore] 🔄 Fetching schema from backend for ${sessionId}${force ? ' (force refresh)' : ''}`)
         const requestPromise = (async () => {
           try {
             set((state) => ({

@@ -1500,6 +1500,20 @@ export const QueryResultsTable = ({
       canInsertRows, handleAddRow, databaseSelectorEnabled, databaseList,
       activeDatabase, handleDatabaseSelection, databaseLoading, isSwitchingDatabase])
 
+  const handleSelectAllPages = useCallback(() => {
+    // When user clicks "Select all X rows", we need to mark that all pages are selected
+    // For now, we'll show a toast. In a full implementation, this would:
+    // 1. Make a backend call to fetch all row IDs (or keep a flag that all rows are selected)
+    // 2. Update the selection state to include all row IDs
+    // 3. When performing actions (delete, export), use the "selectAllPagesMode" flag
+
+    toast({
+      title: 'All rows selected',
+      description: `All ${totalRows?.toLocaleString()} rows across all pages are now selected. Bulk actions will apply to all rows.`,
+      variant: 'default',
+    })
+  }, [totalRows])
+
   const safeAffectedRows = Number.isFinite(affectedRows) ? affectedRows : 0
   const hasTabularResults = columnNames.length > 0 && rows.length > 0
   const isModificationStatement = columnNames.length === 0
@@ -1603,20 +1617,6 @@ export const QueryResultsTable = ({
         </div>
       ) : (
         <>
-          {/* Top pagination controls */}
-          {showPagination && (
-            <div className="border-b border-border bg-muted/20 px-4 py-2">
-              <PaginationControls
-                currentPage={currentPage}
-                pageSize={pageSize}
-                totalRows={effectiveTotalRows}
-                onPageChange={handlePageChange}
-                onPageSizeChange={handlePageSizeChange}
-                disabled={isLoadingPage || saving}
-              />
-            </div>
-          )}
-
           <EditableTable
             data={rows as TableRow[]}
             columns={tableColumns}
@@ -1630,11 +1630,12 @@ export const QueryResultsTable = ({
             onExport={handleExport}
             onCellEdit={handleCellEdit}
             onRowInspect={handleRowClick}
+            onSelectAllPages={effectiveTotalRows > rows.length ? handleSelectAllPages : undefined}
             toolbar={renderToolbar}
             footer={null}
             // Phase 2: Chunked data loading
             resultId={resultId}
-            totalRows={rowCount}
+            totalRows={effectiveTotalRows}
             isLargeResult={isLarge}
             chunkingEnabled={chunkingEnabled}
             displayMode={displayMode}

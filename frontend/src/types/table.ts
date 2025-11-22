@@ -53,6 +53,7 @@ export interface EditableTableProps {
   onSort?: (sorting: SortingState) => void;
   onFilter?: (filters: ColumnFiltersState) => void;
   onExport?: (options: ExportOptions) => void;
+  onSelectAllPages?: () => void; // Callback when user wants to select all rows across all pages
   loading?: boolean;
   error?: string | null;
   virtualScrolling?: boolean;
@@ -99,6 +100,8 @@ export interface EditableTableActions {
   saveEditing: () => Promise<boolean>;
   toggleRowSelection: (rowId: string, selected?: boolean) => void;
   selectAllRows: (selected: boolean) => void;
+  setSelectedRows: (rowIds: string[]) => void;
+  setSelectAllPagesMode: (enabled: boolean) => void;
   updateSorting: (sorting: SortingState) => void;
   updateColumnFilters: (columnFilters: ColumnFiltersState) => void;
   updateGlobalFilter: (globalFilter: string) => void;
@@ -128,6 +131,7 @@ export interface CellEditState {
 export interface TableState {
   editingCell: CellEditState | null;
   selectedRows: string[];
+  selectAllPagesMode: boolean; // True when user wants to select all rows across all pages
   sorting: SortingState;
   columnFilters: ColumnFiltersState;
   globalFilter: string;

@@ -76,7 +76,7 @@ export function Header() {
                   : "text-muted-foreground"
               )}
             >
-              Dashboard
+              Queries
             </Link>
             <Link
               to="/connections"
@@ -88,6 +88,17 @@ export function Header() {
               )}
             >
               Connections
+            </Link>
+            <Link
+              to="/reports"
+              className={cn(
+                "text-sm font-medium transition-colors hover:text-primary",
+                location.pathname === "/reports"
+                  ? "text-foreground"
+                  : "text-muted-foreground"
+              )}
+            >
+              Reports
             </Link>
           </nav>
         </div>

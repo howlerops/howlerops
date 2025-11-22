@@ -36,7 +36,7 @@ export function useSchemaIntrospection() {
     setLoading(isLoading(sessionId))
     setError(getError(sessionId) || null)
 
-    // Fetch from store
+    // Fetch from store (relies on cache - won't hit backend if cached)
     getSchema(sessionId, activeConnection.name)
       .then((schemas) => {
         setSchema(schemas)
@@ -49,7 +49,7 @@ export function useSchemaIntrospection() {
         setLoading(false)
         setError(err instanceof Error ? err.message : 'Failed to load schema')
       })
-  }, [activeConnection?.isConnected, activeConnection?.sessionId, activeConnection?.name, getSchema, isLoading, getError])
+  }, [activeConnection?.isConnected, activeConnection?.sessionId, getSchema, isLoading, getError])
 
   const refreshSchema = useCallback(() => {
     if (activeConnection?.isConnected && activeConnection.sessionId) {

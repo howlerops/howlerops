@@ -19,6 +19,7 @@ import type {
   ConnectionRecord,
   SavedQueryRecord,
   QueryHistoryRecord,
+  ReportRecord,
 } from '@/types/storage'
 import type {
   SyncResult,
@@ -193,6 +194,8 @@ export class SyncService {
         connectionsDownloaded: 0,
         queriesUploaded: 0,
         queriesDownloaded: 0,
+        reportsUploaded: 0,
+        reportsDownloaded: 0,
         historyUploaded: 0,
         historyDownloaded: 0,
       },
@@ -227,6 +230,7 @@ export class SyncService {
       result.uploaded = uploadResult?.acceptedCount ?? 0
       result.stats.connectionsUploaded = localChanges.changes.connections.length
       result.stats.queriesUploaded = localChanges.changes.savedQueries.length
+      result.stats.reportsUploaded = localChanges.changes.reports.length
       result.stats.historyUploaded = localChanges.changes.queryHistory?.length || 0
 
       // 5. Download remote changes
@@ -242,6 +246,7 @@ export class SyncService {
         connections: rawDownload?.connections ?? [],
         savedQueries: rawDownload?.savedQueries ?? [],
         queryHistory: rawDownload?.queryHistory ?? [],
+        reports: rawDownload?.reports ?? [],
         serverTimestamp: rawDownload?.serverTimestamp ?? Date.now(),
         hasMore: rawDownload?.hasMore ?? false,
       }
@@ -249,6 +254,7 @@ export class SyncService {
       result.downloaded =
         downloadResult.connections.length +
         downloadResult.savedQueries.length +
+        downloadResult.reports.length +
         (downloadResult.queryHistory?.length || 0)
 
       // 6. Detect conflicts
@@ -271,6 +277,7 @@ export class SyncService {
       await this.mergeRemoteChanges(downloadResult)
       result.stats.connectionsDownloaded = downloadResult.connections.length
       result.stats.queriesDownloaded = downloadResult.savedQueries.length
+      result.stats.reportsDownloaded = downloadResult.reports.length
       result.stats.historyDownloaded = downloadResult.queryHistory?.length || 0
 
       // 9. Update last sync timestamp
@@ -347,6 +354,7 @@ export class SyncService {
     local: {
       connections: ConnectionRecord[]
       savedQueries: SavedQueryRecord[]
+      reports: ReportRecord[]
       queryHistory: QueryHistoryRecord[]
     }
     total: number
@@ -361,6 +369,11 @@ export class SyncService {
     // Get saved queries
     const savedQueries = (await this.indexedDB.getAll<SavedQueryRecord>(
       STORE_NAMES.SAVED_QUERIES
+    )) ?? []
+
+    // Get reports
+    const reports = (await this.indexedDB.getAll<ReportRecord>(
+      STORE_NAMES.REPORTS
     )) ?? []
 
     // Get query history (if enabled)
@@ -385,6 +398,12 @@ export class SyncService {
       if (!q.synced) return true
       if (!q.updated_at) return false
       return this.toTimestamp(q.updated_at) > lastSyncAt
+    })
+
+    const changedReports = reports.filter((report) => {
+      if (!report.synced) return true
+      if (!report.updated_at) return false
+      return this.toTimestamp(report.updated_at) > lastSyncAt
     })
 
     const changedHistory = queryHistory.filter((h) => {
@@ -428,6 +447,22 @@ export class SyncService {
       })
     }
 
+    const reportChangeSets: ChangeSet<Omit<ReportRecord, 'synced' | 'sync_version'>>[] =
+      changedReports.map((report) => ({
+        id: crypto.randomUUID(),
+        entityType: 'report',
+        entityId: report.id,
+        action: 'update',
+        data: {
+          ...report,
+          synced: undefined,
+          sync_version: undefined,
+        } as any,
+        timestamp: this.toTimestamp(report.updated_at),
+        syncVersion: report.sync_version,
+        deviceId: deviceInfo.deviceId,
+      }))
+
     const changes: UploadChangesRequest = {
       deviceId: deviceInfo.deviceId,
       lastSyncAt,
@@ -454,6 +489,7 @@ export class SyncService {
         syncVersion: query.sync_version,
         deviceId: deviceInfo.deviceId,
       })),
+      reports: reportChangeSets,
       queryHistory: this.config.syncQueryHistory
         ? changedHistory.map((history) => ({
             id: crypto.randomUUID(),
@@ -473,9 +509,14 @@ export class SyncService {
       local: {
         connections,
         savedQueries,
+        reports,
         queryHistory,
       },
-      total: changedConnections.length + changedQueries.length + changedHistory.length,
+      total:
+        changedConnections.length +
+        changedQueries.length +
+        changedReports.length +
+        changedHistory.length,
     }
   }
 
@@ -504,11 +545,13 @@ export class SyncService {
     local: {
       connections: ConnectionRecord[]
       savedQueries: SavedQueryRecord[]
+      reports: ReportRecord[]
       queryHistory: QueryHistoryRecord[]
     },
     remote: {
       connections: SanitizedConnection[]
       savedQueries: SavedQueryRecord[]
+      reports?: ReportRecord[]
       queryHistory?: QueryHistoryRecord[]
     }
   ): Promise<Conflict[]> {
@@ -586,6 +629,32 @@ export class SyncService {
       }
     }
 
+    // Check report conflicts
+    for (const remoteReport of remote.reports ?? []) {
+      const localReport = local.reports.find((report) => report.id === remoteReport.id)
+      if (localReport) {
+        if (
+          localReport.sync_version !== remoteReport.sync_version &&
+          localReport.updated_at.getTime() !== new Date(remoteReport.updated_at).getTime()
+        ) {
+          conflicts.push({
+            id: crypto.randomUUID(),
+            entityType: 'report',
+            entityId: localReport.id,
+            localVersion: localReport,
+            remoteVersion: remoteReport,
+            localSyncVersion: localReport.sync_version,
+            remoteSyncVersion: remoteReport.sync_version,
+            localUpdatedAt: localReport.updated_at,
+            remoteUpdatedAt: new Date(remoteReport.updated_at),
+            recommendedResolution:
+              localReport.updated_at > new Date(remoteReport.updated_at) ? 'local' : 'remote',
+            reason: 'Both local and remote report versions were modified',
+          })
+        }
+      }
+    }
+
     return conflicts
   }
 
@@ -656,6 +725,15 @@ export class SyncService {
         synced: true,
         sync_version: conflict.remoteSyncVersion,
       })
+    } else if (conflict.entityType === 'report') {
+      const remoteData = conflict.remoteVersion as ReportRecord
+      await this.indexedDB.put(STORE_NAMES.REPORTS, {
+        ...remoteData,
+        synced: true,
+        sync_version: conflict.remoteSyncVersion,
+        updated_at: new Date(remoteData.updated_at),
+        created_at: new Date(remoteData.created_at),
+      })
     }
   }
 
@@ -683,6 +761,17 @@ export class SyncService {
         synced: true,
         sync_version: conflict.remoteSyncVersion,
       })
+    } else if (conflict.entityType === 'report') {
+      const remoteData = conflict.remoteVersion as ReportRecord
+      await this.indexedDB.put(STORE_NAMES.REPORTS, {
+        ...remoteData,
+        id: newId,
+        name: `${remoteData.name} (remote)`,
+        synced: true,
+        sync_version: conflict.remoteSyncVersion,
+        updated_at: new Date(remoteData.updated_at),
+        created_at: new Date(remoteData.created_at),
+      })
     }
   }
 
@@ -692,6 +781,7 @@ export class SyncService {
   private async mergeRemoteChanges(remote: {
     connections: SanitizedConnection[]
     savedQueries: SavedQueryRecord[]
+    reports?: ReportRecord[]
     queryHistory?: QueryHistoryRecord[]
   }): Promise<void> {
     // Merge connections (sanitized from server)
@@ -722,6 +812,20 @@ export class SyncService {
         sync_version: (remoteQuery as any).sync_version + 1,
       }
       await this.indexedDB.put(STORE_NAMES.SAVED_QUERIES, localShape)
+    }
+
+    // Merge reports
+    if (remote.reports?.length) {
+      for (const remoteReport of remote.reports) {
+        const record: ReportRecord = {
+          ...remoteReport,
+          created_at: new Date(remoteReport.created_at ?? new Date()),
+          updated_at: new Date(remoteReport.updated_at ?? new Date()),
+          synced: true,
+          sync_version: remoteReport.sync_version + 1,
+        }
+        await this.indexedDB.put(STORE_NAMES.REPORTS, record)
+      }
     }
 
     // Merge query history (if enabled)

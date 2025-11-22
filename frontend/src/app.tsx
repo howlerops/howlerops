@@ -21,11 +21,12 @@ import { UpdateNotification } from './components/update-notification'
 const Dashboard = lazy(() => import('./pages/dashboard').then(m => ({ default: m.Dashboard })))
 const Connections = lazy(() => import('./pages/connections').then(m => ({ default: m.Connections })))
 const Settings = lazy(() => import('./pages/settings').then(m => ({ default: m.Settings })))
-const InviteAcceptPage = lazy(() => import('./pages/InviteAcceptPage').then(m => ({ default: m.InviteAcceptPage })))
-const PendingInvitationsPage = lazy(() => import('./pages/PendingInvitationsPage').then(m => ({ default: m.PendingInvitationsPage })))
-const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'))
-const AuthPage = lazy(() => import('./pages/AuthPage').then(m => ({ default: m.AuthPage })))
-const AuthCallback = lazy(() => import('./pages/AuthCallback').then(m => ({ default: m.AuthCallback })))
+const InviteAcceptPage = lazy(() => import('./pages/invite-accept-page').then(m => ({ default: m.InviteAcceptPage })))
+const PendingInvitationsPage = lazy(() => import('./pages/pending-invitations').then(m => ({ default: m.PendingInvitationsPage })))
+const AnalyticsPage = lazy(() => import('./pages/analytics-page'))
+const ReportsPage = lazy(() => import('./pages/reports')) // Has both named and default export
+const AuthPage = lazy(() => import('./pages/auth-page').then(m => ({ default: m.AuthPage })))
+const AuthCallback = lazy(() => import('./pages/auth-callback').then(m => ({ default: m.AuthCallback })))
 
 // Loading component
 function LoadingSpinner() {
@@ -82,6 +83,7 @@ function App() {
             <Route path="/settings" element={<Settings />} />
             <Route path="/invitations" element={<PendingInvitationsPage />} />
             <Route path="/analytics" element={<AnalyticsPage />} />
+            <Route path="/reports" element={<ReportsPage />} />
           </Routes>
         </Suspense>
       </div>

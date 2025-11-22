@@ -1840,11 +1840,123 @@ export namespace services {
 	        this.size = source["size"];
 	    }
 	}
+	export class ReportComponentResult {
+	    componentId: string;
+	    type: string;
+	    columns?: string[];
+	    rows?: any[][];
+	    rowCount?: number;
+	    durationMs?: number;
+	    content?: string;
+	    metadata?: Record<string, any>;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ReportComponentResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.componentId = source["componentId"];
+	        this.type = source["type"];
+	        this.columns = source["columns"];
+	        this.rows = source["rows"];
+	        this.rowCount = source["rowCount"];
+	        this.durationMs = source["durationMs"];
+	        this.content = source["content"];
+	        this.metadata = source["metadata"];
+	        this.error = source["error"];
+	    }
+	}
+	export class ReportRunRequest {
+	    reportId: string;
+	    componentIds: string[];
+	    filters: Record<string, any>;
+	    force: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new ReportRunRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.reportId = source["reportId"];
+	        this.componentIds = source["componentIds"];
+	        this.filters = source["filters"];
+	        this.force = source["force"];
+	    }
+	}
+	export class ReportRunResponse {
+	    reportId: string;
+	    // Go type: time
+	    startedAt: any;
+	    // Go type: time
+	    completedAt: any;
+	    results: ReportComponentResult[];
+	
+	    static createFrom(source: any = {}) {
+	        return new ReportRunResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.reportId = source["reportId"];
+	        this.startedAt = this.convertValues(source["startedAt"], null);
+	        this.completedAt = this.convertValues(source["completedAt"], null);
+	        this.results = this.convertValues(source["results"], ReportComponentResult);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 
 }
 
 export namespace storage {
 	
+	export class ChartComparison {
+	    baselineComponentId: string;
+	    type: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ChartComparison(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.baselineComponentId = source["baselineComponentId"];
+	        this.type = source["type"];
+	    }
+	}
+	export class ChartTransform {
+	    kind: string;
+	    config: Record<string, any>;
+	
+	    static createFrom(source: any = {}) {
+	        return new ChartTransform(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.kind = source["kind"];
+	        this.config = source["config"];
+	    }
+	}
 	export class ColumnDefinition {
 	    name: string;
 	    type: string;
@@ -1859,6 +1971,399 @@ export namespace storage {
 	        this.type = source["type"];
 	    }
 	}
+	export class ReportSyncOptions {
+	    enabled: boolean;
+	    cadence: string;
+	    target: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ReportSyncOptions(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.enabled = source["enabled"];
+	        this.cadence = source["cadence"];
+	        this.target = source["target"];
+	    }
+	}
+	export class ReportFilterField {
+	    key: string;
+	    label: string;
+	    type: string;
+	    defaultValue: any;
+	    required: boolean;
+	    choices: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new ReportFilterField(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.key = source["key"];
+	        this.label = source["label"];
+	        this.type = source["type"];
+	        this.defaultValue = source["defaultValue"];
+	        this.required = source["required"];
+	        this.choices = source["choices"];
+	    }
+	}
+	export class ReportFilterDefinition {
+	    fields: ReportFilterField[];
+	
+	    static createFrom(source: any = {}) {
+	        return new ReportFilterDefinition(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.fields = this.convertValues(source["fields"], ReportFilterField);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class ReportLLMSettings {
+	    provider: string;
+	    model: string;
+	    promptTemplate: string;
+	    contextComponents: string[];
+	    temperature: number;
+	    maxTokens: number;
+	    metadata: Record<string, string>;
+	
+	    static createFrom(source: any = {}) {
+	        return new ReportLLMSettings(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.provider = source["provider"];
+	        this.model = source["model"];
+	        this.promptTemplate = source["promptTemplate"];
+	        this.contextComponents = source["contextComponents"];
+	        this.temperature = source["temperature"];
+	        this.maxTokens = source["maxTokens"];
+	        this.metadata = source["metadata"];
+	    }
+	}
+	export class ReportChartSettings {
+	    variant: string;
+	    xField: string;
+	    yField: string;
+	    series: string[];
+	    options: Record<string, string>;
+	    comparison?: ChartComparison;
+	    transform?: ChartTransform;
+	
+	    static createFrom(source: any = {}) {
+	        return new ReportChartSettings(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.variant = source["variant"];
+	        this.xField = source["xField"];
+	        this.yField = source["yField"];
+	        this.series = source["series"];
+	        this.options = source["options"];
+	        this.comparison = this.convertValues(source["comparison"], ChartComparison);
+	        this.transform = this.convertValues(source["transform"], ChartTransform);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class ReportQueryConfig {
+	    mode: string;
+	    connectionId: string;
+	    sql: string;
+	    builderState: number[];
+	    queryIr: number[];
+	    useFederation: boolean;
+	    limit?: number;
+	    cacheSeconds: number;
+	    topLevelFilter: string[];
+	    parameters: Record<string, any>;
+	
+	    static createFrom(source: any = {}) {
+	        return new ReportQueryConfig(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.mode = source["mode"];
+	        this.connectionId = source["connectionId"];
+	        this.sql = source["sql"];
+	        this.builderState = source["builderState"];
+	        this.queryIr = source["queryIr"];
+	        this.useFederation = source["useFederation"];
+	        this.limit = source["limit"];
+	        this.cacheSeconds = source["cacheSeconds"];
+	        this.topLevelFilter = source["topLevelFilter"];
+	        this.parameters = source["parameters"];
+	    }
+	}
+	export class ReportComponentSize {
+	    minW: number;
+	    minH: number;
+	    maxW: number;
+	    maxH: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ReportComponentSize(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.minW = source["minW"];
+	        this.minH = source["minH"];
+	        this.maxW = source["maxW"];
+	        this.maxH = source["maxH"];
+	    }
+	}
+	export class ReportComponent {
+	    id: string;
+	    title: string;
+	    description: string;
+	    type: string;
+	    size: ReportComponentSize;
+	    query: ReportQueryConfig;
+	    chart?: ReportChartSettings;
+	    llm?: ReportLLMSettings;
+	    options?: Record<string, any>;
+	
+	    static createFrom(source: any = {}) {
+	        return new ReportComponent(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.title = source["title"];
+	        this.description = source["description"];
+	        this.type = source["type"];
+	        this.size = this.convertValues(source["size"], ReportComponentSize);
+	        this.query = this.convertValues(source["query"], ReportQueryConfig);
+	        this.chart = this.convertValues(source["chart"], ReportChartSettings);
+	        this.llm = this.convertValues(source["llm"], ReportLLMSettings);
+	        this.options = source["options"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class ReportLayoutSlot {
+	    componentId: string;
+	    x: number;
+	    y: number;
+	    w: number;
+	    h: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ReportLayoutSlot(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.componentId = source["componentId"];
+	        this.x = source["x"];
+	        this.y = source["y"];
+	        this.w = source["w"];
+	        this.h = source["h"];
+	    }
+	}
+	export class ReportDefinition {
+	    layout: ReportLayoutSlot[];
+	    components: ReportComponent[];
+	
+	    static createFrom(source: any = {}) {
+	        return new ReportDefinition(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.layout = this.convertValues(source["layout"], ReportLayoutSlot);
+	        this.components = this.convertValues(source["components"], ReportComponent);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class Report {
+	    id: string;
+	    name: string;
+	    description: string;
+	    folder: string;
+	    tags: string[];
+	    definition: ReportDefinition;
+	    filter: ReportFilterDefinition;
+	    syncOptions: ReportSyncOptions;
+	    // Go type: time
+	    lastRunAt?: any;
+	    lastRunStatus: string;
+	    metadata: Record<string, string>;
+	    // Go type: time
+	    createdAt: any;
+	    // Go type: time
+	    updatedAt: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new Report(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.description = source["description"];
+	        this.folder = source["folder"];
+	        this.tags = source["tags"];
+	        this.definition = this.convertValues(source["definition"], ReportDefinition);
+	        this.filter = this.convertValues(source["filter"], ReportFilterDefinition);
+	        this.syncOptions = this.convertValues(source["syncOptions"], ReportSyncOptions);
+	        this.lastRunAt = this.convertValues(source["lastRunAt"], null);
+	        this.lastRunStatus = source["lastRunStatus"];
+	        this.metadata = source["metadata"];
+	        this.createdAt = this.convertValues(source["createdAt"], null);
+	        this.updatedAt = this.convertValues(source["updatedAt"], null);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	export class ReportSummary {
+	    id: string;
+	    name: string;
+	    description: string;
+	    folder: string;
+	    tags: string[];
+	    // Go type: time
+	    updatedAt: any;
+	    // Go type: time
+	    lastRunAt?: any;
+	    lastRunStatus: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ReportSummary(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.description = source["description"];
+	        this.folder = source["folder"];
+	        this.tags = source["tags"];
+	        this.updatedAt = this.convertValues(source["updatedAt"], null);
+	        this.lastRunAt = this.convertValues(source["lastRunAt"], null);
+	        this.lastRunStatus = source["lastRunStatus"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
 	export class SourceDefinition {
 	    connectionIdOrName: string;
 	    schema: string;
