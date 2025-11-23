@@ -92,8 +92,24 @@ check_dependencies() {
 get_latest_release() {
     log_info "Fetching latest release information from GitHub..."
 
+    # Use gh CLI if available (preferred - uses gh's authentication)
+    if command -v gh &> /dev/null; then
+        local response
+        response=$(gh api "repos/${GITHUB_REPO}/releases/latest" 2>&1)
+        local exit_code=$?
+
+        if [ $exit_code -ne 0 ]; then
+            log_error "Failed to fetch release via gh CLI:"
+            echo "$response" | head -20
+            exit 1
+        fi
+
+        echo "$response"
+        return
+    fi
+
+    # Fallback to curl with GITHUB_TOKEN
     local api_url="https://api.github.com/repos/${GITHUB_REPO}/releases/latest"
-    local headers=""
 
     local response
     if [ -n "${GITHUB_TOKEN:-}" ]; then
@@ -106,14 +122,14 @@ get_latest_release() {
         log_error "Failed to fetch release information. Empty response from API."
         exit 1
     fi
-    
+
     # Check if response is valid JSON
     if ! echo "$response" | jq empty > /dev/null 2>&1; then
         log_error "Invalid JSON response from GitHub API:"
         echo "$response" | head -20
         exit 1
     fi
-    
+
     if echo "$response" | jq -e '.message == "Not Found"' > /dev/null 2>&1; then
         log_error "Repository or release not found."
         exit 1
@@ -131,8 +147,24 @@ get_specific_release() {
     # Add 'v' prefix for tag lookup
     tag="v${tag}"
 
+    # Use gh CLI if available (preferred - uses gh's authentication)
+    if command -v gh &> /dev/null; then
+        local response
+        response=$(gh api "repos/${GITHUB_REPO}/releases/tags/${tag}" 2>&1)
+        local exit_code=$?
+
+        if [ $exit_code -ne 0 ]; then
+            log_error "Failed to fetch release $tag via gh CLI:"
+            echo "$response" | head -20
+            exit 1
+        fi
+
+        echo "$response"
+        return
+    fi
+
+    # Fallback to curl with GITHUB_TOKEN
     local api_url="https://api.github.com/repos/${GITHUB_REPO}/releases/tags/${tag}"
-    local headers=""
 
     local response
     if [ -n "${GITHUB_TOKEN:-}" ]; then
@@ -145,14 +177,14 @@ get_specific_release() {
         log_error "Failed to fetch release information. Empty response from API."
         exit 1
     fi
-    
+
     # Check if response is valid JSON
     if ! echo "$response" | jq empty > /dev/null 2>&1; then
         log_error "Invalid JSON response from GitHub API:"
         echo "$response" | head -20
         exit 1
     fi
-    
+
     if echo "$response" | jq -e '.message == "Not Found"' > /dev/null 2>&1; then
         log_error "Release $tag not found."
         exit 1
