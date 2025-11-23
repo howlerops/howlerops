@@ -1392,7 +1392,7 @@ func (s *SQLiteVectorStore) applyHNSWMigration(ctx context.Context) error {
 		s.logger.Info("Applying migration 002: Add HNSW vector index")
 
 		migrationPath := filepath.Join("internal", "rag", "migrations", "002_add_vector_index.sql")
-		migrationSQL, err := os.ReadFile(migrationPath)
+		migrationSQL, err := os.ReadFile(migrationPath) // #nosec G304 - migration file path is fully hardcoded with no user input
 		if err != nil {
 			return fmt.Errorf("failed to read migration file: %w", err)
 		}
