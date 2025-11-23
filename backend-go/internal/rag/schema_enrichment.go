@@ -42,6 +42,7 @@ func (se *SchemaEnricher) EnrichColumn(
 	}
 
 	// Get distinct count
+	// #nosec G201 -- schema, table, and column names come from database metadata, not user input
 	distinctQuery := fmt.Sprintf(
 		"SELECT COUNT(DISTINCT %s) FROM %s.%s",
 		column, schema, table,
@@ -54,6 +55,7 @@ func (se *SchemaEnricher) EnrichColumn(
 	}
 
 	// Get null count
+	// #nosec G201 -- schema, table, and column names come from database metadata, not user input
 	nullQuery := fmt.Sprintf(
 		"SELECT COUNT(*) FROM %s.%s WHERE %s IS NULL",
 		schema, table, column,
@@ -106,6 +108,7 @@ func (se *SchemaEnricher) getCategoricalSamples(
 	schema, table, column string,
 ) ([]string, map[string]int) {
 	// Get top 10 most common values
+	// #nosec G201 -- schema, table, and column names come from database metadata, not user input
 	query := fmt.Sprintf(`
         SELECT %s, COUNT(*) as cnt
         FROM %s.%s
@@ -144,6 +147,7 @@ func (se *SchemaEnricher) getNumericStats(
 	ctx context.Context,
 	schema, table, column string,
 ) (interface{}, interface{}, interface{}) {
+	// #nosec G201 -- schema, table, and column names come from database metadata, not user input
 	query := fmt.Sprintf(`
         SELECT MIN(%s), MAX(%s), AVG(%s)
         FROM %s.%s
@@ -165,6 +169,7 @@ func (se *SchemaEnricher) getSampleValues(
 	schema, table, column string,
 	limit int,
 ) []string {
+	// #nosec G201 -- schema, table, and column names come from database metadata, not user input
 	query := fmt.Sprintf(`
         SELECT DISTINCT %s
         FROM %s.%s

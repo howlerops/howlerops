@@ -148,15 +148,21 @@ func (e *Exporter) ExportCSV(report *storage.Report, results []ReportComponentRe
 		// Write component header if multiple components
 		if len(results) > 1 {
 			if idx > 0 {
-				writer.Write([]string{}) // blank line separator
+				if err := writer.Write([]string{}); err != nil { // blank line separator
+					return nil, fmt.Errorf("failed to write CSV separator: %w", err)
+				}
 			}
 			componentName := e.getComponentName(report, result.ComponentID)
-			writer.Write([]string{fmt.Sprintf("# Component: %s", componentName)})
+			if err := writer.Write([]string{fmt.Sprintf("# Component: %s", componentName)}); err != nil {
+				return nil, fmt.Errorf("failed to write CSV component header: %w", err)
+			}
 		}
 
 		// Write column headers
 		if len(result.Columns) > 0 {
-			writer.Write(result.Columns)
+			if err := writer.Write(result.Columns); err != nil {
+				return nil, fmt.Errorf("failed to write CSV column headers: %w", err)
+			}
 		}
 
 		// Write data rows
@@ -193,7 +199,9 @@ func (e *Exporter) ExportExcel(report *storage.Report, results []ReportComponent
 	defer f.Close()
 
 	// Delete default Sheet1
-	f.DeleteSheet("Sheet1")
+	if err := f.DeleteSheet("Sheet1"); err != nil {
+		e.logger.WithError(err).Debug("Failed to delete default Sheet1, continuing anyway")
+	}
 
 	sheetIndex := 1
 	for _, result := range results {
@@ -228,7 +236,9 @@ func (e *Exporter) ExportExcel(report *storage.Report, results []ReportComponent
 		if len(result.Columns) > 0 {
 			for colIdx, colName := range result.Columns {
 				cell, _ := excelize.CoordinatesToCellName(colIdx+1, 1)
-				f.SetCellValue(sheetName, cell, colName)
+				if err := f.SetCellValue(sheetName, cell, colName); err != nil {
+					return nil, fmt.Errorf("failed to set header cell value: %w", err)
+				}
 			}
 
 			// Format header row (bold)
@@ -237,29 +247,37 @@ func (e *Exporter) ExportExcel(report *storage.Report, results []ReportComponent
 				Fill: excelize.Fill{Type: "pattern", Color: []string{"#F0F0F0"}, Pattern: 1},
 			})
 			endCol, _ := excelize.CoordinatesToCellName(len(result.Columns), 1)
-			f.SetCellStyle(sheetName, "A1", endCol, headerStyle)
+			if err := f.SetCellStyle(sheetName, "A1", endCol, headerStyle); err != nil {
+				return nil, fmt.Errorf("failed to set header style: %w", err)
+			}
 
 			// Freeze header row
-			f.SetPanes(sheetName, &excelize.Panes{
+			if err := f.SetPanes(sheetName, &excelize.Panes{
 				Freeze:      true,
 				XSplit:      0,
 				YSplit:      1,
 				TopLeftCell: "A2",
-			})
+			}); err != nil {
+				return nil, fmt.Errorf("failed to freeze header row: %w", err)
+			}
 		}
 
 		// Write data rows
 		for rowIdx, row := range result.Rows {
 			for colIdx, cell := range row {
 				cellName, _ := excelize.CoordinatesToCellName(colIdx+1, rowIdx+2) // +2 because headers are row 1
-				f.SetCellValue(sheetName, cellName, cell)
+				if err := f.SetCellValue(sheetName, cellName, cell); err != nil {
+					return nil, fmt.Errorf("failed to set data cell value: %w", err)
+				}
 			}
 		}
 
 		// Auto-size columns (approximate)
 		for colIdx := range result.Columns {
 			col, _ := excelize.ColumnNumberToName(colIdx + 1)
-			f.SetColWidth(sheetName, col, col, 15) // Default width
+			if err := f.SetColWidth(sheetName, col, col, 15); err != nil {
+				return nil, fmt.Errorf("failed to set column width: %w", err)
+			}
 		}
 
 		sheetIndex++

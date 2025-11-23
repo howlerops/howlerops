@@ -472,6 +472,7 @@ func decompress(data []byte) ([]byte, error) {
 	defer reader.Close()
 
 	var buf bytes.Buffer
+	// #nosec G110 -- decompressing internal snapshot data that was compressed by this system, not external input
 	if _, err := io.Copy(&buf, reader); err != nil {
 		return nil, err
 	}

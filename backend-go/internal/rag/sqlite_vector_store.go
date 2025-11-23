@@ -1257,6 +1257,7 @@ func (s *SQLiteVectorStore) GetDocumentsBatch(ctx context.Context, ids []string)
 		args[i] = id
 	}
 
+	// #nosec G201 -- using parameterized placeholders for IN clause, not user input
 	query := fmt.Sprintf(`
 		SELECT d.id, d.connection_id, d.type, d.content, d.parent_id, d.level, d.summary, d.metadata,
 		       d.created_at, d.updated_at, d.access_count, d.last_accessed, e.embedding

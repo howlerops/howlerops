@@ -49,8 +49,9 @@ func (pb *PromptBuilder) BuildSQLGenerationPrompt(
 
 		if err != nil {
 			// Fall back to simple prompt if context building fails
+			// This is intentional graceful degradation - we continue with a basic prompt
 			userPrompt = pb.buildSimpleUserPrompt(req)
-			return systemPrompt, userPrompt, nil, nil
+			return systemPrompt, userPrompt, nil, nil //nolint:nilerr
 		}
 
 		allocation = budgetAlloc
@@ -94,8 +95,9 @@ func (pb *PromptBuilder) BuildSQLFixPrompt(
 
 		if err != nil {
 			// Fall back to simple prompt if context building fails
+			// This is intentional graceful degradation - we continue with a basic prompt
 			userPrompt = pb.buildSimpleFixPrompt(req)
-			return systemPrompt, userPrompt, nil, nil
+			return systemPrompt, userPrompt, nil, nil //nolint:nilerr
 		}
 
 		allocation = budgetAlloc
