@@ -20,8 +20,8 @@ func TestDefaultTokenBudget(t *testing.T) {
 			name:        "small model (4k)",
 			totalTokens: 4096,
 			wantSystem:  2000,
-			wantOutput:  1024, // 25% capped at 2000
-			wantContext: 800,  // Approximate after safety margin
+			wantOutput:  1024, // 25% of 4096
+			wantContext: 367,  // 4096 - 2000 - 1024 - 500 - 205(safety) = 367
 		},
 		{
 			name:        "medium model (8k)",

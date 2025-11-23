@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"sync"
 
 	internalrag "github.com/jbeck018/howlerops/backend-go/internal/rag"
 	pkgrag "github.com/jbeck018/howlerops/backend-go/pkg/rag"
@@ -33,6 +34,7 @@ type TursoConfig struct {
 
 // Manager manages storage operations and mode switching
 type Manager struct {
+	mu         sync.RWMutex
 	mode       Mode
 	storage    Storage
 	localStore *LocalSQLiteStorage // Always present for local operations
@@ -76,9 +78,9 @@ func NewManager(ctx context.Context, config *Config, logger *logrus.Logger) (*Ma
 				if err := remote.Initialize(context.Background()); err != nil {
 					logger.WithError(err).Warn("Failed to initialize remote vector store; continuing local-only")
 				} else {
-					adaptive := pkgrag.NewAdaptiveVectorStore("individual", localStore.vectorStore, remote, true)
+					adaptive := pkgrag.NewAdaptiveVectorStore("individual", localStore.getVectorStore(), remote, true)
 					pkgrag.StartSyncWorker(context.Background(), adaptive, 200_000_000) // 200ms
-					localStore.vectorStore = adaptive
+					localStore.setVectorStore(adaptive)
 					logger.Info("Solo mode with cloud user: enabled individual-tier local-first sync")
 				}
 			}
@@ -105,10 +107,10 @@ func NewManager(ctx context.Context, config *Config, logger *logrus.Logger) (*Ma
 						manager.mode = ModeSolo
 						manager.storage = localStore
 					} else {
-						adaptive := pkgrag.NewAdaptiveVectorStore("team", localStore.vectorStore, remote, true)
+						adaptive := pkgrag.NewAdaptiveVectorStore("team", localStore.getVectorStore(), remote, true)
 						// conservative heartbeat; per-doc backoff governs actual sync
 						pkgrag.StartSyncWorker(context.Background(), adaptive, 200_000_000) // 200ms
-						localStore.vectorStore = adaptive
+						localStore.setVectorStore(adaptive)
 						manager.mode = ModeTeam
 						manager.storage = localStore
 						logger.Info("Team mode enabled: local-first with remote sync")
@@ -143,21 +145,29 @@ func NewManager(ctx context.Context, config *Config, logger *logrus.Logger) (*Ma
 
 // GetStorage returns the active storage implementation
 func (m *Manager) GetStorage() Storage {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	return m.storage
 }
 
 // GetMode returns the current storage mode
 func (m *Manager) GetMode() Mode {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	return m.mode
 }
 
 // GetUserID returns the current user ID
 func (m *Manager) GetUserID() string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	return m.userID
 }
 
 // GetDB returns the database connection for direct access
 func (m *Manager) GetDB() *sql.DB {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	if m.localStore != nil {
 		return m.localStore.GetDB()
 	}
@@ -166,14 +176,19 @@ func (m *Manager) GetDB() *sql.DB {
 
 // GetVectorStore returns the active vector store (always local-first)
 func (m *Manager) GetVectorStore() interface{} {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	if m.localStore != nil {
-		return m.localStore.vectorStore
+		return m.localStore.getVectorStore()
 	}
 	return nil
 }
 
 // SwitchToTeamMode switches from solo to team mode
 func (m *Manager) SwitchToTeamMode(ctx context.Context, teamConfig *TursoConfig) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	if m.mode == ModeTeam {
 		return fmt.Errorf("already in team mode")
 	}
@@ -188,6 +203,9 @@ func (m *Manager) SwitchToTeamMode(ctx context.Context, teamConfig *TursoConfig)
 
 // SwitchToSoloMode switches from team to solo mode
 func (m *Manager) SwitchToSoloMode(ctx context.Context) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	if m.mode == ModeSolo {
 		return fmt.Errorf("already in solo mode")
 	}
@@ -210,6 +228,9 @@ func (m *Manager) SwitchToSoloMode(ctx context.Context) error {
 
 // Close closes all storage connections
 func (m *Manager) Close() error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	var errors []error
 
 	if m.localStore != nil {
@@ -233,106 +254,113 @@ func (m *Manager) Close() error {
 
 // Delegate methods to active storage
 
+// getStorage returns the active storage with read lock
+func (m *Manager) getStorage() Storage {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.storage
+}
+
 func (m *Manager) SaveConnection(ctx context.Context, conn *Connection) error {
-	return m.storage.SaveConnection(ctx, conn)
+	return m.getStorage().SaveConnection(ctx, conn)
 }
 
 func (m *Manager) GetConnections(ctx context.Context, filters *ConnectionFilters) ([]*Connection, error) {
-	return m.storage.GetConnections(ctx, filters)
+	return m.getStorage().GetConnections(ctx, filters)
 }
 
 func (m *Manager) GetConnection(ctx context.Context, id string) (*Connection, error) {
-	return m.storage.GetConnection(ctx, id)
+	return m.getStorage().GetConnection(ctx, id)
 }
 
 func (m *Manager) UpdateConnection(ctx context.Context, conn *Connection) error {
-	return m.storage.UpdateConnection(ctx, conn)
+	return m.getStorage().UpdateConnection(ctx, conn)
 }
 
 func (m *Manager) DeleteConnection(ctx context.Context, id string) error {
-	return m.storage.DeleteConnection(ctx, id)
+	return m.getStorage().DeleteConnection(ctx, id)
 }
 
 func (m *Manager) GetAvailableEnvironments(ctx context.Context) ([]string, error) {
-	return m.storage.GetAvailableEnvironments(ctx)
+	return m.getStorage().GetAvailableEnvironments(ctx)
 }
 
 func (m *Manager) SaveQuery(ctx context.Context, query *SavedQuery) error {
-	return m.storage.SaveQuery(ctx, query)
+	return m.getStorage().SaveQuery(ctx, query)
 }
 
 func (m *Manager) GetQueries(ctx context.Context, filters *QueryFilters) ([]*SavedQuery, error) {
-	return m.storage.GetQueries(ctx, filters)
+	return m.getStorage().GetQueries(ctx, filters)
 }
 
 func (m *Manager) GetQuery(ctx context.Context, id string) (*SavedQuery, error) {
-	return m.storage.GetQuery(ctx, id)
+	return m.getStorage().GetQuery(ctx, id)
 }
 
 func (m *Manager) UpdateQuery(ctx context.Context, query *SavedQuery) error {
-	return m.storage.UpdateQuery(ctx, query)
+	return m.getStorage().UpdateQuery(ctx, query)
 }
 
 func (m *Manager) DeleteQuery(ctx context.Context, id string) error {
-	return m.storage.DeleteQuery(ctx, id)
+	return m.getStorage().DeleteQuery(ctx, id)
 }
 
 func (m *Manager) SaveQueryHistory(ctx context.Context, history *QueryHistory) error {
-	return m.storage.SaveQueryHistory(ctx, history)
+	return m.getStorage().SaveQueryHistory(ctx, history)
 }
 
 func (m *Manager) GetQueryHistory(ctx context.Context, filters *HistoryFilters) ([]*QueryHistory, error) {
-	return m.storage.GetQueryHistory(ctx, filters)
+	return m.getStorage().GetQueryHistory(ctx, filters)
 }
 
 func (m *Manager) DeleteQueryHistory(ctx context.Context, id string) error {
-	return m.storage.DeleteQueryHistory(ctx, id)
+	return m.getStorage().DeleteQueryHistory(ctx, id)
 }
 
 func (m *Manager) IndexDocument(ctx context.Context, doc *Document) error {
-	return m.storage.IndexDocument(ctx, doc)
+	return m.getStorage().IndexDocument(ctx, doc)
 }
 
 func (m *Manager) SearchDocuments(ctx context.Context, embedding []float32, filters *DocumentFilters) ([]*Document, error) {
-	return m.storage.SearchDocuments(ctx, embedding, filters)
+	return m.getStorage().SearchDocuments(ctx, embedding, filters)
 }
 
 func (m *Manager) GetDocument(ctx context.Context, id string) (*Document, error) {
-	return m.storage.GetDocument(ctx, id)
+	return m.getStorage().GetDocument(ctx, id)
 }
 
 func (m *Manager) DeleteDocument(ctx context.Context, id string) error {
-	return m.storage.DeleteDocument(ctx, id)
+	return m.getStorage().DeleteDocument(ctx, id)
 }
 
 func (m *Manager) CacheSchema(ctx context.Context, connID string, schema *SchemaCache) error {
-	return m.storage.CacheSchema(ctx, connID, schema)
+	return m.getStorage().CacheSchema(ctx, connID, schema)
 }
 
 func (m *Manager) GetCachedSchema(ctx context.Context, connID string) (*SchemaCache, error) {
-	return m.storage.GetCachedSchema(ctx, connID)
+	return m.getStorage().GetCachedSchema(ctx, connID)
 }
 
 func (m *Manager) InvalidateSchemaCache(ctx context.Context, connID string) error {
-	return m.storage.InvalidateSchemaCache(ctx, connID)
+	return m.getStorage().InvalidateSchemaCache(ctx, connID)
 }
 
 func (m *Manager) GetSetting(ctx context.Context, key string) (string, error) {
-	return m.storage.GetSetting(ctx, key)
+	return m.getStorage().GetSetting(ctx, key)
 }
 
 func (m *Manager) SetSetting(ctx context.Context, key, value string) error {
-	return m.storage.SetSetting(ctx, key, value)
+	return m.getStorage().SetSetting(ctx, key, value)
 }
 
 func (m *Manager) DeleteSetting(ctx context.Context, key string) error {
-	return m.storage.DeleteSetting(ctx, key)
+	return m.getStorage().DeleteSetting(ctx, key)
 }
 
 func (m *Manager) GetTeam(ctx context.Context) (*Team, error) {
-	return m.storage.GetTeam(ctx)
+	return m.getStorage().GetTeam(ctx)
 }
 
 func (m *Manager) GetTeamMembers(ctx context.Context) ([]*TeamMember, error) {
-	return m.storage.GetTeamMembers(ctx)
+	return m.getStorage().GetTeamMembers(ctx)
 }

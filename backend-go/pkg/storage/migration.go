@@ -103,9 +103,25 @@ func (m *MigrationManager) migratePasswordsToSecrets(ctx context.Context) error 
 func (m *MigrationManager) migrateReportsSchema(ctx context.Context) error {
 	m.logger.Info("Starting reports schema migration")
 
+	// First check if reports table exists
+	var tableExists bool
+	err := m.db.QueryRowContext(ctx, `
+		SELECT COUNT(*) > 0
+		FROM sqlite_master
+		WHERE type='table' AND name='reports'
+	`).Scan(&tableExists)
+	if err != nil {
+		return fmt.Errorf("failed to check if reports table exists: %w", err)
+	}
+
+	if !tableExists {
+		m.logger.Info("Reports table does not exist, skipping migration")
+		return nil
+	}
+
 	// Check if starred column exists
 	var columnExists bool
-	err := m.db.QueryRowContext(ctx, `
+	err = m.db.QueryRowContext(ctx, `
 		SELECT COUNT(*) > 0
 		FROM pragma_table_info('reports')
 		WHERE name = 'starred'

@@ -47,12 +47,12 @@ func DefaultTokenBudget(totalTokens int) *TokenBudget {
 	// User query is typically small (100-500 tokens)
 	userQuery := 500
 
-	// Safety margin to avoid hitting exact token limits
+	// Safety margin to avoid hitting exact token limits (applied to total, not context)
 	safetyMargin := 0.05 // 5% safety margin
+	safetyTokens := int(float64(totalTokens) * safetyMargin)
 
 	// Calculate available context tokens
-	contextAvailable := totalTokens - systemPrompt - outputBuffer - userQuery
-	contextAvailable = int(float64(contextAvailable) * (1.0 - safetyMargin))
+	contextAvailable := totalTokens - systemPrompt - outputBuffer - userQuery - safetyTokens
 
 	if contextAvailable < 0 {
 		contextAvailable = 0
@@ -327,15 +327,40 @@ func TruncateToTokenBudget(text string, maxTokens int) string {
 		return text
 	}
 
-	// Try to truncate at a reasonable boundary (newline, period, comma)
+	// Try to truncate at a reasonable boundary (period with space after it for sentence boundary)
 	truncated := text[:targetLength]
 
-	// Look back for a good breaking point
-	boundaries := []byte{'\n', '.', ',', ';', ' '}
-	for _, boundary := range boundaries {
-		for i := len(truncated) - 1; i > len(truncated)-100 && i >= 0; i-- {
-			if truncated[i] == boundary {
+	// Look for sentence boundaries first (period followed by space or newline)
+	lookbackWindow := 100
+	if lookbackWindow > len(truncated) {
+		lookbackWindow = len(truncated)
+	}
+
+	foundBoundary := false
+	// Search for ". " or ".\n" pattern
+	for i := len(truncated) - 1; i > len(truncated)-lookbackWindow && i >= 0; i-- {
+		if truncated[i] == '.' && i+1 < len(truncated) {
+			nextChar := truncated[i+1]
+			if nextChar == ' ' || nextChar == '\n' {
 				truncated = truncated[:i+1]
+				foundBoundary = true
+				break
+			}
+		}
+	}
+
+	// Fall back to other boundaries if no sentence boundary found
+	if !foundBoundary {
+		boundaries := []byte{'\n', ',', ';', ' '}
+		for _, boundary := range boundaries {
+			for i := len(truncated) - 1; i > len(truncated)-lookbackWindow && i >= 0; i-- {
+				if truncated[i] == boundary {
+					truncated = truncated[:i+1]
+					foundBoundary = true
+					break
+				}
+			}
+			if foundBoundary {
 				break
 			}
 		}

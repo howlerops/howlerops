@@ -3,6 +3,7 @@ package rag
 import (
 	"bytes"
 	"context"
+
 	// #nosec G501 - MD5 used for cache key generation, not cryptographic security
 	"crypto/md5"
 	"encoding/hex"

@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -20,6 +21,7 @@ import (
 
 // LocalSQLiteStorage implements Storage interface for local solo mode
 type LocalSQLiteStorage struct {
+	mu          sync.RWMutex
 	db          *sql.DB
 	vectorStore rag.VectorStore
 	secretStore *SecretStore
@@ -763,6 +765,20 @@ func (s *LocalSQLiteStorage) DeleteQueryHistory(ctx context.Context, id string) 
 
 // Vector/RAG operations (delegate to vector store)
 
+// getVectorStore returns the vector store with read lock
+func (s *LocalSQLiteStorage) getVectorStore() rag.VectorStore {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.vectorStore
+}
+
+// setVectorStore sets the vector store with write lock
+func (s *LocalSQLiteStorage) setVectorStore(vs rag.VectorStore) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.vectorStore = vs
+}
+
 func (s *LocalSQLiteStorage) IndexDocument(ctx context.Context, doc *Document) error {
 	// Convert storage.Document to rag.Document
 	ragDoc := &rag.Document{
@@ -778,7 +794,8 @@ func (s *LocalSQLiteStorage) IndexDocument(ctx context.Context, doc *Document) e
 		LastAccessed: doc.LastAccessed,
 	}
 
-	if err := s.vectorStore.IndexDocument(ctx, ragDoc); err != nil {
+	vs := s.getVectorStore()
+	if err := vs.IndexDocument(ctx, ragDoc); err != nil {
 		return err
 	}
 
@@ -806,7 +823,8 @@ func (s *LocalSQLiteStorage) SearchDocuments(ctx context.Context, embedding []fl
 		limit = filters.Limit
 	}
 
-	ragDocs, err := s.vectorStore.SearchSimilar(ctx, embedding, limit, ragFilters)
+	vs := s.getVectorStore()
+	ragDocs, err := vs.SearchSimilar(ctx, embedding, limit, ragFilters)
 	if err != nil {
 		return nil, err
 	}
@@ -832,7 +850,8 @@ func (s *LocalSQLiteStorage) SearchDocuments(ctx context.Context, embedding []fl
 }
 
 func (s *LocalSQLiteStorage) GetDocument(ctx context.Context, id string) (*Document, error) {
-	ragDoc, err := s.vectorStore.GetDocument(ctx, id)
+	vs := s.getVectorStore()
+	ragDoc, err := vs.GetDocument(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -852,7 +871,8 @@ func (s *LocalSQLiteStorage) GetDocument(ctx context.Context, id string) (*Docum
 }
 
 func (s *LocalSQLiteStorage) DeleteDocument(ctx context.Context, id string) error {
-	return s.vectorStore.DeleteDocument(ctx, id)
+	vs := s.getVectorStore()
+	return vs.DeleteDocument(ctx, id)
 }
 
 // Schema cache
