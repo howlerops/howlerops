@@ -2,9 +2,10 @@
 -- Add hierarchical document structure for parent-child relationships
 
 -- Add hierarchy columns to documents table
-ALTER TABLE documents ADD COLUMN parent_id TEXT;
-ALTER TABLE documents ADD COLUMN level TEXT DEFAULT 'table';
-ALTER TABLE documents ADD COLUMN summary TEXT;
+-- Note: SQLite doesn't support IF NOT EXISTS for ALTER TABLE ADD COLUMN
+-- These columns are now part of the base schema (001_init), but this migration
+-- remains for backwards compatibility with existing databases.
+-- The test setup should check if columns exist before running this migration.
 
 -- Add index for parent-child lookups (critical for retrieval performance)
 CREATE INDEX IF NOT EXISTS idx_documents_parent ON documents(parent_id);

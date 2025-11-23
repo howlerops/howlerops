@@ -43,14 +43,8 @@ func setupHierarchicalTest(t *testing.T) (*SchemaIndexer, *ContextBuilder, *SQLi
 	err = vectorStore.Initialize(ctx)
 	require.NoError(t, err)
 
-	// Run migration for hierarchy
-	migrationSQL, err := os.ReadFile("migrations/003_add_hierarchy.sql")
-	require.NoError(t, err)
-
-	// Apply migration (simplified for test)
-	db := vectorStore.db
-	_, err = db.ExecContext(ctx, string(migrationSQL))
-	require.NoError(t, err)
+	// Note: Hierarchical columns (parent_id, level, summary) are now part of the base schema
+	// No need to run migration 003 separately
 
 	// Create embedding service (mock for testing)
 	embeddingService := &mockEmbeddingService{vectorSize: 384}

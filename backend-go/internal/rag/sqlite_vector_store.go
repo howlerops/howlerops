@@ -28,6 +28,9 @@ CREATE TABLE IF NOT EXISTS documents (
     connection_id TEXT NOT NULL,
     type TEXT NOT NULL,  -- 'schema', 'query', 'plan', 'result', 'business', 'performance'
     content TEXT NOT NULL,
+    parent_id TEXT,  -- For hierarchical documents (e.g., columns under tables)
+    level TEXT DEFAULT 'table',  -- 'table', 'column', etc.
+    summary TEXT,  -- Condensed representation of hierarchical children
     metadata TEXT,  -- JSON
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL,
@@ -80,6 +83,9 @@ CREATE INDEX IF NOT EXISTS idx_documents_connection ON documents(connection_id);
 CREATE INDEX IF NOT EXISTS idx_documents_type ON documents(type);
 CREATE INDEX IF NOT EXISTS idx_documents_created ON documents(created_at);
 CREATE INDEX IF NOT EXISTS idx_documents_accessed ON documents(last_accessed);
+CREATE INDEX IF NOT EXISTS idx_documents_parent ON documents(parent_id);
+CREATE INDEX IF NOT EXISTS idx_documents_level ON documents(level);
+CREATE INDEX IF NOT EXISTS idx_documents_conn_level_type ON documents(connection_id, level, type);
 CREATE INDEX IF NOT EXISTS idx_embeddings_dimension ON embeddings(dimension);
 
 -- Initialize default collections
@@ -560,6 +566,9 @@ func (s *SQLiteVectorStore) SearchSimilarHNSW(ctx context.Context, embedding []f
 			d.connection_id,
 			d.type,
 			d.content,
+			d.parent_id,
+			d.level,
+			d.summary,
 			d.metadata,
 			d.created_at,
 			d.updated_at,
@@ -609,6 +618,7 @@ func (s *SQLiteVectorStore) SearchSimilarHNSW(ctx context.Context, embedding []f
 	for rows.Next() {
 		var doc Document
 		var metadataJSON string
+		var parentID, level, summary sql.NullString
 		var distance float32
 		var createdAt, updatedAt, lastAccessed int64
 		var accessCount int
@@ -618,6 +628,9 @@ func (s *SQLiteVectorStore) SearchSimilarHNSW(ctx context.Context, embedding []f
 			&doc.ConnectionID,
 			&doc.Type,
 			&doc.Content,
+			&parentID,
+			&level,
+			&summary,
 			&metadataJSON,
 			&createdAt,
 			&updatedAt,
@@ -648,6 +661,17 @@ func (s *SQLiteVectorStore) SearchSimilarHNSW(ctx context.Context, embedding []f
 		doc.LastAccessed = time.Unix(lastAccessed, 0)
 		doc.AccessCount = accessCount
 
+		// Set hierarchical fields if present
+		if parentID.Valid {
+			doc.ParentID = parentID.String
+		}
+		if level.Valid {
+			doc.Level = DocumentLevel(level.String)
+		}
+		if summary.Valid {
+			doc.Summary = summary.String
+		}
+
 		documents = append(documents, &doc)
 	}
 
@@ -676,7 +700,7 @@ func (s *SQLiteVectorStore) SearchSimilar(ctx context.Context, embedding []float
 func (s *SQLiteVectorStore) searchSimilarBruteForce(ctx context.Context, embedding []float32, k int, filter map[string]interface{}) ([]*Document, error) {
 	// Get all documents with embeddings
 	query := `
-		SELECT d.id, d.connection_id, d.type, d.content, d.metadata, d.created_at, d.updated_at, d.access_count, d.last_accessed, e.embedding
+		SELECT d.id, d.connection_id, d.type, d.content, d.parent_id, d.level, d.summary, d.metadata, d.created_at, d.updated_at, d.access_count, d.last_accessed, e.embedding
 		FROM documents d
 		INNER JOIN embeddings e ON d.id = e.document_id
 	`
@@ -722,11 +746,12 @@ func (s *SQLiteVectorStore) searchSimilarBruteForce(ctx context.Context, embeddi
 
 	for rows.Next() {
 		var id, connID, docType, content, metadataStr string
+		var parentID, level, summary sql.NullString
 		var createdAt, updatedAt, lastAccessed int64
 		var accessCount int
 		var embeddingBytes []byte
 
-		err := rows.Scan(&id, &connID, &docType, &content, &metadataStr, &createdAt, &updatedAt, &accessCount, &lastAccessed, &embeddingBytes)
+		err := rows.Scan(&id, &connID, &docType, &content, &parentID, &level, &summary, &metadataStr, &createdAt, &updatedAt, &accessCount, &lastAccessed, &embeddingBytes)
 		if err != nil {
 			s.logger.WithError(err).Warn("Failed to scan document")
 			continue
@@ -754,6 +779,17 @@ func (s *SQLiteVectorStore) searchSimilarBruteForce(ctx context.Context, embeddi
 			Score:        similarity,
 		}
 
+		// Set hierarchical fields if present
+		if parentID.Valid {
+			doc.ParentID = parentID.String
+		}
+		if level.Valid {
+			doc.Level = DocumentLevel(level.String)
+		}
+		if summary.Valid {
+			doc.Summary = summary.String
+		}
+
 		results = append(results, docWithScore{doc: doc, score: similarity})
 	}
 
@@ -779,7 +815,7 @@ func (s *SQLiteVectorStore) searchSimilarBruteForce(ctx context.Context, embeddi
 // SearchByText performs text-based search using FTS5
 func (s *SQLiteVectorStore) SearchByText(ctx context.Context, query string, k int, filter map[string]interface{}) ([]*Document, error) {
 	sqlQuery := `
-		SELECT d.id, d.connection_id, d.type, d.content, d.metadata, d.created_at, d.updated_at, d.access_count, d.last_accessed
+		SELECT d.id, d.connection_id, d.type, d.content, d.parent_id, d.level, d.summary, d.metadata, d.created_at, d.updated_at, d.access_count, d.last_accessed
 		FROM documents d
 		INNER JOIN documents_fts fts ON d.id = fts.document_id
 		WHERE documents_fts MATCH ?
@@ -814,10 +850,11 @@ func (s *SQLiteVectorStore) SearchByText(ctx context.Context, query string, k in
 	var docs []*Document
 	for rows.Next() {
 		var id, connID, docType, content, metadataStr string
+		var parentID, level, summary sql.NullString
 		var createdAt, updatedAt, lastAccessed int64
 		var accessCount int
 
-		err := rows.Scan(&id, &connID, &docType, &content, &metadataStr, &createdAt, &updatedAt, &accessCount, &lastAccessed)
+		err := rows.Scan(&id, &connID, &docType, &content, &parentID, &level, &summary, &metadataStr, &createdAt, &updatedAt, &accessCount, &lastAccessed)
 		if err != nil {
 			s.logger.WithError(err).Warn("Failed to scan document")
 			continue
@@ -838,6 +875,17 @@ func (s *SQLiteVectorStore) SearchByText(ctx context.Context, query string, k in
 			UpdatedAt:    time.Unix(updatedAt, 0),
 			AccessCount:  accessCount,
 			LastAccessed: time.Unix(lastAccessed, 0),
+		}
+
+		// Set hierarchical fields if present
+		if parentID.Valid {
+			doc.ParentID = parentID.String
+		}
+		if level.Valid {
+			doc.Level = DocumentLevel(level.String)
+		}
+		if summary.Valid {
+			doc.Summary = summary.String
 		}
 
 		docs = append(docs, doc)
