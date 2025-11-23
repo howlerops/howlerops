@@ -672,7 +672,8 @@ func (a *App) initializeStorageManager(ctx context.Context) error {
 	reportStorage := storage.NewReportStorage(manager.GetDB(), a.logger)
 	if err := reportStorage.EnsureSchema(); err != nil {
 		a.logger.WithError(err).Warn("Failed to ensure reports table")
-	} else if a.reportService != nil {
+	}
+	if a.reportService != nil {
 		a.reportService.SetStorage(reportStorage)
 	}
 
