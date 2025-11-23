@@ -96,7 +96,7 @@ get_latest_release() {
     if command -v gh &> /dev/null; then
         log_info "Using gh CLI to fetch latest release (GH_TOKEN is ${GH_TOKEN:+set}${GH_TOKEN:-unset})"
         local response
-        response=$(gh api "repos/${GITHUB_REPO}/releases/latest" 2>&1)
+        response=$(gh api "repos/${GITHUB_REPO}/releases/latest")
         local exit_code=$?
 
         if [ $exit_code -ne 0 ]; then
@@ -155,7 +155,7 @@ get_specific_release() {
     if command -v gh &> /dev/null; then
         log_info "Using gh CLI to fetch release (GH_TOKEN is ${GH_TOKEN:+set}${GH_TOKEN:-unset})"
         local response
-        response=$(gh api "repos/${GITHUB_REPO}/releases/tags/${tag}" 2>&1)
+        response=$(gh api "repos/${GITHUB_REPO}/releases/tags/${tag}")
         local exit_code=$?
 
         if [ $exit_code -ne 0 ]; then
