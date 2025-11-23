@@ -375,11 +375,11 @@ main() {
     
     while [ $retry_count -lt $max_retries ]; do
         log_info "Fetching release information (attempt $((retry_count + 1))/$max_retries)..."
-        
+
         if [ "$version" = "latest" ]; then
-            release_data=$(get_latest_release 2>&1) || true
+            release_data=$(get_latest_release) || true
         else
-            release_data=$(get_specific_release "$version" 2>&1) || true
+            release_data=$(get_specific_release "$version") || true
         fi
         
         # Check if we got valid data
