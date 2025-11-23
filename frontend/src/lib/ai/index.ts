@@ -9,44 +9,44 @@
 export {
   createAIError,
   validateAIEnabled,
-  validateProviderConfig,
-  validateGenerateSQLRequest,
   validateFixSQLRequest,
+  validateGenerateSQLRequest,
   validateGenericMessageRequest,
+  validateProviderConfig,
 } from './request-validator'
 
 // Request builders
 export {
-  getPrimaryConnectionId,
+  buildFixSQLBackendRequest,
   buildFullSchemaContext,
   buildGenerateSQLBackendRequest,
-  buildFixSQLBackendRequest,
   buildGenericMessageBackendRequest,
+  getPrimaryConnectionId,
 } from './request-builder'
 
 // Response parsers
 export {
-  parseGenerateSQLResponse,
-  parseFixSQLResponse,
-  parseGenericMessageResponse,
   extractErrorMessage,
   normalizeError,
+  parseFixSQLResponse,
+  parseGenerateSQLResponse,
+  parseGenericMessageResponse,
 } from './response-parser'
 
 // Memory management
 export {
-  ensureActiveSession,
   buildMemoryContext,
-  recordUserMessage,
-  recordAssistantMessage,
+  ensureActiveSession,
   ensureSessionForChatType,
   exportSessions,
   importSessions,
+  recordAssistantMessage,
+  recordUserMessage,
 } from './memory-manager'
 
 // Recall management
 export {
-  recallRelatedSessions,
   buildRecallContext,
   getRecallContext,
+  recallRelatedSessions,
 } from './recall-manager'

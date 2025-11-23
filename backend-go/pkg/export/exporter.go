@@ -27,7 +27,7 @@ const (
 type ExportRequest struct {
 	ReportID     string
 	Format       ExportFormat
-	ComponentIDs []string               // Empty = all components
+	ComponentIDs []string // Empty = all components
 	FilterValues map[string]interface{}
 	Options      ExportOptions
 }

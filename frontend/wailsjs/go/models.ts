@@ -2266,6 +2266,9 @@ export namespace storage {
 	    definition: ReportDefinition;
 	    filter: ReportFilterDefinition;
 	    syncOptions: ReportSyncOptions;
+	    starred: boolean;
+	    // Go type: time
+	    starredAt?: any;
 	    // Go type: time
 	    lastRunAt?: any;
 	    lastRunStatus: string;
@@ -2289,6 +2292,8 @@ export namespace storage {
 	        this.definition = this.convertValues(source["definition"], ReportDefinition);
 	        this.filter = this.convertValues(source["filter"], ReportFilterDefinition);
 	        this.syncOptions = this.convertValues(source["syncOptions"], ReportSyncOptions);
+	        this.starred = source["starred"];
+	        this.starredAt = this.convertValues(source["starredAt"], null);
 	        this.lastRunAt = this.convertValues(source["lastRunAt"], null);
 	        this.lastRunStatus = source["lastRunStatus"];
 	        this.metadata = source["metadata"];
@@ -2329,6 +2334,9 @@ export namespace storage {
 	    description: string;
 	    folder: string;
 	    tags: string[];
+	    starred: boolean;
+	    // Go type: time
+	    starredAt?: any;
 	    // Go type: time
 	    updatedAt: any;
 	    // Go type: time
@@ -2346,6 +2354,8 @@ export namespace storage {
 	        this.description = source["description"];
 	        this.folder = source["folder"];
 	        this.tags = source["tags"];
+	        this.starred = source["starred"];
+	        this.starredAt = this.convertValues(source["starredAt"], null);
 	        this.updatedAt = this.convertValues(source["updatedAt"], null);
 	        this.lastRunAt = this.convertValues(source["lastRunAt"], null);
 	        this.lastRunStatus = source["lastRunStatus"];

@@ -2,12 +2,11 @@ import { create } from 'zustand'
 import { createJSONStorage,persist } from 'zustand/middleware'
 
 import type { SchemaNode } from '@/hooks/use-schema-introspection'
-import { handleVoidPromise } from '@/lib/ai-error-handling'
 import {
-  buildMemoryContext,
-  buildGenerateSQLBackendRequest,
   buildFixSQLBackendRequest,
+  buildGenerateSQLBackendRequest,
   buildGenericMessageBackendRequest,
+  buildMemoryContext,
   ensureActiveSession,
   getRecallContext,
   normalizeError,
@@ -21,6 +20,7 @@ import {
   validateGenerateSQLRequest,
   validateGenericMessageRequest,
 } from '@/lib/ai'
+import { handleVoidPromise } from '@/lib/ai-error-handling'
 import { detectsMultiDB } from '@/lib/ai-schema-context-builder'
 import { showHybridNotification,testAIProviderConnection } from '@/lib/wails-ai-api'
 import { type AIMemorySession as MemorySession,estimateTokens as estimateMemoryTokens, useAIMemoryStore } from '@/store/ai-memory-store'

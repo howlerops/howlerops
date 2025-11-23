@@ -15,6 +15,7 @@
  */
 
 import { useRef, useState } from 'react'
+
 import { KeyboardShortcutsProvider } from '@/components/keyboard-shortcuts-provider'
 import type { QueryEditorHandle } from '@/components/query-editor'
 import { useQueryStore } from '@/store/query-store'

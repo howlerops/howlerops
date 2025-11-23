@@ -2,11 +2,11 @@ import { memo } from 'react'
 
 import type { AgentAttachment } from '@/store/ai-query-agent-store'
 
-import { ChartAttachment } from './ChartAttachment'
-import { InsightAttachment } from './InsightAttachment'
-import { ReportAttachment } from './ReportAttachment'
-import { ResultAttachment } from './ResultAttachment'
-import { SQLAttachment } from './SQLAttachment'
+import { ChartAttachment } from '../ai-query-tab/ChartAttachment'
+import { InsightAttachment } from '../ai-query-tab/InsightAttachment'
+import { ReportAttachment } from '../ai-query-tab/ReportAttachment'
+import { ResultAttachment } from '../ai-query-tab/ResultAttachment'
+import { SQLAttachment } from '../ai-query-tab/SQLAttachment'
 
 interface AttachmentRendererProps {
   attachment: AgentAttachment

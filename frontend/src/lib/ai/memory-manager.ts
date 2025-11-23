@@ -5,9 +5,9 @@
  * session management and message recording.
  */
 
-import type { AISessionId } from '@/types/ai'
 import type { AIMemorySession } from '@/store/ai-memory-store'
 import { useAIMemoryStore } from '@/store/ai-memory-store'
+import type { AISessionId } from '@/types/ai'
 
 /**
  * Ensures an active session exists, creating one if needed

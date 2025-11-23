@@ -178,11 +178,11 @@ func (m *Materializer) MaterializeReport(reportID string, filterValues map[strin
 	}
 
 	m.logger.WithFields(logrus.Fields{
-		"snapshot_id":      snapshot.ID,
-		"report_id":        reportID,
-		"size_bytes":       snapshot.SizeBytes,
-		"compression_pct":  fmt.Sprintf("%.1f%%", float64(snapshot.SizeBytes)/float64(len(resultsJSON))*100),
-		"ttl_hours":        ttl.Hours(),
+		"snapshot_id":     snapshot.ID,
+		"report_id":       reportID,
+		"size_bytes":      snapshot.SizeBytes,
+		"compression_pct": fmt.Sprintf("%.1f%%", float64(snapshot.SizeBytes)/float64(len(resultsJSON))*100),
+		"ttl_hours":       ttl.Hours(),
 	}).Info("Report snapshot materialized")
 
 	return snapshot, nil

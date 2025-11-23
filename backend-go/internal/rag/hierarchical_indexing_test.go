@@ -2,6 +2,7 @@ package rag
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -47,7 +48,7 @@ func setupHierarchicalTest(t *testing.T) (*SchemaIndexer, *ContextBuilder, *SQLi
 	require.NoError(t, err)
 
 	// Apply migration (simplified for test)
-	db := vectorStore.(*SQLiteVectorStore).db
+	db := vectorStore.db
 	_, err = db.ExecContext(ctx, string(migrationSQL))
 	require.NoError(t, err)
 
@@ -60,7 +61,7 @@ func setupHierarchicalTest(t *testing.T) (*SchemaIndexer, *ContextBuilder, *SQLi
 
 	// Cleanup function
 	cleanup := func() {
-		vectorStore.(*SQLiteVectorStore).db.Close()
+		vectorStore.db.Close()
 		os.RemoveAll(tempDir)
 	}
 
@@ -83,6 +84,18 @@ func (m *mockEmbeddingService) EmbedText(ctx context.Context, text string) ([]fl
 	return embedding, nil
 }
 
+func (m *mockEmbeddingService) EmbedBatch(ctx context.Context, texts []string) ([][]float32, error) {
+	embeddings := make([][]float32, len(texts))
+	for i, text := range texts {
+		emb, err := m.EmbedText(ctx, text)
+		if err != nil {
+			return nil, err
+		}
+		embeddings[i] = emb
+	}
+	return embeddings, nil
+}
+
 func (m *mockEmbeddingService) EmbedDocument(ctx context.Context, doc *Document) error {
 	embedding, err := m.EmbedText(ctx, doc.Content)
 	if err != nil {
@@ -90,6 +103,19 @@ func (m *mockEmbeddingService) EmbedDocument(ctx context.Context, doc *Document)
 	}
 	doc.Embedding = embedding
 	return nil
+}
+
+func (m *mockEmbeddingService) ClearCache() error {
+	return nil
+}
+
+func (m *mockEmbeddingService) GetCacheStats() *CacheStats {
+	return &CacheStats{
+		Size:    0,
+		Hits:    0,
+		Misses:  0,
+		HitRate: 0.0,
+	}
 }
 
 func TestHierarchicalIndexing(t *testing.T) {
@@ -164,9 +190,9 @@ func TestHierarchicalRetrieval(t *testing.T) {
 
 	// Index multiple tables
 	tables := []struct {
-		name      string
-		columns   []database.ColumnInfo
-		rowCount  int64
+		name     string
+		columns  []database.ColumnInfo
+		rowCount int64
 	}{
 		{
 			name: "users",
@@ -234,7 +260,7 @@ func TestHierarchicalRetrieval(t *testing.T) {
 }
 
 func TestHierarchicalRetrievalReducesNoise(t *testing.T) {
-	indexer, contextBuilder, vectorStore, cleanup := setupHierarchicalTest(t)
+	indexer, _, vectorStore, cleanup := setupHierarchicalTest(t)
 	defer cleanup()
 
 	ctx := context.Background()

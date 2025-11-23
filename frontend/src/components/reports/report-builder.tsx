@@ -3,7 +3,6 @@ import { AlertCircle, BarChart3, Edit, Eye, FileQuestion, Filter, Grid3x3, Play,
 import React, { useMemo, useState } from 'react'
 
 import { DashboardCanvas } from '@/components/reports/dashboard-canvas'
-import { ConnectionPicker } from '@/components/reports/connection-picker'
 import { QueryModeSwitcher } from '@/components/reports/query-mode-switcher'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
@@ -18,7 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
 import { useReportStore } from '@/store/report-store'
-import type { ReportComponent, ReportComponentType, ReportRunComponentResult, ReportLayoutSlot, QueryBuilderState, ReportQueryMode } from '@/types/reports'
+import type { QueryBuilderState, ReportComponent, ReportComponentType, ReportLayoutSlot,ReportRunComponentResult } from '@/types/reports'
 import type { ReportRecord } from '@/types/storage'
 
 interface ReportBuilderProps {

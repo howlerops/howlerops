@@ -6,16 +6,16 @@
  */
 
 import type { SchemaNode } from '@/hooks/use-schema-introspection'
+import { addMemoryContext, addRecallContext,buildSchemaContext, enhancePromptForMode } from '@/lib/ai-schema-context-builder'
+import type { AIConfig } from '@/store/ai-store'
 import type { DatabaseConnection } from '@/store/connection-store'
-import { buildSchemaContext, enhancePromptForMode, addMemoryContext, addRecallContext } from '@/lib/ai-schema-context-builder'
 import type {
   AIBackendRequest,
-  AIGenerateSQLRequest,
   AIFixSQLRequest,
+  AIGenerateSQLRequest,
   AIGenericMessageRequest,
   AIQueryMode,
 } from '@/types/ai'
-import type { AIConfig } from '@/store/ai-store'
 
 /**
  * Determines the effective connection ID from connections array

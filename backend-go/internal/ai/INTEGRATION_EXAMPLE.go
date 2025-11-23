@@ -7,8 +7,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/sirupsen/logrus"
 	"github.com/jbeck018/howlerops/backend-go/internal/rag"
+	"github.com/sirupsen/logrus"
 )
 
 // Example 1: Simple integration without RAG

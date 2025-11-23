@@ -190,7 +190,7 @@ func BenchmarkRRFFusion(b *testing.B) {
 			Score:        float32(1.0 / (float64(i) + 1)),
 		}
 		textResults[i] = &Document{
-			ID:           fmt.Sprintf("doc%d", (i*2)%30),  // Some overlap
+			ID:           fmt.Sprintf("doc%d", (i*2)%30), // Some overlap
 			ConnectionID: "test",
 			Type:         DocumentTypeQuery,
 			Content:      fmt.Sprintf("content %d", (i*2)%30),

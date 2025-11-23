@@ -1,10 +1,9 @@
 import { AlertCircle, BarChart3, Database, FileText, Lightbulb, Loader2, MessageCircle, Network, Pencil, Plus, Search, SendHorizontal, Sparkles, TrendingUp } from "lucide-react"
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 
 import { EmptyState, type ExampleQuery } from "@/components/empty-states/EmptyState"
 import { MultiDBConnectionSelector } from "@/components/multi-db-connection-selector"
 import { SchemaContextSelector } from "@/components/schema-context-selector"
-import { VirtualMessageList } from "@/components/virtual-message-list"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -18,6 +17,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import { Textarea } from "@/components/ui/textarea"
+import { VirtualMessageList } from "@/components/virtual-message-list"
 import { useQueryMode } from "@/hooks/use-query-mode"
 import type { SchemaNode } from "@/hooks/use-schema-introspection"
 import { AISchemaContextBuilder } from "@/lib/ai-schema-context"

@@ -235,9 +235,9 @@ func TestSchemaEnricher_EnrichColumn_PartialFailure(t *testing.T) {
 	assert.NotNil(t, stats)
 	assert.Equal(t, int64(500), stats.DistinctCount) // Succeeded
 	assert.Equal(t, int64(5), stats.NullCount)       // Succeeded
-	assert.Nil(t, stats.MinValue)                     // Failed
-	assert.Nil(t, stats.MaxValue)                     // Failed
-	assert.Nil(t, stats.AvgValue)                     // Failed
+	assert.Nil(t, stats.MinValue)                    // Failed
+	assert.Nil(t, stats.MaxValue)                    // Failed
+	assert.Nil(t, stats.AvgValue)                    // Failed
 
 	require.NoError(t, mock.ExpectationsWereMet())
 }

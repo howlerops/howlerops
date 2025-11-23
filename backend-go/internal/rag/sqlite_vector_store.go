@@ -832,7 +832,6 @@ func (s *SQLiteVectorStore) SearchByText(ctx context.Context, query string, k in
 	return docs, nil
 }
 
-
 // GetDocument retrieves a document by ID
 func (s *SQLiteVectorStore) GetDocument(ctx context.Context, id string) (*Document, error) {
 	var connID, docType, content, metadataStr string

@@ -1,5 +1,8 @@
-import React, { useMemo, useCallback, useState, useEffect, useRef } from 'react'
-import { Responsive, WidthProvider, Layout as RGLLayout } from 'react-grid-layout'
+// Import required CSS
+import 'react-grid-layout/css/styles.css'
+import 'react-resizable/css/styles.css'
+import './dashboard-canvas.css'
+
 import {
   BarChart3,
   FileQuestion,
@@ -8,12 +11,14 @@ import {
   MessageSquare,
   Play,
   Plus,
+  Redo,
   Settings,
   Table2,
   Trash2,
   Undo,
-  Redo,
 } from 'lucide-react'
+import React, { useCallback, useEffect, useMemo, useRef,useState } from 'react'
+import { Layout as RGLLayout,Responsive, WidthProvider } from 'react-grid-layout'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
@@ -32,14 +37,9 @@ import type {
   ReportComponent,
   ReportComponentType,
   ReportLayoutSlot,
-  ReportRunResult,
   ReportRunComponentResult,
+  ReportRunResult,
 } from '@/types/reports'
-
-// Import required CSS
-import 'react-grid-layout/css/styles.css'
-import 'react-resizable/css/styles.css'
-import './dashboard-canvas.css'
 
 const ResponsiveGridLayout = WidthProvider(Responsive)
 

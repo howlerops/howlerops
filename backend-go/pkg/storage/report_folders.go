@@ -13,13 +13,13 @@ import (
 
 // ReportFolder represents a folder in the report hierarchy.
 type ReportFolder struct {
-	ID        string     `json:"id"`
-	Name      string     `json:"name"`
-	ParentID  *string    `json:"parentId,omitempty"`
-	Color     string     `json:"color,omitempty"`
-	Icon      string     `json:"icon,omitempty"`
-	CreatedAt time.Time  `json:"createdAt"`
-	UpdatedAt time.Time  `json:"updatedAt"`
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	ParentID  *string   `json:"parentId,omitempty"`
+	Color     string    `json:"color,omitempty"`
+	Icon      string    `json:"icon,omitempty"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
 }
 
 // FolderStorage manages report folder persistence.
@@ -261,9 +261,9 @@ UPDATE reports SET folder = ?, updated_at = ? WHERE id = ?
 
 // Tag represents a tag with usage count.
 type Tag struct {
-	Name         string `json:"name"`
-	Color        string `json:"color,omitempty"`
-	ReportCount  int    `json:"reportCount"`
+	Name        string `json:"name"`
+	Color       string `json:"color,omitempty"`
+	ReportCount int    `json:"reportCount"`
 }
 
 // TagStorage manages report tags.
@@ -372,19 +372,19 @@ ON CONFLICT(name) DO UPDATE SET
 
 // ReportTemplate represents a reusable report template.
 type ReportTemplate struct {
-	ID          string           `json:"id"`
-	Name        string           `json:"name"`
-	Description string           `json:"description,omitempty"`
-	Category    string           `json:"category"`
-	Thumbnail   string           `json:"thumbnail,omitempty"`
-	Icon        string           `json:"icon,omitempty"`
-	Tags        []string         `json:"tags"`
-	Definition  ReportDefinition `json:"definition"`
+	ID          string                 `json:"id"`
+	Name        string                 `json:"name"`
+	Description string                 `json:"description,omitempty"`
+	Category    string                 `json:"category"`
+	Thumbnail   string                 `json:"thumbnail,omitempty"`
+	Icon        string                 `json:"icon,omitempty"`
+	Tags        []string               `json:"tags"`
+	Definition  ReportDefinition       `json:"definition"`
 	Filter      ReportFilterDefinition `json:"filter,omitempty"`
-	Featured    bool             `json:"featured"`
-	UsageCount  int              `json:"usageCount"`
-	CreatedAt   time.Time        `json:"createdAt"`
-	UpdatedAt   time.Time        `json:"updatedAt"`
+	Featured    bool                   `json:"featured"`
+	UsageCount  int                    `json:"usageCount"`
+	CreatedAt   time.Time              `json:"createdAt"`
+	UpdatedAt   time.Time              `json:"updatedAt"`
 }
 
 // TemplateStorage manages report templates.

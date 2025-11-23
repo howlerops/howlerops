@@ -95,6 +95,8 @@ export const useReportStore = create<ReportStoreState>()(
               description: saved.description,
               folder: saved.folder,
               tags: saved.tags,
+              starred: false,
+              starredAt: undefined,
               updatedAt: saved.updated_at,
               lastRunAt: saved.last_run_at,
               lastRunStatus: saved.last_run_status,

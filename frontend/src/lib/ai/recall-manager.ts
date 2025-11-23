@@ -6,6 +6,7 @@
  */
 
 import type { AIRecallItem } from '@/types/ai'
+
 import { RecallAIMemorySessions } from '../../../wailsjs/go/main/App'
 
 /**

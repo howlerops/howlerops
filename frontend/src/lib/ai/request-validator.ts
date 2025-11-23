@@ -6,7 +6,7 @@
  */
 
 import type { AIConfig } from '@/store/ai-store'
-import type { AIError, AIErrorType, AIGenerateSQLRequest, AIFixSQLRequest, AIGenericMessageRequest } from '@/types/ai'
+import type { AIError, AIErrorType, AIFixSQLRequest, AIGenerateSQLRequest, AIGenericMessageRequest } from '@/types/ai'
 
 /**
  * Creates a structured AI error

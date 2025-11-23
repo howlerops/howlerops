@@ -6,11 +6,12 @@
  */
 
 import React from 'react'
+
 import { AIErrorBoundary } from './ai-error-boundary'
 import { AIQueryTabView } from './ai-query-tab'
-import { NaturalLanguageInput } from './query/NaturalLanguageInput'
 import { AISchemaDisplay } from './ai-schema-display'
 import { AISuggestionCard } from './ai-suggestion-card'
+import { NaturalLanguageInput } from './query/NaturalLanguageInput'
 
 // Wrapped AI Query Tab with error boundary
 export function SafeAIQueryTab(props: React.ComponentProps<typeof AIQueryTabView>) {

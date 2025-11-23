@@ -2,13 +2,13 @@ package rag
 
 import (
 	"context"
-	"database/sql"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/jbeck018/howlerops/backend-go/pkg/database"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,6 +18,15 @@ type MockEmbeddingService struct{}
 func (m *MockEmbeddingService) EmbedText(ctx context.Context, text string) ([]float32, error) {
 	// Return dummy embedding
 	return make([]float32, 384), nil
+}
+
+func (m *MockEmbeddingService) EmbedBatch(ctx context.Context, texts []string) ([][]float32, error) {
+	// Return dummy embeddings for batch
+	embeddings := make([][]float32, len(texts))
+	for i := range embeddings {
+		embeddings[i] = make([]float32, 384)
+	}
+	return embeddings, nil
 }
 
 func (m *MockEmbeddingService) EmbedDocument(ctx context.Context, doc *Document) error {
@@ -30,15 +39,17 @@ func (m *MockEmbeddingService) ClearCache() error {
 	return nil
 }
 
-func (m *MockEmbeddingService) GetCacheStats() map[string]interface{} {
-	return map[string]interface{}{
-		"size": 0,
-		"hits": 0,
+func (m *MockEmbeddingService) GetCacheStats() *CacheStats {
+	return &CacheStats{
+		Size:    0,
+		Hits:    0,
+		Misses:  0,
+		HitRate: 0.0,
 	}
 }
 
 func TestSchemaIndexer_WithEnrichment_Integration(t *testing.T) {
-	db, mock, err := sqlmock.New()
+	db, sqlMock, err := sqlmock.New()
 	require.NoError(t, err)
 	defer db.Close()
 
@@ -64,11 +75,11 @@ func TestSchemaIndexer_WithEnrichment_Integration(t *testing.T) {
 	}
 
 	structure := &database.TableStructure{
-		Columns: []database.Column{
+		Columns: []database.ColumnInfo{
 			{
-				Name:     "id",
-				DataType: "integer",
-				Nullable: false,
+				Name:       "id",
+				DataType:   "integer",
+				Nullable:   false,
 				PrimaryKey: true,
 			},
 			{
@@ -85,19 +96,19 @@ func TestSchemaIndexer_WithEnrichment_Integration(t *testing.T) {
 	}
 
 	// Mock enrichment queries for "id" column (numeric, but also PK so not enriched much)
-	mock.ExpectQuery("SELECT COUNT\\(DISTINCT id\\) FROM public.users").
+	sqlMock.ExpectQuery("SELECT COUNT\\(DISTINCT id\\) FROM public.users").
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1000))
-	mock.ExpectQuery("SELECT COUNT\\(\\*\\) FROM public.users WHERE id IS NULL").
+	sqlMock.ExpectQuery("SELECT COUNT\\(\\*\\) FROM public.users WHERE id IS NULL").
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
-	mock.ExpectQuery("SELECT MIN\\(id\\), MAX\\(id\\), AVG\\(id\\)").
+	sqlMock.ExpectQuery("SELECT MIN\\(id\\), MAX\\(id\\), AVG\\(id\\)").
 		WillReturnRows(sqlmock.NewRows([]string{"min", "max", "avg"}).AddRow(1, 1000, 500.5))
 
 	// Mock enrichment queries for "status" column (categorical)
-	mock.ExpectQuery("SELECT COUNT\\(DISTINCT status\\) FROM public.users").
+	sqlMock.ExpectQuery("SELECT COUNT\\(DISTINCT status\\) FROM public.users").
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(3))
-	mock.ExpectQuery("SELECT COUNT\\(\\*\\) FROM public.users WHERE status IS NULL").
+	sqlMock.ExpectQuery("SELECT COUNT\\(\\*\\) FROM public.users WHERE status IS NULL").
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
-	mock.ExpectQuery("SELECT status, COUNT\\(\\*\\) as cnt").
+	sqlMock.ExpectQuery("SELECT status, COUNT\\(\\*\\) as cnt").
 		WillReturnRows(
 			sqlmock.NewRows([]string{"status", "cnt"}).
 				AddRow("active", 700).
@@ -106,11 +117,11 @@ func TestSchemaIndexer_WithEnrichment_Integration(t *testing.T) {
 		)
 
 	// Mock enrichment queries for "age" column (numeric)
-	mock.ExpectQuery("SELECT COUNT\\(DISTINCT age\\) FROM public.users").
+	sqlMock.ExpectQuery("SELECT COUNT\\(DISTINCT age\\) FROM public.users").
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(80))
-	mock.ExpectQuery("SELECT COUNT\\(\\*\\) FROM public.users WHERE age IS NULL").
+	sqlMock.ExpectQuery("SELECT COUNT\\(\\*\\) FROM public.users WHERE age IS NULL").
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(10))
-	mock.ExpectQuery("SELECT MIN\\(age\\), MAX\\(age\\), AVG\\(age\\)").
+	sqlMock.ExpectQuery("SELECT MIN\\(age\\), MAX\\(age\\), AVG\\(age\\)").
 		WillReturnRows(sqlmock.NewRows([]string{"min", "max", "avg"}).AddRow(18, 95, 42.5))
 
 	// Expect table document
@@ -135,7 +146,7 @@ func TestSchemaIndexer_WithEnrichment_Integration(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify all SQL expectations were met
-	require.NoError(t, mock.ExpectationsWereMet())
+	require.NoError(t, sqlMock.ExpectationsWereMet())
 
 	// Verify we captured enriched column documents
 	require.Len(t, capturedDocs, 3, "Should have 3 column documents")
@@ -202,7 +213,7 @@ func TestSchemaIndexer_WithoutEnrichment(t *testing.T) {
 	}
 
 	structure := &database.TableStructure{
-		Columns: []database.Column{
+		Columns: []database.ColumnInfo{
 			{
 				Name:     "status",
 				DataType: "varchar",

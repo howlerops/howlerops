@@ -1,5 +1,5 @@
-import { BarChart3, Copy, Download, GitCompare, Loader2, MessageSquare, Pencil, Play, Search, SendHorizontal, Sparkles, Table2, TrendingUp, Wand2 } from "lucide-react"
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { BarChart3, GitCompare, Loader2, Pencil, Search, SendHorizontal, Sparkles, Table2, TrendingUp } from "lucide-react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 
 import { EmptyState, type ExampleQuery } from "@/components/empty-states/EmptyState"
 import { Badge } from "@/components/ui/badge"
@@ -16,11 +16,11 @@ import { type AgentAttachment, type AgentMessage, type AgentResultAttachment,use
 import { useAIConfig } from "@/store/ai-store"
 import type { DatabaseConnection } from "@/store/connection-store"
 
-import { SQLAttachment } from "./ai-query-tab/SQLAttachment"
-import { ResultAttachment } from "./ai-query-tab/ResultAttachment"
 import { ChartAttachment } from "./ai-query-tab/ChartAttachment"
-import { ReportAttachment } from "./ai-query-tab/ReportAttachment"
 import { InsightAttachment } from "./ai-query-tab/InsightAttachment"
+import { ReportAttachment } from "./ai-query-tab/ReportAttachment"
+import { ResultAttachment } from "./ai-query-tab/ResultAttachment"
+import { SQLAttachment } from "./ai-query-tab/SQLAttachment"
 
 const DEFAULT_EXAMPLES: ExampleQuery[] = [
   {
@@ -215,15 +215,15 @@ export function AIQueryTabView({
   const renderAttachment = useCallback((attachment: AgentAttachment, index: number) => {
     switch (attachment.type) {
       case 'sql':
-        return <SQLAttachment key={`sql-${index}`} attachment={attachment} onCopySQL={handleCopySQL} onUseSQL={onUseSQL} />
+        return attachment.sql ? <SQLAttachment key={`sql-${index}`} sql={attachment.sql} onCopy={handleCopySQL} onUse={onUseSQL} /> : null
       case 'result':
-        return <ResultAttachment key={`result-${index}`} attachment={attachment} onExport={handleExportResult} />
+        return attachment.result ? <ResultAttachment key={`result-${index}`} result={attachment.result} onExport={(columns, rows) => handleExportResult({ columns, rows, rowCount: rows.length, executionTimeMs: 0, limited: false })} /> : null
       case 'chart':
-        return <ChartAttachment key={`chart-${index}`} attachment={attachment} />
+        return attachment.chart ? <ChartAttachment key={`chart-${index}`} chart={attachment.chart} /> : null
       case 'report':
-        return <ReportAttachment key={`report-${index}`} attachment={attachment} />
+        return attachment.report ? <ReportAttachment key={`report-${index}`} report={attachment.report} /> : null
       case 'insight':
-        return <InsightAttachment key={`insight-${index}`} attachment={attachment} />
+        return attachment.insight ? <InsightAttachment key={`insight-${index}`} insight={attachment.insight} /> : null
       default:
         return null
     }

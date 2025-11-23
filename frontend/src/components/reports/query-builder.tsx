@@ -5,13 +5,13 @@ import {
   ArrowUp,
   Database,
   Filter as FilterIcon,
-  Plus,
   Play,
+  Plus,
   Table as TableIcon,
   Trash2,
   X,
 } from 'lucide-react'
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
@@ -20,12 +20,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Separator } from '@/components/ui/separator'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { cn } from '@/lib/utils'
 import type {
   AggregationFunction,
-  ColumnMetadata,
   ColumnSelection,
   DatabaseSchema,
   FilterCombinator,

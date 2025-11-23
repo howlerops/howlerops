@@ -37,28 +37,28 @@ func TestRRFConstantEffectStandalone(t *testing.T) {
 		k           int
 		rank0Score  float64
 		rank10Score float64
-		minRatio    float64  // Minimum expected ratio between rank 0 and rank 10
+		minRatio    float64 // Minimum expected ratio between rank 0 and rank 10
 	}{
 		{
 			name:        "low_k_20",
 			k:           20,
-			rank0Score:  1.0 / 21.0,   // 0.0476
-			rank10Score: 1.0 / 31.0,   // 0.0323
-			minRatio:    1.4,          // Should create bigger differences
+			rank0Score:  1.0 / 21.0, // 0.0476
+			rank10Score: 1.0 / 31.0, // 0.0323
+			minRatio:    1.4,        // Should create bigger differences
 		},
 		{
 			name:        "default_k_60",
 			k:           60,
-			rank0Score:  1.0 / 61.0,   // 0.0164
-			rank10Score: 1.0 / 71.0,   // 0.0141
-			minRatio:    1.15,         // Moderate differences
+			rank0Score:  1.0 / 61.0, // 0.0164
+			rank10Score: 1.0 / 71.0, // 0.0141
+			minRatio:    1.15,       // Moderate differences
 		},
 		{
 			name:        "high_k_100",
 			k:           100,
-			rank0Score:  1.0 / 101.0,  // 0.0099
-			rank10Score: 1.0 / 111.0,  // 0.0090
-			minRatio:    1.08,         // Smaller differences
+			rank0Score:  1.0 / 101.0, // 0.0099
+			rank10Score: 1.0 / 111.0, // 0.0090
+			minRatio:    1.08,        // Smaller differences
 		},
 	}
 
@@ -97,28 +97,28 @@ func TestWeightedRRF(t *testing.T) {
 			name:         "equal_weights",
 			vectorWeight: 1.0,
 			textWeight:   1.0,
-			expectedMin:  0.032,  // 2 * (1/61) ≈ 0.0328
+			expectedMin:  0.032, // 2 * (1/61) ≈ 0.0328
 			expectedMax:  0.033,
 		},
 		{
 			name:         "vector_preferred_2x",
 			vectorWeight: 2.0,
 			textWeight:   1.0,
-			expectedMin:  0.049,  // (2/61) + (1/61) ≈ 0.0492
+			expectedMin:  0.049, // (2/61) + (1/61) ≈ 0.0492
 			expectedMax:  0.050,
 		},
 		{
 			name:         "text_preferred_2x",
 			vectorWeight: 1.0,
 			textWeight:   2.0,
-			expectedMin:  0.049,  // (1/61) + (2/61) ≈ 0.0492
+			expectedMin:  0.049, // (1/61) + (2/61) ≈ 0.0492
 			expectedMax:  0.050,
 		},
 		{
 			name:         "vector_strongly_preferred_5x",
 			vectorWeight: 5.0,
 			textWeight:   1.0,
-			expectedMin:  0.098,  // (5/61) + (1/61) ≈ 0.0984
+			expectedMin:  0.098, // (5/61) + (1/61) ≈ 0.0984
 			expectedMax:  0.099,
 		},
 	}
@@ -173,7 +173,7 @@ func TestRRFRankOrdering(t *testing.T) {
 		{
 			name:        "vector_only",
 			vectorRank:  0,
-			textRank:    1000,  // Effectively not in text results
+			textRank:    1000, // Effectively not in text results
 			description: "Only in vector search",
 		},
 	}

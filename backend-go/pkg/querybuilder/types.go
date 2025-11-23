@@ -23,7 +23,7 @@ type ColumnSelection struct {
 
 // JoinDefinition represents a table join
 type JoinDefinition struct {
-	Type  string `json:"type"`  // INNER, LEFT, RIGHT, FULL
+	Type  string `json:"type"` // INNER, LEFT, RIGHT, FULL
 	Table string `json:"table"`
 	Alias string `json:"alias,omitempty"`
 	On    JoinOn `json:"on"`
@@ -38,10 +38,10 @@ type JoinOn struct {
 // FilterCondition represents a WHERE condition
 type FilterCondition struct {
 	ID         string  `json:"id"`
-	Column     string  `json:"column"`     // format: "table.column"
-	Operator   string  `json:"operator"`   // =, !=, >, <, >=, <=, LIKE, NOT LIKE, IN, NOT IN, IS NULL, IS NOT NULL, BETWEEN
+	Column     string  `json:"column"`   // format: "table.column"
+	Operator   string  `json:"operator"` // =, !=, >, <, >=, <=, LIKE, NOT LIKE, IN, NOT IN, IS NULL, IS NOT NULL, BETWEEN
 	Value      *string `json:"value,omitempty"`
-	ValueTo    *string `json:"valueTo,omitempty"`   // for BETWEEN
+	ValueTo    *string `json:"valueTo,omitempty"`    // for BETWEEN
 	Combinator *string `json:"combinator,omitempty"` // AND, OR (only for filters after first)
 }
 

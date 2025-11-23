@@ -1,5 +1,5 @@
 import { AlertCircle, Bug, ChevronDown, Database, Layout, Loader2, MessageCircle, Network, Pencil, Play, Plus, Save,Sparkles, Square, Trash2, Users, Wand2, X } from "lucide-react"
-import { forwardRef, lazy, type SyntheticEvent, Suspense, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react"
+import { forwardRef, lazy, Suspense, type SyntheticEvent, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react"
 
 import { AIQueryTabView } from "@/components/ai-query-tab"
 import { AISchemaDisplay } from "@/components/ai-schema-display"

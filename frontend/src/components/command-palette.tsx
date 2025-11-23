@@ -1,4 +1,4 @@
-import { Command, Database, History, MessageSquare, Plus, Search, Settings, Sparkles, Zap } from 'lucide-react'
+import { Command, Database, History, Search, Settings, Sparkles, Zap } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { Badge } from '@/components/ui/badge'

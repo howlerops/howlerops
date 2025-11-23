@@ -33,7 +33,7 @@ func TestRRFCalculation(t *testing.T) {
 			rrfConstant:  60,
 			vectorWeight: 1.0,
 			textWeight:   1.0,
-			expectedMin:  0.032,  // 2 * (1/(0+1+60)) ≈ 0.0328
+			expectedMin:  0.032, // 2 * (1/(0+1+60)) ≈ 0.0328
 			expectedMax:  0.033,
 		},
 		{
@@ -211,14 +211,14 @@ func TestHybridSearchBetterThanVectorOnly(t *testing.T) {
 func TestRRFConstantEffect(t *testing.T) {
 	// Test with low constant (k=10): More weight to top results
 	lowK := 10
-	lowRankScore := 1.0 / float64(0+1+lowK)  // rank 0
-	lowMidScore := 1.0 / float64(10+1+lowK)  // rank 10
+	lowRankScore := 1.0 / float64(0+1+lowK) // rank 0
+	lowMidScore := 1.0 / float64(10+1+lowK) // rank 10
 	lowRatio := lowRankScore / lowMidScore
 
 	// Test with high constant (k=100): More uniform weighting
 	highK := 100
-	highRankScore := 1.0 / float64(0+1+highK)  // rank 0
-	highMidScore := 1.0 / float64(10+1+highK)  // rank 10
+	highRankScore := 1.0 / float64(0+1+highK) // rank 0
+	highMidScore := 1.0 / float64(10+1+highK) // rank 10
 	highRatio := highRankScore / highMidScore
 
 	t.Logf("Low k=%d ratio (rank 0 vs 10): %.3f", lowK, lowRatio)
@@ -244,7 +244,7 @@ func TestHybridSearchWithWeights(t *testing.T) {
 		MMapSizeMB:   16,
 		WALEnabled:   true,
 		RRFConstant:  60,
-		VectorWeight: 2.0,  // Prefer vector results
+		VectorWeight: 2.0, // Prefer vector results
 		TextWeight:   1.0,
 	}
 
@@ -391,7 +391,7 @@ func setupTestStore(t *testing.T) (*SQLiteVectorStore, func()) {
 		CacheSizeMB: 8,
 		MMapSizeMB:  16,
 		WALEnabled:  true,
-		RRFConstant: 60,  // Use default
+		RRFConstant: 60, // Use default
 	}
 
 	logger := logrus.New()

@@ -27,8 +27,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import type { SchemaNode } from "@/hooks/use-schema-introspection"
 import { toast } from "@/hooks/use-toast"
-import { cn } from "@/lib/utils"
 import { preloadComponent } from "@/lib/component-preload"
+import { cn } from "@/lib/utils"
 import { type DatabaseConnection,useConnectionStore } from "@/store/connection-store"
 import { useQueryStore } from "@/store/query-store"
 

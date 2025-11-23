@@ -1,6 +1,6 @@
 import { renderHook } from '@testing-library/react'
-import { describe, it, expect } from 'vitest'
 import { useCallback, useMemo } from 'react'
+import { describe, expect,it } from 'vitest'
 
 /**
  * Tests to verify React optimization patterns are correctly implemented

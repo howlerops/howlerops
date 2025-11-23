@@ -1,5 +1,5 @@
 import { debounce } from 'lodash-es'
-import { Copy, Download, FileText, Loader2, MoreVertical, Play, PlusCircle, Save, Trash2 } from 'lucide-react'
+import { Copy, Download, FileText, MoreVertical, Play, PlusCircle, Save, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
 import { ReportBuilder } from '@/components/reports/report-builder'

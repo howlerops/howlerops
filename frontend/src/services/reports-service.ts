@@ -62,6 +62,8 @@ const fromBackendSummary = (summary: any): ReportSummary => ({
   description: summary?.description ?? '',
   folder: summary?.folder ?? '',
   tags: summary?.tags ?? [],
+  starred: summary?.starred ?? false,
+  starredAt: ensureDate(summary?.starredAt),
   updatedAt: ensureDate(summary?.updatedAt) ?? new Date(),
   lastRunAt: ensureDate(summary?.lastRunAt),
   lastRunStatus: summary?.lastRunStatus ?? 'idle',

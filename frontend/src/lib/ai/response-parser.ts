@@ -4,7 +4,8 @@
  * Parses and validates responses from the AI backend.
  */
 
-import type { AIGenerateSQLResponse, AIFixSQLResponse, AIGenericMessageResponse, AIError } from '@/types/ai'
+import type { AIError,AIFixSQLResponse, AIGenerateSQLResponse, AIGenericMessageResponse } from '@/types/ai'
+
 import { createAIError } from './request-validator'
 
 /**

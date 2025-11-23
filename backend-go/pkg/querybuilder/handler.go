@@ -43,11 +43,11 @@ type DatabaseSchemaResponse struct {
 
 // TableMetadataResponse represents table metadata
 type TableMetadataResponse struct {
-	Schema      string                  `json:"schema"`
-	Name        string                  `json:"name"`
-	Type        string                  `json:"type"`
-	Comment     string                  `json:"comment,omitempty"`
-	RowCount    int64                   `json:"rowCount"`
+	Schema      string                   `json:"schema"`
+	Name        string                   `json:"name"`
+	Type        string                   `json:"type"`
+	Comment     string                   `json:"comment,omitempty"`
+	RowCount    int64                    `json:"rowCount"`
 	Columns     []ColumnMetadataResponse `json:"columns"`
 	ForeignKeys []ForeignKeyResponse     `json:"foreignKeys"`
 }
@@ -105,12 +105,12 @@ type PreviewQueryRequest struct {
 
 // PreviewQueryResponse represents the query preview response
 type PreviewQueryResponse struct {
-	SQL              string          `json:"sql"`
-	EstimatedRows    int64           `json:"estimatedRows"`
-	Columns          []string        `json:"columns"`
-	Rows             [][]interface{} `json:"rows"`
-	TotalRows        int64           `json:"totalRows"`
-	ExecutionTimeMs  int64           `json:"executionTimeMs"`
+	SQL             string          `json:"sql"`
+	EstimatedRows   int64           `json:"estimatedRows"`
+	Columns         []string        `json:"columns"`
+	Rows            [][]interface{} `json:"rows"`
+	TotalRows       int64           `json:"totalRows"`
+	ExecutionTimeMs int64           `json:"executionTimeMs"`
 }
 
 // GetDatabaseSchema handles GET /api/connections/{connectionId}/schema
@@ -257,12 +257,12 @@ func (h *Handler) PreviewQuery(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := PreviewQueryResponse{
-		SQL:              req.SQL,
-		EstimatedRows:    result.RowCount,
-		Columns:          result.Columns,
-		Rows:             result.Rows,
-		TotalRows:        result.RowCount,
-		ExecutionTimeMs:  result.Duration.Milliseconds(),
+		SQL:             req.SQL,
+		EstimatedRows:   result.RowCount,
+		Columns:         result.Columns,
+		Rows:            result.Rows,
+		TotalRows:       result.RowCount,
+		ExecutionTimeMs: result.Duration.Milliseconds(),
 	}
 
 	h.respondJSON(w, http.StatusOK, response)

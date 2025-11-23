@@ -18,7 +18,6 @@ import {
   YAxis,
 } from 'recharts'
 
-import { Tooltip as UITooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip'
 import type { DrillDownConfig, DrillDownContext, ReportChartSettings } from '@/types/reports'
 
 interface ChartRendererProps {
