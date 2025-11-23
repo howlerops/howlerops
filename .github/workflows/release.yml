@@ -709,10 +709,10 @@ jobs:
     steps:
       - name: Wait for GitHub release to stabilize
         run: |
-          echo "Waiting 5 minutes for all build jobs to complete and release API to stabilize..."
+          echo "Waiting 15 minutes for all build jobs to complete and release API to stabilize..."
           echo "This ensures all assets are uploaded and the release is fully indexed."
-          echo "Build jobs can take 3-5 minutes to complete."
-          sleep 300
+          echo "Build jobs can take 3-5 min, uploads 2-5 min, CDN propagation 1-2 min, plus safety margin."
+          sleep 900
 
       - name: Checkout code
         uses: actions/checkout@v4

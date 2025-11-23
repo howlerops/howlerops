@@ -1,10 +1,17 @@
 #!/usr/bin/env bash
 
 #######################################################################################
-# Homebrew Formula Update Script for HowlerOps
+# Homebrew Formula Update Script for HowlerOps - FIXED VERSION
 #
 # This script automates updating the Homebrew formula when a new release is created.
 # It fetches the latest release, calculates checksums, and updates the formula file.
+#
+# FIXES APPLIED (v0.7.15):
+# - Removed silent error suppression (|| true) that hid failures
+# - Fixed function return logic to properly propagate errors
+# - Added exponential backoff retry strategy
+# - Improved error messages with debugging information
+# - Added validation of API responses before using them
 #
 # Usage:
 #   ./scripts/update-homebrew-formula.sh [VERSION]
@@ -15,7 +22,7 @@
 #
 # Environment Variables:
 #   GITHUB_TOKEN - GitHub personal access token for API access and pushing
-#   HOMEBREW_TAP_REPO - Tap repository path (default: sql-studio/homebrew-tap)
+#   HOMEBREW_TAP_REPO - Tap repository path (default: jbeck018/homebrew-howlerops)
 #   DRY_RUN - If set to "true", only show what would be updated without making changes
 #
 # Requirements:
@@ -95,14 +102,20 @@ get_latest_release() {
     # Use gh CLI if available (preferred - uses gh's authentication)
     if command -v gh &> /dev/null; then
         log_info "Using gh CLI to fetch latest release (GH_TOKEN is ${GH_TOKEN:+set}${GH_TOKEN:-unset})"
-        local response
-        response=$(gh api "repos/${GITHUB_REPO}/releases/latest")
-        local exit_code=$?
 
-        if [ $exit_code -ne 0 ]; then
+        local response
+        response=$(gh api "repos/${GITHUB_REPO}/releases/latest" 2>&1) || {
+            local exit_code=$?
             log_error "Failed to fetch release via gh CLI (exit code: $exit_code):"
             echo "$response" | head -20
-            return 1  # Use return instead of exit to allow retry loop to continue
+            return 1
+        }
+
+        # Validate response is JSON
+        if ! echo "$response" | jq empty > /dev/null 2>&1; then
+            log_error "Invalid JSON response from gh CLI:"
+            echo "$response" | head -20
+            return 1
         fi
 
         log_info "Successfully fetched latest release via gh CLI"
@@ -124,22 +137,23 @@ get_latest_release() {
 
     if [ -z "$response" ]; then
         log_error "Failed to fetch release information. Empty response from API."
-        exit 1
+        return 1
     fi
 
     # Check if response is valid JSON
     if ! echo "$response" | jq empty > /dev/null 2>&1; then
         log_error "Invalid JSON response from GitHub API:"
         echo "$response" | head -20
-        exit 1
+        return 1
     fi
 
     if echo "$response" | jq -e '.message == "Not Found"' > /dev/null 2>&1; then
         log_error "Repository or release not found."
-        exit 1
+        return 1
     fi
 
     echo "$response"
+    return 0
 }
 
 get_specific_release() {
@@ -154,14 +168,20 @@ get_specific_release() {
     # Use gh CLI if available (preferred - uses gh's authentication)
     if command -v gh &> /dev/null; then
         log_info "Using gh CLI to fetch release (GH_TOKEN is ${GH_TOKEN:+set}${GH_TOKEN:-unset})"
-        local response
-        response=$(gh api "repos/${GITHUB_REPO}/releases/tags/${tag}")
-        local exit_code=$?
 
-        if [ $exit_code -ne 0 ]; then
+        local response
+        response=$(gh api "repos/${GITHUB_REPO}/releases/tags/${tag}" 2>&1) || {
+            local exit_code=$?
             log_error "Failed to fetch release $tag via gh CLI (exit code: $exit_code):"
             echo "$response" | head -20
-            return 1  # Use return instead of exit to allow retry loop to continue
+            return 1
+        }
+
+        # Validate response is JSON
+        if ! echo "$response" | jq empty > /dev/null 2>&1; then
+            log_error "Invalid JSON response from gh CLI:"
+            echo "$response" | head -20
+            return 1
         fi
 
         log_info "Successfully fetched release via gh CLI"
@@ -183,22 +203,23 @@ get_specific_release() {
 
     if [ -z "$response" ]; then
         log_error "Failed to fetch release information. Empty response from API."
-        exit 1
+        return 1
     fi
 
     # Check if response is valid JSON
     if ! echo "$response" | jq empty > /dev/null 2>&1; then
         log_error "Invalid JSON response from GitHub API:"
         echo "$response" | head -20
-        exit 1
+        return 1
     fi
 
     if echo "$response" | jq -e '.message == "Not Found"' > /dev/null 2>&1; then
         log_error "Release $tag not found."
-        exit 1
+        return 1
     fi
 
     echo "$response"
+    return 0
 }
 
 download_and_checksum() {
@@ -209,7 +230,7 @@ download_and_checksum() {
 
     if ! curl -L -o "$TMP_DIR/$filename" "$url"; then
         log_error "Failed to download $url"
-        exit 1
+        return 1
     fi
 
     log_info "Calculating SHA256 checksum for $filename..."
@@ -267,7 +288,7 @@ clone_tap_repository() {
 
     # Use HOMEBREW_TAP_TOKEN for tap repo access, fallback to GITHUB_TOKEN
     local tap_token="${HOMEBREW_TAP_TOKEN:-${GITHUB_TOKEN:-}}"
-    
+
     if [ -n "$tap_token" ]; then
         # Use token for authentication
         local auth_url="https://${tap_token}@github.com/${HOMEBREW_TAP_REPO}.git"
@@ -327,7 +348,7 @@ validate_release_assets() {
 
     if [ -n "$universal_asset" ]; then
         log_success "Found universal macOS desktop asset: $universal_asset"
-        return
+        return 0
     fi
 
     local amd64_asset
@@ -340,10 +361,11 @@ validate_release_assets() {
         log_error "Required macOS desktop assets not found in release"
         log_info "Available assets:"
         echo "$release_data" | jq -r '.assets[].name'
-        exit 1
+        return 1
     fi
 
     log_success "Found architecture-specific macOS desktop assets"
+    return 0
 }
 
 #######################################################################################
@@ -361,71 +383,88 @@ main() {
     check_dependencies
 
     # Check for GitHub token
-    if [ -z "${GITHUB_TOKEN:-}" ]; then
-        log_warning "GITHUB_TOKEN not set. API rate limits may apply and push operations will fail."
-        log_info "Set GITHUB_TOKEN environment variable with a GitHub personal access token."
+    if [ -z "${GITHUB_TOKEN:-}" ] && [ -z "${GH_TOKEN:-}" ]; then
+        log_error "Neither GITHUB_TOKEN nor GH_TOKEN is set. API calls will fail or hit rate limits."
+        log_info "Set one of these environment variables with a GitHub personal access token."
+        exit 1
     fi
 
     # Fetch release information (with retry for eventual consistency)
-    # GitHub CDN can take time to propagate release assets globally
-    local release_data
+    local release_data=""
     local retry_count=0
     local max_retries=10
-    local retry_delay=30
-    
+
+    log_info "Fetching release with up to $max_retries attempts (exponential backoff)"
+
     while [ $retry_count -lt $max_retries ]; do
-        log_info "Fetching release information (attempt $((retry_count + 1))/$max_retries)..."
+        log_info "Release fetch attempt $((retry_count + 1))/$max_retries"
 
+        # Attempt to fetch release
         if [ "$version" = "latest" ]; then
-            release_data=$(get_latest_release) || true
-        else
-            release_data=$(get_specific_release "$version") || true
-        fi
-
-        # Debug: Show what we got from the API
-        log_info "DEBUG: release_data length: ${#release_data} chars"
-        if [ -n "$release_data" ]; then
-            log_info "DEBUG: First 200 chars of release_data:"
-            echo "$release_data" | head -c 200 | sed 's/^/  /' >&2
-            log_info "DEBUG: Attempting jq validation..."
-            if echo "$release_data" | jq -e '.tag_name' > /dev/null 2>&1; then
-                log_info "DEBUG: jq validation PASSED"
+            if release_data=$(get_latest_release); then
+                : # Success, continue
             else
-                log_warning "DEBUG: jq validation FAILED"
-                log_warning "DEBUG: jq error output:"
-                echo "$release_data" | jq -e '.tag_name' 2>&1 | head -5 | sed 's/^/  /' >&2
+                release_data=""  # Ensure empty on failure
             fi
         else
-            log_warning "DEBUG: release_data is EMPTY"
+            if release_data=$(get_specific_release "$version"); then
+                : # Success, continue
+            else
+                release_data=""  # Ensure empty on failure
+            fi
         fi
 
-        # Check if we got valid data
-        if echo "$release_data" | jq -e '.tag_name' > /dev/null 2>&1; then
-            # Verify assets are actually present
+        # Check result
+        if [ -z "$release_data" ]; then
+            log_warning "Release fetch returned empty response"
+        elif ! echo "$release_data" | jq -e '.tag_name' > /dev/null 2>&1; then
+            log_error "API response is invalid JSON or missing required fields"
+            log_info "Response preview:"
+            echo "$release_data" | head -c 300 | sed 's/^/  /'
+        else
+            # Check asset count
             local asset_count
             asset_count=$(echo "$release_data" | jq '.assets | length' 2>/dev/null || echo "0")
-            
+
             if [ "$asset_count" -gt 0 ]; then
-                log_success "Found release with $asset_count assets"
-                break
+                log_success "Found release with $asset_count assets. Proceeding..."
+                break  # SUCCESS!
             else
-                log_warning "Release found but no assets uploaded yet (0 assets found)"
+                log_warning "Release found but no assets uploaded yet ($asset_count assets)"
                 log_info "Build jobs may still be running. Will retry..."
             fi
-        else
-            log_warning "Release not found or API returned invalid response"
         fi
-        
+
+        # Exponential backoff retry
         retry_count=$((retry_count + 1))
         if [ $retry_count -lt $max_retries ]; then
-            log_warning "Release not ready yet, waiting $retry_delay seconds before retry..."
-            sleep $retry_delay
-        else
-            log_error "Failed to fetch release with assets after $max_retries attempts"
-            log_error "GitHub CDN may need more time to propagate. Try running this script again in a few minutes."
-            exit 1
+            # First retry: 30s, second: 60s, third: 120s, etc. (capped at 5 min)
+            local backoff_delay=$((30 * (2 ** (retry_count - 1))))
+            if [ $backoff_delay -gt 300 ]; then
+                backoff_delay=300
+            fi
+
+            log_warning "Retrying in $backoff_delay seconds (attempt $((retry_count + 1))/$max_retries)..."
+            sleep $backoff_delay
         fi
     done
+
+    # Final check: Did we get valid release data?
+    if [ -z "$release_data" ] || ! echo "$release_data" | jq -e '.tag_name' > /dev/null 2>&1; then
+        log_error "Failed to fetch valid release after $max_retries attempts"
+        log_error ""
+        log_error "Possible causes:"
+        log_error "  1. GitHub token (GH_TOKEN/GITHUB_TOKEN) is invalid or expired"
+        log_error "  2. Repository is not accessible with current token"
+        log_error "  3. GitHub API rate limit exceeded (try again in a few minutes)"
+        log_error "  4. Release build/upload jobs are still in progress"
+        log_error ""
+        log_error "To debug:"
+        log_error "  gh auth status          # Check token authentication"
+        log_error "  gh release view $version --json assets  # Check assets"
+        log_error "  gh api rate_limit       # Check rate limit status"
+        exit 1
+    fi
 
     # Extract release information
     local tag_name
@@ -436,7 +475,9 @@ main() {
     log_info "Found release: $tag_name (version: $release_version)"
 
     # Validate release assets
-    validate_release_assets "$release_data"
+    if ! validate_release_assets "$release_data"; then
+        exit 1
+    fi
 
     # Extract download URL for universal binary
     local universal_archive
@@ -496,7 +537,8 @@ Arguments:
 
 Environment Variables:
   GITHUB_TOKEN         GitHub personal access token (required for pushing)
-  HOMEBREW_TAP_REPO    Tap repository (default: sql-studio/homebrew-tap)
+  GH_TOKEN            Alternative GitHub token environment variable
+  HOMEBREW_TAP_REPO    Tap repository (default: jbeck018/homebrew-howlerops)
   DRY_RUN             Set to 'true' to preview changes without pushing
 
 Examples:
@@ -514,9 +556,10 @@ Examples:
 
 Requirements:
   - curl, jq, shasum, git
-  - GITHUB_TOKEN for pushing changes
+  - GITHUB_TOKEN or GH_TOKEN for API access
+  - HOMEBREW_TAP_TOKEN or GITHUB_TOKEN for pushing to tap repo
 
-For more information, see HOMEBREW.md
+For more information, see HOMEBREW_ISSUE_ANALYSIS.md
 EOF
     exit 0
 fi
