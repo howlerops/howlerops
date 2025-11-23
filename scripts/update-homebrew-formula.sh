@@ -94,18 +94,22 @@ get_latest_release() {
 
     # Use gh CLI if available (preferred - uses gh's authentication)
     if command -v gh &> /dev/null; then
+        log_info "Using gh CLI to fetch latest release (GH_TOKEN is ${GH_TOKEN:+set}${GH_TOKEN:-unset})"
         local response
         response=$(gh api "repos/${GITHUB_REPO}/releases/latest" 2>&1)
         local exit_code=$?
 
         if [ $exit_code -ne 0 ]; then
-            log_error "Failed to fetch release via gh CLI:"
+            log_error "Failed to fetch release via gh CLI (exit code: $exit_code):"
             echo "$response" | head -20
-            exit 1
+            return 1  # Use return instead of exit to allow retry loop to continue
         fi
 
+        log_info "Successfully fetched latest release via gh CLI"
         echo "$response"
-        return
+        return 0
+    else
+        log_warning "gh CLI not found, falling back to curl"
     fi
 
     # Fallback to curl with GITHUB_TOKEN
@@ -149,18 +153,22 @@ get_specific_release() {
 
     # Use gh CLI if available (preferred - uses gh's authentication)
     if command -v gh &> /dev/null; then
+        log_info "Using gh CLI to fetch release (GH_TOKEN is ${GH_TOKEN:+set}${GH_TOKEN:-unset})"
         local response
         response=$(gh api "repos/${GITHUB_REPO}/releases/tags/${tag}" 2>&1)
         local exit_code=$?
 
         if [ $exit_code -ne 0 ]; then
-            log_error "Failed to fetch release $tag via gh CLI:"
+            log_error "Failed to fetch release $tag via gh CLI (exit code: $exit_code):"
             echo "$response" | head -20
-            exit 1
+            return 1  # Use return instead of exit to allow retry loop to continue
         fi
 
+        log_info "Successfully fetched release via gh CLI"
         echo "$response"
-        return
+        return 0
+    else
+        log_warning "gh CLI not found, falling back to curl"
     fi
 
     # Fallback to curl with GITHUB_TOKEN
