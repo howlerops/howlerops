@@ -33,6 +33,11 @@ func (m *MigrationManager) RunMigrations(ctx context.Context) error {
 		return fmt.Errorf("failed to migrate passwords to secrets: %w", err)
 	}
 
+	// Run reports schema migration
+	if err := m.migrateReportsSchema(ctx); err != nil {
+		return fmt.Errorf("failed to migrate reports schema: %w", err)
+	}
+
 	m.logger.Info("All migrations completed successfully")
 	return nil
 }
@@ -90,6 +95,53 @@ func (m *MigrationManager) migratePasswordsToSecrets(ctx context.Context) error 
 		"migrated": migratedCount,
 		"failed":   failedCount,
 	}).Info("Password migration completed")
+
+	return nil
+}
+
+// migrateReportsSchema adds missing columns to reports table for starred feature
+func (m *MigrationManager) migrateReportsSchema(ctx context.Context) error {
+	m.logger.Info("Starting reports schema migration")
+
+	// Check if starred column exists
+	var columnExists bool
+	err := m.db.QueryRowContext(ctx, `
+		SELECT COUNT(*) > 0
+		FROM pragma_table_info('reports')
+		WHERE name = 'starred'
+	`).Scan(&columnExists)
+	if err != nil {
+		return fmt.Errorf("failed to check for starred column: %w", err)
+	}
+
+	if !columnExists {
+		m.logger.Info("Adding starred and starred_at columns to reports table")
+
+		// Add starred column
+		if _, err := m.db.ExecContext(ctx, `
+			ALTER TABLE reports ADD COLUMN starred BOOLEAN DEFAULT FALSE
+		`); err != nil {
+			return fmt.Errorf("failed to add starred column: %w", err)
+		}
+
+		// Add starred_at column
+		if _, err := m.db.ExecContext(ctx, `
+			ALTER TABLE reports ADD COLUMN starred_at DATETIME
+		`); err != nil {
+			return fmt.Errorf("failed to add starred_at column: %w", err)
+		}
+
+		// Create index on starred columns
+		if _, err := m.db.ExecContext(ctx, `
+			CREATE INDEX IF NOT EXISTS idx_reports_starred ON reports(starred DESC, starred_at DESC)
+		`); err != nil {
+			return fmt.Errorf("failed to create starred index: %w", err)
+		}
+
+		m.logger.Info("Successfully added starred columns to reports table")
+	} else {
+		m.logger.Info("Reports table already has starred columns, skipping migration")
+	}
 
 	return nil
 }
