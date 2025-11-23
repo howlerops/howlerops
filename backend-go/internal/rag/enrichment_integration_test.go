@@ -185,8 +185,8 @@ func TestSchemaIndexer_WithEnrichment_Integration(t *testing.T) {
 	// Verify numeric enrichment
 	assert.Contains(t, ageDoc.Content, "range: 18 to 95")
 	assert.Contains(t, ageDoc.Content, "distinct_values: 80")
-	assert.Equal(t, 18, ageDoc.Metadata["min_value"])
-	assert.Equal(t, 95, ageDoc.Metadata["max_value"])
+	assert.Equal(t, int64(18), ageDoc.Metadata["min_value"])
+	assert.Equal(t, int64(95), ageDoc.Metadata["max_value"])
 	assert.Equal(t, 42.5, ageDoc.Metadata["avg_value"])
 
 	mockStore.AssertExpectations(t)

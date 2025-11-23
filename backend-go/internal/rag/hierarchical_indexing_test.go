@@ -162,8 +162,15 @@ func TestHierarchicalIndexing(t *testing.T) {
 	childIDsRaw, ok := parent.Metadata["child_ids"]
 	require.True(t, ok, "Parent metadata should contain child_ids")
 
-	childIDs, ok := childIDsRaw.([]string)
-	require.True(t, ok, "child_ids should be []string")
+	// JSON unmarshaling produces []interface{}, not []string
+	childIDsInterface, ok := childIDsRaw.([]interface{})
+	require.True(t, ok, "child_ids should be []interface{}")
+
+	// Convert to []string
+	childIDs := make([]string, len(childIDsInterface))
+	for i, v := range childIDsInterface {
+		childIDs[i] = v.(string)
+	}
 	assert.Equal(t, 6, len(childIDs), "Should have 4 columns + 2 indexes = 6 children")
 
 	// Verify children exist and are NOT embedded
@@ -319,7 +326,12 @@ func TestHierarchicalRetrievalReducesNoise(t *testing.T) {
 
 	childIDsRaw, ok := parentDoc.Metadata["child_ids"]
 	require.True(t, ok)
-	childIDs := childIDsRaw.([]string)
+	// JSON unmarshaling produces []interface{}, not []string
+	childIDsInterface := childIDsRaw.([]interface{})
+	childIDs := make([]string, len(childIDsInterface))
+	for i, v := range childIDsInterface {
+		childIDs[i] = v.(string)
+	}
 	assert.Equal(t, 50, len(childIDs), "Should have 50 column children")
 
 	// Verify children are stored without embeddings

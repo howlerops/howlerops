@@ -391,14 +391,28 @@ func (s *SQLiteVectorStore) IndexDocument(ctx context.Context, doc *Document) er
 	defer func() { _ = tx.Rollback() }() // Best-effort rollback
 
 	// Insert/update document
+	var parentID, level, summary interface{}
+	if doc.ParentID != "" {
+		parentID = doc.ParentID
+	}
+	if doc.Level != "" {
+		level = string(doc.Level)
+	}
+	if doc.Summary != "" {
+		summary = doc.Summary
+	}
+
 	_, err = tx.ExecContext(ctx, `
-		INSERT INTO documents (id, connection_id, type, content, metadata, created_at, updated_at, access_count, last_accessed)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO documents (id, connection_id, type, content, parent_id, level, summary, metadata, created_at, updated_at, access_count, last_accessed)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			content = excluded.content,
+			parent_id = excluded.parent_id,
+			level = excluded.level,
+			summary = excluded.summary,
 			metadata = excluded.metadata,
 			updated_at = excluded.updated_at
-	`, doc.ID, doc.ConnectionID, string(doc.Type), doc.Content, string(metadataJSON),
+	`, doc.ID, doc.ConnectionID, string(doc.Type), doc.Content, parentID, level, summary, string(metadataJSON),
 		doc.CreatedAt.Unix(), doc.UpdatedAt.Unix(), doc.AccessCount, now)
 
 	if err != nil {
@@ -835,14 +849,15 @@ func (s *SQLiteVectorStore) SearchByText(ctx context.Context, query string, k in
 // GetDocument retrieves a document by ID
 func (s *SQLiteVectorStore) GetDocument(ctx context.Context, id string) (*Document, error) {
 	var connID, docType, content, metadataStr string
+	var parentID, level, summary sql.NullString
 	var createdAt, updatedAt, lastAccessed int64
 	var accessCount int
 
 	err := s.db.QueryRowContext(ctx, `
-		SELECT connection_id, type, content, metadata, created_at, updated_at, access_count, last_accessed
+		SELECT connection_id, type, content, parent_id, level, summary, metadata, created_at, updated_at, access_count, last_accessed
 		FROM documents
 		WHERE id = ?
-	`, id).Scan(&connID, &docType, &content, &metadataStr, &createdAt, &updatedAt, &accessCount, &lastAccessed)
+	`, id).Scan(&connID, &docType, &content, &parentID, &level, &summary, &metadataStr, &createdAt, &updatedAt, &accessCount, &lastAccessed)
 
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("document not found: %s", id)
@@ -866,6 +881,17 @@ func (s *SQLiteVectorStore) GetDocument(ctx context.Context, id string) (*Docume
 		UpdatedAt:    time.Unix(updatedAt, 0),
 		AccessCount:  accessCount,
 		LastAccessed: time.Unix(lastAccessed, 0),
+	}
+
+	// Set hierarchical fields if present
+	if parentID.Valid {
+		doc.ParentID = parentID.String
+	}
+	if level.Valid {
+		doc.Level = DocumentLevel(level.String)
+	}
+	if summary.Valid {
+		doc.Summary = summary.String
 	}
 
 	// Try to get embedding
