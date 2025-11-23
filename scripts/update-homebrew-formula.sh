@@ -381,7 +381,24 @@ main() {
         else
             release_data=$(get_specific_release "$version") || true
         fi
-        
+
+        # Debug: Show what we got from the API
+        log_info "DEBUG: release_data length: ${#release_data} chars"
+        if [ -n "$release_data" ]; then
+            log_info "DEBUG: First 200 chars of release_data:"
+            echo "$release_data" | head -c 200 | sed 's/^/  /' >&2
+            log_info "DEBUG: Attempting jq validation..."
+            if echo "$release_data" | jq -e '.tag_name' > /dev/null 2>&1; then
+                log_info "DEBUG: jq validation PASSED"
+            else
+                log_warning "DEBUG: jq validation FAILED"
+                log_warning "DEBUG: jq error output:"
+                echo "$release_data" | jq -e '.tag_name' 2>&1 | head -5 | sed 's/^/  /' >&2
+            fi
+        else
+            log_warning "DEBUG: release_data is EMPTY"
+        fi
+
         # Check if we got valid data
         if echo "$release_data" | jq -e '.tag_name' > /dev/null 2>&1; then
             # Verify assets are actually present
