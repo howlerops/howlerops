@@ -1850,6 +1850,9 @@ export namespace services {
 	    content?: string;
 	    metadata?: Record<string, any>;
 	    error?: string;
+	    cacheHit?: boolean;
+	    totalRows?: number;
+	    limitedRows?: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new ReportComponentResult(source);
@@ -1866,6 +1869,9 @@ export namespace services {
 	        this.content = source["content"];
 	        this.metadata = source["metadata"];
 	        this.error = source["error"];
+	        this.cacheHit = source["cacheHit"];
+	        this.totalRows = source["totalRows"];
+	        this.limitedRows = source["limitedRows"];
 	    }
 	}
 	export class ReportRunRequest {

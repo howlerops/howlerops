@@ -117,6 +117,22 @@ export const useReportStore = create<ReportStoreState>()(
     updateActive: (update: Partial<ReportRecord>) => {
       set((state) => {
         if (!state.activeReport) return state
+
+        // Only update if actually changed (granular comparison)
+        const hasChanges = Object.keys(update).some((key) => {
+          const oldValue = state.activeReport![key as keyof ReportRecord]
+          const newValue = update[key as keyof Partial<ReportRecord>]
+
+          // Deep comparison for objects
+          if (typeof oldValue === 'object' && typeof newValue === 'object') {
+            return JSON.stringify(oldValue) !== JSON.stringify(newValue)
+          }
+
+          return oldValue !== newValue
+        })
+
+        if (!hasChanges) return state
+
         const updated: ReportRecord = {
           ...state.activeReport,
           ...update,

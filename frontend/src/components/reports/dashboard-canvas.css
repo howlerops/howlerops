@@ -1,0 +1,169 @@
+/**
+ * Custom styling for react-grid-layout to match design system
+ */
+
+/* Grid layout container */
+.react-grid-layout {
+  position: relative;
+  transition: height 200ms ease;
+}
+
+/* Grid item wrapper */
+.react-grid-item {
+  transition: all 200ms ease;
+  transition-property: left, top, width, height;
+}
+
+/* Grid item being dragged */
+.react-grid-item.react-grid-placeholder {
+  background: hsl(var(--primary) / 0.1);
+  border: 2px dashed hsl(var(--primary) / 0.5);
+  border-radius: 0.5rem;
+  opacity: 0.5;
+  transition-duration: 100ms;
+  z-index: 2;
+}
+
+.react-grid-item.resizing {
+  opacity: 0.9;
+  z-index: 3;
+  transition: none;
+}
+
+.react-grid-item.static {
+  background: transparent;
+}
+
+.react-grid-item.react-draggable-dragging {
+  opacity: 0.9;
+  z-index: 3;
+  transition: none;
+}
+
+/* Resize handles */
+.react-resizable-handle {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  z-index: 10;
+}
+
+.react-resizable-handle::after {
+  content: '';
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 5px;
+  height: 5px;
+  border-right: 2px solid hsl(var(--border));
+  border-bottom: 2px solid hsl(var(--border));
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+
+.react-grid-item:hover .react-resizable-handle::after {
+  opacity: 1;
+}
+
+/* Specific handle positions */
+.react-resizable-handle-sw {
+  bottom: 0;
+  left: 0;
+  cursor: sw-resize;
+  transform: rotate(90deg);
+}
+
+.react-resizable-handle-se {
+  bottom: 0;
+  right: 0;
+  cursor: se-resize;
+}
+
+.react-resizable-handle-nw {
+  top: 0;
+  left: 0;
+  cursor: nw-resize;
+  transform: rotate(180deg);
+}
+
+.react-resizable-handle-ne {
+  top: 0;
+  right: 0;
+  cursor: ne-resize;
+  transform: rotate(-90deg);
+}
+
+.react-resizable-handle-w,
+.react-resizable-handle-e {
+  top: 50%;
+  margin-top: -10px;
+  cursor: ew-resize;
+}
+
+.react-resizable-handle-w {
+  left: 0;
+  transform: rotate(135deg);
+}
+
+.react-resizable-handle-e {
+  right: 0;
+  transform: rotate(-45deg);
+}
+
+.react-resizable-handle-n,
+.react-resizable-handle-s {
+  left: 50%;
+  margin-left: -10px;
+  cursor: ns-resize;
+}
+
+.react-resizable-handle-n {
+  top: 0;
+  transform: rotate(-135deg);
+}
+
+.react-resizable-handle-s {
+  bottom: 0;
+  transform: rotate(45deg);
+}
+
+/* Grid lines in edit mode (optional subtle background) */
+.layout::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent calc(60px - 1px),
+      hsl(var(--border) / 0.1) calc(60px - 1px),
+      hsl(var(--border) / 0.1) 60px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent calc(8.333% - 1px),
+      hsl(var(--border) / 0.1) calc(8.333% - 1px),
+      hsl(var(--border) / 0.1) 8.333%
+    );
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 200ms ease;
+  z-index: 0;
+}
+
+/* Show grid lines when editing */
+.layout:hover::before {
+  opacity: 0.5;
+}
+
+/* Prevent text selection during drag */
+.react-grid-item.react-draggable-dragging * {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}

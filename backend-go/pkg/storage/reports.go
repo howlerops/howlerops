@@ -21,6 +21,8 @@ type Report struct {
 	Definition    ReportDefinition       `json:"definition"`
 	Filter        ReportFilterDefinition `json:"filter"`
 	SyncOptions   ReportSyncOptions      `json:"syncOptions"`
+	Starred       bool                   `json:"starred"`
+	StarredAt     *time.Time             `json:"starredAt,omitempty"`
 	LastRunAt     *time.Time             `json:"lastRunAt"`
 	LastRunStatus string                 `json:"lastRunStatus"`
 	Metadata      map[string]string      `json:"metadata"`
@@ -160,6 +162,8 @@ type ReportSummary struct {
 	Description   string     `json:"description"`
 	Folder        string     `json:"folder"`
 	Tags          []string   `json:"tags"`
+	Starred       bool       `json:"starred"`
+	StarredAt     *time.Time `json:"starredAt,omitempty"`
 	UpdatedAt     time.Time  `json:"updatedAt"`
 	LastRunAt     *time.Time `json:"lastRunAt"`
 	LastRunStatus string     `json:"lastRunStatus"`
@@ -192,6 +196,8 @@ CREATE TABLE IF NOT EXISTS reports (
 	definition TEXT NOT NULL,
 	filter TEXT,
 	sync_options TEXT,
+	starred BOOLEAN DEFAULT FALSE,
+	starred_at DATETIME,
 	last_run_at DATETIME,
 	last_run_status TEXT,
 	metadata TEXT,
@@ -201,6 +207,57 @@ CREATE TABLE IF NOT EXISTS reports (
 
 CREATE INDEX IF NOT EXISTS idx_reports_updated_at ON reports(updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_reports_folder ON reports(folder);
+CREATE INDEX IF NOT EXISTS idx_reports_starred ON reports(starred DESC, starred_at DESC);
+
+-- Alert rules table
+CREATE TABLE IF NOT EXISTS alert_rules (
+	id TEXT PRIMARY KEY,
+	report_id TEXT NOT NULL,
+	component_id TEXT NOT NULL,
+	name TEXT NOT NULL,
+	description TEXT,
+	condition TEXT NOT NULL,
+	actions TEXT NOT NULL,
+	schedule TEXT,
+	enabled BOOLEAN NOT NULL DEFAULT 1,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	FOREIGN KEY (report_id) REFERENCES reports(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_alert_rules_report ON alert_rules(report_id);
+CREATE INDEX IF NOT EXISTS idx_alert_rules_enabled ON alert_rules(enabled);
+
+-- Alert history table
+CREATE TABLE IF NOT EXISTS alert_history (
+	id TEXT PRIMARY KEY,
+	rule_id TEXT NOT NULL,
+	triggered_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	actual_value REAL NOT NULL,
+	message TEXT,
+	resolved BOOLEAN NOT NULL DEFAULT 0,
+	resolved_at DATETIME,
+	FOREIGN KEY (rule_id) REFERENCES alert_rules(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_alert_history_rule ON alert_history(rule_id, triggered_at DESC);
+CREATE INDEX IF NOT EXISTS idx_alert_history_unresolved ON alert_history(resolved, triggered_at DESC);
+
+-- Report snapshots table
+CREATE TABLE IF NOT EXISTS report_snapshots (
+	id TEXT PRIMARY KEY,
+	report_id TEXT NOT NULL,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	expires_at DATETIME,
+	filter_values TEXT,
+	results BLOB NOT NULL,
+	metadata TEXT,
+	size_bytes INTEGER,
+	FOREIGN KEY (report_id) REFERENCES reports(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_snapshots_report_time ON report_snapshots(report_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_snapshots_expiry ON report_snapshots(expires_at);
 `
 
 	if _, err := s.db.Exec(statement); err != nil {
@@ -252,16 +309,19 @@ func (s *ReportStorage) SaveReport(report *Report) error {
 		return fmt.Errorf("failed to marshal metadata: %w", err)
 	}
 
-	var lastRun interface{}
+	var lastRun, starredAt interface{}
 	if report.LastRunAt != nil {
 		lastRun = report.LastRunAt.UTC()
+	}
+	if report.StarredAt != nil {
+		starredAt = report.StarredAt.UTC()
 	}
 
 	query := `
 INSERT INTO reports (
-	id, name, description, folder, tags, definition, filter, sync_options, last_run_at, last_run_status, metadata, created_at, updated_at
+	id, name, description, folder, tags, definition, filter, sync_options, starred, starred_at, last_run_at, last_run_status, metadata, created_at, updated_at
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(id) DO UPDATE SET
 	name = excluded.name,
 	description = excluded.description,
@@ -270,6 +330,8 @@ ON CONFLICT(id) DO UPDATE SET
 	definition = excluded.definition,
 	filter = excluded.filter,
 	sync_options = excluded.sync_options,
+	starred = excluded.starred,
+	starred_at = excluded.starred_at,
 	last_run_at = excluded.last_run_at,
 	last_run_status = excluded.last_run_status,
 	metadata = excluded.metadata,
@@ -286,6 +348,8 @@ ON CONFLICT(id) DO UPDATE SET
 		string(definitionJSON),
 		string(filterJSON),
 		string(syncJSON),
+		report.Starred,
+		starredAt,
 		lastRun,
 		report.LastRunStatus,
 		string(metadataJSON),
@@ -306,7 +370,7 @@ func (s *ReportStorage) ListReports() ([]ReportSummary, error) {
 	}
 
 	rows, err := s.db.Query(`
-SELECT id, name, description, folder, tags, updated_at, last_run_at, last_run_status
+SELECT id, name, description, folder, tags, starred, starred_at, updated_at, last_run_at, last_run_status
 FROM reports
 ORDER BY updated_at DESC`)
 	if err != nil {
@@ -318,20 +382,25 @@ ORDER BY updated_at DESC`)
 	for rows.Next() {
 		var (
 			id, name, description, folder, tagsJSON, status string
+			starred                                         bool
 			updatedAt                                       time.Time
-			lastRun                                         sql.NullTime
+			lastRun, starredAt                              sql.NullTime
 		)
-		if err := rows.Scan(&id, &name, &description, &folder, &tagsJSON, &updatedAt, &lastRun, &status); err != nil {
+		if err := rows.Scan(&id, &name, &description, &folder, &tagsJSON, &starred, &starredAt, &updatedAt, &lastRun, &status); err != nil {
 			return nil, fmt.Errorf("failed to scan report: %w", err)
 		}
 		var tags []string
 		if tagsJSON != "" {
 			_ = json.Unmarshal([]byte(tagsJSON), &tags)
 		}
-		var lastRunPtr *time.Time
+		var lastRunPtr, starredAtPtr *time.Time
 		if lastRun.Valid {
 			t := lastRun.Time
 			lastRunPtr = &t
+		}
+		if starredAt.Valid {
+			t := starredAt.Time
+			starredAtPtr = &t
 		}
 		summaries = append(summaries, ReportSummary{
 			ID:            id,
@@ -339,6 +408,8 @@ ORDER BY updated_at DESC`)
 			Description:   description,
 			Folder:        folder,
 			Tags:          tags,
+			Starred:       starred,
+			StarredAt:     starredAtPtr,
 			UpdatedAt:     updatedAt,
 			LastRunAt:     lastRunPtr,
 			LastRunStatus: status,
@@ -355,14 +426,14 @@ func (s *ReportStorage) GetReport(id string) (*Report, error) {
 	}
 
 	row := s.db.QueryRow(`
-SELECT id, name, description, folder, tags, definition, filter, sync_options, last_run_at, last_run_status, metadata, created_at, updated_at
+SELECT id, name, description, folder, tags, definition, filter, sync_options, starred, starred_at, last_run_at, last_run_status, metadata, created_at, updated_at
 FROM reports
 WHERE id = ?`, id)
 
 	var (
 		report                                                       Report
 		tagsJSON, definitionJSON, filterJSON, syncJSON, metadataJSON string
-		lastRun                                                      sql.NullTime
+		lastRun, starredAt                                           sql.NullTime
 	)
 	if err := row.Scan(
 		&report.ID,
@@ -373,6 +444,8 @@ WHERE id = ?`, id)
 		&definitionJSON,
 		&filterJSON,
 		&syncJSON,
+		&report.Starred,
+		&starredAt,
 		&lastRun,
 		&report.LastRunStatus,
 		&metadataJSON,
@@ -402,6 +475,9 @@ WHERE id = ?`, id)
 	}
 	if lastRun.Valid {
 		report.LastRunAt = &lastRun.Time
+	}
+	if starredAt.Valid {
+		report.StarredAt = &starredAt.Time
 	}
 
 	return &report, nil
@@ -435,4 +511,94 @@ WHERE id = ?
 	}
 
 	return nil
+}
+
+// ToggleStarred toggles the starred status of a report.
+func (s *ReportStorage) ToggleStarred(id string) (bool, error) {
+	if s.db == nil {
+		return false, errors.New("report storage database not available")
+	}
+
+	// Get current starred status
+	var currentStarred bool
+	err := s.db.QueryRow(`SELECT starred FROM reports WHERE id = ?`, id).Scan(&currentStarred)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, fmt.Errorf("report not found: %s", id)
+		}
+		return false, fmt.Errorf("failed to get starred status: %w", err)
+	}
+
+	newStarred := !currentStarred
+	var starredAt interface{}
+	if newStarred {
+		starredAt = time.Now().UTC()
+	}
+
+	_, err = s.db.Exec(`
+UPDATE reports SET starred = ?, starred_at = ?, updated_at = ?
+WHERE id = ?
+`, newStarred, starredAt, time.Now().UTC(), id)
+	if err != nil {
+		return false, fmt.Errorf("failed to toggle starred: %w", err)
+	}
+
+	return newStarred, nil
+}
+
+// ListStarredReports returns starred reports ordered by starred date.
+func (s *ReportStorage) ListStarredReports() ([]ReportSummary, error) {
+	if s.db == nil {
+		return nil, errors.New("report storage database not available")
+	}
+
+	rows, err := s.db.Query(`
+SELECT id, name, description, folder, tags, starred, starred_at, updated_at, last_run_at, last_run_status
+FROM reports
+WHERE starred = TRUE
+ORDER BY starred_at DESC`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list starred reports: %w", err)
+	}
+	defer rows.Close()
+
+	var summaries []ReportSummary
+	for rows.Next() {
+		var (
+			id, name, description, folder, tagsJSON, status string
+			starred                                         bool
+			updatedAt                                       time.Time
+			lastRun, starredAt                              sql.NullTime
+		)
+		if err := rows.Scan(&id, &name, &description, &folder, &tagsJSON, &starred, &starredAt, &updatedAt, &lastRun, &status); err != nil {
+			return nil, fmt.Errorf("failed to scan report: %w", err)
+		}
+		var tags []string
+		if tagsJSON != "" {
+			_ = json.Unmarshal([]byte(tagsJSON), &tags)
+		}
+		var lastRunPtr, starredAtPtr *time.Time
+		if lastRun.Valid {
+			t := lastRun.Time
+			lastRunPtr = &t
+		}
+		if starredAt.Valid {
+			t := starredAt.Time
+			starredAtPtr = &t
+		}
+		summaries = append(summaries, ReportSummary{
+			ID:            id,
+			Name:          name,
+			Description:   description,
+			Folder:        folder,
+			Tags:          tags,
+			Starred:       starred,
+			StarredAt:     starredAtPtr,
+			UpdatedAt:     updatedAt,
+			LastRunAt:     lastRunPtr,
+			LastRunStatus: status,
+		})
+	}
+
+	return summaries, nil
 }
