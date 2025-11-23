@@ -726,6 +726,7 @@ jobs:
 
       - name: Update Homebrew formula
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # gh CLI authentication
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           VERSION: v${{ needs.create-release.outputs.version }}
