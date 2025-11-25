@@ -291,10 +291,12 @@ clone_tap_repository() {
 
     if [ -n "$tap_token" ]; then
         # Use token for authentication
+        # IMPORTANT: Redirect filtered output to stderr so only the echoed path goes to stdout
+        # This prevents git output from contaminating the returned path in command substitution
         local auth_url="https://${tap_token}@github.com/${HOMEBREW_TAP_REPO}.git"
-        git clone "$auth_url" "$tap_dir" 2>&1 | grep -v "token" || true
+        git clone "$auth_url" "$tap_dir" 2>&1 | grep -v "token" >&2 || true
     else
-        git clone "https://github.com/${HOMEBREW_TAP_REPO}.git" "$tap_dir"
+        git clone "https://github.com/${HOMEBREW_TAP_REPO}.git" "$tap_dir" >&2
     fi
 
     echo "$tap_dir"
