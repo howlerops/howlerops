@@ -12,6 +12,7 @@ import (
 
 	"github.com/jbeck018/howlerops/backend-go/internal/ai"
 	"github.com/jbeck018/howlerops/backend-go/internal/config"
+	"github.com/jbeck018/howlerops/backend-go/internal/middleware"
 	"github.com/jbeck018/howlerops/backend-go/internal/server"
 	"github.com/jbeck018/howlerops/backend-go/internal/services"
 	"github.com/sirupsen/logrus"
