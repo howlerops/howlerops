@@ -364,6 +364,11 @@ func (h *HTTPHandler) TestOpenAI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if health.Status != "healthy" {
+		h.respondWithError(w, http.StatusServiceUnavailable, health.Message, nil)
+		return
+	}
+
 	h.respondWithJSON(w, http.StatusOK, map[string]interface{}{
 		"success": true,
 		"status":  health.Status,
@@ -397,6 +402,11 @@ func (h *HTTPHandler) TestAnthropic(w http.ResponseWriter, r *http.Request) {
 	health, err := provider.HealthCheck(r.Context())
 	if err != nil {
 		h.respondWithError(w, http.StatusServiceUnavailable, "Anthropic connection test failed", err)
+		return
+	}
+
+	if health.Status != "healthy" {
+		h.respondWithError(w, http.StatusServiceUnavailable, health.Message, nil)
 		return
 	}
 
@@ -436,6 +446,11 @@ func (h *HTTPHandler) TestOllama(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if health.Status != "healthy" {
+		h.respondWithError(w, http.StatusServiceUnavailable, health.Message, nil)
+		return
+	}
+
 	h.respondWithJSON(w, http.StatusOK, map[string]interface{}{
 		"success": true,
 		"status":  health.Status,
@@ -470,6 +485,11 @@ func (h *HTTPHandler) TestHuggingFace(w http.ResponseWriter, r *http.Request) {
 	health, err := provider.HealthCheck(r.Context())
 	if err != nil {
 		h.respondWithError(w, http.StatusServiceUnavailable, "HuggingFace connection test failed", err)
+		return
+	}
+
+	if health.Status != "healthy" {
+		h.respondWithError(w, http.StatusServiceUnavailable, health.Message, nil)
 		return
 	}
 
@@ -529,6 +549,11 @@ func (h *HTTPHandler) TestClaudeCode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if health.Status != "healthy" {
+		h.respondWithError(w, http.StatusServiceUnavailable, health.Message, nil)
+		return
+	}
+
 	h.respondWithJSON(w, http.StatusOK, map[string]interface{}{
 		"success": true,
 		"status":  health.Status,
@@ -577,6 +602,11 @@ func (h *HTTPHandler) TestCodex(w http.ResponseWriter, r *http.Request) {
 	health, err := wrappedProvider.HealthCheck(r.Context())
 	if err != nil {
 		h.respondWithError(w, http.StatusServiceUnavailable, "Codex connection test failed", err)
+		return
+	}
+
+	if health.Status != "healthy" {
+		h.respondWithError(w, http.StatusServiceUnavailable, health.Message, nil)
 		return
 	}
 
