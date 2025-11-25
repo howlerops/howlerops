@@ -198,10 +198,10 @@ func (jd *JoinDetector) FindJoinPath(tables []string, schemas []SchemaContext) J
 	path := jd.bfsJoinPath(tables, graph, schemas)
 
 	jd.logger.WithFields(logrus.Fields{
-		"input_tables":  tables,
-		"path_tables":   path.Tables,
-		"joins_count":   len(path.Joins),
-		"path_cost":     path.Cost,
+		"input_tables": tables,
+		"path_tables":  path.Tables,
+		"joins_count":  len(path.Joins),
+		"path_cost":    path.Cost,
 	}).Debug("Join path computed")
 
 	return path
@@ -387,9 +387,9 @@ func (jd *JoinDetector) inferTargetTable(columnName string, schemas []SchemaCont
 
 		// Try common pluralization patterns
 		candidates := []string{
-			baseName + "s",      // user -> users
-			baseName + "es",     // status -> statuses
-			baseName,            // exact match
+			baseName + "s",  // user -> users
+			baseName + "es", // status -> statuses
+			baseName,        // exact match
 		}
 
 		// Handle special cases

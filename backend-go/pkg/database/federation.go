@@ -20,10 +20,10 @@ type FederationEngine struct {
 
 // FederationConfig configures the federation engine
 type FederationConfig struct {
-	Enabled        bool          // Whether federation is enabled
-	QueryTimeout   time.Duration // Maximum query execution time
-	MaxRowLimit    int           // Maximum rows returned
-	EnableCaching  bool          // Whether to cache compiled queries
+	Enabled       bool          // Whether federation is enabled
+	QueryTimeout  time.Duration // Maximum query execution time
+	MaxRowLimit   int           // Maximum rows returned
+	EnableCaching bool          // Whether to cache compiled queries
 }
 
 // DefaultFederationConfig returns default federation configuration
