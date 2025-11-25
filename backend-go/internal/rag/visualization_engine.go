@@ -140,6 +140,11 @@ func (ve *VisualizationEngine) GenerateVizConfig(data *ResultSet, chartType Char
 
 // AutoAggregate performs smart data aggregation
 func (ve *VisualizationEngine) AutoAggregate(data *ResultSet) *ResultSet {
+	// Handle nil data
+	if data == nil {
+		return nil
+	}
+
 	// Detect if aggregation is needed
 	if !ve.needsAggregation(data) {
 		return data
