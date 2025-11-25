@@ -33,6 +33,11 @@ func (e *Engine) ExecuteQuery(ctx context.Context, query string, timeout time.Du
 	return nil, fmt.Errorf("DuckDB federation engine is disabled")
 }
 
+// CreateView creates a temporary view in DuckDB from compiled SQL
+func (e *Engine) CreateView(ctx context.Context, viewName, compiledSQL string) error {
+	return fmt.Errorf("DuckDB federation engine is disabled")
+}
+
 // Close closes the DuckDB connection
 func (e *Engine) Close() error {
 	return nil

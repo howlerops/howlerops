@@ -816,8 +816,8 @@ func TestJoinDetector_FindJoinPath(t *testing.T) {
 
 		path := detector.FindJoinPath([]string{"users"}, schemas)
 
-		assert.Empty(t, path.Tables, "TODO implementation returns empty struct")
-		assert.Empty(t, path.Joins, "TODO implementation returns empty struct")
+		assert.Equal(t, []string{"users"}, path.Tables, "single table should be returned")
+		assert.Empty(t, path.Joins, "no joins needed for single table")
 	})
 
 	t.Run("finds path for two tables", func(t *testing.T) {
@@ -835,8 +835,9 @@ func TestJoinDetector_FindJoinPath(t *testing.T) {
 
 		path := detector.FindJoinPath([]string{"users", "orders"}, schemas)
 
-		assert.Empty(t, path.Tables, "TODO implementation returns empty struct (will find path when implemented)")
-		assert.Empty(t, path.Joins, "TODO implementation returns empty struct (will find joins when implemented)")
+		// Both tables should be included (even without FK relationships)
+		assert.Contains(t, path.Tables, "users", "should contain users table")
+		assert.Contains(t, path.Tables, "orders", "should contain orders table")
 	})
 
 	t.Run("finds path for three tables", func(t *testing.T) {
@@ -857,8 +858,10 @@ func TestJoinDetector_FindJoinPath(t *testing.T) {
 
 		path := detector.FindJoinPath([]string{"users", "orders", "products"}, schemas)
 
-		assert.Empty(t, path.Tables, "TODO implementation returns empty struct (will find path when implemented)")
-		assert.Empty(t, path.Joins, "TODO implementation returns empty struct (will find joins when implemented)")
+		// All tables should be included (even without FK relationships)
+		assert.Contains(t, path.Tables, "users", "should contain users table")
+		assert.Contains(t, path.Tables, "orders", "should contain orders table")
+		assert.Contains(t, path.Tables, "products", "should contain products table")
 	})
 
 	t.Run("finds path with nil schemas", func(t *testing.T) {
@@ -867,8 +870,9 @@ func TestJoinDetector_FindJoinPath(t *testing.T) {
 
 		path := detector.FindJoinPath([]string{"users", "orders"}, nil)
 
-		assert.Empty(t, path.Tables, "TODO implementation returns empty struct")
-		assert.Empty(t, path.Joins, "TODO implementation returns empty struct")
+		// Tables should still be included even with nil schemas
+		assert.Contains(t, path.Tables, "users", "should contain users table")
+		assert.Contains(t, path.Tables, "orders", "should contain orders table")
 	})
 
 	t.Run("finds path with empty schemas", func(t *testing.T) {
@@ -877,8 +881,9 @@ func TestJoinDetector_FindJoinPath(t *testing.T) {
 
 		path := detector.FindJoinPath([]string{"users", "orders"}, []rag.SchemaContext{})
 
-		assert.Empty(t, path.Tables, "TODO implementation returns empty struct")
-		assert.Empty(t, path.Joins, "TODO implementation returns empty struct")
+		// Tables should still be included even with empty schemas
+		assert.Contains(t, path.Tables, "users", "should contain users table")
+		assert.Contains(t, path.Tables, "orders", "should contain orders table")
 	})
 
 	t.Run("finds path for indirect join", func(t *testing.T) {
@@ -900,11 +905,12 @@ func TestJoinDetector_FindJoinPath(t *testing.T) {
 			},
 		}
 
-		// users -> orders -> products -> categories
+		// users -> categories (no direct FK relationship, both will be included as unreachable)
 		path := detector.FindJoinPath([]string{"users", "categories"}, schemas)
 
-		assert.Empty(t, path.Tables, "TODO implementation returns empty struct (will find indirect path when implemented)")
-		assert.Empty(t, path.Joins, "TODO implementation returns empty struct (will find joins when implemented)")
+		// Both tables should be included
+		assert.Contains(t, path.Tables, "users", "should contain users table")
+		assert.Contains(t, path.Tables, "categories", "should contain categories table")
 	})
 }
 
