@@ -328,6 +328,11 @@ func NewChartDetector(logger *logrus.Logger) *ChartDetector {
 
 // Detect detects the best chart type for data
 func (cd *ChartDetector) Detect(data *ResultSet) ChartType {
+	// Handle nil data
+	if data == nil {
+		return ChartTypeBar
+	}
+
 	// Check each rule
 	for _, rule := range cd.rules {
 		if rule.Condition(data) {
@@ -344,6 +349,7 @@ func (cd *ChartDetector) Detect(data *ResultSet) ChartType {
 }
 
 func (cd *ChartDetector) addDefaultRules() {
+	// Rules are checked in order - more specific rules should come first
 	cd.rules = []DetectionRule{
 		{
 			Name:      "time_series",
@@ -352,33 +358,33 @@ func (cd *ChartDetector) addDefaultRules() {
 			Priority:  1,
 		},
 		{
-			Name:      "distribution",
-			Condition: cd.detectDistribution,
-			ChartType: ChartTypeHistogram,
+			Name:      "geographic",
+			Condition: cd.detectGeospatial,
+			ChartType: ChartTypeGeo,
 			Priority:  2,
 		},
 		{
-			Name:      "categorical_comparison",
-			Condition: cd.detectCategorical,
-			ChartType: ChartTypeBar,
+			Name:      "distribution",
+			Condition: cd.detectDistribution,
+			ChartType: ChartTypeHistogram,
 			Priority:  3,
-		},
-		{
-			Name:      "proportion",
-			Condition: cd.detectProportion,
-			ChartType: ChartTypePie,
-			Priority:  4,
 		},
 		{
 			Name:      "correlation",
 			Condition: cd.detectCorrelation,
 			ChartType: ChartTypeScatter,
+			Priority:  4,
+		},
+		{
+			Name:      "proportion",
+			Condition: cd.detectProportion,
+			ChartType: ChartTypePie,
 			Priority:  5,
 		},
 		{
-			Name:      "geographic",
-			Condition: cd.detectGeospatial,
-			ChartType: ChartTypeGeo,
+			Name:      "categorical_comparison",
+			Condition: cd.detectCategorical,
+			ChartType: ChartTypeBar,
 			Priority:  6,
 		},
 	}
@@ -405,8 +411,12 @@ func (cd *ChartDetector) detectTimeSeries(data *ResultSet) bool {
 
 func (cd *ChartDetector) detectDistribution(data *ResultSet) bool {
 	// Check if data represents a distribution
-	if len(data.Columns) == 1 || (len(data.Columns) == 2 && data.RowCount > 20) {
-		// Single numeric column or value-frequency pair
+	// Requires sufficient data points for meaningful distribution analysis
+	if data.RowCount < 20 {
+		return false
+	}
+	if len(data.Columns) == 1 || len(data.Columns) == 2 {
+		// Single numeric column or value-frequency pair with enough rows
 		return true
 	}
 	return false
@@ -432,11 +442,25 @@ func (cd *ChartDetector) detectCategorical(data *ResultSet) bool {
 
 func (cd *ChartDetector) detectProportion(data *ResultSet) bool {
 	// Check if data represents parts of a whole
-	if len(data.Columns) == 2 && data.RowCount < 10 {
-		// Category and value columns with few rows
-		return true
+	if len(data.Columns) != 2 || data.RowCount >= 10 {
+		return false
 	}
-	return false
+
+	// Look for column names that suggest proportion/part-of-whole semantics
+	proportionIndicators := []string{"share", "percent", "percentage", "value", "portion", "segment", "part", "ratio"}
+	hasProportionColumn := false
+
+	for _, col := range data.Columns {
+		colNameLower := strings.ToLower(col.Name)
+		for _, indicator := range proportionIndicators {
+			if strings.Contains(colNameLower, indicator) {
+				hasProportionColumn = true
+				break
+			}
+		}
+	}
+
+	return hasProportionColumn
 }
 
 func (cd *ChartDetector) detectCorrelation(data *ResultSet) bool {
@@ -577,6 +601,11 @@ func (nlv *NLToViz) GenerateChart(intent *VizIntent, data *ResultSet) *Chart {
 }
 
 func (nlv *NLToViz) ApplyDefaults(chart *Chart) *Chart {
+	// Handle nil chart
+	if chart == nil {
+		return nil
+	}
+
 	// Apply smart defaults to chart
 	if chart.Title == "" {
 		chart.Title = "Data Visualization"

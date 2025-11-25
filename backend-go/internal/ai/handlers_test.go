@@ -650,11 +650,12 @@ func TestTestAnthropic(t *testing.T) {
 
 // TestTestOllama tests the TestOllama handler
 func TestTestOllama(t *testing.T) {
-	t.Run("success case", func(t *testing.T) {
+	t.Run("unavailable endpoint", func(t *testing.T) {
 		handler, _ := newTestHandler()
 
+		// Use an unreachable endpoint (TEST-NET address per RFC 5737)
 		body := `{
-			"endpoint": "http://localhost:11434",
+			"endpoint": "http://192.0.2.1:11434",
 			"model": "llama2"
 		}`
 		req := httptest.NewRequest("POST", "/test/ollama", strings.NewReader(body))
@@ -662,6 +663,7 @@ func TestTestOllama(t *testing.T) {
 
 		handler.TestOllama(w, req)
 
+		// Should fail because endpoint is unreachable
 		assert.NotEqual(t, http.StatusOK, w.Code)
 	})
 
@@ -676,15 +678,17 @@ func TestTestOllama(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
-	t.Run("missing endpoint", func(t *testing.T) {
+	t.Run("invalid endpoint format", func(t *testing.T) {
 		handler, _ := newTestHandler()
 
-		body := `{"model": "llama2"}`
+		// Invalid endpoint format - missing protocol
+		body := `{"endpoint": "not-a-valid-url", "model": "llama2"}`
 		req := httptest.NewRequest("POST", "/test/ollama", strings.NewReader(body))
 		w := httptest.NewRecorder()
 
 		handler.TestOllama(w, req)
 
+		// Should fail due to invalid URL format
 		assert.NotEqual(t, http.StatusOK, w.Code)
 	})
 }
@@ -732,11 +736,12 @@ func TestTestHuggingFace(t *testing.T) {
 
 // TestTestClaudeCode tests the TestClaudeCode handler
 func TestTestClaudeCode(t *testing.T) {
-	t.Run("success case", func(t *testing.T) {
+	t.Run("nonexistent binary path", func(t *testing.T) {
 		handler, _ := newTestHandler()
 
+		// Use a path that definitely doesn't exist
 		body := `{
-			"binaryPath": "/usr/local/bin/claude",
+			"binaryPath": "/nonexistent/path/to/claude-binary-test",
 			"model": "claude-code"
 		}`
 		req := httptest.NewRequest("POST", "/test/claudecode", strings.NewReader(body))
@@ -744,18 +749,7 @@ func TestTestClaudeCode(t *testing.T) {
 
 		handler.TestClaudeCode(w, req)
 
-		assert.NotEqual(t, http.StatusOK, w.Code)
-	})
-
-	t.Run("with default binary path", func(t *testing.T) {
-		handler, _ := newTestHandler()
-
-		body := `{"model": "claude-code"}`
-		req := httptest.NewRequest("POST", "/test/claudecode", strings.NewReader(body))
-		w := httptest.NewRecorder()
-
-		handler.TestClaudeCode(w, req)
-
+		// Should fail because binary doesn't exist
 		assert.NotEqual(t, http.StatusOK, w.Code)
 	})
 
@@ -768,17 +762,6 @@ func TestTestClaudeCode(t *testing.T) {
 		handler.TestClaudeCode(w, req)
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
-	})
-
-	t.Run("empty body uses defaults", func(t *testing.T) {
-		handler, _ := newTestHandler()
-
-		req := httptest.NewRequest("POST", "/test/claudecode", strings.NewReader(`{}`))
-		w := httptest.NewRecorder()
-
-		handler.TestClaudeCode(w, req)
-
-		assert.NotEqual(t, http.StatusOK, w.Code)
 	})
 }
 

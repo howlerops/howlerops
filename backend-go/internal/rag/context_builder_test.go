@@ -20,6 +20,7 @@ import (
 type mockVectorStore struct {
 	mu                sync.Mutex
 	searchSimilarFunc func(ctx context.Context, embedding []float32, limit int, filter map[string]interface{}) ([]*rag.Document, error)
+	hybridSearchFunc  func(ctx context.Context, query string, embedding []float32, k int) ([]*rag.Document, error)
 	searchCalls       int
 }
 
@@ -71,6 +72,9 @@ func (m *mockVectorStore) SearchByText(ctx context.Context, query string, k int,
 }
 
 func (m *mockVectorStore) HybridSearch(ctx context.Context, query string, embedding []float32, k int) ([]*rag.Document, error) {
+	if m.hybridSearchFunc != nil {
+		return m.hybridSearchFunc(ctx, query, embedding, k)
+	}
 	return []*rag.Document{}, nil
 }
 
@@ -488,14 +492,12 @@ func TestContextBuilder_BuildContext(t *testing.T) {
 func TestContextBuilder_FetchRelevantSchemas(t *testing.T) {
 	t.Run("fetches schema documents", func(t *testing.T) {
 		vectorStore := newMockVectorStore()
-		vectorStore.searchSimilarFunc = func(ctx context.Context, embedding []float32, limit int, filter map[string]interface{}) ([]*rag.Document, error) {
-			if filter["type"] == string(rag.DocumentTypeSchema) {
-				return []*rag.Document{
-					makeTestDoc(rag.DocumentTypeSchema, "CREATE TABLE users", 0.9),
-					makeTestDoc(rag.DocumentTypeSchema, "CREATE TABLE orders", 0.8),
-				}, nil
-			}
-			return []*rag.Document{}, nil
+		vectorStore.hybridSearchFunc = func(ctx context.Context, query string, embedding []float32, k int) ([]*rag.Document, error) {
+			doc1 := makeTestDoc(rag.DocumentTypeSchema, "CREATE TABLE users", 0.9)
+			doc1.ConnectionID = "conn-1"
+			doc2 := makeTestDoc(rag.DocumentTypeSchema, "CREATE TABLE orders", 0.8)
+			doc2.ConnectionID = "conn-1"
+			return []*rag.Document{doc1, doc2}, nil
 		}
 		embeddingService := newMockEmbeddingService()
 		logger := newTestLoggerContextBuilder()

@@ -141,6 +141,16 @@ func (g *SmartSQLGenerator) generateWithPlanning(ctx context.Context, prompt str
 	// Decompose the request into steps
 	steps := g.planner.DecomposeRequest(prompt, context)
 
+	// If planner returns no steps (not yet implemented), fall back to direct generation
+	if len(steps) == 0 {
+		g.logger.Debug("Planner returned no steps, falling back to direct generation")
+		generated, err := g.llmProvider.GenerateSQL(ctx, prompt, context)
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate SQL: %w", err)
+		}
+		return g.enhanceWithContext(generated, context), nil
+	}
+
 	// Generate SQL for each step
 	stepSQLs := make([]StepSQL, 0, len(steps))
 	for _, step := range steps {
@@ -152,11 +162,31 @@ func (g *SmartSQLGenerator) generateWithPlanning(ctx context.Context, prompt str
 		stepSQLs = append(stepSQLs, *stepSQL)
 	}
 
+	// If no steps succeeded, fall back to direct generation
+	if len(stepSQLs) == 0 {
+		g.logger.Debug("No steps succeeded, falling back to direct generation")
+		generated, err := g.llmProvider.GenerateSQL(ctx, prompt, context)
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate SQL: %w", err)
+		}
+		return g.enhanceWithContext(generated, context), nil
+	}
+
 	// Combine steps into final query
 	finalSQL := g.planner.CombineSteps(stepSQLs)
 
 	// Validate and optimize
 	optimized := g.planner.ValidateAndOptimize(finalSQL)
+
+	// If the optimized query is empty, fall back to direct generation
+	if optimized.Query == "" {
+		g.logger.Debug("Planner returned empty query, falling back to direct generation")
+		generated, err := g.llmProvider.GenerateSQL(ctx, prompt, context)
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate SQL: %w", err)
+		}
+		return g.enhanceWithContext(generated, context), nil
+	}
 
 	return &GeneratedSQL{
 		Query:       optimized.Query,
@@ -419,11 +449,16 @@ func (g *SmartSQLGenerator) analyzeComplexity(sql string) string {
 		aggregateCount += strings.Count(sqlLower, agg)
 	}
 
-	complexity := joinCount + subqueryCount*2 + aggregateCount
+	// Count GROUP BY and HAVING clauses
+	groupByCount := strings.Count(sqlLower, "group by")
+	havingCount := strings.Count(sqlLower, "having")
+	unionCount := strings.Count(sqlLower, "union")
 
-	if complexity <= 1 {
+	complexity := joinCount + subqueryCount*2 + aggregateCount + groupByCount + havingCount + unionCount*2
+
+	if complexity == 0 {
 		return "simple"
-	} else if complexity <= 3 {
+	} else if complexity == 1 {
 		return "moderate"
 	}
 	return "complex"

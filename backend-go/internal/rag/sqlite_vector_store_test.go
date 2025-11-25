@@ -26,12 +26,20 @@ func newTestLoggerSQLiteVectorStore() *logrus.Logger {
 
 func newMemoryVectorStore(t *testing.T) (*rag.SQLiteVectorStore, context.Context) {
 	logger := newTestLoggerSQLiteVectorStore()
+
+	// Use a unique temp file for each test to avoid SQLite :memory: isolation issues
+	tmpDir, err := os.MkdirTemp("", "rag-memory-test-*")
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = os.RemoveAll(tmpDir)
+	})
+
 	config := &rag.SQLiteVectorConfig{
-		Path:        ":memory:",
+		Path:        filepath.Join(tmpDir, "test.db"),
 		VectorSize:  128, // Smaller for tests
 		CacheSizeMB: 16,
 		MMapSizeMB:  32,
-		WALEnabled:  false, // Not needed for memory DB
+		WALEnabled:  false, // Not needed for test DB
 		Timeout:     5 * time.Second,
 	}
 
