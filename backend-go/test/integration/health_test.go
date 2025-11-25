@@ -32,6 +32,17 @@ func NewHealthTestSuite() *HealthTestSuite {
 	}
 }
 
+// requireServerAvailable checks if the backend server is reachable
+// If not, it skips the test with a helpful message
+func requireServerAvailable(t *testing.T, suite *HealthTestSuite) {
+	t.Helper()
+	client := &http.Client{Timeout: 2 * time.Second}
+	_, err := client.Get(suite.baseURL + "/health")
+	if err != nil {
+		t.Skipf("skipping integration test: server not available at %s (set TEST_BASE_URL or start server)", suite.baseURL)
+	}
+}
+
 // HealthResponse represents a health check response
 type HealthResponse struct {
 	Status  string `json:"status"`
@@ -50,6 +61,7 @@ func TestHealthCheck(t *testing.T) {
 		t.Skip("skipping integration test in short mode")
 	}
 	suite := NewHealthTestSuite()
+	requireServerAvailable(t, suite)
 
 	req, err := http.NewRequest("GET", suite.baseURL+"/health", nil)
 	require.NoError(t, err)
@@ -76,6 +88,7 @@ func TestHealthCheckResponseTime(t *testing.T) {
 		t.Skip("skipping integration test in short mode")
 	}
 	suite := NewHealthTestSuite()
+	requireServerAvailable(t, suite)
 
 	start := time.Now()
 
@@ -99,6 +112,7 @@ func TestHealthCheckReliability(t *testing.T) {
 		t.Skip("skipping integration test in short mode")
 	}
 	suite := NewHealthTestSuite()
+	requireServerAvailable(t, suite)
 
 	// Make 20 concurrent health check requests
 	successCount := 0
@@ -140,6 +154,7 @@ func TestMetricsEndpoint(t *testing.T) {
 		t.Skip("skipping integration test in short mode")
 	}
 	suite := NewHealthTestSuite()
+	requireServerAvailable(t, suite)
 
 	// Try the metrics endpoint (might be on a different port)
 	metricsURL := os.Getenv("METRICS_URL")
@@ -171,6 +186,7 @@ func TestReadinessProbe(t *testing.T) {
 		t.Skip("skipping integration test in short mode")
 	}
 	suite := NewHealthTestSuite()
+	requireServerAvailable(t, suite)
 
 	// Many services have a separate readiness endpoint
 	endpoints := []string{
@@ -206,6 +222,7 @@ func TestLivenessProbe(t *testing.T) {
 		t.Skip("skipping integration test in short mode")
 	}
 	suite := NewHealthTestSuite()
+	requireServerAvailable(t, suite)
 
 	// Many services have a separate liveness endpoint
 	endpoints := []string{
@@ -241,6 +258,7 @@ func TestCORS(t *testing.T) {
 		t.Skip("skipping integration test in short mode")
 	}
 	suite := NewHealthTestSuite()
+	requireServerAvailable(t, suite)
 
 	req, err := http.NewRequest("OPTIONS", suite.baseURL+"/health", nil)
 	require.NoError(t, err)
@@ -265,6 +283,7 @@ func TestServiceDiscovery(t *testing.T) {
 		t.Skip("skipping integration test in short mode")
 	}
 	suite := NewHealthTestSuite()
+	requireServerAvailable(t, suite)
 
 	// Test endpoints that should be available
 	endpoints := map[string]int{
@@ -299,6 +318,7 @@ func TestServerHeaders(t *testing.T) {
 		t.Skip("skipping integration test in short mode")
 	}
 	suite := NewHealthTestSuite()
+	requireServerAvailable(t, suite)
 
 	req, err := http.NewRequest("GET", suite.baseURL+"/health", nil)
 	require.NoError(t, err)
@@ -335,6 +355,7 @@ func TestHealthCheckUnderLoad(t *testing.T) {
 	}
 
 	suite := NewHealthTestSuite()
+	requireServerAvailable(t, suite)
 
 	// Run health checks for 10 seconds
 	duration := 10 * time.Second

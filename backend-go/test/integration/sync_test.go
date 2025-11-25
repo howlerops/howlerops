@@ -18,6 +18,17 @@ type SyncTestSuite struct {
 	client  *http.Client
 }
 
+// requireSyncServerAvailable checks if the backend server is reachable
+// If not, it skips the test with a helpful message
+func requireSyncServerAvailable(t *testing.T, suite *SyncTestSuite) {
+	t.Helper()
+	client := &http.Client{Timeout: 2 * time.Second}
+	_, err := client.Get(suite.baseURL + "/health")
+	if err != nil {
+		t.Skipf("skipping integration test: server not available at %s (set TEST_BASE_URL or start server)", suite.baseURL)
+	}
+}
+
 // NewSyncTestSuite creates a new sync test suite
 func NewSyncTestSuite() *SyncTestSuite {
 	baseURL := os.Getenv("TEST_BASE_URL")
@@ -102,6 +113,7 @@ func TestSyncFlow(t *testing.T) {
 		t.Skip("skipping integration test in short mode")
 	}
 	suite := NewSyncTestSuite()
+	requireSyncServerAvailable(t, suite)
 
 	// First, authenticate to get a token
 	token := suite.authenticate(t)
@@ -286,6 +298,7 @@ func TestSyncValidation(t *testing.T) {
 		t.Skip("skipping integration test in short mode")
 	}
 	suite := NewSyncTestSuite()
+	requireSyncServerAvailable(t, suite)
 	token := suite.authenticate(t)
 
 	t.Run("Upload_MissingDeviceID", func(t *testing.T) {
@@ -363,6 +376,7 @@ func TestSyncConflictResolution(t *testing.T) {
 		t.Skip("skipping integration test in short mode")
 	}
 	suite := NewSyncTestSuite()
+	requireSyncServerAvailable(t, suite)
 	token := suite.authenticate(t)
 
 	// First, create a conflict by uploading the same item from two devices
@@ -417,6 +431,7 @@ func TestSyncLargePayload(t *testing.T) {
 		t.Skip("skipping integration test in short mode")
 	}
 	suite := NewSyncTestSuite()
+	requireSyncServerAvailable(t, suite)
 	token := suite.authenticate(t)
 
 	// Create 100 changes
