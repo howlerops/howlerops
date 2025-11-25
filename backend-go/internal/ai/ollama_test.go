@@ -1033,7 +1033,7 @@ func TestOllamaProvider_OllamaAPIError(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Nil(t, resp)
-	assert.Contains(t, err.Error(), "Ollama API error")
+	assert.Contains(t, err.Error(), "ollama API error")
 	assert.Contains(t, err.Error(), "temperature must be between")
 }
 

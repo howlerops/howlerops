@@ -106,6 +106,18 @@ func (m *mockVectorStore) Restore(ctx context.Context, path string) error {
 	return nil
 }
 
+func (m *mockVectorStore) StoreDocumentWithoutEmbedding(ctx context.Context, doc *rag.Document) error {
+	return nil
+}
+
+func (m *mockVectorStore) GetDocumentsBatch(ctx context.Context, ids []string) ([]*rag.Document, error) {
+	return []*rag.Document{}, nil
+}
+
+func (m *mockVectorStore) UpdateDocumentMetadata(ctx context.Context, id string, metadata map[string]interface{}) error {
+	return nil
+}
+
 func (m *mockVectorStore) getSearchCallCount() int {
 	m.mu.Lock()
 	defer m.mu.Unlock()
