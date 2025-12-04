@@ -6,7 +6,7 @@ This document describes the Homebrew tap setup for Howlerops, allowing macOS use
 
 Howlerops is distributed via a custom Homebrew tap that supports both Intel (x86_64) and Apple Silicon (ARM64) macOS architectures.
 
-**Tap Repository**: `https://github.com/sql-studio/homebrew-tap`
+**Tap Repository**: `https://github.com/jbeck018/homebrew-howlerops`
 
 ## User Installation Instructions
 
@@ -18,23 +18,27 @@ Howlerops is distributed via a custom Homebrew tap that supports both Intel (x86
 
 1. **Install from the tap**:
    ```bash
-   brew install sql-studio/tap/sql-studio
+   brew install --cask jbeck018/howlerops/howlerops
    ```
 
    Or tap first, then install:
    ```bash
-   brew tap sql-studio/tap
-   brew install sql-studio
+   brew tap jbeck018/howlerops
+   brew install --cask howlerops
    ```
 
 2. **Verify installation**:
    ```bash
-   sql-studio --version
+   open -a HowlerOps
+   ```
+   Or run from terminal:
+   ```bash
+   howlerops
    ```
 
-3. **Run Howlerops**:
+3. **Run HowlerOps**:
    ```bash
-   sql-studio
+   open -a HowlerOps
    ```
 
 ### Updating

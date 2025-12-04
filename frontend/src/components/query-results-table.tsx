@@ -7,7 +7,7 @@ import { useConnectionStore } from '../store/connection-store'
 import { type QueryEditableColumn,QueryEditableMetadata, QueryResultRow, useQueryStore } from '../store/query-store'
 import type { CellValue, EditableTableContext } from '../types/table'
 import { ExportOptions, TableColumn, TableRow } from '../types/table'
-import { EditableTable } from './editable-table/editable-table'
+import { AGGridTable } from './ag-grid-table'
 import { JsonRowViewerSidebarV2 } from './json-row-viewer-sidebar-v2'
 import { PaginationControls } from './pagination-controls'
 import { Button } from './ui/button'
@@ -1635,7 +1635,7 @@ export const QueryResultsTable = ({
         </div>
       ) : (
         <>
-          <EditableTable
+          <AGGridTable
             data={rows as TableRow[]}
             columns={tableColumns}
             onDirtyChange={handleDirtyChange}

@@ -54,7 +54,8 @@
     "bundleId": "com.howlerops.app",
     "category": "public.app-category.developer-tools",
     "signing": {
-      "identity": "",
+      "identity": "${APPLE_SIGNING_IDENTITY}",
+      "entitlements": "build/darwin/entitlements.plist",
       "embedProvisioningProfile": false
     },
     "entitlements": {

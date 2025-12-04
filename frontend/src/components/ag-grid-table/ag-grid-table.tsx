@@ -1,0 +1,740 @@
+import 'ag-grid-community/styles/ag-grid.css';
+import 'ag-grid-community/styles/ag-theme-quartz.css';
+
+import {
+  AllCommunityModule,
+  type CellValueChangedEvent,
+  type ColDef,
+  type FirstDataRenderedEvent,
+  type GetRowIdParams,
+  type GridApi,
+  type GridReadyEvent,
+  ModuleRegistry,
+  type RowSelectedEvent,
+  type SelectionColumnDef,
+  type SortChangedEvent,
+} from 'ag-grid-community';
+import { AgGridReact } from 'ag-grid-react';
+import { Eye } from 'lucide-react';
+
+// Register AG Grid Community modules
+ModuleRegistry.registerModules([AllCommunityModule]);
+import { type ColumnFiltersState, type SortingState } from '@tanstack/react-table';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+
+import {
+  CellValue,
+  EditableTableContext,
+  EditableTableProps,
+  EditableTableRenderer,
+  TableColumn,
+  TableRow,
+} from '../../types/table';
+import { cn } from '../../utils/cn';
+
+import './ag-grid-table.css';
+
+/**
+ * AG Grid-based Table Component
+ *
+ * Drop-in replacement for EditableTable using AG Grid Community for:
+ * - Better virtualization (no white chunks during fast scrolling)
+ * - Built-in column stability
+ * - Less maintenance burden
+ *
+ * @component
+ */
+export const AGGridTable: React.FC<EditableTableProps> = ({
+  data,
+  columns: tableColumns,
+  onDataChange,
+  onCellEdit,
+  onRowSelect,
+  onRowClick,
+  onRowInspect,
+  onSort,
+  onFilter,
+  onExport,
+  onSelectAllPages,
+  loading = false,
+  error = null,
+  virtualScrolling = true,
+  className,
+  height = 600,
+  enableMultiSelect = true,
+  enableColumnResizing = true,
+  enableColumnReordering = false,
+  enableGlobalFilter = true,
+  enableExport = true,
+  toolbar,
+  footer,
+  onDirtyChange,
+  customCellRenderers = {},
+  // Phase 2: Chunked data loading
+  resultId,
+  totalRows,
+  isLargeResult = false,
+  chunkingEnabled = false,
+  displayMode,
+}) => {
+  const gridRef = useRef<AgGridReact>(null);
+  const [gridApi, setGridApi] = useState<GridApi | null>(null);
+
+  // Track dirty rows (edited but not saved)
+  const [dirtyRows, setDirtyRows] = useState<Set<string>>(new Set());
+
+  // Track selected rows
+  const [selectedRows, setSelectedRows] = useState<string[]>([]);
+
+  // Track sorting state
+  const [sorting, setSorting] = useState<SortingState>([]);
+
+  // Track filters
+  const [filters, setFilters] = useState<ColumnFiltersState>([]);
+
+  // Track global filter
+  const [globalFilter, setGlobalFilter] = useState('');
+
+  // Track select all pages mode
+  const [selectAllPagesMode, setSelectAllPagesMode] = useState(false);
+
+  /**
+   * Map TableColumn type to AG Grid column type
+   */
+  const mapColumnType = (type: TableColumn['type']): string => {
+    switch (type) {
+      case 'number':
+        return 'numericColumn';
+      case 'date':
+      case 'datetime':
+        return 'dateColumn';
+      case 'boolean':
+        return 'booleanColumn';
+      default:
+        return 'textColumn';
+    }
+  };
+
+  /**
+   * Create cell renderer for custom types
+   */
+  const createCellRenderer = (column: TableColumn, isFirstColumn: boolean) => {
+    return (params: { value: CellValue; data: TableRow }) => {
+      const { value, data: rowData } = params;
+
+      // Use custom renderer if provided
+      const customRenderer = customCellRenderers[column.id || column.accessorKey || ''];
+      if (customRenderer) {
+        return customRenderer(value, rowData);
+      }
+
+      // Boolean renderer
+      if (column.type === 'boolean') {
+        return (
+          <div className="flex items-center justify-center h-full">
+            <input
+              type="checkbox"
+              checked={Boolean(value)}
+              readOnly={!column.editable}
+              className="w-4 h-4 cursor-pointer rounded"
+            />
+          </div>
+        );
+      }
+
+      // Select renderer
+      if (column.type === 'select' && column.options) {
+        return (
+          <select
+            value={String(value || '')}
+            disabled={!column.editable}
+            className="w-full h-full bg-transparent border-none outline-none"
+          >
+            <option value="">Select...</option>
+            {column.options.map(opt => (
+              <option key={opt} value={opt}>{opt}</option>
+            ))}
+          </select>
+        );
+      }
+
+      // Default text renderer with monospace support
+      // Always truncate to maintain consistent row height
+      const textClasses = cn(
+        'flex-1 truncate overflow-hidden whitespace-nowrap',
+        column.monospace && 'font-mono'
+      );
+
+      // Add eye icon on first column for row inspection
+      const showInspectIcon = isFirstColumn && onRowInspect;
+
+      return (
+        <div className="group flex items-center h-full w-full">
+          <div className={textClasses} title={String(value ?? '')}>
+            {value === null || value === undefined ? (
+              <span className="cell-null">NULL</span>
+            ) : (
+              String(value)
+            )}
+          </div>
+          {showInspectIcon && (
+            <button
+              className="inspect-row-btn opacity-0 group-hover:opacity-100 ml-2 p-1 rounded hover:bg-accent transition-opacity"
+              onClick={(e) => {
+                e.stopPropagation();
+                const rowId = rowData.__rowId;
+                if (rowId && onRowInspect) {
+                  onRowInspect(rowId, rowData);
+                }
+              }}
+              title="View row details"
+            >
+              <Eye className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+            </button>
+          )}
+        </div>
+      );
+    };
+  };
+
+  /**
+   * Create cell editor for custom types
+   */
+  const createCellEditor = (column: TableColumn) => {
+    if (!column.editable) return undefined;
+
+    if (column.type === 'boolean') {
+      return 'agCheckboxCellEditor';
+    }
+
+    if (column.type === 'select' && column.options) {
+      return 'agSelectCellEditor';
+    }
+
+    if (column.type === 'number') {
+      return 'agNumberCellEditor';
+    }
+
+    if (column.type === 'date' || column.type === 'datetime') {
+      return 'agDateCellEditor';
+    }
+
+    return 'agTextCellEditor';
+  };
+
+  /**
+   * Create cell editor params
+   */
+  const createCellEditorParams = (column: TableColumn) => {
+    if (column.type === 'select' && column.options) {
+      return {
+        values: column.options,
+      };
+    }
+
+    if (column.type === 'number') {
+      return {
+        min: column.validation?.min,
+        max: column.validation?.max,
+      };
+    }
+
+    return undefined;
+  };
+
+  /**
+   * Convert TableColumn[] to AG Grid ColDef[]
+   */
+  const columnDefs = useMemo<ColDef[]>(() => {
+    const cols: ColDef[] = [];
+
+    // Note: Checkbox column is now handled automatically by AG Grid v34's
+    // rowSelection object API with { checkboxes: true }
+
+    // Add data columns
+    tableColumns.forEach((col, index) => {
+      const colId = col.id || col.accessorKey || col.header;
+      const isFirstColumn = index === 0;
+
+      // Determine optimal width based on column type
+      // UUIDs and short text: wider min width, no max
+      // Long text: allow auto-size with max cap
+      const isLongText = col.longText || col.type === 'text' && (col.maxWidth ?? 0) > 400;
+      const baseMinWidth = col.minWidth || 80;
+      const baseMaxWidth = isLongText ? 400 : col.maxWidth; // Cap long text columns
+
+      // Check if column is editable (use Boolean coercion for truthy values)
+      const isEditable = !!col.editable;
+
+      // Determine if this column should use popup editor (for text types that are editable)
+      const isTextType = col.type === 'text' || col.type === undefined || col.longText;
+      const usePopupEditor = isEditable && isTextType;
+
+      cols.push({
+        field: col.accessorKey || colId,
+        headerName: col.header,
+        colId,
+        type: mapColumnType(col.type),
+        // Don't set fixed width - let autoSizeStrategy handle it
+        minWidth: baseMinWidth,
+        maxWidth: baseMaxWidth,
+        sortable: col.sortable !== false,
+        filter: col.filterable !== false,
+        editable: isEditable,
+        resizable: enableColumnResizing,
+        pinned: col.sticky || undefined,
+        // Never wrap text or auto-height - always truncate to maintain consistent row height
+        wrapText: false,
+        autoHeight: false,
+        cellRenderer: createCellRenderer(col, isFirstColumn),
+        // Only set editor for editable columns
+        cellEditor: isEditable
+          ? (usePopupEditor ? 'agLargeTextCellEditor' : createCellEditor(col))
+          : undefined,
+        cellEditorPopup: usePopupEditor,
+        cellEditorParams: isEditable
+          ? (usePopupEditor ? { maxLength: 10000, rows: 6, cols: 40 } : createCellEditorParams(col))
+          : undefined,
+        cellClass: (params) => {
+          const classes = [];
+
+          // Mark dirty cells
+          if (params.data?.__rowId && dirtyRows.has(params.data.__rowId)) {
+            classes.push('ag-cell-dirty');
+          }
+
+          // Mark new rows
+          if (params.data?.__isNewRow) {
+            classes.push('ag-row-new');
+          }
+
+          // Mark primary key columns
+          if (col.isPrimaryKey) {
+            classes.push('ag-cell-primary-key');
+          }
+
+          return classes.join(' ');
+        },
+        valueGetter: col.type === 'boolean'
+          ? (params) => Boolean(params.data?.[params.colDef.field || ''])
+          : undefined,
+        valueSetter: (params) => {
+          const field = params.colDef.field;
+          if (!field) return false;
+
+          let newValue: CellValue = params.newValue;
+
+          // Type conversion
+          if (col.type === 'number') {
+            newValue = newValue === null || newValue === '' ? null : Number(newValue);
+          } else if (col.type === 'boolean') {
+            newValue = Boolean(newValue);
+          }
+
+          // Validation
+          if (col.validation) {
+            if (col.validation.pattern && typeof newValue === 'string') {
+              if (!col.validation.pattern.test(newValue)) {
+                console.warn(`Validation failed: ${col.validation.message || 'Invalid value'}`);
+                return false;
+              }
+            }
+
+            if (typeof newValue === 'number') {
+              if (col.validation.min !== undefined && newValue < col.validation.min) {
+                console.warn(`Value must be >= ${col.validation.min}`);
+                return false;
+              }
+              if (col.validation.max !== undefined && newValue > col.validation.max) {
+                console.warn(`Value must be <= ${col.validation.max}`);
+                return false;
+              }
+            }
+          }
+
+          params.data[field] = newValue;
+          return true;
+        },
+      });
+    });
+
+    return cols;
+  }, [tableColumns, enableColumnResizing, dirtyRows, customCellRenderers, onRowInspect]);
+
+  /**
+   * Get row ID for AG Grid
+   */
+  const getRowId = useCallback((params: GetRowIdParams<TableRow>): string => {
+    return params.data.__rowId || String(params.data.id) || `row-${Math.random()}`;
+  }, []);
+
+  /**
+   * Handle grid ready
+   */
+  const onGridReady = useCallback((params: GridReadyEvent) => {
+    setGridApi(params.api);
+  }, []);
+
+  /**
+   * Handle cell value changed (editing)
+   */
+  const onCellValueChanged = useCallback(async (event: CellValueChangedEvent<TableRow>) => {
+    const rowId = event.data.__rowId;
+    const columnId = event.colDef.field;
+    const newValue = event.newValue;
+
+    if (!rowId || !columnId) return;
+
+    // Mark row as dirty
+    setDirtyRows(prev => new Set(prev).add(rowId));
+
+    // Call parent onCellEdit handler
+    if (onCellEdit) {
+      try {
+        const success = await onCellEdit(rowId, columnId, newValue);
+        if (success) {
+          // Remove from dirty set on successful save
+          setDirtyRows(prev => {
+            const next = new Set(prev);
+            next.delete(rowId);
+            return next;
+          });
+        }
+      } catch (error) {
+        console.error('Error saving cell edit:', error);
+        // Revert the change
+        event.node.setDataValue(columnId, event.oldValue);
+      }
+    }
+
+    // Call onDataChange
+    if (onDataChange && gridApi) {
+      const allData: TableRow[] = [];
+      gridApi.forEachNode(node => {
+        if (node.data) allData.push(node.data);
+      });
+      onDataChange(allData);
+    }
+  }, [onCellEdit, onDataChange, gridApi]);
+
+  /**
+   * Handle row selection
+   */
+  const onSelectionChanged = useCallback(() => {
+    if (!gridApi) return;
+
+    const selectedNodes = gridApi.getSelectedNodes();
+    const selectedRowIds = selectedNodes
+      .map(node => node.data?.__rowId)
+      .filter((id): id is string => Boolean(id));
+
+    setSelectedRows(selectedRowIds);
+
+    if (onRowSelect) {
+      onRowSelect(selectedRowIds);
+    }
+  }, [gridApi, onRowSelect]);
+
+  /**
+   * Handle row click
+   */
+  const onRowClicked = useCallback((event: any) => {
+    const rowId = event.data?.__rowId;
+    if (rowId && onRowClick) {
+      onRowClick(rowId, event.data);
+    }
+  }, [onRowClick]);
+
+  // Note: Row double-click handler removed - use eye icon in first column to open sidebar
+  // This allows inline editing to work properly on double-click
+
+  /**
+   * Handle sort changed
+   */
+  const onSortChanged = useCallback((event: SortChangedEvent) => {
+    if (!gridApi || !onSort) return;
+
+    const sortModel = gridApi.getColumnState()
+      .filter(col => col.sort)
+      .map(col => ({
+        id: col.colId,
+        desc: col.sort === 'desc',
+      }));
+
+    setSorting(sortModel);
+    onSort(sortModel);
+  }, [gridApi, onSort]);
+
+  /**
+   * Handle filter changed
+   */
+  const onFilterChanged = useCallback(() => {
+    if (!gridApi || !onFilter) return;
+
+    const filterModel = gridApi.getFilterModel();
+    const filters: ColumnFiltersState = Object.keys(filterModel).map(key => ({
+      id: key,
+      value: filterModel[key],
+    }));
+
+    setFilters(filters);
+    onFilter(filters);
+  }, [gridApi, onFilter]);
+
+  /**
+   * Apply global filter
+   */
+  useEffect(() => {
+    if (gridApi && enableGlobalFilter) {
+      gridApi.setGridOption('quickFilterText', globalFilter);
+    }
+  }, [gridApi, globalFilter, enableGlobalFilter]);
+
+  /**
+   * Notify parent of dirty changes
+   */
+  useEffect(() => {
+    if (onDirtyChange) {
+      onDirtyChange(Array.from(dirtyRows));
+    }
+  }, [dirtyRows, onDirtyChange]);
+
+  /**
+   * Create table context for toolbar/footer renderers
+   */
+  const tableContext = useMemo<EditableTableContext>(() => ({
+    data,
+    state: {
+      editingCell: null,
+      selectedRows,
+      selectAllPagesMode,
+      sorting,
+      columnFilters: filters,
+      globalFilter,
+      columnVisibility: {},
+      columnOrder: [],
+      columnSizing: {},
+      dirtyRows,
+      invalidCells: new Map(),
+      undoStack: [],
+      redoStack: [],
+      hasUndoActions: false,
+      hasRedoActions: false,
+      hasSelection: selectedRows.length > 0,
+      hasDirtyRows: dirtyRows.size > 0,
+      hasInvalidCells: false,
+      isEditing: false,
+    },
+    actions: {
+      updateCell: () => false,
+      startEditing: () => {},
+      updateEditingCell: () => {},
+      cancelEditing: () => {},
+      saveEditing: async () => false,
+      toggleRowSelection: (rowId: string, selected?: boolean) => {
+        if (!gridApi) return;
+        gridApi.forEachNode(node => {
+          if (node.data?.__rowId === rowId) {
+            node.setSelected(selected ?? !node.isSelected());
+          }
+        });
+      },
+      selectAllRows: (selected: boolean) => {
+        if (!gridApi) return;
+        if (selected) {
+          gridApi.selectAll();
+        } else {
+          gridApi.deselectAll();
+        }
+      },
+      setSelectedRows: (rowIds: string[]) => {
+        if (!gridApi) return;
+        gridApi.forEachNode(node => {
+          const rowId = node.data?.__rowId;
+          node.setSelected(rowId ? rowIds.includes(rowId) : false);
+        });
+      },
+      setSelectAllPagesMode: (enabled: boolean) => {
+        setSelectAllPagesMode(enabled);
+        if (enabled && onSelectAllPages) {
+          onSelectAllPages();
+        }
+      },
+      updateSorting: (newSorting: SortingState) => {
+        setSorting(newSorting);
+        if (onSort) onSort(newSorting);
+      },
+      updateColumnFilters: (newFilters: ColumnFiltersState) => {
+        setFilters(newFilters);
+        if (onFilter) onFilter(newFilters);
+      },
+      updateGlobalFilter: (filter: string) => {
+        setGlobalFilter(filter);
+      },
+      updateColumnVisibility: () => {},
+      updateColumnSizing: () => {},
+      updateColumnOrder: () => {},
+      undo: () => {},
+      redo: () => {},
+      clearDirtyRows: () => setDirtyRows(new Set()),
+      resetTable: () => {
+        if (!gridApi) return;
+        gridApi.deselectAll();
+        gridApi.setFilterModel(null);
+        gridApi.setGridOption('columnDefs', columnDefs); // Reset sort via column defs
+        setDirtyRows(new Set());
+      },
+      getInvalidCells: () => [],
+      validateAllCells: () => true,
+      clearInvalidCells: () => {},
+      trackValidationError: () => {},
+      clearValidationError: () => {},
+    },
+  }), [
+    data,
+    selectedRows,
+    selectAllPagesMode,
+    sorting,
+    filters,
+    globalFilter,
+    dirtyRows,
+    gridApi,
+    onSort,
+    onFilter,
+    onSelectAllPages,
+  ]);
+
+  /**
+   * Render toolbar if provided
+   */
+  const renderToolbar = () => {
+    if (!toolbar) return null;
+
+    if (typeof toolbar === 'function') {
+      return (toolbar as EditableTableRenderer)(tableContext);
+    }
+
+    return toolbar;
+  };
+
+  /**
+   * Render footer if provided
+   */
+  const renderFooter = () => {
+    if (!footer) return null;
+
+    if (typeof footer === 'function') {
+      return (footer as EditableTableRenderer)(tableContext);
+    }
+
+    return footer;
+  };
+
+  /**
+   * Default grid options
+   */
+  const defaultColDef = useMemo<ColDef>(() => ({
+    resizable: enableColumnResizing,
+    sortable: true,
+    filter: false, // Disable column filter icons - we use global filter instead
+    editable: false,
+    suppressMovable: !enableColumnReordering,
+    suppressHeaderMenuButton: true, // Hide the menu button in headers
+  }), [enableColumnResizing, enableColumnReordering]);
+
+  /**
+   * Row selection config - AG Grid v34 object-based API
+   */
+  const rowSelectionConfig = useMemo(() => {
+    return enableMultiSelect
+      ? { mode: 'multiRow' as const, checkboxes: true, headerCheckbox: true }
+      : { mode: 'singleRow' as const };
+  }, [enableMultiSelect]);
+
+  /**
+   * Selection column definition - customize the checkbox column
+   * Note: Width needs to be at least 56px for header checkbox to render properly
+   */
+  const selectionColumnDef = useMemo<SelectionColumnDef>(() => ({
+    width: 56,
+    minWidth: 56,
+    maxWidth: 56,
+    suppressHeaderMenuButton: false, // Allow header checkbox to show
+    pinned: 'left',
+    lockPosition: 'left',
+  }), []);
+
+  /**
+   * Auto-size columns on first data render
+   * Sizes columns based on content up to a max width
+   */
+  const onFirstDataRendered = useCallback((event: FirstDataRenderedEvent) => {
+    // Auto-size all columns based on content
+    event.api.autoSizeAllColumns();
+  }, []);
+
+  /**
+   * Container height calculation
+   */
+  const containerHeight = typeof height === 'number' ? `${height}px` : height;
+
+  if (error) {
+    return (
+      <div className={cn('rounded-lg border border-destructive bg-destructive/10 p-4', className)}>
+        <p className="text-sm text-destructive">{error}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className={cn('flex flex-col', className)}>
+      {renderToolbar()}
+
+      <div
+        className={cn(
+          'ag-theme-quartz-dark',
+          'border border-border',
+          'w-full'
+        )}
+        style={{ height: containerHeight }}
+      >
+        <AgGridReact
+          ref={gridRef}
+          rowData={data}
+          columnDefs={columnDefs}
+          defaultColDef={defaultColDef}
+          getRowId={getRowId}
+          onGridReady={onGridReady}
+          onFirstDataRendered={onFirstDataRendered}
+          onCellValueChanged={onCellValueChanged}
+          onSelectionChanged={onSelectionChanged}
+          onRowClicked={onRowClicked}
+          onSortChanged={onSortChanged}
+          onFilterChanged={onFilterChanged}
+          rowSelection={rowSelectionConfig}
+          selectionColumnDef={selectionColumnDef}
+          animateRows={true}
+          enableCellTextSelection={false}
+          loading={loading}
+          suppressCellFocus={false}
+          suppressMenuHide={true}
+          domLayout="normal"
+          rowHeight={31}
+          headerHeight={36}
+          suppressScrollOnNewData={true}
+          debounceVerticalScrollbar={true}
+          maintainColumnOrder={true}
+          singleClickEdit={false}
+          stopEditingWhenCellsLoseFocus={true}
+          enterNavigatesVertically={true}
+          enterNavigatesVerticallyAfterEdit={true}
+          className="w-full h-full"
+        />
+      </div>
+
+      {renderFooter()}
+    </div>
+  );
+};
+
+AGGridTable.displayName = 'AGGridTable';

@@ -1,0 +1,683 @@
+/**
+ * AG Grid Custom Dark Theme
+ *
+ * Customizes AG Grid Quartz theme to match HowlerOps dark theme design system.
+ * Uses oklch CSS variables from index.css for consistent theming.
+ */
+
+/* ============================================================================
+   Base Theme Configuration (Quartz Dark)
+   ============================================================================ */
+
+.ag-theme-quartz-dark {
+  /* Background colors - pure black background matching app */
+  --ag-background-color: var(--background); /* oklch(0 0 0) - pure black */
+  --ag-foreground-color: var(--foreground); /* oklch(0.9067 0 0) - light gray text */
+  --ag-data-color: var(--foreground);
+
+  /* Header styling - use muted background like EditableTable */
+  --ag-header-background-color: var(--muted); /* oklch(0.3211 0 0) - dark gray */
+  --ag-header-foreground-color: var(--muted-foreground); /* oklch(0.7380 0 0) */
+  --ag-header-cell-hover-background-color: var(--accent);
+  --ag-header-cell-moving-background-color: var(--accent);
+
+  /* Row styling - clean dark theme */
+  --ag-odd-row-background-color: var(--background);
+  --ag-row-hover-color: var(--accent); /* oklch(0.2567 0.0530 81.3457) */
+  --ag-selected-row-background-color: var(--accent);
+
+  /* Cell styling */
+  --ag-cell-horizontal-padding: 12px;
+  --ag-cell-vertical-padding: 6px;
+
+  /* Border colors - subtle borders */
+  --ag-border-color: var(--border); /* oklch(0.2850 0 0) */
+  --ag-row-border-color: var(--border);
+  --ag-row-border-width: 1px;
+
+  /* Input and interaction colors */
+  --ag-input-border-color: var(--border);
+  --ag-input-focus-border-color: var(--ring); /* oklch(0.7516 0.1469 83.9881) - primary */
+  --ag-input-disabled-border-color: var(--border);
+  --ag-input-disabled-background-color: var(--muted);
+
+  /* Selection and range colors */
+  --ag-range-selection-border-color: var(--ring);
+  --ag-range-selection-background-color: var(--accent);
+  --ag-range-selection-highlight-color: var(--primary);
+
+  /* Checkbox colors */
+  --ag-checkbox-checked-color: var(--primary);
+  --ag-checkbox-unchecked-color: var(--border);
+  --ag-checkbox-indeterminate-color: var(--primary);
+
+  /* Typography - use Fira Code monospace */
+  --ag-font-family: var(--font-mono);
+  --ag-font-size: 13px;
+
+  /* Grid dimensions matching EditableTable */
+  --ag-row-height: 31px;
+  --ag-header-height: 36px;
+  --ag-list-item-height: 31px;
+
+  /* Borders and radius */
+  --ag-borders: solid 1px;
+  --ag-border-radius: 0;
+  --ag-card-radius: 0;
+  --ag-wrapper-border-radius: 0;
+
+  /* Icons and controls */
+  --ag-icon-size: 14px;
+
+  /* Modal and overlay */
+  --ag-modal-overlay-background-color: oklch(0 0 0 / 0.8);
+
+  /* Disabled state */
+  --ag-disabled-foreground-color: var(--muted-foreground);
+
+  /* Validation colors */
+  --ag-invalid-color: var(--destructive);
+
+  /* Menu and popup colors */
+  --ag-popup-shadow: var(--shadow-lg);
+}
+
+/* ============================================================================
+   Root Wrapper
+   ============================================================================ */
+
+.ag-theme-quartz-dark .ag-root-wrapper {
+  background-color: var(--background);
+  border: none;
+  font-family: var(--font-mono);
+}
+
+/* ============================================================================
+   Header Styling
+   ============================================================================ */
+
+.ag-theme-quartz-dark .ag-header {
+  background-color: var(--muted);
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-mono);
+}
+
+.ag-theme-quartz-dark .ag-header-row {
+  background-color: var(--muted);
+}
+
+.ag-theme-quartz-dark .ag-header-cell {
+  background-color: var(--muted);
+  color: var(--muted-foreground);
+  font-weight: 500;
+  font-size: 12px;
+  border-right: none;
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+.ag-theme-quartz-dark .ag-header-cell:hover {
+  background-color: var(--accent);
+}
+
+.ag-theme-quartz-dark .ag-header-cell-text {
+  text-transform: none;
+  letter-spacing: normal;
+  font-family: var(--font-mono);
+}
+
+.ag-theme-quartz-dark .ag-header-cell-label {
+  font-family: var(--font-mono);
+}
+
+/* Hide column menu and filter buttons - we use global controls instead */
+.ag-theme-quartz-dark .ag-header-cell-menu-button,
+.ag-theme-quartz-dark .ag-header-cell-filter-button,
+.ag-theme-quartz-dark .ag-floating-filter-button {
+  display: none !important;
+}
+
+/* Sort indicator */
+.ag-theme-quartz-dark .ag-header-cell-sorted-asc,
+.ag-theme-quartz-dark .ag-header-cell-sorted-desc {
+  background-color: var(--accent);
+}
+
+.ag-theme-quartz-dark .ag-sort-indicator-icon {
+  color: var(--primary);
+}
+
+.ag-theme-quartz-dark .ag-icon-asc,
+.ag-theme-quartz-dark .ag-icon-desc {
+  color: var(--primary);
+}
+
+/* ============================================================================
+   Row Styling
+   ============================================================================ */
+
+.ag-theme-quartz-dark .ag-row {
+  background-color: var(--background);
+  border-bottom: 1px solid var(--border);
+  color: var(--foreground);
+}
+
+.ag-theme-quartz-dark .ag-row:hover {
+  background-color: var(--accent);
+}
+
+.ag-theme-quartz-dark .ag-row-odd {
+  background-color: var(--background);
+}
+
+.ag-theme-quartz-dark .ag-row-even {
+  background-color: var(--background);
+}
+
+.ag-theme-quartz-dark .ag-row-selected {
+  background-color: var(--accent) !important;
+}
+
+.ag-theme-quartz-dark .ag-row-selected:hover {
+  background-color: var(--accent) !important;
+}
+
+.ag-theme-quartz-dark .ag-row-selected::before {
+  background-color: var(--primary);
+}
+
+/* ============================================================================
+   Cell Styling
+   ============================================================================ */
+
+.ag-theme-quartz-dark .ag-cell {
+  line-height: 29px;
+  padding-left: 12px;
+  padding-right: 12px;
+  border-right: none;
+  color: var(--foreground);
+  font-family: var(--font-mono);
+  /* Force consistent cell height - never overflow */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ag-theme-quartz-dark .ag-cell-value {
+  font-family: var(--font-mono);
+  /* Ensure cell content truncates */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.ag-theme-quartz-dark .ag-cell-wrapper {
+  font-family: var(--font-mono);
+  /* Ensure wrapper doesn't expand beyond cell */
+  overflow: hidden;
+  max-width: 100%;
+}
+
+/* Cell focus */
+.ag-theme-quartz-dark .ag-cell-focus:not(.ag-cell-range-selected):focus-within {
+  border: 2px solid var(--ring) !important;
+  outline: none;
+}
+
+.ag-theme-quartz-dark .ag-cell-inline-editing {
+  background-color: var(--background);
+  border: 2px solid var(--ring) !important;
+  border-radius: 2px;
+  padding: 0 10px;
+}
+
+.ag-theme-quartz-dark .ag-cell-inline-editing input {
+  background-color: transparent;
+  color: var(--foreground);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+/* ============================================================================
+   Custom Cell States
+   ============================================================================ */
+
+/* Dirty cell indicator (top-left triangle) */
+.ag-cell-dirty {
+  position: relative;
+}
+
+.ag-cell-dirty::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 6px 6px 0 0;
+  border-color: var(--primary) transparent transparent transparent;
+  z-index: 1;
+}
+
+/* New row indicator */
+.ag-row-new {
+  background-color: oklch(0.5 0.15 145 / 0.1) !important;
+}
+
+/* Primary key column styling */
+.ag-cell-primary-key {
+  font-weight: 600;
+  color: var(--primary);
+}
+
+/* NULL value styling */
+.cell-null {
+  color: var(--muted-foreground);
+  font-style: italic;
+}
+
+/* Eye icon for row inspection */
+.inspect-row-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Ensure eye icon shows on row hover even if not hovering directly on cell */
+.ag-theme-quartz-dark .ag-row:hover .inspect-row-btn {
+  opacity: 1;
+}
+
+/* ============================================================================
+   Selection Checkbox - Rounded edges matching app design
+   ============================================================================ */
+
+.ag-theme-quartz-dark .ag-checkbox-input-wrapper {
+  width: 16px;
+  height: 16px;
+  background-color: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 4px; /* Rounded edges like rest of app */
+  transition: all 0.15s ease;
+}
+
+.ag-theme-quartz-dark .ag-checkbox-input-wrapper:hover {
+  border-color: var(--ring);
+}
+
+.ag-theme-quartz-dark .ag-checkbox-input-wrapper input {
+  cursor: pointer;
+}
+
+.ag-theme-quartz-dark .ag-checkbox-input-wrapper.ag-checked::after {
+  color: var(--primary-foreground);
+}
+
+.ag-theme-quartz-dark .ag-checkbox-input-wrapper.ag-checked {
+  background-color: var(--primary);
+  border-color: var(--primary);
+  border-radius: 4px;
+}
+
+.ag-theme-quartz-dark .ag-checkbox-input-wrapper::after {
+  color: var(--primary-foreground);
+}
+
+/* Header checkbox styling */
+.ag-theme-quartz-dark .ag-header-select-all .ag-checkbox-input-wrapper {
+  border-radius: 4px;
+}
+
+/* ============================================================================
+   Column Resize Handle
+   ============================================================================ */
+
+.ag-theme-quartz-dark .ag-header-cell-resize {
+  width: 4px;
+}
+
+.ag-theme-quartz-dark .ag-header-cell-resize::after {
+  background-color: var(--border);
+  width: 1px;
+}
+
+.ag-theme-quartz-dark .ag-header-cell-resize:hover::after {
+  background-color: var(--ring);
+  width: 2px;
+}
+
+/* ============================================================================
+   Pinned Columns
+   ============================================================================ */
+
+.ag-theme-quartz-dark .ag-pinned-left-header,
+.ag-theme-quartz-dark .ag-pinned-right-header {
+  border-right: 2px solid var(--border);
+}
+
+.ag-theme-quartz-dark .ag-pinned-left-cols-container {
+  border-right: 2px solid var(--border);
+  background-color: var(--background);
+}
+
+.ag-theme-quartz-dark .ag-pinned-right-cols-container {
+  border-left: 2px solid var(--border);
+  background-color: var(--background);
+}
+
+/* ============================================================================
+   Scrollbars
+   ============================================================================ */
+
+.ag-theme-quartz-dark .ag-body-horizontal-scroll-viewport::-webkit-scrollbar,
+.ag-theme-quartz-dark .ag-body-vertical-scroll-viewport::-webkit-scrollbar,
+.ag-theme-quartz-dark ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.ag-theme-quartz-dark .ag-body-horizontal-scroll-viewport::-webkit-scrollbar-track,
+.ag-theme-quartz-dark .ag-body-vertical-scroll-viewport::-webkit-scrollbar-track,
+.ag-theme-quartz-dark ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ag-theme-quartz-dark .ag-body-horizontal-scroll-viewport::-webkit-scrollbar-thumb,
+.ag-theme-quartz-dark .ag-body-vertical-scroll-viewport::-webkit-scrollbar-thumb,
+.ag-theme-quartz-dark ::-webkit-scrollbar-thumb {
+  background: var(--muted);
+  border-radius: 4px;
+}
+
+.ag-theme-quartz-dark .ag-body-horizontal-scroll-viewport::-webkit-scrollbar-thumb:hover,
+.ag-theme-quartz-dark .ag-body-vertical-scroll-viewport::-webkit-scrollbar-thumb:hover,
+.ag-theme-quartz-dark ::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
+}
+
+/* ============================================================================
+   Loading Overlay
+   ============================================================================ */
+
+.ag-theme-quartz-dark .ag-overlay-loading-wrapper {
+  background-color: var(--background);
+}
+
+.ag-theme-quartz-dark .ag-overlay-loading-center {
+  background-color: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 16px 24px;
+  color: var(--foreground);
+  box-shadow: var(--shadow-lg);
+}
+
+/* No rows overlay */
+.ag-theme-quartz-dark .ag-overlay-no-rows-center {
+  background-color: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 16px 24px;
+  color: var(--muted-foreground);
+}
+
+.ag-theme-quartz-dark .ag-overlay-no-rows-wrapper {
+  background-color: var(--background);
+}
+
+/* ============================================================================
+   Filter Panel
+   ============================================================================ */
+
+.ag-theme-quartz-dark .ag-filter {
+  background-color: var(--popover);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  box-shadow: var(--shadow-lg);
+  color: var(--foreground);
+}
+
+.ag-theme-quartz-dark .ag-filter-toolpanel-header {
+  background-color: var(--muted);
+  color: var(--muted-foreground);
+}
+
+.ag-theme-quartz-dark .ag-filter-apply-panel {
+  border-top: 1px solid var(--border);
+  padding: 8px;
+  background-color: var(--popover);
+}
+
+.ag-theme-quartz-dark .ag-filter-apply-panel button {
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+  border: none;
+  border-radius: 0.25rem;
+  padding: 4px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: var(--font-mono);
+}
+
+.ag-theme-quartz-dark .ag-filter-apply-panel button:hover {
+  opacity: 0.9;
+}
+
+.ag-theme-quartz-dark .ag-filter-wrapper {
+  background-color: var(--popover);
+  color: var(--foreground);
+}
+
+.ag-theme-quartz-dark .ag-input-field-input {
+  background-color: var(--input);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  font-family: var(--font-mono);
+}
+
+.ag-theme-quartz-dark .ag-input-field-input:focus {
+  border-color: var(--ring);
+  outline: none;
+}
+
+/* ============================================================================
+   Large Text Cell Editor (Popup)
+   ============================================================================ */
+
+/* Popup editor container - constrain size */
+.ag-theme-quartz-dark .ag-popup-editor {
+  background-color: var(--background) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  max-width: min(500px, 80vw);
+  max-height: min(350px, 70vh);
+}
+
+.ag-theme-quartz-dark .ag-large-text-input {
+  background-color: var(--background) !important;
+  border: none !important;
+  border-radius: 0.5rem;
+  padding: 0;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+}
+
+.ag-theme-quartz-dark .ag-large-text-input textarea {
+  background-color: var(--background) !important;
+  color: var(--foreground) !important;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  padding: 12px;
+  border: none !important;
+  outline: none;
+  resize: both;
+  min-width: 280px;
+  min-height: 120px;
+  max-width: min(480px, 78vw);
+  max-height: min(330px, 68vh);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.ag-theme-quartz-dark .ag-large-text-input textarea:focus {
+  outline: none;
+  border: none !important;
+}
+
+.ag-theme-quartz-dark .ag-popup-editor .ag-large-text-input {
+  border: none;
+  box-shadow: none;
+}
+
+/* Ensure the wrapper also has dark background */
+.ag-theme-quartz-dark .ag-text-area-input-wrapper {
+  background-color: var(--background) !important;
+}
+
+/* ============================================================================
+   Context Menu
+   ============================================================================ */
+
+.ag-theme-quartz-dark .ag-menu {
+  background-color: var(--popover);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  box-shadow: var(--shadow-lg);
+  color: var(--foreground);
+}
+
+.ag-theme-quartz-dark .ag-menu-option {
+  padding: 8px 12px;
+  font-family: var(--font-mono);
+}
+
+.ag-theme-quartz-dark .ag-menu-option-active {
+  background-color: var(--accent);
+}
+
+.ag-theme-quartz-dark .ag-menu-separator {
+  background-color: var(--border);
+}
+
+/* ============================================================================
+   Tooltip
+   ============================================================================ */
+
+.ag-theme-quartz-dark .ag-tooltip {
+  background-color: var(--popover);
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+  color: var(--foreground);
+  padding: 6px 10px;
+  font-size: 12px;
+  box-shadow: var(--shadow-md);
+  font-family: var(--font-mono);
+}
+
+/* ============================================================================
+   Pagination (if used)
+   ============================================================================ */
+
+.ag-theme-quartz-dark .ag-paging-panel {
+  background-color: var(--muted);
+  border-top: 1px solid var(--border);
+  color: var(--muted-foreground);
+  font-family: var(--font-mono);
+}
+
+.ag-theme-quartz-dark .ag-paging-button {
+  color: var(--foreground);
+}
+
+.ag-theme-quartz-dark .ag-paging-button:hover {
+  background-color: var(--accent);
+}
+
+.ag-theme-quartz-dark .ag-paging-button[disabled] {
+  color: var(--muted-foreground);
+}
+
+/* ============================================================================
+   Status Bar
+   ============================================================================ */
+
+.ag-theme-quartz-dark .ag-status-bar {
+  background-color: var(--muted);
+  border-top: 1px solid var(--border);
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-family: var(--font-mono);
+}
+
+.ag-theme-quartz-dark .ag-status-name-value-value {
+  color: var(--foreground);
+}
+
+/* ============================================================================
+   Side Bar (Column Tool Panel)
+   ============================================================================ */
+
+.ag-theme-quartz-dark .ag-side-bar {
+  background-color: var(--card);
+  border-left: 1px solid var(--border);
+}
+
+.ag-theme-quartz-dark .ag-tool-panel-wrapper {
+  background-color: var(--card);
+  color: var(--foreground);
+}
+
+/* ============================================================================
+   Icons
+   ============================================================================ */
+
+.ag-theme-quartz-dark .ag-icon {
+  font-family: var(--font-mono);
+  color: var(--foreground);
+}
+
+/* ============================================================================
+   Performance Optimizations
+   ============================================================================ */
+
+/* Reduce animations for large datasets */
+@media (prefers-reduced-motion: reduce) {
+  .ag-theme-quartz-dark {
+    --ag-transition-speed: 0ms;
+  }
+
+  .ag-theme-quartz-dark .ag-row,
+  .ag-theme-quartz-dark .ag-cell {
+    transition: none !important;
+  }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  .ag-theme-quartz-dark {
+    --ag-border-color: var(--foreground);
+  }
+
+  .ag-theme-quartz-dark .ag-row {
+    border-bottom-width: 2px;
+  }
+}
+
+/* ============================================================================
+   Container Sizing
+   ============================================================================ */
+
+.ag-theme-quartz-dark {
+  width: 100%;
+  height: 100%;
+}
+
+.ag-theme-quartz-dark .ag-root-wrapper {
+  height: 100%;
+}
