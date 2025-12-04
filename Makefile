@@ -130,7 +130,7 @@ dev: check-node check-wails deps proto init-local-db
 		echo \"$(COLOR_BLUE)Waiting for Vite dev server...$(COLOR_RESET)\"; \
 		sleep 2; \
 		cd ..; \
-		$(WAILS) dev -s -frontenddevserverurl http://localhost:5173 || true; \
+		$(WAILS) dev -s -frontenddevserverurl http://127.0.0.1:5174 || true; \
 		kill "$$FRONTEND_PID" 2>/dev/null || true'
 
 ## dev-browser: Start development mode in browser with hot reload
@@ -146,7 +146,7 @@ dev-browser: check-node check-wails deps proto
 		echo \"$(COLOR_BLUE)Waiting for Vite dev server...$(COLOR_RESET)\"; \
 		sleep 2; \
 		cd ..; \
-		$(WAILS) dev -browser -s -frontenddevserverurl http://localhost:5173 || true; \
+		$(WAILS) dev -browser -s -frontenddevserverurl http://127.0.0.1:5174 || true; \
 		kill "$$FRONTEND_PID" 2>/dev/null || true'
 
 ## proto: Generate protobuf files

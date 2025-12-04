@@ -44,7 +44,7 @@
   "reloaddirs": "./backend-go,./app.go,./main.go",
   "wailsjsdir": "./frontend",
   "debounceMS": 500,
-  "devServer": "localhost:5173",
+  "devServer": "localhost:5174",
   "appargs": "",
   "runNonNativeBuildHooks": false,
   "preBuildHooks": {},
