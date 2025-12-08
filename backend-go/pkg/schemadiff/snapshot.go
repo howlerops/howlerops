@@ -21,8 +21,8 @@ type SnapshotManager struct {
 
 // NewSnapshotManager creates a new snapshot manager
 func NewSnapshotManager(snapshotDir string) (*SnapshotManager, error) {
-	// Ensure snapshot directory exists
-	if err := os.MkdirAll(snapshotDir, 0755); err != nil {
+	// Ensure snapshot directory exists (0750 for security - owner rwx, group rx, other none)
+	if err := os.MkdirAll(snapshotDir, 0750); err != nil {
 		return nil, fmt.Errorf("failed to create snapshot directory: %w", err)
 	}
 
@@ -63,8 +63,14 @@ func (sm *SnapshotManager) SaveSnapshot(ctx context.Context, db database.Databas
 
 // LoadSnapshot loads a snapshot from disk by ID
 func (sm *SnapshotManager) LoadSnapshot(snapshotID string) (*SchemaSnapshot, error) {
+	// Validate snapshotID to prevent path traversal (G304)
+	if err := sm.validateSnapshotID(snapshotID); err != nil {
+		return nil, err
+	}
+
 	filePath := sm.getSnapshotPath(snapshotID)
 
+	// #nosec G304 - filePath is validated via validateSnapshotID
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read snapshot file: %w", err)
@@ -100,8 +106,9 @@ func (sm *SnapshotManager) ListSnapshots() ([]SnapshotMetadata, error) {
 			continue
 		}
 
-		// Read snapshot file
+		// Read snapshot file - path is constructed from controlled directory listing
 		filePath := filepath.Join(sm.snapshotDir, file.Name())
+		// #nosec G304 - filePath constructed from os.ReadDir entries within snapshotDir
 		data, err := os.ReadFile(filePath)
 		if err != nil {
 			continue // Skip files that can't be read
@@ -142,6 +149,11 @@ func (sm *SnapshotManager) ListSnapshots() ([]SnapshotMetadata, error) {
 
 // DeleteSnapshot deletes a snapshot by ID
 func (sm *SnapshotManager) DeleteSnapshot(snapshotID string) error {
+	// Validate snapshotID to prevent path traversal
+	if err := sm.validateSnapshotID(snapshotID); err != nil {
+		return err
+	}
+
 	filePath := sm.getSnapshotPath(snapshotID)
 	if err := os.Remove(filePath); err != nil {
 		return fmt.Errorf("failed to delete snapshot: %w", err)
@@ -158,7 +170,7 @@ func (sm *SnapshotManager) writeSnapshot(snapshot *SchemaSnapshot) error {
 		return fmt.Errorf("failed to marshal snapshot: %w", err)
 	}
 
-	if err := os.WriteFile(filePath, data, 0644); err != nil {
+	if err := os.WriteFile(filePath, data, 0600); err != nil {
 		return fmt.Errorf("failed to write snapshot file: %w", err)
 	}
 
@@ -168,6 +180,27 @@ func (sm *SnapshotManager) writeSnapshot(snapshot *SchemaSnapshot) error {
 // getSnapshotPath returns the file path for a snapshot
 func (sm *SnapshotManager) getSnapshotPath(snapshotID string) string {
 	return filepath.Join(sm.snapshotDir, fmt.Sprintf("%s.json", snapshotID))
+}
+
+// validateSnapshotID validates that a snapshot ID is safe and doesn't contain path traversal
+func (sm *SnapshotManager) validateSnapshotID(snapshotID string) error {
+	if snapshotID == "" {
+		return fmt.Errorf("snapshot ID cannot be empty")
+	}
+
+	// Check for path traversal attempts
+	if filepath.Base(snapshotID) != snapshotID {
+		return fmt.Errorf("invalid snapshot ID: contains path separators")
+	}
+
+	// Ensure the resolved path is within the snapshot directory
+	filePath := sm.getSnapshotPath(snapshotID)
+	cleanPath := filepath.Clean(filePath)
+	if !filepath.HasPrefix(cleanPath, filepath.Clean(sm.snapshotDir)) {
+		return fmt.Errorf("invalid snapshot ID: path traversal detected")
+	}
+
+	return nil
 }
 
 // computeHash computes a SHA-256 hash of the snapshot content

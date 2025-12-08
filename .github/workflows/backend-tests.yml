@@ -140,7 +140,7 @@ jobs:
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v7
         with:
-          version: v2.6.1
+          version: v2.7.2
           working-directory: backend-go
           args: --timeout=5m
           skip-cache: true  # Temporarily skip cache to force re-lint with updated config
