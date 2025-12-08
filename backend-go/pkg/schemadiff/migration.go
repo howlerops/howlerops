@@ -349,12 +349,12 @@ func (mg *MigrationGenerator) quoteIdentifier(identifier string) string {
 
 // MigrationScript represents a generated migration script
 type MigrationScript struct {
-	Direction   MigrationDirection `json:"direction"`
+	Direction    MigrationDirection    `json:"direction"`
 	DatabaseType database.DatabaseType `json:"database_type"`
-	SQL         string             `json:"sql"`
-	GeneratedAt time.Time          `json:"generated_at"`
-	SourceID    string             `json:"source_id"`
-	TargetID    string             `json:"target_id"`
+	SQL          string                `json:"sql"`
+	GeneratedAt  time.Time             `json:"generated_at"`
+	SourceID     string                `json:"source_id"`
+	TargetID     string                `json:"target_id"`
 }
 
 // GenerateForwardScript generates a forward migration script (source -> target)

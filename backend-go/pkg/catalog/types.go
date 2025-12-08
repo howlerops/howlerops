@@ -4,18 +4,18 @@ import "time"
 
 // TableCatalogEntry represents catalog metadata for a table
 type TableCatalogEntry struct {
-	ID             string                 `json:"id"`
-	ConnectionID   string                 `json:"connection_id"`
-	SchemaName     string                 `json:"schema_name"`
-	TableName      string                 `json:"table_name"`
-	Description    string                 `json:"description,omitempty"`
-	StewardUserID  *string                `json:"steward_user_id,omitempty"`
-	Tags           []string               `json:"tags,omitempty"`
-	OrganizationID *string                `json:"organization_id,omitempty"`
-	Columns        []*ColumnCatalogEntry  `json:"columns,omitempty"`
-	CreatedAt      time.Time              `json:"created_at"`
-	UpdatedAt      time.Time              `json:"updated_at"`
-	CreatedBy      string                 `json:"created_by"`
+	ID             string                `json:"id"`
+	ConnectionID   string                `json:"connection_id"`
+	SchemaName     string                `json:"schema_name"`
+	TableName      string                `json:"table_name"`
+	Description    string                `json:"description,omitempty"`
+	StewardUserID  *string               `json:"steward_user_id,omitempty"`
+	Tags           []string              `json:"tags,omitempty"`
+	OrganizationID *string               `json:"organization_id,omitempty"`
+	Columns        []*ColumnCatalogEntry `json:"columns,omitempty"`
+	CreatedAt      time.Time             `json:"created_at"`
+	UpdatedAt      time.Time             `json:"updated_at"`
+	CreatedBy      string                `json:"created_by"`
 }
 
 // ColumnCatalogEntry represents catalog metadata for a column
