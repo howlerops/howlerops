@@ -346,3 +346,29 @@ export interface JsonViewerState {
   isSaving: boolean;
   saveError: string | null;
 }
+
+// =============================================================================
+// State Context Types (migrated from editable-table/context/)
+// =============================================================================
+
+/**
+ * Edit state value for table editing context
+ */
+export interface EditStateValue {
+  editingCell: CellEditState | null;
+  invalidCells: ReadonlyMap<string, { columnId: string; error: string }>;
+  dirtyRows: ReadonlySet<string>;
+  undoStack: readonly TableAction[];
+  redoStack: readonly TableAction[];
+  hasUndoActions: boolean;
+  hasRedoActions: boolean;
+}
+
+/**
+ * Selection state value for table selection context
+ */
+export interface SelectionStateValue {
+  selectedRows: readonly string[];
+  selectAllPagesMode: boolean;
+  selectedCount: number;
+}

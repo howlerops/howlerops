@@ -8,5 +8,18 @@ export default {
     "./app/**/*.{ts,tsx}",
     "./src/**/*.{ts,tsx}",
   ],
+  theme: {
+    extend: {
+      keyframes: {
+        "highlight-fade": {
+          "0%": { backgroundColor: "hsl(var(--primary) / 0.15)" },
+          "100%": { backgroundColor: "transparent" },
+        },
+      },
+      animation: {
+        "highlight-fade": "highlight-fade 2s ease-out forwards",
+      },
+    },
+  },
   plugins: [tailwindcssAnimate],
 }

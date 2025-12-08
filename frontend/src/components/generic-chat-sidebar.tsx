@@ -1,6 +1,11 @@
 import { AlertCircle, BarChart3, Database, FileText, Lightbulb, Loader2, MessageCircle, Network, Pencil, Plus, Search, SendHorizontal, Sparkles, TrendingUp } from "lucide-react"
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
+import {
+  NewContentNotification,
+  StreamingIndicator,
+  useStreamingStartTime,
+} from "@/components/ai-streaming"
 import { EmptyState, type ExampleQuery } from "@/components/empty-states/EmptyState"
 import { MultiDBConnectionSelector } from "@/components/multi-db-connection-selector"
 import { SchemaContextSelector } from "@/components/schema-context-selector"
@@ -85,6 +90,13 @@ export function GenericChatSidebar({ open, onClose, connections, schemasMap }: G
   const [selectedConnectionIds, setSelectedConnectionIds] = useState<string[]>([])
   const [showSelector, setShowSelector] = useState(false)
 
+  // Streaming and scroll state
+  const [hasNewContent, setHasNewContent] = useState(false)
+  const [isNearBottom, setIsNearBottom] = useState(true)
+  const messageContainerRef = useRef<HTMLDivElement>(null)
+  const lastMessageCountRef = useRef(0)
+  const streamingStartTime = useStreamingStartTime(isGenerating)
+
   const genericSessions = useMemo(() =>
     Object.values(memorySessions)
       .filter(session => session.metadata?.chatType === 'generic')
@@ -150,6 +162,36 @@ export function GenericChatSidebar({ open, onClose, connections, schemasMap }: G
       // ignore
     }
   }, [mode, singleConnectionId, selectedConnectionIds, connections, schemasMap])
+
+  // Track message count changes for new content notification
+  useEffect(() => {
+    const messageCount = activeMessages.length
+    if (messageCount > lastMessageCountRef.current && !isNearBottom) {
+      setHasNewContent(true)
+    }
+    lastMessageCountRef.current = messageCount
+  }, [activeMessages.length, isNearBottom])
+
+  // Scroll to bottom function
+  const scrollToBottom = useCallback(() => {
+    const container = messageContainerRef.current
+    if (container) {
+      container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' })
+      setHasNewContent(false)
+    }
+  }, [])
+
+  // Check if near bottom when scrolling
+  const handleScroll = useCallback(() => {
+    const container = messageContainerRef.current
+    if (!container) return
+    const { scrollTop, scrollHeight, clientHeight } = container
+    const nearBottom = scrollHeight - scrollTop - clientHeight <= 100
+    setIsNearBottom(nearBottom)
+    if (nearBottom) {
+      setHasNewContent(false)
+    }
+  }, [])
 
   const handleCreateSession = () => {
     const id = startNewSession({
@@ -354,36 +396,62 @@ export function GenericChatSidebar({ open, onClose, connections, schemasMap }: G
                 />
               </div>
             ) : (
-              <VirtualMessageList
-                messages={activeMessages}
-                renderMessage={(messageEntry) => (
-                  <div
-                    className={cn(
-                      "max-w-[85%] rounded-lg border px-3 py-2 text-sm shadow-sm mx-3 my-2",
-                      messageEntry.role === 'assistant'
-                        ? "ml-auto bg-primary/5 border-primary/30"
-                        : "mr-auto bg-background"
+              <div className="flex-1 relative rounded-lg border bg-muted/20 overflow-hidden">
+                <div
+                  ref={messageContainerRef}
+                  onScroll={handleScroll}
+                  className="h-full overflow-auto"
+                >
+                  <VirtualMessageList
+                    messages={activeMessages}
+                    renderMessage={(messageEntry) => (
+                      <div
+                        className={cn(
+                          "max-w-[85%] rounded-lg border px-3 py-2 text-sm shadow-sm mx-3 my-2",
+                          messageEntry.role === 'assistant'
+                            ? "ml-auto bg-primary/5 border-primary/30"
+                            : "mr-auto bg-background"
+                        )}
+                      >
+                        <div className="mb-1 flex items-center gap-2 text-xs uppercase text-muted-foreground">
+                          <span>{messageEntry.role}</span>
+                          {messageEntry.metadata?.provider ? (
+                            <Badge variant="outline" className="text-[10px]">
+                              {String(messageEntry.metadata.provider)}
+                            </Badge>
+                          ) : null}
+                        </div>
+                        <div className="whitespace-pre-wrap leading-relaxed text-sm">
+                          {messageEntry.content}
+                        </div>
+                      </div>
                     )}
-                  >
-                    <div className="mb-1 flex items-center gap-2 text-xs uppercase text-muted-foreground">
-                      <span>{messageEntry.role}</span>
-                      {messageEntry.metadata?.provider ? (
-                        <Badge variant="outline" className="text-[10px]">
-                          {String(messageEntry.metadata.provider)}
-                        </Badge>
-                      ) : null}
+                    getMessageKey={(messageEntry) => messageEntry.id}
+                    estimateSize={80}
+                    overscan={3}
+                    className="h-full"
+                    autoScroll={isNearBottom}
+                  />
+
+                  {/* Streaming indicator */}
+                  {isGenerating && (
+                    <div className="px-3 py-2">
+                      <StreamingIndicator
+                        isStreaming={isGenerating}
+                        startTime={streamingStartTime}
+                        stage="AI is generating response"
+                      />
                     </div>
-                    <div className="whitespace-pre-wrap leading-relaxed text-sm">
-                      {messageEntry.content}
-                    </div>
-                  </div>
-                )}
-                getMessageKey={(messageEntry) => messageEntry.id}
-                estimateSize={80}
-                overscan={3}
-                className="flex-1 rounded-lg border bg-muted/20"
-                autoScroll={true}
-              />
+                  )}
+                </div>
+
+                {/* New content notification */}
+                <NewContentNotification
+                  show={hasNewContent && !isNearBottom}
+                  onClick={scrollToBottom}
+                  newMessageCount={1}
+                />
+              </div>
             )}
 
             <div className="space-y-4">

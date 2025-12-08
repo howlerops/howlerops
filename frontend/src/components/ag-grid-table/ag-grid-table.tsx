@@ -9,6 +9,7 @@ import {
   type GetRowIdParams,
   type GridApi,
   type GridReadyEvent,
+  type SizeColumnsToFitGridStrategy,
   ModuleRegistry,
   type RowSelectedEvent,
   type SelectionColumnDef,
@@ -665,13 +666,17 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
   }), []);
 
   /**
-   * Auto-size columns on first data render
-   * Sizes columns based on content up to a max width
+   * Auto-size strategy for intelligent column width distribution
+   * - Auto-sizes based on content initially
+   * - Distributes any remaining space proportionally across columns
+   * - Still respects min/max width constraints
+   * - Enables horizontal scrolling when columns exceed available width
    */
-  const onFirstDataRendered = useCallback((event: FirstDataRenderedEvent) => {
-    // Auto-size all columns based on content
-    event.api.autoSizeAllColumns();
-  }, []);
+  const autoSizeStrategy = useMemo<SizeColumnsToFitGridStrategy>(() => ({
+    type: 'fitGridWidth',
+    defaultMinWidth: 80,
+    defaultMaxWidth: 400,
+  }), []);
 
   /**
    * Container height calculation
@@ -703,9 +708,9 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
           rowData={data}
           columnDefs={columnDefs}
           defaultColDef={defaultColDef}
+          autoSizeStrategy={autoSizeStrategy}
           getRowId={getRowId}
           onGridReady={onGridReady}
-          onFirstDataRendered={onFirstDataRendered}
           onCellValueChanged={onCellValueChanged}
           onSelectionChanged={onSelectionChanged}
           onRowClicked={onRowClicked}
@@ -713,7 +718,8 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
           onFilterChanged={onFilterChanged}
           rowSelection={rowSelectionConfig}
           selectionColumnDef={selectionColumnDef}
-          animateRows={true}
+          // Performance: disable row animations for smoother scrolling
+          animateRows={false}
           enableCellTextSelection={false}
           loading={loading}
           suppressCellFocus={false}
@@ -722,12 +728,18 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
           rowHeight={31}
           headerHeight={36}
           suppressScrollOnNewData={true}
-          debounceVerticalScrollbar={true}
+          // Performance: disable scrollbar debouncing for immediate scroll response
+          debounceVerticalScrollbar={false}
           maintainColumnOrder={true}
           singleClickEdit={false}
           stopEditingWhenCellsLoseFocus={true}
           enterNavigatesVertically={true}
           enterNavigatesVerticallyAfterEdit={true}
+          // Performance: pre-render 20 rows above/below viewport (620px buffer zone)
+          // This creates a larger cushion to prevent white flash during fast scrolling
+          rowBuffer={20}
+          // Performance: reduce DOM overhead by removing row transform animations
+          suppressRowTransform={true}
           className="w-full h-full"
         />
       </div>

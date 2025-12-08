@@ -162,8 +162,8 @@ export function QueryModeSwitcher({
               />
 
               {!canSwitchToVisual && mode === 'sql' && !sqlLocked && (
-                <Alert variant="warning">
-                  <AlertCircle className="h-4 w-4" />
+                <Alert variant="default" className="border-yellow-500/50 bg-yellow-50 dark:bg-yellow-900/10">
+                  <AlertCircle className="h-4 w-4 text-yellow-600 dark:text-yellow-500" />
                   <AlertDescription>
                     Manual SQL edits prevent switching back to visual builder mode. To use the visual builder again,
                     you&apos;ll need to create a new query.

@@ -275,8 +275,8 @@ export function ChartRenderer({
                 dataKey={field}
                 fill={CHART_COLORS[idx % CHART_COLORS.length]}
                 radius={[4, 4, 0, 0]}
-                onClick={drillDownEnabled ? handleElementClick : undefined}
-                cursor={drillDownEnabled ? 'pointer' : 'default'}
+                onClick={drillDownEnabled ? ((data: any) => handleElementClick(data)) : undefined}
+                style={{ cursor: drillDownEnabled ? 'pointer' : 'default' }}
                 activeBar={drillDownEnabled ? { fill: 'hsl(var(--primary))' } : undefined}
               />
             ))}

@@ -1,40 +1,59 @@
 import {
+  BarChart3,
+  BookOpen,
   ChevronDown,
   ChevronRight,
   Columns,
   Database,
+  FileText,
   Filter,
   Folder,
   FolderOpen,
+  GitCompare,
   Key,
   Loader2,
   Network,
   PanelLeftClose,
   PanelRightOpen,
   Plus,
+  Settings,
   Table,
   Tag,
+  Terminal,
 } from "lucide-react"
-import { lazy, Suspense, useCallback, useEffect, useRef,useState } from "react"
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import { useNavigate } from "react-router-dom"
+import { Link, useLocation, useNavigate } from "react-router-dom"
 
 import { ConnectionSchemaViewer } from "@/components/connection-schema-viewer"
 import { EnvironmentManager } from "@/components/environment-manager"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Separator } from "@/components/ui/separator"
 import type { SchemaNode } from "@/hooks/use-schema-introspection"
 import { toast } from "@/hooks/use-toast"
 import { preloadComponent } from "@/lib/component-preload"
 import { cn } from "@/lib/utils"
-import { type DatabaseConnection,useConnectionStore } from "@/store/connection-store"
+import { type DatabaseConnection, useConnectionStore } from "@/store/connection-store"
 import { useQueryStore } from "@/store/query-store"
 
 // Lazy-load the heavy schema visualizer (uses reactflow)
 const SchemaVisualizerWrapper = lazy(() => import("@/components/schema-visualizer/schema-visualizer").then(m => ({ default: m.SchemaVisualizerWrapper })))
-const preloadSchemaVisualizer = () => import("@/components/schema-visualizer/schema-visualizer").then(m => ({ default: m.SchemaVisualizerWrapper }))
+const preloadSchemaVisualizer = () => import("@/components/schema-visualizer/schema-visualizer").then(m => ({ default: m.SchemaVisualizerWrapper as React.ComponentType<unknown> }))
+
+// Navigation items configuration
+const NAV_ITEMS = [
+  { path: '/dashboard', label: 'Queries', icon: Terminal },
+  { path: '/connections', label: 'Connections', icon: Database },
+  { path: '/reports', label: 'Reports', icon: FileText },
+  { path: '/schema-diff', label: 'Schema Diff', icon: GitCompare },
+  { path: '/data-catalog', label: 'Data Catalog', icon: BookOpen },
+  { path: '/analytics', label: 'Analytics', icon: BarChart3 },
+  { path: '/settings', label: 'Settings', icon: Settings },
+] as const
 
 interface SchemaTreeProps {
   nodes: SchemaNode[]
@@ -113,8 +132,8 @@ export function SchemaTree({ nodes, level = 0 }: SchemaTreeProps) {
             </Button>
 
             {hasChildren && isExpanded && (
-              <SchemaTree 
-                nodes={node.children!} 
+              <SchemaTree
+                nodes={node.children!}
                 level={level + 1}
               />
             )}
@@ -131,6 +150,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ onToggle, isCollapsed = false }: SidebarProps) {
+  const location = useLocation()
   const navigate = useNavigate()
   const {
     connections,
@@ -156,12 +176,13 @@ export function Sidebar({ onToggle, isCollapsed = false }: SidebarProps) {
   }>>({})
   const dbErrorToastRef = useRef<Record<string, string | undefined>>({})
   const [dbAccordionOpen, setDbAccordionOpen] = useState<Record<string, boolean>>({})
-  
+  const [connectionsExpanded, setConnectionsExpanded] = useState(true)
+
   // New state for connection actions
   const [hoveredConnectionId, setHoveredConnectionId] = useState<string | null>(null)
   const [schemaViewConnectionId, setSchemaViewConnectionId] = useState<string | null>(null)
   const [diagramConnectionId, setDiagramConnectionId] = useState<string | null>(null)
-  
+
   // Get filtered connections
   const filteredConnections = getFilteredConnections()
   const loadConnectionDatabases = useCallback(async (connectionId: string) => {
@@ -288,9 +309,9 @@ export function Sidebar({ onToggle, isCollapsed = false }: SidebarProps) {
     }
 
     // Check if connection is already in the tab
-    const isAlreadyInTab = activeTab.connectionId === connectionId || 
+    const isAlreadyInTab = activeTab.connectionId === connectionId ||
       (activeTab.selectedConnectionIds && activeTab.selectedConnectionIds.includes(connectionId))
-    
+
     if (isAlreadyInTab) {
       return
     }
@@ -318,47 +339,55 @@ export function Sidebar({ onToggle, isCollapsed = false }: SidebarProps) {
     setDiagramConnectionId(connectionId)
   }
 
+  // Collapsed sidebar view
   if (isCollapsed) {
     return (
-      <div className="w-10 border-r bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 flex-shrink-0 flex flex-col items-center py-4">
+      <div className="w-12 border-r bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 flex-shrink-0 flex flex-col items-center py-3 gap-1">
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 p-0"
+          className="h-8 w-8 p-0 mb-2"
           onClick={onToggle}
           title="Expand sidebar"
         >
           <PanelRightOpen className="h-4 w-4" />
         </Button>
+
+        <Separator className="w-6 my-2" />
+
+        {/* Collapsed nav icons */}
+        {NAV_ITEMS.map((item) => {
+          const Icon = item.icon
+          const isActive = location.pathname === item.path
+          return (
+            <Button
+              key={item.path}
+              variant={isActive ? "secondary" : "ghost"}
+              size="icon"
+              className="h-8 w-8 p-0"
+              onClick={() => navigate(item.path)}
+              title={item.label}
+            >
+              <Icon className="h-4 w-4" />
+            </Button>
+          )
+        })}
       </div>
     )
   }
 
   return (
-    <div className="w-64 border-r bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 flex-shrink-0">
-      <div className="flex h-full flex-col">
-        {/* Connections Section */}
-        <div className="p-4 border-b">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <h2 className="text-sm font-semibold">Connections</h2>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  navigate('/connections');
-                }}
-                title="Add new connection"
-                className="h-7 w-7 p-0"
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
+    <div className="w-56 border-r bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 flex-shrink-0 flex flex-col">
+      <ScrollArea className="flex-1">
+        <div className="flex flex-col h-full">
+          {/* Header with collapse button */}
+          <div className="p-3 flex items-center justify-between">
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Navigation</span>
             {onToggle && (
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 w-7 p-0"
+                className="h-6 w-6 p-0"
                 onClick={onToggle}
                 title="Collapse sidebar"
               >
@@ -367,244 +396,284 @@ export function Sidebar({ onToggle, isCollapsed = false }: SidebarProps) {
             )}
           </div>
 
-          {/* Environment Filter */}
-          {availableEnvironments.length > 0 && (
-            <div className="mb-3 flex gap-2">
-              <Select
-                value={activeEnvironmentFilter || "__all__"}
-                onValueChange={(value) => setEnvironmentFilter(value === "__all__" ? null : value)}
-              >
-                <SelectTrigger className="h-8 text-xs flex-1">
-                  <div className="flex items-center gap-2">
-                    <Filter className="h-3 w-3" />
-                    <SelectValue placeholder="All Environments" />
-                  </div>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__all__">All Environments</SelectItem>
-                  {availableEnvironments.map((env) => (
-                    <SelectItem key={env} value={env}>
-                      {env}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          {/* Navigation Links */}
+          <nav className="px-2 space-y-1">
+            {NAV_ITEMS.map((item) => {
+              const Icon = item.icon
+              const isActive = location.pathname === item.path
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                    isActive
+                      ? "bg-secondary text-secondary-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  )}
+                >
+                  <Icon className="h-4 w-4 flex-shrink-0" />
+                  <span className="truncate">{item.label}</span>
+                </Link>
+              )
+            })}
+          </nav>
+
+          <Separator className="my-3" />
+
+          {/* Connections Section */}
+          <Collapsible
+            open={connectionsExpanded}
+            onOpenChange={setConnectionsExpanded}
+            className="px-2"
+          >
+            <CollapsibleTrigger asChild>
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 px-2"
-                onClick={() => setShowEnvironmentManager(true)}
-                title="Manage environments"
+                className="w-full justify-between px-3 py-2 h-auto"
               >
-                <Tag className="h-3 w-3" />
+                <div className="flex items-center gap-2">
+                  <Database className="h-4 w-4" />
+                  <span className="text-xs font-semibold uppercase tracking-wider">Active Connections</span>
+                </div>
+                <ChevronDown className={cn("h-4 w-4 transition-transform", !connectionsExpanded && "-rotate-90")} />
               </Button>
-            </div>
-          )}
+            </CollapsibleTrigger>
 
-          {/* Manage Environments button when no environments exist */}
-          {availableEnvironments.length === 0 && connections.length > 0 && (
-            <div className="mb-3">
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full h-8 text-xs"
-                onClick={() => setShowEnvironmentManager(true)}
-              >
-                <Tag className="h-3 w-3 mr-2" />
-                Add Environments
-              </Button>
-            </div>
-          )}
-
-          <div className="space-y-2">
-            {filteredConnections.length === 0 && connections.length > 0 ? (
-              <div className="text-xs text-muted-foreground text-center py-4">
-                No connections for this environment
-              </div>
-            ) : filteredConnections.length === 0 ? (
-              <div className="text-xs text-muted-foreground text-center py-4">
-                No connections configured
-              </div>
-            ) : (
-              filteredConnections.map((connection) => {
-                const isActive = activeConnection?.id === connection.id
-                const isPending = connectingId === connection.id
-                const isHovered = hoveredConnectionId === connection.id
-                const activeTab = tabs.find(tab => tab.id === activeTabId)
-                const isInActiveTab = activeTab && (
-                  activeTab.connectionId === connection.id || 
-                  (activeTab.selectedConnectionIds && activeTab.selectedConnectionIds.includes(connection.id))
-                );
-                const dbState = connectionDbState[connection.id];
-
-                const selectedDatabase =
-                  connection.database && dbState?.options?.includes(connection.database)
-                    ? connection.database
-                    : undefined
-                const accordionOpen = dbAccordionOpen[connection.id] ?? (connection.id === activeConnection?.id)
-
-                return (
-                  <Collapsible
-                    key={connection.id}
-                    open={accordionOpen}
-                    onOpenChange={(open) =>
-                      setDbAccordionOpen((prev) => ({
-                        ...prev,
-                        [connection.id]: open,
-                      }))
-                    }
-                    className="space-y-2"
+            <CollapsibleContent className="space-y-1 mt-1">
+              {/* Environment Filter */}
+              {availableEnvironments.length > 0 && (
+                <div className="px-1 mb-2 flex gap-1">
+                  <Select
+                    value={activeEnvironmentFilter || "__all__"}
+                    onValueChange={(value) => setEnvironmentFilter(value === "__all__" ? null : value)}
                   >
-                    <div
-                      className="flex items-center gap-1 group"
-                      onMouseEnter={() => setHoveredConnectionId(connection.id)}
-                      onMouseLeave={() => setHoveredConnectionId(null)}
+                    <SelectTrigger className="h-7 text-xs flex-1">
+                      <div className="flex items-center gap-1">
+                        <Filter className="h-3 w-3" />
+                        <SelectValue placeholder="All Envs" />
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">All Environments</SelectItem>
+                      {availableEnvironments.map((env) => (
+                        <SelectItem key={env} value={env}>
+                          {env}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0"
+                    onClick={() => setShowEnvironmentManager(true)}
+                    title="Manage environments"
+                  >
+                    <Tag className="h-3 w-3" />
+                  </Button>
+                </div>
+              )}
+
+              {/* Manage Environments button when no environments exist */}
+              {availableEnvironments.length === 0 && connections.length > 0 && (
+                <div className="px-1 mb-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full h-7 text-xs"
+                    onClick={() => setShowEnvironmentManager(true)}
+                  >
+                    <Tag className="h-3 w-3 mr-1" />
+                    Add Environments
+                  </Button>
+                </div>
+              )}
+
+              {/* Connection List */}
+              <div className="space-y-1 px-1">
+                {filteredConnections.length === 0 && connections.length > 0 ? (
+                  <div className="text-xs text-muted-foreground text-center py-3">
+                    No connections for this environment
+                  </div>
+                ) : filteredConnections.length === 0 ? (
+                  <div className="text-xs text-muted-foreground text-center py-3">
+                    <p>No connections</p>
+                    <Button
+                      variant="link"
+                      size="sm"
+                      className="h-auto p-0 text-xs"
+                      onClick={() => navigate('/connections')}
                     >
-                      {/* Connection button */}
-                      <Button
-                        variant={isActive || isPending ? "secondary" : "ghost"}
-                        size="sm"
-                        className="h-8 flex-1 justify-start overflow-hidden"
-                        disabled={isConnecting}
-                        onClick={() => {
-                          void handleConnectionSelect(connection)
-                        }}
+                      Add one
+                    </Button>
+                  </div>
+                ) : (
+                  filteredConnections.map((connection) => {
+                    const isActive = activeConnection?.id === connection.id
+                    const isPending = connectingId === connection.id
+                    const isHovered = hoveredConnectionId === connection.id
+                    const activeTab = tabs.find(tab => tab.id === activeTabId)
+                    const isInActiveTab = activeTab && (
+                      activeTab.connectionId === connection.id ||
+                      (activeTab.selectedConnectionIds && activeTab.selectedConnectionIds.includes(connection.id))
+                    );
+                    const dbState = connectionDbState[connection.id];
+
+                    const selectedDatabase =
+                      connection.database && dbState?.options?.includes(connection.database)
+                        ? connection.database
+                        : undefined
+                    const accordionOpen = dbAccordionOpen[connection.id] ?? (connection.id === activeConnection?.id)
+
+                    return (
+                      <Collapsible
+                        key={connection.id}
+                        open={accordionOpen}
+                        onOpenChange={(open) =>
+                          setDbAccordionOpen((prev) => ({
+                            ...prev,
+                            [connection.id]: open,
+                          }))
+                        }
+                        className="space-y-1"
                       >
-                        <Database className="mr-2 h-4 w-4 flex-shrink-0" />
-                        <span className="truncate flex-1 text-left">{connection.name}</span>
-
-                        {/* Show environment chips when "All" is selected */}
-                        {!activeEnvironmentFilter && connection.environments && connection.environments.length > 0 && (
-                          <div className="flex gap-1 ml-2 flex-shrink-0">
-                            {connection.environments.slice(0, 2).map((env) => (
-                              <Badge key={env} variant="outline" className="text-[10px] px-1 py-0 h-4">
-                                {env}
-                              </Badge>
-                            ))}
-                            {connection.environments.length > 2 && (
-                              <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">
-                                +{connection.environments.length - 2}
-                              </Badge>
-                            )}
-                          </div>
-                        )}
-
-                        <span className="ml-2 inline-flex items-center flex-shrink-0">
-                          {isPending ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : connection.isConnected ? (
-                            <span className="h-2 w-2 rounded-full bg-primary" />
-                          ) : null}
-                        </span>
-                      </Button>
-
-                      {/* Action buttons + accordion toggle */}
-                      {connection.isConnected && (
-                        <>
-                          {isHovered && (
-                            <div className="flex items-center gap-1">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 w-6 p-0"
-                                onClick={() => handleViewSchema(connection.id)}
-                                title="View Tables"
-                              >
-                                <Table className="h-3 w-3" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 w-6 p-0"
-                                onClick={() => handleViewDiagram(connection.id)}
-                                onMouseEnter={() => void preloadComponent(preloadSchemaVisualizer)}
-                                title="View Schema Diagram"
-                              >
-                                <Network className="h-3 w-3" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 w-6 p-0"
-                                onClick={() => handleAddToQueryTab(connection.id)}
-                                disabled={!activeTab || isInActiveTab}
-                                title={!activeTab ? "No active query tab" : isInActiveTab ? "Already in query tab" : "Add to Query Tab"}
-                              >
-                                <Plus className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          )}
-                          <CollapsibleTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 w-6 p-0"
-                              title={accordionOpen ? "Hide database selector" : "Show database selector"}
-                            >
-                              <ChevronDown
-                                className={cn(
-                                  "h-3 w-3 transition-transform",
-                                  accordionOpen && "rotate-180"
-                                )}
-                              />
-                            </Button>
-                          </CollapsibleTrigger>
-                        </>
-                      )}
-                    </div>
-
-                    {connection.isConnected && (
-                      <CollapsibleContent className="pl-6 pr-2">
-                        {dbState?.options && dbState.options.length > 0 ? (
-                          <Select
-                            value={selectedDatabase}
-                            onValueChange={(value) => handleDatabaseSelect(connection, value)}
-                            disabled={dbState?.switching}
-                          >
-                            <SelectTrigger className="h-8 text-xs justify-between">
-                              <SelectValue placeholder="Select database" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {dbState.options.map((db) => (
-                                <SelectItem key={db} value={db}>
-                                  {db}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        ) : (
+                        <div
+                          className="flex items-center gap-1 group"
+                          onMouseEnter={() => setHoveredConnectionId(connection.id)}
+                          onMouseLeave={() => setHoveredConnectionId(null)}
+                        >
+                          {/* Connection button */}
                           <Button
-                            variant="ghost"
+                            variant={isActive || isPending ? "secondary" : "ghost"}
                             size="sm"
-                            className="h-7 px-2 text-xs"
-                            onClick={() => loadConnectionDatabases(connection.id)}
-                            disabled={dbState?.loading}
+                            className="h-7 flex-1 justify-start overflow-hidden text-xs"
+                            disabled={isConnecting}
+                            onClick={() => {
+                              void handleConnectionSelect(connection)
+                            }}
                           >
-                            {dbState?.loading ? (
-                              <>
-                                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                                Loading...
-                              </>
-                            ) : (
-                              'Load databases'
-                            )}
-                          </Button>
-                        )}
-                        {dbState?.error && (
-                          <p className="text-[11px] text-destructive">{dbState.error}</p>
-                        )}
-                      </CollapsibleContent>
-                    )}
-                  </Collapsible>
-                );
-              })
-            )}
-          </div>
-        </div>
+                            <span className="truncate flex-1 text-left">{connection.name}</span>
 
-        <div className="flex-1" />
-      </div>
-      
+                            <span className="ml-1 inline-flex items-center flex-shrink-0">
+                              {isPending ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : connection.isConnected ? (
+                                <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                              ) : null}
+                            </span>
+                          </Button>
+
+                          {/* Action buttons + accordion toggle */}
+                          {connection.isConnected && (
+                            <>
+                              {isHovered && (
+                                <div className="flex items-center">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-5 w-5 p-0"
+                                    onClick={() => handleViewSchema(connection.id)}
+                                    title="View Tables"
+                                  >
+                                    <Table className="h-3 w-3" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-5 w-5 p-0"
+                                    onClick={() => handleViewDiagram(connection.id)}
+                                    onMouseEnter={() => void preloadComponent(preloadSchemaVisualizer)}
+                                    title="View Schema Diagram"
+                                  >
+                                    <Network className="h-3 w-3" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-5 w-5 p-0"
+                                    onClick={() => handleAddToQueryTab(connection.id)}
+                                    disabled={!activeTab || isInActiveTab}
+                                    title={!activeTab ? "No active query tab" : isInActiveTab ? "Already in query tab" : "Add to Query Tab"}
+                                  >
+                                    <Plus className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              )}
+                              <CollapsibleTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-5 w-5 p-0"
+                                  title={accordionOpen ? "Hide database selector" : "Show database selector"}
+                                >
+                                  <ChevronDown
+                                    className={cn(
+                                      "h-3 w-3 transition-transform",
+                                      accordionOpen && "rotate-180"
+                                    )}
+                                  />
+                                </Button>
+                              </CollapsibleTrigger>
+                            </>
+                          )}
+                        </div>
+
+                        {connection.isConnected && (
+                          <CollapsibleContent className="pl-4 pr-1">
+                            {dbState?.options && dbState.options.length > 0 ? (
+                              <Select
+                                value={selectedDatabase}
+                                onValueChange={(value) => handleDatabaseSelect(connection, value)}
+                                disabled={dbState?.switching}
+                              >
+                                <SelectTrigger className="h-7 text-xs justify-between">
+                                  <SelectValue placeholder="Select database" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {dbState.options.map((db) => (
+                                    <SelectItem key={db} value={db}>
+                                      {db}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 px-2 text-xs"
+                                onClick={() => loadConnectionDatabases(connection.id)}
+                                disabled={dbState?.loading}
+                              >
+                                {dbState?.loading ? (
+                                  <>
+                                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                    Loading...
+                                  </>
+                                ) : (
+                                  'Load databases'
+                                )}
+                              </Button>
+                            )}
+                            {dbState?.error && (
+                              <p className="text-[10px] text-destructive mt-1">{dbState.error}</p>
+                            )}
+                          </CollapsibleContent>
+                        )}
+                      </Collapsible>
+                    );
+                  })
+                )}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+
+          <div className="flex-1" />
+        </div>
+      </ScrollArea>
+
       {/* Connection Schema Viewer Modal */}
       {schemaViewConnectionId && (
         <ConnectionSchemaViewer
@@ -612,7 +681,7 @@ export function Sidebar({ onToggle, isCollapsed = false }: SidebarProps) {
           onClose={() => setSchemaViewConnectionId(null)}
         />
       )}
-      
+
       {/* Connection Diagram Modal */}
       {diagramConnectionId && createPortal(
         <Suspense fallback={
@@ -628,7 +697,7 @@ export function Sidebar({ onToggle, isCollapsed = false }: SidebarProps) {
         </Suspense>,
         document.body
       )}
-      
+
       {/* Environment Manager Modal */}
       {showEnvironmentManager && (
         <EnvironmentManager

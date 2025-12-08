@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 
 import { useCreateGrpcConnection, useGrpcConnections, useTestGrpcConnection } from '../hooks/use-grpc-connections'
 import { useGrpcStreamingQuery } from '../hooks/use-grpc-streaming-query'
+import { StreamingIndicator, StreamingIndicatorCompact, useStreamingStartTime } from './ai-streaming'
 import { Button } from './ui/button'
 import { Card } from './ui/card'
 import { Input } from './ui/input'
@@ -24,6 +25,9 @@ export function GrpcTestPanel() {
   const createConnection = useCreateGrpcConnection()
   const testConnection = useTestGrpcConnection()
   const streamingQuery = useGrpcStreamingQuery()
+
+  // Streaming start time for elapsed time display
+  const streamingStartTime = useStreamingStartTime(streamingQuery.isStreaming)
 
   const handleTestConnection = async () => {
     try {
@@ -112,14 +116,26 @@ export function GrpcTestPanel() {
             onClick={handleTestConnection}
             disabled={testConnection.isPending}
           >
-            {testConnection.isPending ? 'Testing...' : 'Test Connection'}
+            {testConnection.isPending ? (
+              <span className="flex items-center gap-2">
+                Testing <StreamingIndicatorCompact isStreaming={true} />
+              </span>
+            ) : (
+              'Test Connection'
+            )}
           </Button>
 
           <Button
             onClick={handleCreateConnection}
             disabled={createConnection.isPending}
           >
-            {createConnection.isPending ? 'Creating...' : 'Create Connection'}
+            {createConnection.isPending ? (
+              <span className="flex items-center gap-2">
+                Creating <StreamingIndicatorCompact isStreaming={true} />
+              </span>
+            ) : (
+              'Create Connection'
+            )}
           </Button>
         </div>
 
@@ -146,7 +162,12 @@ export function GrpcTestPanel() {
       <Card className="p-4">
         <h3 className="text-lg font-semibold mb-4">Active Connections</h3>
 
-        {connectionsLoading && <p>Loading connections...</p>}
+        {connectionsLoading && (
+          <div className="flex items-center gap-2">
+            <span>Loading connections</span>
+            <StreamingIndicatorCompact isStreaming={true} />
+          </div>
+        )}
         {connectionsError && <p className="text-destructive">Error: {connectionsError.message}</p>}
 
         {connections?.data && (
@@ -185,8 +206,17 @@ export function GrpcTestPanel() {
             onClick={handleExecuteStreamingQuery}
             disabled={streamingQuery.isLoading || streamingQuery.isStreaming}
           >
-            {streamingQuery.isLoading ? 'Starting...' :
-             streamingQuery.isStreaming ? 'Streaming...' : 'Execute Streaming Query'}
+            {streamingQuery.isLoading ? (
+              <span className="flex items-center gap-2">
+                Starting <StreamingIndicatorCompact isStreaming={true} />
+              </span>
+            ) : streamingQuery.isStreaming ? (
+              <span className="flex items-center gap-2">
+                Streaming <StreamingIndicatorCompact isStreaming={true} />
+              </span>
+            ) : (
+              'Execute Streaming Query'
+            )}
           </Button>
 
           {(streamingQuery.isLoading || streamingQuery.isStreaming) && (
@@ -195,6 +225,16 @@ export function GrpcTestPanel() {
             </Button>
           )}
         </div>
+
+        {/* Enhanced streaming indicator with elapsed time */}
+        {(streamingQuery.isLoading || streamingQuery.isStreaming) && (
+          <StreamingIndicator
+            isStreaming={true}
+            startTime={streamingStartTime}
+            stage={streamingQuery.isLoading ? 'Initializing query' : 'Streaming results'}
+            className="mb-4"
+          />
+        )}
 
         {streamingQuery.progress && (
           <div className="mb-4 p-3 bg-primary/10 border border-primary rounded">

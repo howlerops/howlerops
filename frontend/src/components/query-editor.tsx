@@ -61,8 +61,8 @@ const GenericChatSidebar = lazy(() => import("@/components/generic-chat-sidebar"
 const VisualQueryBuilder = lazy(() => import("@/components/visual-query-builder").then(m => ({ default: m.VisualQueryBuilder })))
 
 // Preload these components on first interaction
-const preloadGenericChatSidebar = () => import("@/components/generic-chat-sidebar").then(m => ({ default: m.GenericChatSidebar }))
-const preloadVisualQueryBuilder = () => import("@/components/visual-query-builder").then(m => ({ default: m.VisualQueryBuilder }))
+const preloadGenericChatSidebar = () => import("@/components/generic-chat-sidebar").then(m => ({ default: m.GenericChatSidebar as React.ComponentType<unknown> }))
+const preloadVisualQueryBuilder = () => import("@/components/visual-query-builder").then(m => ({ default: m.VisualQueryBuilder as React.ComponentType<unknown> }))
 
 
 export interface QueryEditorProps {

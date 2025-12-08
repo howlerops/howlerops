@@ -13,8 +13,9 @@ import {
   XCircle,
   Zap,
 } from 'lucide-react';
-import React, { useCallback,useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 
+import { StreamingIndicatorCompact } from '@/components/ai-streaming/StreamingIndicator';
 import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -55,6 +56,24 @@ export function QueryProgressIndicator({
   });
 
   const [showDetails, setShowDetails] = useState(false);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
+  /**
+   * Track elapsed time during execution
+   */
+  useEffect(() => {
+    if (!isExecuting) {
+      setElapsedSeconds(0);
+      return;
+    }
+
+    const start = queryState.startTime ?? Date.now();
+    const interval = setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - start) / 1000));
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isExecuting, queryState.startTime]);
 
   /**
    * Handle query execution
@@ -87,14 +106,14 @@ export function QueryProgressIndicator({
     switch (queryState.status) {
       case 'executing':
         return {
-          icon: <Play className="h-4 w-4 animate-pulse" />,
+          icon: <StreamingIndicatorCompact isStreaming={true} />,
           color: 'text-primary',
           bgColor: 'bg-blue-50',
           text: 'Executing',
         };
       case 'streaming':
         return {
-          icon: <Zap className="h-4 w-4" />,
+          icon: <StreamingIndicatorCompact isStreaming={true} />,
           color: 'text-accent-foreground',
           bgColor: 'bg-purple-50',
           text: 'Streaming',
@@ -165,7 +184,14 @@ export function QueryProgressIndicator({
                 onClick={() => setShowDetails(!showDetails)}
               >
                 {statusDisplay.icon}
-                <span className="ml-2">{statusDisplay.text}</span>
+                <span className="ml-2">
+                  {statusDisplay.text}
+                  {isExecuting && elapsedSeconds >= 2 && (
+                    <span className="ml-2 text-xs opacity-70">
+                      ({elapsedSeconds}s)
+                    </span>
+                  )}
+                </span>
               </Badge>
             </TooltipTrigger>
             <TooltipContent>

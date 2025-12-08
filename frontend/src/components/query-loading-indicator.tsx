@@ -30,6 +30,8 @@ export const QueryLoadingIndicator = ({ startTime }: QueryLoadingIndicatorProps)
     return `${minutes}m ${remainingSeconds}s`
   }
 
+  const elapsedSeconds = Math.floor(elapsed / 1000)
+
   return (
     <div className="flex items-center justify-center h-full p-4">
       <div className="flex flex-col items-center gap-4 max-w-2xl">
@@ -40,6 +42,22 @@ export const QueryLoadingIndicator = ({ startTime }: QueryLoadingIndicatorProps)
           <p className="text-sm text-muted-foreground mb-3">
             Please wait while your query is being processed...
           </p>
+
+          {/* Bouncing dots indicator */}
+          <div className="flex items-center justify-center gap-1 mb-3">
+            <span
+              className="h-2 w-2 rounded-full bg-primary animate-bounce"
+              style={{ animationDelay: "0ms" }}
+            />
+            <span
+              className="h-2 w-2 rounded-full bg-primary animate-bounce"
+              style={{ animationDelay: "150ms" }}
+            />
+            <span
+              className="h-2 w-2 rounded-full bg-primary animate-bounce"
+              style={{ animationDelay: "300ms" }}
+            />
+          </div>
 
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-muted">
             <span className="text-2xl font-mono font-semibold tabular-nums">
@@ -57,15 +75,15 @@ export const QueryLoadingIndicator = ({ startTime }: QueryLoadingIndicatorProps)
           </div>
         )} */}
 
-        {elapsed > 5000 && (
-          <div className="mt-2 text-xs text-muted-foreground">
-            This is taking longer than usual. Large queries may take several seconds to complete.
+        {elapsedSeconds >= 15 && (
+          <div className="mt-2 text-xs text-amber-500 animate-pulse">
+            Taking longer than usual...
           </div>
         )}
 
-        {elapsed > 30000 && (
+        {elapsedSeconds >= 30 && (
           <div className="mt-2 px-3 py-2 rounded-md bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 text-xs text-yellow-800 dark:text-yellow-200">
-            ⚠️ Long-running query detected. Consider adding a LIMIT clause to improve performance.
+            Long-running query detected. Consider adding a LIMIT clause to improve performance.
           </div>
         )}
       </div>

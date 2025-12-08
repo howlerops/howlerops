@@ -7,12 +7,12 @@ import {
   AlertTriangle,
   CheckCircle,
   Clock,
-  Loader2,
   RefreshCw,
   XCircle,
 } from 'lucide-react';
-import React, { useCallback,useState } from 'react';
+import React, { useCallback, useState } from 'react';
 
+import { StreamingIndicatorCompact } from '@/components/ai-streaming/StreamingIndicator';
 import {
   Popover,
   PopoverContent,
@@ -90,12 +90,19 @@ export function OptimisticUpdateIndicator({
   }, []);
 
   /**
+   * Get elapsed time in seconds for pending updates
+   */
+  const getElapsedSeconds = useCallback((timestamp: number): number => {
+    return Math.floor((Date.now() - timestamp) / 1000);
+  }, []);
+
+  /**
    * Get update status icon
    */
   const getUpdateStatusIcon = useCallback((update: OptimisticUpdate) => {
     switch (update.status) {
       case 'pending':
-        return <Loader2 className="h-3 w-3 animate-spin text-primary" />;
+        return <StreamingIndicatorCompact isStreaming={true} className="scale-75" />;
       case 'confirmed':
         return <CheckCircle className="h-3 w-3 text-primary" />;
       case 'rejected':
@@ -142,6 +149,8 @@ export function OptimisticUpdateIndicator({
    * Render update item
    */
   const renderUpdateItem = useCallback((update: OptimisticUpdate) => {
+    const elapsedSeconds = update.status === 'pending' ? getElapsedSeconds(update.timestamp) : 0;
+
     return (
       <div key={update.id} className="flex items-start gap-2 p-2 rounded border">
         <div className="mt-1">
@@ -153,6 +162,11 @@ export function OptimisticUpdateIndicator({
             <span className="font-medium">{update.type.replace('_', ' ')}</span>
             <span className="text-muted-foreground">
               {formatTimestamp(update.timestamp)}
+              {update.status === 'pending' && elapsedSeconds >= 2 && (
+                <span className="ml-1 text-xs opacity-70">
+                  ({elapsedSeconds}s)
+                </span>
+              )}
             </span>
           </div>
 
@@ -177,7 +191,7 @@ export function OptimisticUpdateIndicator({
         </div>
       </div>
     );
-  }, [getUpdateStatusIcon, formatTimestamp, handleRollback]);
+  }, [getUpdateStatusIcon, formatTimestamp, getElapsedSeconds, handleRollback]);
 
   const badgeText = getBadgeText();
   if (!badgeText) return null;
@@ -193,16 +207,16 @@ export function OptimisticUpdateIndicator({
               <TooltipTrigger asChild>
                 <Badge
                   variant={getBadgeVariant()}
-                  className="cursor-pointer hover:opacity-80 transition-opacity"
+                  className="cursor-pointer hover:opacity-80 transition-opacity flex items-center gap-1"
                 >
                   {pendingUpdates.length > 0 && (
-                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                    <StreamingIndicatorCompact isStreaming={true} className="scale-75 -ml-1" />
                   )}
-                  {rejectedUpdates.length > 0 && (
-                    <AlertTriangle className="h-3 w-3 mr-1" />
+                  {rejectedUpdates.length > 0 && pendingUpdates.length === 0 && (
+                    <AlertTriangle className="h-3 w-3" />
                   )}
                   {confirmedUpdates.length > 0 && pendingUpdates.length === 0 && rejectedUpdates.length === 0 && (
-                    <CheckCircle className="h-3 w-3 mr-1" />
+                    <CheckCircle className="h-3 w-3" />
                   )}
                   {badgeText}
                 </Badge>

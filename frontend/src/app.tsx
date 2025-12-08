@@ -26,6 +26,8 @@ const InviteAcceptPage = lazy(() => import('./pages/invite-accept-page').then(m 
 const PendingInvitationsPage = lazy(() => import('./pages/pending-invitations').then(m => ({ default: m.PendingInvitationsPage })))
 const AnalyticsPage = lazy(() => import('./pages/analytics-page'))
 const ReportsPage = lazy(() => import('./pages/reports')) // Has both named and default export
+const SchemaDiff = lazy(() => import('./pages/schema-diff').then(m => ({ default: m.SchemaDiff })))
+const DataCatalog = lazy(() => import('./pages/data-catalog').then(m => ({ default: m.DataCatalog })))
 const AuthPage = lazy(() => import('./pages/auth-page').then(m => ({ default: m.AuthPage })))
 const AuthCallback = lazy(() => import('./pages/auth-callback').then(m => ({ default: m.AuthCallback })))
 
@@ -85,6 +87,8 @@ function App() {
             <Route path="/invitations" element={<PendingInvitationsPage />} />
             <Route path="/analytics" element={<AnalyticsPage />} />
             <Route path="/reports" element={<ReportsPage />} />
+            <Route path="/schema-diff" element={<SchemaDiff />} />
+            <Route path="/data-catalog" element={<DataCatalog />} />
           </Routes>
         </Suspense>
       </div>

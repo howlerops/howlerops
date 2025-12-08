@@ -646,6 +646,37 @@
    Performance Optimizations
    ============================================================================ */
 
+/**
+ * CRITICAL: Fix white flash during fast scrolling
+ *
+ * When virtualization renders new rows during fast scroll, the viewport
+ * container momentarily shows through. Setting a dark background ensures
+ * the flash matches the table background instead of showing white.
+ */
+.ag-theme-quartz-dark .ag-body-viewport,
+.ag-theme-quartz-dark .ag-center-cols-viewport,
+.ag-theme-quartz-dark .ag-center-cols-container,
+.ag-theme-quartz-dark .ag-body,
+.ag-theme-quartz-dark .ag-body-clipper {
+  background-color: var(--background);
+}
+
+/* Ensure pinned column viewports also have dark background */
+.ag-theme-quartz-dark .ag-pinned-left-cols-viewport,
+.ag-theme-quartz-dark .ag-pinned-right-cols-viewport {
+  background-color: var(--background);
+}
+
+/* Disable row transitions during scroll for smoother performance */
+.ag-theme-quartz-dark .ag-row {
+  transition: background-color 0.15s ease;
+}
+
+/* Remove transition completely when scrolling (applied via JS) */
+.ag-theme-quartz-dark.ag-scrolling .ag-row {
+  transition: none !important;
+}
+
 /* Reduce animations for large datasets */
 @media (prefers-reduced-motion: reduce) {
   .ag-theme-quartz-dark {

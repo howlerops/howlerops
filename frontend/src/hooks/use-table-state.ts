@@ -1,11 +1,11 @@
 import { ColumnFiltersState,SortingState } from '@tanstack/react-table';
 import { type SetStateAction,useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import type { EditStateValue } from '../components/editable-table/context/edit-state-context';
-import type { SelectionStateValue } from '../components/editable-table/context/selection-state-context';
 import {
   CellValue,
   EditableTableActions,
+  EditStateValue,
+  SelectionStateValue,
   TableAction,
   TableConfig,
   TableRow,

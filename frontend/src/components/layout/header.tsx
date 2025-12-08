@@ -1,6 +1,5 @@
-import { Database,Moon, Plus, Settings, Sparkles, Sun } from "lucide-react"
-import { Link, useLocation } from "react-router-dom"
-import { useNavigate } from "react-router-dom"
+import { Database, Moon, Plus, Sparkles, Sun } from "lucide-react"
+import { Link } from "react-router-dom"
 
 import { AuthButton } from "@/components/auth/auth-button"
 import { TierBadge } from "@/components/tier-badge"
@@ -14,15 +13,12 @@ import {
 import { HowlerOpsIcon } from "@/components/ui/howlerops-icon"
 import { Switch } from "@/components/ui/switch"
 import { useTheme } from "@/hooks/use-theme"
-import { cn } from "@/lib/utils"
 import { useAIQueryAgentStore } from "@/store/ai-query-agent-store"
 import { useAIConfig } from "@/store/ai-store"
 import { useConnectionStore } from "@/store/connection-store"
 import { useQueryStore } from "@/store/query-store"
 
 export function Header() {
-  const location = useLocation()
-  const navigate = useNavigate()
   const { theme, setTheme } = useTheme()
   const { createTab } = useQueryStore()
   const setActiveTab = useQueryStore(state => state.setActiveTab)
@@ -60,61 +56,22 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="flex h-14 items-center px-4">
-        <div className="flex items-center space-x-6">
-          <Link to="/dashboard" className="flex items-center space-x-2">
-            <HowlerOpsIcon size={24} variant={theme === "dark" ? "dark" : "light"} />
-            <h1 className="text-lg font-semibold">HowlerOps</h1>
-          </Link>
+      <div className="flex h-12 items-center px-4">
+        {/* Logo */}
+        <Link to="/dashboard" className="flex items-center space-x-2">
+          <HowlerOpsIcon size={24} variant={theme === "dark" ? "dark" : "light"} />
+          <h1 className="text-lg font-semibold">HowlerOps</h1>
+        </Link>
 
-          <nav className="flex items-center space-x-4">
-            <Link
-              to="/dashboard"
-              className={cn(
-                "text-sm font-medium transition-colors hover:text-primary",
-                location.pathname === "/dashboard"
-                  ? "text-foreground"
-                  : "text-muted-foreground"
-              )}
-            >
-              Queries
-            </Link>
-            <Link
-              to="/connections"
-              className={cn(
-                "text-sm font-medium transition-colors hover:text-primary",
-                location.pathname === "/connections"
-                  ? "text-foreground"
-                  : "text-muted-foreground"
-              )}
-            >
-              Connections
-            </Link>
-            <Link
-              to="/reports"
-              className={cn(
-                "text-sm font-medium transition-colors hover:text-primary",
-                location.pathname === "/reports"
-                  ? "text-foreground"
-                  : "text-muted-foreground"
-              )}
-            >
-              Reports
-            </Link>
-          </nav>
-        </div>
-
-        <div className="ml-auto flex items-center space-x-4">
+        {/* Right side actions */}
+        <div className="ml-auto flex items-center space-x-3">
           <AuthButton />
 
-          <TierBadge
-            variant="header"
-            onClick={() => navigate('/dashboard')}
-          />
+          <TierBadge variant="header" />
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
+              <Button variant="default" size="sm">
                 <Plus className="h-4 w-4 mr-2" />
                 New Query
               </Button>
@@ -131,25 +88,14 @@ export function Header() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              navigate('/settings');
-            }}
-            title="Settings"
-          >
-            <Settings className="h-4 w-4" />
-          </Button>
-
-          <div className="flex items-center space-x-2">
-            <Sun className="h-4 w-4" />
+          <div className="flex items-center space-x-2 border-l pl-3 ml-1">
+            <Sun className="h-4 w-4 text-muted-foreground" />
             <Switch
               checked={theme === "dark"}
               onCheckedChange={toggleTheme}
               aria-label="Toggle theme"
             />
-            <Moon className="h-4 w-4" />
+            <Moon className="h-4 w-4 text-muted-foreground" />
           </div>
         </div>
       </div>

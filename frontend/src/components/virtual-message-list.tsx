@@ -43,7 +43,7 @@ export function VirtualMessageList<T>({
 }: VirtualMessageListProps<T>) {
   const parentRef = useRef<HTMLDivElement>(null)
   const isUserScrollingRef = useRef(false)
-  const scrollTimeoutRef = useRef<NodeJS.Timeout>()
+  const scrollTimeoutRef = useRef<NodeJS.Timeout>(undefined)
 
   const virtualizer = useVirtualizer({
     count: messages.length,

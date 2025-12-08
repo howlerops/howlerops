@@ -797,7 +797,6 @@ function FilterSelector({ filter, isFirst, availableColumns, onChange, onRemove,
         value={filter.column}
         onValueChange={(column) => onChange({ column })}
         disabled={disabled}
-        className={cn(!isFirst ? 'flex-1' : '')}
       >
         <SelectTrigger className={cn('min-w-[200px]', !isFirst && 'flex-1')}>
           <SelectValue placeholder="Select column" />

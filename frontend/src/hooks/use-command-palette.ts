@@ -16,55 +16,55 @@ interface UseCommandPaletteOptions {
 }
 
 export function useCommandPalette(options: UseCommandPaletteOptions = {}) {
-  const [open, setOpen] = useState(false)
+  const [isOpen, setIsOpen] = useState(false)
   const [recentActions, setRecentActions] = useState<string[]>([])
 
   const actions = useMemo((): CommandAction[] => {
-    return [
+    const allActions: CommandAction[] = [
       // AI Features
       {
         id: 'ai-generate-sql',
         label: 'Generate SQL from natural language',
         description: 'Use AI to convert your question into SQL',
-        category: 'ai',
+        category: 'ai' as const,
         keywords: ['generate', 'create', 'natural', 'language', 'nl', 'ai'],
-        handler: () => options.onGenerateSQL?.(),
+        handler: () => { options.onGenerateSQL?.() },
         enabled: !!options.onGenerateSQL,
       },
       {
         id: 'ai-explain-query',
         label: 'Explain this query',
         description: 'Get AI explanation of selected SQL',
-        category: 'ai',
+        category: 'ai' as const,
         keywords: ['explain', 'describe', 'what', 'does'],
-        handler: () => options.onExplainQuery?.(),
+        handler: () => { options.onExplainQuery?.() },
         enabled: !!options.onExplainQuery,
       },
       {
         id: 'ai-fix-sql',
         label: 'Fix SQL errors',
         description: 'Let AI fix syntax or logic errors',
-        category: 'ai',
+        category: 'ai' as const,
         keywords: ['fix', 'repair', 'correct', 'error', 'debug'],
-        handler: () => options.onFixSQL?.(),
+        handler: () => { options.onFixSQL?.() },
         enabled: !!options.onFixSQL,
       },
       {
         id: 'ai-optimize-query',
         label: 'Optimize query performance',
         description: 'Get AI suggestions for query optimization',
-        category: 'ai',
+        category: 'ai' as const,
         keywords: ['optimize', 'performance', 'speed', 'fast', 'improve'],
-        handler: () => options.onOptimizeQuery?.(),
+        handler: () => { options.onOptimizeQuery?.() },
         enabled: !!options.onOptimizeQuery,
       },
       {
         id: 'ai-chat',
         label: 'Open AI Chat',
         description: 'Chat with AI about your database',
-        category: 'ai',
+        category: 'ai' as const,
         keywords: ['chat', 'talk', 'ask', 'question'],
-        handler: () => options.onOpenAIChat?.(),
+        handler: () => { options.onOpenAIChat?.() },
         enabled: !!options.onOpenAIChat,
       },
 
@@ -73,18 +73,18 @@ export function useCommandPalette(options: UseCommandPaletteOptions = {}) {
         id: 'db-add-connection',
         label: 'Add connection',
         description: 'Connect to a new database',
-        category: 'database',
+        category: 'database' as const,
         keywords: ['add', 'new', 'connect', 'connection', 'database'],
-        handler: () => options.onAddConnection?.(),
+        handler: () => { options.onAddConnection?.() },
         enabled: !!options.onAddConnection,
       },
       {
         id: 'db-switch',
         label: 'Switch database',
         description: 'Change active database connection',
-        category: 'database',
+        category: 'database' as const,
         keywords: ['switch', 'change', 'database', 'connection'],
-        handler: () => options.onSwitchDatabase?.(),
+        handler: () => { options.onSwitchDatabase?.() },
         enabled: !!options.onSwitchDatabase,
       },
 
@@ -93,18 +93,18 @@ export function useCommandPalette(options: UseCommandPaletteOptions = {}) {
         id: 'nav-new-tab',
         label: 'New query tab',
         description: 'Open a new query editor tab',
-        category: 'navigation',
+        category: 'navigation' as const,
         keywords: ['new', 'tab', 'query', 'editor'],
-        handler: () => options.onNewTab?.(),
+        handler: () => { options.onNewTab?.() },
         enabled: !!options.onNewTab,
       },
       {
         id: 'nav-close-tab',
         label: 'Close current tab',
         description: 'Close the active query tab',
-        category: 'navigation',
+        category: 'navigation' as const,
         keywords: ['close', 'tab', 'exit'],
-        handler: () => options.onCloseTab?.(),
+        handler: () => { options.onCloseTab?.() },
         enabled: !!options.onCloseTab,
       },
 
@@ -113,24 +113,25 @@ export function useCommandPalette(options: UseCommandPaletteOptions = {}) {
         id: 'settings-open',
         label: 'Open Settings',
         description: 'Configure application settings',
-        category: 'settings',
+        category: 'settings' as const,
         keywords: ['settings', 'preferences', 'config', 'configure'],
-        handler: () => options.onOpenSettings?.(),
+        handler: () => { options.onOpenSettings?.() },
         enabled: !!options.onOpenSettings,
       },
-    ].filter((action) => action.enabled !== false)
+    ]
+    return allActions.filter((action) => action.enabled !== false)
   }, [options])
 
   const open = useCallback(() => {
-    setOpen(true)
+    setIsOpen(true)
   }, [])
 
   const close = useCallback(() => {
-    setOpen(false)
+    setIsOpen(false)
   }, [])
 
   const toggle = useCallback(() => {
-    setOpen((prev) => !prev)
+    setIsOpen((prev) => !prev)
   }, [])
 
   const recordAction = useCallback((actionId: string) => {
@@ -141,8 +142,8 @@ export function useCommandPalette(options: UseCommandPaletteOptions = {}) {
   }, [])
 
   return {
-    isOpen: open,
-    open: open,
+    isOpen,
+    open,
     close,
     toggle,
     actions,

@@ -558,13 +558,14 @@ const ComponentEditor = React.memo(
               sql={component.query?.sql}
               builderState={component.query?.builderState as QueryBuilderState | undefined}
               onChange={(updates) => {
+                const updatedQuery = {
+                  ...(component.query ?? {}),
+                  mode: updates.mode || component.query?.mode || 'sql',
+                  sql: updates.sql !== undefined ? updates.sql : component.query?.sql,
+                  builderState: updates.builderState !== undefined ? updates.builderState : component.query?.builderState,
+                }
                 onChange({
-                  query: {
-                    ...(component.query ?? {}),
-                    mode: updates.mode || component.query?.mode || 'sql',
-                    sql: updates.sql !== undefined ? updates.sql : component.query?.sql,
-                    builderState: updates.builderState || component.query?.builderState,
-                  },
+                  query: updatedQuery as typeof component.query,
                 })
               }}
               disabled={disabled}

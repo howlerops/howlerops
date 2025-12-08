@@ -1,6 +1,11 @@
 import { BarChart3, GitCompare, Loader2, Pencil, Search, SendHorizontal, Sparkles, Table2, TrendingUp } from "lucide-react"
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
+import {
+  NewContentNotification,
+  StreamingIndicator,
+  useStreamingStartTime,
+} from "@/components/ai-streaming"
 import { EmptyState, type ExampleQuery } from "@/components/empty-states/EmptyState"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -124,6 +129,14 @@ export function AIQueryTabView({
   const [input, setInput] = useState("")
   const [isRenaming, setIsRenaming] = useState(false)
   const [draftTitle, setDraftTitle] = useState<string | null>(null)
+  const [hasNewContent, setHasNewContent] = useState(false)
+  const [isNearBottom, setIsNearBottom] = useState(true)
+  const messageContainerRef = useRef<HTMLDivElement>(null)
+  const lastMessageCountRef = useRef(0)
+
+  // Track streaming start time for elapsed display
+  const isStreaming = session?.status === 'streaming'
+  const streamingStartTime = useStreamingStartTime(isStreaming)
 
   const activeConnection = useMemo(
     () => connections.find(connection => connection.id === tab.connectionId),
@@ -135,6 +148,36 @@ export function AIQueryTabView({
       setActiveSession(session.id)
     }
   }, [session?.id, setActiveSession])
+
+  // Track message count changes for new content notification
+  useEffect(() => {
+    const messageCount = session?.messages.length ?? 0
+    if (messageCount > lastMessageCountRef.current && !isNearBottom) {
+      setHasNewContent(true)
+    }
+    lastMessageCountRef.current = messageCount
+  }, [session?.messages.length, isNearBottom])
+
+  // Scroll to bottom function
+  const scrollToBottom = useCallback(() => {
+    const container = messageContainerRef.current
+    if (container) {
+      container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' })
+      setHasNewContent(false)
+    }
+  }, [])
+
+  // Check if near bottom when scrolling
+  const handleScroll = useCallback(() => {
+    const container = messageContainerRef.current
+    if (!container) return
+    const { scrollTop, scrollHeight, clientHeight } = container
+    const nearBottom = scrollHeight - scrollTop - clientHeight <= 100
+    setIsNearBottom(nearBottom)
+    if (nearBottom) {
+      setHasNewContent(false)
+    }
+  }, [])
 
   const schemaContext = useMemo(() => {
     if (tab.selectedConnectionIds && tab.selectedConnectionIds.length > 1) {
@@ -351,7 +394,7 @@ export function AIQueryTabView({
         </div>
       </div>
 
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden relative">
         {session && session.messages.length === 0 ? (
           <div className="h-full">
             <EmptyState
@@ -364,20 +407,44 @@ export function AIQueryTabView({
             />
           </div>
         ) : (
-          <VirtualMessageList
-            messages={session?.messages ?? []}
-            renderMessage={(message) => (
+          <div
+            ref={messageContainerRef}
+            onScroll={handleScroll}
+            className="h-full overflow-auto"
+          >
+            <VirtualMessageList
+              messages={session?.messages ?? []}
+              renderMessage={(message) => (
+                <div className="px-4 py-2">
+                  {renderMessage(message)}
+                </div>
+              )}
+              getMessageKey={(message) => message.id}
+              estimateSize={150}
+              overscan={3}
+              className="h-full"
+              autoScroll={isNearBottom}
+            />
+
+            {/* Streaming indicator at bottom of messages */}
+            {isStreaming && (
               <div className="px-4 py-2">
-                {renderMessage(message)}
+                <StreamingIndicator
+                  isStreaming={isStreaming}
+                  startTime={streamingStartTime}
+                  stage="AI is processing your request"
+                />
               </div>
             )}
-            getMessageKey={(message) => message.id}
-            estimateSize={150}
-            overscan={3}
-            className="h-full"
-            autoScroll={true}
-          />
+          </div>
         )}
+
+        {/* New content notification - floating button */}
+        <NewContentNotification
+          show={hasNewContent && !isNearBottom}
+          onClick={scrollToBottom}
+          newMessageCount={1}
+        />
       </div>
 
       <div className="border-t bg-background/80 px-4 py-3">
@@ -389,7 +456,7 @@ export function AIQueryTabView({
               ? `Ask about ${activeConnection.name || activeConnection.database}...`
               : 'Select a connection to get started'}
             className="min-h-[120px] resize-none text-sm"
-            disabled={session?.status === 'streaming'}
+            disabled={isStreaming}
             onKeyDown={event => {
               if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
                 event.preventDefault()
@@ -403,12 +470,12 @@ export function AIQueryTabView({
             </div>
             <Button
               onClick={handleSend}
-              disabled={session?.status === 'streaming' || !input.trim()}
+              disabled={isStreaming || !input.trim()}
             >
-              {session?.status === 'streaming' ? (
+              {isStreaming ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Thinking...
+                  Processing...
                 </>
               ) : (
                 <>
