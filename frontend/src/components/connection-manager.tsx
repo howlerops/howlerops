@@ -1,6 +1,7 @@
-import { ChevronDown, ChevronRight, Cloud, Database, Loader2, Lock, Pencil, Play, Plus, Server, Square, Tag,Trash2, X } from "lucide-react"
+import { Activity, ChevronDown, ChevronRight, Cloud, Database, Loader2, Lock, Pencil, Play, Plus, Server, Square, Tag,Trash2, X } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 
+import { ConnectionDiagnosticsModal } from "@/components/connection-diagnostics-modal"
 import { PemKeyUpload } from "@/components/pem-key-upload"
 import { SecretInput } from "@/components/secret-input"
 import { Badge } from "@/components/ui/badge"
@@ -158,6 +159,7 @@ export function ConnectionManager() {
   const [isAdvancedSshOpen, setIsAdvancedSshOpen] = useState(false)
   const [newEnvironment, setNewEnvironment] = useState('')
   const [groupByEnvironment, setGroupByEnvironment] = useState(false)
+  const [diagnosticsConnection, setDiagnosticsConnection] = useState<DatabaseConnection | null>(null)
   const ALL_ENV_OPTION = '__all__'
   const UNASSIGNED_LABEL = 'No Environment'
 
@@ -398,18 +400,30 @@ export function ConnectionManager() {
             </span>
           </div>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleConnect(connection)}
-            disabled={isConnecting}
-          >
-            {connection.isConnected ? (
-              <Square className="h-4 w-4" />
-            ) : (
-              <Play className="h-4 w-4" />
+          <div className="flex items-center gap-1">
+            {connection.isConnected && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setDiagnosticsConnection(connection)}
+                title="View diagnostics"
+              >
+                <Activity className="h-4 w-4" />
+              </Button>
             )}
-          </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleConnect(connection)}
+              disabled={isConnecting}
+            >
+              {connection.isConnected ? (
+                <Square className="h-4 w-4" />
+              ) : (
+                <Play className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -1338,6 +1352,15 @@ export function ConnectionManager() {
                   : 'No connections match this environment filter.'
               )}
         </div>
+      )}
+
+      {/* Diagnostics Modal */}
+      {diagnosticsConnection && (
+        <ConnectionDiagnosticsModal
+          connection={diagnosticsConnection}
+          open={!!diagnosticsConnection}
+          onClose={() => setDiagnosticsConnection(null)}
+        />
       )}
     </div>
   )

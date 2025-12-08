@@ -115,9 +115,15 @@ export function SchemaDiff() {
       setSelectedConnectionId('')
       await loadSnapshots()
     } catch (err) {
+      const errMsg = typeof err === 'string'
+        ? err
+        : err instanceof Error
+          ? err.message
+          : (err as { message?: string })?.message || JSON.stringify(err) || 'Unknown error'
+      console.error('Failed to create snapshot:', err)
       toast({
         title: 'Failed to create snapshot',
-        description: err instanceof Error ? err.message : 'Unknown error',
+        description: errMsg,
         variant: 'destructive',
       })
     } finally {
@@ -135,9 +141,15 @@ export function SchemaDiff() {
       setSnapshotToDelete(null)
       await loadSnapshots()
     } catch (err) {
+      const errMsg = typeof err === 'string'
+        ? err
+        : err instanceof Error
+          ? err.message
+          : (err as { message?: string })?.message || JSON.stringify(err) || 'Unknown error'
+      console.error('Failed to delete snapshot:', err)
       toast({
         title: 'Failed to delete snapshot',
-        description: err instanceof Error ? err.message : 'Unknown error',
+        description: errMsg,
         variant: 'destructive',
       })
     }
@@ -168,9 +180,16 @@ export function SchemaDiff() {
       setComparisonResult(result)
       toast({ title: 'Comparison complete', duration: 2000 })
     } catch (err) {
+      // Wails errors can come as strings, Error objects, or objects with message property
+      const errMsg = typeof err === 'string'
+        ? err
+        : err instanceof Error
+          ? err.message
+          : (err as { message?: string })?.message || JSON.stringify(err) || 'Unknown error'
+      console.error('Schema comparison failed:', err)
       toast({
         title: 'Comparison failed',
-        description: err instanceof Error ? err.message : 'Unknown error',
+        description: errMsg,
         variant: 'destructive',
       })
     } finally {
@@ -199,9 +218,15 @@ export function SchemaDiff() {
       setGeneratedSQL(result.sql || '')
       toast({ title: 'Migration SQL generated', duration: 2000 })
     } catch (err) {
+      const errMsg = typeof err === 'string'
+        ? err
+        : err instanceof Error
+          ? err.message
+          : (err as { message?: string })?.message || JSON.stringify(err) || 'Unknown error'
+      console.error('Migration generation failed:', err)
       toast({
         title: 'Failed to generate migration',
-        description: err instanceof Error ? err.message : 'Unknown error',
+        description: errMsg,
         variant: 'destructive',
       })
     } finally {
@@ -361,11 +386,13 @@ export function SchemaDiff() {
                     </SelectTrigger>
                     <SelectContent>
                       {sourceType === 'connection'
-                        ? connections.map((conn) => (
-                            <SelectItem key={conn.id} value={conn.id}>
-                              {conn.name}
-                            </SelectItem>
-                          ))
+                        ? connections
+                            .filter((conn) => conn.isConnected && conn.sessionId)
+                            .map((conn) => (
+                              <SelectItem key={conn.id} value={conn.sessionId!}>
+                                {conn.name}
+                              </SelectItem>
+                            ))
                         : snapshots.map((snap) => (
                             <SelectItem key={snap.id} value={snap.id}>
                               {snap.name}
@@ -395,11 +422,13 @@ export function SchemaDiff() {
                     </SelectTrigger>
                     <SelectContent>
                       {targetType === 'connection'
-                        ? connections.map((conn) => (
-                            <SelectItem key={conn.id} value={conn.id}>
-                              {conn.name}
-                            </SelectItem>
-                          ))
+                        ? connections
+                            .filter((conn) => conn.isConnected && conn.sessionId)
+                            .map((conn) => (
+                              <SelectItem key={conn.id} value={conn.sessionId!}>
+                                {conn.name}
+                              </SelectItem>
+                            ))
                         : snapshots.map((snap) => (
                             <SelectItem key={snap.id} value={snap.id}>
                               {snap.name}
@@ -594,11 +623,13 @@ export function SchemaDiff() {
                   <SelectValue placeholder="Select connection" />
                 </SelectTrigger>
                 <SelectContent>
-                  {connections.map((conn) => (
-                    <SelectItem key={conn.id} value={conn.id}>
-                      {conn.name}
-                    </SelectItem>
-                  ))}
+                  {connections
+                    .filter((conn) => conn.isConnected && conn.sessionId)
+                    .map((conn) => (
+                      <SelectItem key={conn.id} value={conn.sessionId!}>
+                        {conn.name}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>

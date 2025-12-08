@@ -1,5 +1,4 @@
 import {
-  BarChart3,
   BookOpen,
   ChevronDown,
   ChevronRight,
@@ -51,7 +50,6 @@ const NAV_ITEMS = [
   { path: '/reports', label: 'Reports', icon: FileText },
   { path: '/schema-diff', label: 'Schema Diff', icon: GitCompare },
   { path: '/data-catalog', label: 'Data Catalog', icon: BookOpen },
-  { path: '/analytics', label: 'Analytics', icon: BarChart3 },
   { path: '/settings', label: 'Settings', icon: Settings },
 ] as const
 

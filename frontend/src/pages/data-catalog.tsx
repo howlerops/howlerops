@@ -1,7 +1,6 @@
 import {
   AlertCircle,
   BookOpen,
-  ChevronDown,
   ChevronRight,
   Database,
   Edit2,
@@ -47,6 +46,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
+import { useConnectionStore } from '@/store/connection-store'
 import {
   AssignTableSteward,
   CreateCatalogTag,
@@ -87,14 +87,16 @@ const PII_TYPES = [
 
 export function DataCatalog() {
   const { toast } = useToast()
+  const { connections, connectToDatabase } = useConnectionStore()
 
   // State
   const [loading, setLoading] = useState(false)
   const [syncing, setSyncing] = useState(false)
+  const [connecting, setConnecting] = useState(false)
   const [viewMode, setViewMode] = useState<ViewMode>('tree')
   const [searchQuery, setSearchQuery] = useState('')
-  const [connectionFilter, setConnectionFilter] = useState<string>('')
-  const [schemaFilter, setSchemaFilter] = useState('')
+  const [selectedConnectionId, setSelectedConnectionId] = useState<string>('') // stored connection id
+  const [schemaFilter, setSchemaFilter] = useState('__all__')
   const [tagFilter, setTagFilter] = useState<string[]>([])
   const [showPIIOnly, setShowPIIOnly] = useState(false)
   const [showStewardedOnly, setShowStewardedOnly] = useState(false)
@@ -121,31 +123,64 @@ export function DataCatalog() {
   const [editingTableSteward, setEditingTableSteward] = useState('')
   const [editingColumnDescription, setEditingColumnDescription] = useState('')
   const [editingColumnTags, setEditingColumnTags] = useState<string[]>([])
-  const [editingColumnPIIType, setEditingColumnPIIType] = useState('')
+  const [editingColumnPIIType, setEditingColumnPIIType] = useState('__none__')
   const [editingColumnPIIConfidence, setEditingColumnPIIConfidence] = useState(0)
   const [newTagName, setNewTagName] = useState('')
   const [newTagColor, setNewTagColor] = useState('#3b82f6')
   const [newTagDescription, setNewTagDescription] = useState('')
 
-  // Load initial data
+  // Get the selected connection object and its sessionId
+  const selectedConnection = connections.find((c) => c.id === selectedConnectionId)
+  const activeSessionId = selectedConnection?.sessionId
+
+  // Handle connection selection - auto-connect if needed
+  const handleConnectionSelect = async (connectionId: string) => {
+    if (connectionId === '__none__') {
+      setSelectedConnectionId('')
+      return
+    }
+
+    setSelectedConnectionId(connectionId)
+    const conn = connections.find((c) => c.id === connectionId)
+
+    if (conn && !conn.isConnected) {
+      setConnecting(true)
+      try {
+        await connectToDatabase(connectionId)
+        toast({ title: 'Connected', description: `Connected to ${conn.name}` })
+      } catch (error) {
+        toast({
+          title: 'Connection failed',
+          description: error instanceof Error ? error.message : 'Failed to connect',
+          variant: 'destructive',
+        })
+      } finally {
+        setConnecting(false)
+      }
+    }
+  }
+
+  // Load initial data when sessionId becomes available
   useEffect(() => {
     loadData()
-  }, [connectionFilter])
+  }, [activeSessionId])
 
   const loadData = async () => {
     setLoading(true)
     try {
       const [tagsData, tablesData] = await Promise.all([
         ListCatalogTags(null),
-        connectionFilter ? ListTableCatalogEntries(connectionFilter) : Promise.resolve([]),
+        activeSessionId ? ListTableCatalogEntries(activeSessionId) : Promise.resolve([]),
       ])
 
       setTags(tagsData || [])
       setTables(tablesData || [])
 
-      if (connectionFilter) {
-        const statsData = await GetCatalogStats(connectionFilter)
+      if (activeSessionId) {
+        const statsData = await GetCatalogStats(activeSessionId)
         setStats(statsData)
+      } else {
+        setStats(null)
       }
     } catch (error) {
       console.error('Failed to load catalog data:', error)
@@ -160,10 +195,10 @@ export function DataCatalog() {
   }
 
   const handleSync = async () => {
-    if (!connectionFilter) {
+    if (!activeSessionId) {
       toast({
         title: 'No connection selected',
-        description: 'Please select a connection to sync',
+        description: 'Please select and connect to a database first',
         variant: 'destructive',
       })
       return
@@ -171,7 +206,7 @@ export function DataCatalog() {
 
     setSyncing(true)
     try {
-      const result = await SyncCatalogFromConnection(connectionFilter)
+      const result = await SyncCatalogFromConnection(activeSessionId)
       toast({
         title: 'Sync complete',
         description: `Added ${result.tables_added} tables, updated ${result.tables_updated} tables, added ${result.columns_added} columns`,
@@ -261,7 +296,7 @@ export function DataCatalog() {
       })
       await UpdateColumnCatalogEntry(updated)
 
-      if (editingColumnPIIType) {
+      if (editingColumnPIIType && editingColumnPIIType !== '__none__') {
         await MarkColumnAsPII(selectedTable.id, selectedColumn.column_name, editingColumnPIIType, editingColumnPIIConfidence)
       }
 
@@ -328,11 +363,16 @@ export function DataCatalog() {
     }
   }
 
-  const toggleTableExpansion = (tableId: string) => {
+  const toggleTableExpansion = async (tableId: string, table: catalog.TableCatalogEntry) => {
+    const isCurrentlyExpanded = expandedTables[tableId]
     setExpandedTables((prev) => ({
       ...prev,
       [tableId]: !prev[tableId],
     }))
+    // If expanding (not collapsing), load the columns
+    if (!isCurrentlyExpanded) {
+      await handleSelectTable(table)
+    }
   }
 
   // Filter tables
@@ -349,7 +389,7 @@ export function DataCatalog() {
       )
     }
 
-    if (schemaFilter) {
+    if (schemaFilter && schemaFilter !== '__all__') {
       filtered = filtered.filter((t) => t.schema_name === schemaFilter)
     }
 
@@ -385,9 +425,9 @@ export function DataCatalog() {
               <RefreshCw className={cn('mr-2 h-4 w-4', (loading || syncing) && 'animate-spin')} />
               Refresh
             </Button>
-            <Button onClick={handleSync} disabled={!connectionFilter || syncing || loading}>
+            <Button onClick={handleSync} disabled={!activeSessionId || syncing || loading || connecting}>
               <Database className="mr-2 h-4 w-4" />
-              Sync Connection
+              {connecting ? 'Connecting...' : 'Sync Connection'}
             </Button>
           </div>
         </div>
@@ -457,12 +497,37 @@ export function DataCatalog() {
 
                 <div className="space-y-2">
                   <Label htmlFor="connection">Connection</Label>
-                  <Input
-                    id="connection"
-                    placeholder="Connection ID"
-                    value={connectionFilter}
-                    onChange={(e) => setConnectionFilter(e.target.value)}
-                  />
+                  <Select
+                    value={selectedConnectionId || '__none__'}
+                    onValueChange={handleConnectionSelect}
+                    disabled={connecting}
+                  >
+                    <SelectTrigger id="connection">
+                      <SelectValue placeholder="Select a connection" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Select a connection...</SelectItem>
+                      {connections.map((conn) => (
+                        <SelectItem key={conn.id} value={conn.id}>
+                          <span className="flex items-center gap-2">
+                            <span
+                              className={cn(
+                                'h-2 w-2 rounded-full',
+                                conn.isConnected ? 'bg-green-500' : 'bg-gray-300'
+                              )}
+                            />
+                            {conn.name}
+                            {!conn.isConnected && (
+                              <span className="text-xs text-muted-foreground">(click to connect)</span>
+                            )}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {connecting && (
+                    <p className="text-xs text-muted-foreground">Connecting...</p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -472,7 +537,7 @@ export function DataCatalog() {
                       <SelectValue placeholder="All schemas" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All schemas</SelectItem>
+                      <SelectItem value="__all__">All schemas</SelectItem>
                       {schemas.map((schema) => (
                         <SelectItem key={schema} value={schema}>
                           {schema}
@@ -578,11 +643,23 @@ export function DataCatalog() {
 
           {/* Main Content */}
           <div className="space-y-4">
-            {!connectionFilter ? (
+            {!selectedConnectionId ? (
               <EmptyState
                 icon={Database}
                 title="Select a connection"
                 description="Choose a connection to view and manage its catalog"
+              />
+            ) : connecting ? (
+              <EmptyState
+                icon={Database}
+                title="Connecting..."
+                description={`Connecting to ${selectedConnection?.name || 'database'}...`}
+              />
+            ) : !activeSessionId ? (
+              <EmptyState
+                icon={Database}
+                title="Connection not active"
+                description="The selected connection is not active. Try selecting it again."
               />
             ) : loading && tables.length === 0 ? (
               <div className="space-y-2">
@@ -623,14 +700,15 @@ export function DataCatalog() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => toggleTableExpansion(table.id)}
+                              onClick={() => toggleTableExpansion(table.id, table)}
                               className="h-6 w-6 p-0"
                             >
-                              {expandedTables[table.id] ? (
-                                <ChevronDown className="h-4 w-4" />
-                              ) : (
-                                <ChevronRight className="h-4 w-4" />
-                              )}
+                              <ChevronRight
+                                className={cn(
+                                  'h-4 w-4 transition-transform duration-200',
+                                  expandedTables[table.id] && 'rotate-90'
+                                )}
+                              />
                             </Button>
                             <div>
                               <div className="flex items-center gap-2">
@@ -678,57 +756,70 @@ export function DataCatalog() {
                         </div>
                       </CardHeader>
 
-                      {expandedTables[table.id] && (
-                        <CardContent className="pt-0">
-                          <div className="space-y-1 rounded-md border p-2">
-                            {loading && selectedTable?.id === table.id ? (
-                              <div className="space-y-1">
-                                <Skeleton className="h-8 w-full" />
-                                <Skeleton className="h-8 w-full" />
-                              </div>
-                            ) : selectedTable?.id === table.id && columns.length > 0 ? (
-                              columns.map((column) => (
-                                <div
-                                  key={column.id}
-                                  className="flex items-center justify-between rounded-md p-2 hover:bg-muted/50"
-                                >
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-sm font-medium">{column.column_name}</span>
-                                    {column.pii_type && (
-                                      <Badge variant="destructive" className="gap-1">
-                                        <Shield className="h-3 w-3" />
-                                        {column.pii_type}
-                                      </Badge>
-                                    )}
-                                    {column.tags && column.tags.length > 0 && (
-                                      <div className="flex gap-1">
-                                        {column.tags.map((tagName) => {
-                                          const tag = tags.find((t) => t.name === tagName)
-                                          return (
-                                            <Badge key={tagName} variant="outline" style={{ borderColor: tag?.color }}>
-                                              {tagName}
-                                            </Badge>
-                                          )
-                                        })}
-                                      </div>
-                                    )}
-                                  </div>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleEditColumn(column)}
-                                    className="h-6"
-                                  >
-                                    <Edit2 className="h-3 w-3" />
-                                  </Button>
+                      <div
+                        className={cn(
+                          'grid transition-all duration-200 ease-in-out',
+                          expandedTables[table.id] ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+                        )}
+                      >
+                        <div className="overflow-hidden">
+                          <CardContent className="pt-0 pb-4">
+                            <div className="space-y-1 rounded-md border p-2">
+                              {loading && selectedTable?.id === table.id ? (
+                                <div className="space-y-1">
+                                  <Skeleton className="h-8 w-full animate-pulse" />
+                                  <Skeleton className="h-8 w-full animate-pulse" />
                                 </div>
-                              ))
-                            ) : (
-                              <p className="text-sm text-muted-foreground">Click to load columns</p>
-                            )}
-                          </div>
-                        </CardContent>
-                      )}
+                              ) : selectedTable?.id === table.id && columns.length > 0 ? (
+                                columns.map((column, index) => (
+                                  <div
+                                    key={column.id}
+                                    className="flex items-center justify-between rounded-md p-2 hover:bg-muted/50 animate-in fade-in slide-in-from-top-1 duration-200"
+                                    style={{ animationDelay: `${index * 30}ms` }}
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-sm font-medium">{column.column_name}</span>
+                                      {column.pii_type && (
+                                        <Badge variant="destructive" className="gap-1">
+                                          <Shield className="h-3 w-3" />
+                                          {column.pii_type}
+                                        </Badge>
+                                      )}
+                                      {column.tags && column.tags.length > 0 && (
+                                        <div className="flex gap-1">
+                                          {column.tags.map((tagName) => {
+                                            const tag = tags.find((t) => t.name === tagName)
+                                            return (
+                                              <Badge key={tagName} variant="outline" style={{ borderColor: tag?.color }}>
+                                                {tagName}
+                                              </Badge>
+                                            )
+                                          })}
+                                        </div>
+                                      )}
+                                    </div>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleEditColumn(column)}
+                                      className="h-6"
+                                    >
+                                      <Edit2 className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                ))
+                              ) : (
+                                <button
+                                  onClick={() => handleSelectTable(table)}
+                                  className="text-sm text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+                                >
+                                  Click to load columns
+                                </button>
+                              )}
+                            </div>
+                          </CardContent>
+                        </div>
+                      </div>
                     </Card>
                   ))}
                 </TabsContent>
@@ -901,7 +992,7 @@ export function DataCatalog() {
                     <SelectValue placeholder="Select PII type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="__none__">None</SelectItem>
                     {PII_TYPES.map((type) => (
                       <SelectItem key={type.value} value={type.value}>
                         {type.label}
@@ -910,7 +1001,7 @@ export function DataCatalog() {
                   </SelectContent>
                 </Select>
               </div>
-              {editingColumnPIIType && (
+              {editingColumnPIIType && editingColumnPIIType !== '__none__' && (
                 <div className="space-y-2">
                   <Label htmlFor="pii-confidence">
                     Confidence: {editingColumnPIIConfidence}%

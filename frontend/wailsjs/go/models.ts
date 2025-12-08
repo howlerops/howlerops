@@ -1,5 +1,273 @@
+export namespace catalog {
+	
+	export class CatalogTag {
+	    id: string;
+	    name: string;
+	    color: string;
+	    description?: string;
+	    organization_id?: string;
+	    is_system: boolean;
+	    // Go type: time
+	    created_at: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new CatalogTag(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.color = source["color"];
+	        this.description = source["description"];
+	        this.organization_id = source["organization_id"];
+	        this.is_system = source["is_system"];
+	        this.created_at = this.convertValues(source["created_at"], null);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class ColumnCatalogEntry {
+	    id: string;
+	    table_catalog_id: string;
+	    column_name: string;
+	    description?: string;
+	    tags?: string[];
+	    pii_type?: string;
+	    pii_confidence?: number;
+	    // Go type: time
+	    created_at: any;
+	    // Go type: time
+	    updated_at: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new ColumnCatalogEntry(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.table_catalog_id = source["table_catalog_id"];
+	        this.column_name = source["column_name"];
+	        this.description = source["description"];
+	        this.tags = source["tags"];
+	        this.pii_type = source["pii_type"];
+	        this.pii_confidence = source["pii_confidence"];
+	        this.created_at = this.convertValues(source["created_at"], null);
+	        this.updated_at = this.convertValues(source["updated_at"], null);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class SearchFilters {
+	    connection_id?: string;
+	    schema_name?: string;
+	    tags?: string[];
+	    organization_id?: string;
+	    limit?: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new SearchFilters(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.connection_id = source["connection_id"];
+	        this.schema_name = source["schema_name"];
+	        this.tags = source["tags"];
+	        this.organization_id = source["organization_id"];
+	        this.limit = source["limit"];
+	    }
+	}
+	export class SearchResult {
+	    type: string;
+	    id: string;
+	    connection_id: string;
+	    schema_name: string;
+	    table_name: string;
+	    column_name?: string;
+	    description?: string;
+	    tags?: string[];
+	    relevance_score: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new SearchResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.type = source["type"];
+	        this.id = source["id"];
+	        this.connection_id = source["connection_id"];
+	        this.schema_name = source["schema_name"];
+	        this.table_name = source["table_name"];
+	        this.column_name = source["column_name"];
+	        this.description = source["description"];
+	        this.tags = source["tags"];
+	        this.relevance_score = source["relevance_score"];
+	    }
+	}
+	export class SearchResults {
+	    results: SearchResult[];
+	    total: number;
+	    query: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SearchResults(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.results = this.convertValues(source["results"], SearchResult);
+	        this.total = source["total"];
+	        this.query = source["query"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class TableCatalogEntry {
+	    id: string;
+	    connection_id: string;
+	    schema_name: string;
+	    table_name: string;
+	    description?: string;
+	    steward_user_id?: string;
+	    tags?: string[];
+	    organization_id?: string;
+	    columns?: ColumnCatalogEntry[];
+	    // Go type: time
+	    created_at: any;
+	    // Go type: time
+	    updated_at: any;
+	    created_by: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new TableCatalogEntry(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.connection_id = source["connection_id"];
+	        this.schema_name = source["schema_name"];
+	        this.table_name = source["table_name"];
+	        this.description = source["description"];
+	        this.steward_user_id = source["steward_user_id"];
+	        this.tags = source["tags"];
+	        this.organization_id = source["organization_id"];
+	        this.columns = this.convertValues(source["columns"], ColumnCatalogEntry);
+	        this.created_at = this.convertValues(source["created_at"], null);
+	        this.updated_at = this.convertValues(source["updated_at"], null);
+	        this.created_by = source["created_by"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
 export namespace database {
 	
+	export class ColumnInfo {
+	    name: string;
+	    data_type: string;
+	    nullable: boolean;
+	    default_value?: string;
+	    primary_key: boolean;
+	    unique: boolean;
+	    indexed: boolean;
+	    comment: string;
+	    ordinal_position: number;
+	    character_maximum_length?: number;
+	    numeric_precision?: number;
+	    numeric_scale?: number;
+	    metadata: Record<string, string>;
+	
+	    static createFrom(source: any = {}) {
+	        return new ColumnInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.data_type = source["data_type"];
+	        this.nullable = source["nullable"];
+	        this.default_value = source["default_value"];
+	        this.primary_key = source["primary_key"];
+	        this.unique = source["unique"];
+	        this.indexed = source["indexed"];
+	        this.comment = source["comment"];
+	        this.ordinal_position = source["ordinal_position"];
+	        this.character_maximum_length = source["character_maximum_length"];
+	        this.numeric_precision = source["numeric_precision"];
+	        this.numeric_scale = source["numeric_scale"];
+	        this.metadata = source["metadata"];
+	    }
+	}
 	export class ForeignKeyRef {
 	    table: string;
 	    column: string;
@@ -132,7 +400,146 @@ export namespace database {
 		    return a;
 		}
 	}
+	export class ForeignKeyInfo {
+	    name: string;
+	    columns: string[];
+	    referenced_table: string;
+	    referenced_schema: string;
+	    referenced_columns: string[];
+	    on_delete: string;
+	    on_update: string;
 	
+	    static createFrom(source: any = {}) {
+	        return new ForeignKeyInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.columns = source["columns"];
+	        this.referenced_table = source["referenced_table"];
+	        this.referenced_schema = source["referenced_schema"];
+	        this.referenced_columns = source["referenced_columns"];
+	        this.on_delete = source["on_delete"];
+	        this.on_update = source["on_update"];
+	    }
+	}
+	
+	export class IndexInfo {
+	    name: string;
+	    columns: string[];
+	    unique: boolean;
+	    primary: boolean;
+	    type: string;
+	    method: string;
+	    metadata: Record<string, string>;
+	
+	    static createFrom(source: any = {}) {
+	        return new IndexInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.columns = source["columns"];
+	        this.unique = source["unique"];
+	        this.primary = source["primary"];
+	        this.type = source["type"];
+	        this.method = source["method"];
+	        this.metadata = source["metadata"];
+	    }
+	}
+	
+	export class TableInfo {
+	    schema: string;
+	    name: string;
+	    type: string;
+	    comment: string;
+	    // Go type: time
+	    created_at?: any;
+	    // Go type: time
+	    updated_at?: any;
+	    row_count: number;
+	    size_bytes: number;
+	    owner: string;
+	    metadata: Record<string, string>;
+	
+	    static createFrom(source: any = {}) {
+	        return new TableInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.schema = source["schema"];
+	        this.name = source["name"];
+	        this.type = source["type"];
+	        this.comment = source["comment"];
+	        this.created_at = this.convertValues(source["created_at"], null);
+	        this.updated_at = this.convertValues(source["updated_at"], null);
+	        this.row_count = source["row_count"];
+	        this.size_bytes = source["size_bytes"];
+	        this.owner = source["owner"];
+	        this.metadata = source["metadata"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class TableStructure {
+	    table: TableInfo;
+	    columns: ColumnInfo[];
+	    indexes: IndexInfo[];
+	    foreign_keys: ForeignKeyInfo[];
+	    triggers: string[];
+	    statistics: Record<string, string>;
+	
+	    static createFrom(source: any = {}) {
+	        return new TableStructure(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.table = this.convertValues(source["table"], TableInfo);
+	        this.columns = this.convertValues(source["columns"], ColumnInfo);
+	        this.indexes = this.convertValues(source["indexes"], IndexInfo);
+	        this.foreign_keys = this.convertValues(source["foreign_keys"], ForeignKeyInfo);
+	        this.triggers = source["triggers"];
+	        this.statistics = source["statistics"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 
 }
 
@@ -567,6 +974,40 @@ export namespace main {
 	        this.sql = source["sql"];
 	        this.confidence = source["confidence"];
 	        this.description = source["description"];
+	    }
+	}
+	export class CatalogStats {
+	    total_tables: number;
+	    total_columns: number;
+	    tagged_tables: number;
+	    pii_columns: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new CatalogStats(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.total_tables = source["total_tables"];
+	        this.total_columns = source["total_columns"];
+	        this.tagged_tables = source["tagged_tables"];
+	        this.pii_columns = source["pii_columns"];
+	    }
+	}
+	export class CatalogSyncResult {
+	    tables_added: number;
+	    tables_updated: number;
+	    columns_added: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new CatalogSyncResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.tables_added = source["tables_added"];
+	        this.tables_updated = source["tables_updated"];
+	        this.columns_added = source["columns_added"];
 	    }
 	}
 	export class ColumnInfo {
@@ -1637,6 +2078,335 @@ export namespace main {
 	        this.config = source["config"];
 	        this.confidence = source["confidence"];
 	    }
+	}
+
+}
+
+export namespace schemadiff {
+	
+	export class ColumnDiff {
+	    name: string;
+	    status: string;
+	    old_type?: string;
+	    new_type?: string;
+	    old_nullable?: boolean;
+	    new_nullable?: boolean;
+	    old_default?: string;
+	    new_default?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ColumnDiff(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.status = source["status"];
+	        this.old_type = source["old_type"];
+	        this.new_type = source["new_type"];
+	        this.old_nullable = source["old_nullable"];
+	        this.new_nullable = source["new_nullable"];
+	        this.old_default = source["old_default"];
+	        this.new_default = source["new_default"];
+	    }
+	}
+	export class DiffSummary {
+	    tables_added: number;
+	    tables_removed: number;
+	    tables_modified: number;
+	    columns_added: number;
+	    columns_removed: number;
+	    columns_modified: number;
+	    indexes_changed: number;
+	    fks_changed: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new DiffSummary(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.tables_added = source["tables_added"];
+	        this.tables_removed = source["tables_removed"];
+	        this.tables_modified = source["tables_modified"];
+	        this.columns_added = source["columns_added"];
+	        this.columns_removed = source["columns_removed"];
+	        this.columns_modified = source["columns_modified"];
+	        this.indexes_changed = source["indexes_changed"];
+	        this.fks_changed = source["fks_changed"];
+	    }
+	}
+	export class FKDiff {
+	    name: string;
+	    status: string;
+	    old_columns?: string[];
+	    new_columns?: string[];
+	    old_ref_table?: string;
+	    new_ref_table?: string;
+	    old_ref_columns?: string[];
+	    new_ref_columns?: string[];
+	    old_on_delete?: string;
+	    new_on_delete?: string;
+	    old_on_update?: string;
+	    new_on_update?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new FKDiff(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.status = source["status"];
+	        this.old_columns = source["old_columns"];
+	        this.new_columns = source["new_columns"];
+	        this.old_ref_table = source["old_ref_table"];
+	        this.new_ref_table = source["new_ref_table"];
+	        this.old_ref_columns = source["old_ref_columns"];
+	        this.new_ref_columns = source["new_ref_columns"];
+	        this.old_on_delete = source["old_on_delete"];
+	        this.new_on_delete = source["new_on_delete"];
+	        this.old_on_update = source["old_on_update"];
+	        this.new_on_update = source["new_on_update"];
+	    }
+	}
+	export class IndexDiff {
+	    name: string;
+	    status: string;
+	    old_columns?: string[];
+	    new_columns?: string[];
+	    old_unique?: boolean;
+	    new_unique?: boolean;
+	    old_method?: string;
+	    new_method?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new IndexDiff(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.status = source["status"];
+	        this.old_columns = source["old_columns"];
+	        this.new_columns = source["new_columns"];
+	        this.old_unique = source["old_unique"];
+	        this.new_unique = source["new_unique"];
+	        this.old_method = source["old_method"];
+	        this.new_method = source["new_method"];
+	    }
+	}
+	export class MigrationScript {
+	    direction: string;
+	    database_type: string;
+	    sql: string;
+	    // Go type: time
+	    generated_at: any;
+	    source_id: string;
+	    target_id: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new MigrationScript(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.direction = source["direction"];
+	        this.database_type = source["database_type"];
+	        this.sql = source["sql"];
+	        this.generated_at = this.convertValues(source["generated_at"], null);
+	        this.source_id = source["source_id"];
+	        this.target_id = source["target_id"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class TableDiff {
+	    schema: string;
+	    name: string;
+	    status: string;
+	    columns?: ColumnDiff[];
+	    indexes?: IndexDiff[];
+	    foreign_keys?: FKDiff[];
+	
+	    static createFrom(source: any = {}) {
+	        return new TableDiff(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.schema = source["schema"];
+	        this.name = source["name"];
+	        this.status = source["status"];
+	        this.columns = this.convertValues(source["columns"], ColumnDiff);
+	        this.indexes = this.convertValues(source["indexes"], IndexDiff);
+	        this.foreign_keys = this.convertValues(source["foreign_keys"], FKDiff);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class SchemaDiff {
+	    source_id: string;
+	    target_id: string;
+	    // Go type: time
+	    timestamp: any;
+	    summary: DiffSummary;
+	    tables: TableDiff[];
+	    duration: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new SchemaDiff(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.source_id = source["source_id"];
+	        this.target_id = source["target_id"];
+	        this.timestamp = this.convertValues(source["timestamp"], null);
+	        this.summary = this.convertValues(source["summary"], DiffSummary);
+	        this.tables = this.convertValues(source["tables"], TableDiff);
+	        this.duration = source["duration"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class SchemaSnapshot {
+	    id: string;
+	    name: string;
+	    connection_id: string;
+	    database_type: string;
+	    schemas: string[];
+	    tables: Record<string, Array<database.TableInfo>>;
+	    structures: Record<string, database.TableStructure>;
+	    // Go type: time
+	    created_at: any;
+	    hash: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SchemaSnapshot(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.connection_id = source["connection_id"];
+	        this.database_type = source["database_type"];
+	        this.schemas = source["schemas"];
+	        this.tables = this.convertValues(source["tables"], Array<database.TableInfo>, true);
+	        this.structures = this.convertValues(source["structures"], database.TableStructure, true);
+	        this.created_at = this.convertValues(source["created_at"], null);
+	        this.hash = source["hash"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class SnapshotMetadata {
+	    id: string;
+	    name: string;
+	    connection_id: string;
+	    database_type: string;
+	    table_count: number;
+	    // Go type: time
+	    created_at: any;
+	    size_bytes: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new SnapshotMetadata(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.connection_id = source["connection_id"];
+	        this.database_type = source["database_type"];
+	        this.table_count = source["table_count"];
+	        this.created_at = this.convertValues(source["created_at"], null);
+	        this.size_bytes = source["size_bytes"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 
 }

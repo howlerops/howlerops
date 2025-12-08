@@ -40,6 +40,7 @@ type Manager struct {
 	localStore *LocalSQLiteStorage // Always present for local operations
 	teamStore  Storage             // nil in solo mode, TursoTeamStorage in team mode
 	userID     string
+	dataDir    string // Local data directory path
 	logger     *logrus.Logger
 }
 
@@ -59,6 +60,7 @@ func NewManager(ctx context.Context, config *Config, logger *logrus.Logger) (*Ma
 		mode:       config.Mode,
 		localStore: localStore,
 		userID:     config.UserID,
+		dataDir:    config.Local.DataDir,
 		logger:     logger,
 	}
 
@@ -162,6 +164,13 @@ func (m *Manager) GetUserID() string {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.userID
+}
+
+// GetDataDir returns the local data directory path
+func (m *Manager) GetDataDir() string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.dataDir
 }
 
 // GetDB returns the database connection for direct access

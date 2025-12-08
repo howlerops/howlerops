@@ -212,6 +212,11 @@ func (s *DatabaseService) ListConnections() []string {
 	return s.manager.ListConnections()
 }
 
+// GetConnection returns a database connection by ID
+func (s *DatabaseService) GetConnection(connectionID string) (database.Database, error) {
+	return s.manager.GetConnection(connectionID)
+}
+
 // ListDatabases returns databases available for the specified connection
 func (s *DatabaseService) ListDatabases(connectionID string) ([]string, error) {
 	ctx, cancel := context.WithTimeout(s.ctx, 15*time.Second)

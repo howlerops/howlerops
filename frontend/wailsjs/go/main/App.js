@@ -6,6 +6,10 @@ export function AddKeyboardBinding(arg1, arg2) {
   return window['go']['main']['App']['AddKeyboardBinding'](arg1, arg2);
 }
 
+export function AssignTableSteward(arg1, arg2) {
+  return window['go']['main']['App']['AssignTableSteward'](arg1, arg2);
+}
+
 export function CancelQueryStream(arg1) {
   return window['go']['main']['App']['CancelQueryStream'](arg1);
 }
@@ -30,12 +34,28 @@ export function ClearRecentFiles() {
   return window['go']['main']['App']['ClearRecentFiles']();
 }
 
+export function CompareConnectionSchemas(arg1, arg2) {
+  return window['go']['main']['App']['CompareConnectionSchemas'](arg1, arg2);
+}
+
+export function CompareWithSnapshot(arg1, arg2) {
+  return window['go']['main']['App']['CompareWithSnapshot'](arg1, arg2);
+}
+
 export function ConfigureAIProvider(arg1) {
   return window['go']['main']['App']['ConfigureAIProvider'](arg1);
 }
 
 export function CopyFile(arg1, arg2) {
   return window['go']['main']['App']['CopyFile'](arg1, arg2);
+}
+
+export function CreateCatalogTag(arg1) {
+  return window['go']['main']['App']['CreateCatalogTag'](arg1);
+}
+
+export function CreateColumnCatalogEntry(arg1) {
+  return window['go']['main']['App']['CreateColumnCatalogEntry'](arg1);
 }
 
 export function CreateConnection(arg1) {
@@ -46,12 +66,24 @@ export function CreateDirectory(arg1) {
   return window['go']['main']['App']['CreateDirectory'](arg1);
 }
 
+export function CreateSchemaSnapshot(arg1, arg2) {
+  return window['go']['main']['App']['CreateSchemaSnapshot'](arg1, arg2);
+}
+
+export function CreateTableCatalogEntry(arg1) {
+  return window['go']['main']['App']['CreateTableCatalogEntry'](arg1);
+}
+
 export function CreateTempFile(arg1, arg2, arg3) {
   return window['go']['main']['App']['CreateTempFile'](arg1, arg2, arg3);
 }
 
 export function DeleteAIMemorySession(arg1) {
   return window['go']['main']['App']['DeleteAIMemorySession'](arg1);
+}
+
+export function DeleteCatalogTag(arg1) {
+  return window['go']['main']['App']['DeleteCatalogTag'](arg1);
 }
 
 export function DeleteFile(arg1) {
@@ -70,8 +102,16 @@ export function DeleteReport(arg1) {
   return window['go']['main']['App']['DeleteReport'](arg1);
 }
 
+export function DeleteSchemaSnapshot(arg1) {
+  return window['go']['main']['App']['DeleteSchemaSnapshot'](arg1);
+}
+
 export function DeleteSyntheticView(arg1) {
   return window['go']['main']['App']['DeleteSyntheticView'](arg1);
+}
+
+export function DeleteTableCatalogEntry(arg1) {
+  return window['go']['main']['App']['DeleteTableCatalogEntry'](arg1);
 }
 
 export function DeleteWebAuthnCredential(arg1) {
@@ -130,6 +170,14 @@ export function FixSQLErrorWithOptions(arg1) {
   return window['go']['main']['App']['FixSQLErrorWithOptions'](arg1);
 }
 
+export function GenerateMigrationSQL(arg1, arg2, arg3) {
+  return window['go']['main']['App']['GenerateMigrationSQL'](arg1, arg2, arg3);
+}
+
+export function GenerateMigrationSQLFromSnapshot(arg1, arg2, arg3) {
+  return window['go']['main']['App']['GenerateMigrationSQLFromSnapshot'](arg1, arg2, arg3);
+}
+
 export function GenerateSQLFromNaturalLanguage(arg1) {
   return window['go']['main']['App']['GenerateSQLFromNaturalLanguage'](arg1);
 }
@@ -160,6 +208,14 @@ export function GetAppVersion() {
 
 export function GetAvailableEnvironments() {
   return window['go']['main']['App']['GetAvailableEnvironments']();
+}
+
+export function GetCatalogStats(arg1) {
+  return window['go']['main']['App']['GetCatalogStats'](arg1);
+}
+
+export function GetColumnCatalogEntry(arg1, arg2) {
+  return window['go']['main']['App']['GetColumnCatalogEntry'](arg1, arg2);
 }
 
 export function GetConnectionCount() {
@@ -246,6 +302,10 @@ export function GetSchemaCacheStats() {
   return window['go']['main']['App']['GetSchemaCacheStats']();
 }
 
+export function GetSchemaSnapshot(arg1) {
+  return window['go']['main']['App']['GetSchemaSnapshot'](arg1);
+}
+
 export function GetSchemas(arg1) {
   return window['go']['main']['App']['GetSchemas'](arg1);
 }
@@ -264,6 +324,10 @@ export function GetSyntheticSchema() {
 
 export function GetSyntheticView(arg1) {
   return window['go']['main']['App']['GetSyntheticView'](arg1);
+}
+
+export function GetTableCatalogEntry(arg1, arg2, arg3) {
+  return window['go']['main']['App']['GetTableCatalogEntry'](arg1, arg2, arg3);
 }
 
 export function GetTableStructure(arg1, arg2, arg3) {
@@ -314,6 +378,14 @@ export function InvalidateSchemaCache(arg1) {
   return window['go']['main']['App']['InvalidateSchemaCache'](arg1);
 }
 
+export function ListCatalogTags(arg1) {
+  return window['go']['main']['App']['ListCatalogTags'](arg1);
+}
+
+export function ListColumnCatalogEntries(arg1) {
+  return window['go']['main']['App']['ListColumnCatalogEntries'](arg1);
+}
+
 export function ListConnectionDatabases(arg1) {
   return window['go']['main']['App']['ListConnectionDatabases'](arg1);
 }
@@ -326,8 +398,16 @@ export function ListReports() {
   return window['go']['main']['App']['ListReports']();
 }
 
+export function ListSchemaSnapshots() {
+  return window['go']['main']['App']['ListSchemaSnapshots']();
+}
+
 export function ListSyntheticViews() {
   return window['go']['main']['App']['ListSyntheticViews']();
+}
+
+export function ListTableCatalogEntries(arg1) {
+  return window['go']['main']['App']['ListTableCatalogEntries'](arg1);
 }
 
 export function LoadAIMemorySessions() {
@@ -336,6 +416,10 @@ export function LoadAIMemorySessions() {
 
 export function Logout(arg1) {
   return window['go']['main']['App']['Logout'](arg1);
+}
+
+export function MarkColumnAsPII(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['MarkColumnAsPII'](arg1, arg2, arg3, arg4);
 }
 
 export function OnUrlOpen(arg1) {
@@ -414,6 +498,10 @@ export function SaveToDownloads(arg1, arg2) {
   return window['go']['main']['App']['SaveToDownloads'](arg1, arg2);
 }
 
+export function SearchCatalog(arg1, arg2) {
+  return window['go']['main']['App']['SearchCatalog'](arg1, arg2);
+}
+
 export function ShowErrorDialog(arg1, arg2) {
   return window['go']['main']['App']['ShowErrorDialog'](arg1, arg2);
 }
@@ -462,6 +550,10 @@ export function SwitchConnectionDatabase(arg1) {
   return window['go']['main']['App']['SwitchConnectionDatabase'](arg1);
 }
 
+export function SyncCatalogFromConnection(arg1) {
+  return window['go']['main']['App']['SyncCatalogFromConnection'](arg1);
+}
+
 export function TestAIProvider(arg1) {
   return window['go']['main']['App']['TestAIProvider'](arg1);
 }
@@ -494,8 +586,16 @@ export function TestOpenAIConnection(arg1, arg2) {
   return window['go']['main']['App']['TestOpenAIConnection'](arg1, arg2);
 }
 
+export function UpdateColumnCatalogEntry(arg1) {
+  return window['go']['main']['App']['UpdateColumnCatalogEntry'](arg1);
+}
+
 export function UpdateQueryRow(arg1) {
   return window['go']['main']['App']['UpdateQueryRow'](arg1);
+}
+
+export function UpdateTableCatalogEntry(arg1) {
+  return window['go']['main']['App']['UpdateTableCatalogEntry'](arg1);
 }
 
 export function ValidateMultiQuery(arg1) {
