@@ -13,21 +13,24 @@ type AdaptiveVectorStore struct {
 	remoteStore VectorStore
 	syncEnabled bool
 	// simple in-process gate to coalesce concurrent syncs per document id
-	syncing    chan string
-	inFlight   map[string]struct{}
-	flightMu   sync.Mutex
-	maxRetries int
+	syncing      chan string
+	inFlight     map[string]struct{}
+	flightMu     sync.Mutex
+	maxRetries   int
+	batchSyncSem chan struct{}  // semaphore to limit concurrent batch sync goroutines
+	wg           sync.WaitGroup // tracks all sync goroutines for graceful shutdown
 }
 
 func NewAdaptiveVectorStore(tier string, local VectorStore, remote VectorStore, syncEnabled bool) *AdaptiveVectorStore {
 	return &AdaptiveVectorStore{
-		tierLevel:   tier,
-		localStore:  local,
-		remoteStore: remote,
-		syncEnabled: syncEnabled,
-		syncing:     make(chan string, 256),
-		inFlight:    make(map[string]struct{}),
-		maxRetries:  3,
+		tierLevel:    tier,
+		localStore:   local,
+		remoteStore:  remote,
+		syncEnabled:  syncEnabled,
+		syncing:      make(chan string, 256),
+		inFlight:     make(map[string]struct{}),
+		maxRetries:   3,
+		batchSyncSem: make(chan struct{}, 5), // limit to 5 concurrent batch sync operations
 	}
 }
 
@@ -51,15 +54,28 @@ func (a *AdaptiveVectorStore) BatchIndexDocuments(ctx context.Context, docs []*D
 		return err
 	}
 	if a.syncEnabled && a.remoteStore != nil && (a.tierLevel == "individual" || a.tierLevel == "team") {
-		// Best-effort batch sync; fall back to per-doc with backoff if needed
-		go func() {
-			// Try batch first
-			_ = a.remoteStore.BatchIndexDocuments(context.Background(), docs)
-			// Enqueue individually as a safety net (idempotent upsert on remote)
+		// Best-effort batch sync with semaphore to limit concurrent batch operations
+		select {
+		case a.batchSyncSem <- struct{}{}: // acquire semaphore
+			a.wg.Add(1)
+			go func() {
+				defer a.wg.Done()
+				defer func() { <-a.batchSyncSem }() // release semaphore
+				// Try batch first with timeout
+				syncCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+				defer cancel()
+				_ = a.remoteStore.BatchIndexDocuments(syncCtx, docs)
+				// Enqueue individually as a safety net (idempotent upsert on remote)
+				for _, d := range docs {
+					a.enqueueSync(d)
+				}
+			}()
+		default:
+			// semaphore full, fall back to per-doc sync only
 			for _, d := range docs {
 				a.enqueueSync(d)
 			}
-		}()
+		}
 	}
 	return nil
 }
@@ -79,6 +95,7 @@ func (a *AdaptiveVectorStore) enqueueSync(doc *Document) {
 	select {
 	case a.syncing <- doc.ID:
 		dcopy := *doc
+		a.wg.Add(1)
 		go a.syncWithBackoff(&dcopy)
 	default:
 		// queue full; drop this attempt; local remains authoritative
@@ -89,6 +106,7 @@ func (a *AdaptiveVectorStore) enqueueSync(doc *Document) {
 }
 
 func (a *AdaptiveVectorStore) syncWithBackoff(doc *Document) {
+	defer a.wg.Done()
 	// Remove inFlight flag on return
 	defer func() {
 		a.flightMu.Lock()
@@ -96,13 +114,16 @@ func (a *AdaptiveVectorStore) syncWithBackoff(doc *Document) {
 		a.flightMu.Unlock()
 	}()
 
-	// Exponential backoff attempts
+	// Exponential backoff attempts with timeout
 	backoff := 100 * time.Millisecond
 	for attempt := 0; attempt < a.maxRetries; attempt++ {
 		if a.remoteStore == nil {
 			return
 		}
-		if err := a.remoteStore.IndexDocument(context.Background(), doc); err == nil {
+		syncCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		err := a.remoteStore.IndexDocument(syncCtx, doc)
+		cancel()
+		if err == nil {
 			return
 		}
 		time.Sleep(backoff)
@@ -120,7 +141,9 @@ func (a *AdaptiveVectorStore) StartSyncWorker(ctx context.Context, interval time
 		interval = 200 * time.Millisecond
 	}
 	ticker := time.NewTicker(interval)
+	a.wg.Add(1)
 	go func() {
+		defer a.wg.Done()
 		defer ticker.Stop()
 		for {
 			select {
@@ -132,6 +155,12 @@ func (a *AdaptiveVectorStore) StartSyncWorker(ctx context.Context, interval time
 			}
 		}
 	}()
+}
+
+// Shutdown waits for all sync goroutines to complete.
+// Call this before shutting down the application to ensure graceful cleanup.
+func (a *AdaptiveVectorStore) Shutdown() {
+	a.wg.Wait()
 }
 
 func (a *AdaptiveVectorStore) GetDocument(ctx context.Context, id string) (*Document, error) {

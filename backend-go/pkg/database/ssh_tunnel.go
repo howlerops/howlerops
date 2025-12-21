@@ -121,11 +121,21 @@ func (m *SSHTunnelManager) EstablishTunnel(ctx context.Context, config *SSHTunne
 }
 
 // CloseTunnel closes an SSH tunnel
+// Lock ordering: manager lock → tunnel lock (consistent with EstablishTunnel)
 func (m *SSHTunnelManager) CloseTunnel(tunnel *SSHTunnel) error {
 	if tunnel == nil {
 		return nil
 	}
 
+	// Compute tunnel ID before acquiring any locks
+	tunnelID := fmt.Sprintf("%s:%d->%s:%d", tunnel.config.Host, tunnel.config.Port, tunnel.remoteHost, tunnel.remotePort)
+
+	// Manager lock first - remove from registry before cleanup
+	m.mu.Lock()
+	delete(m.tunnels, tunnelID)
+	m.mu.Unlock()
+
+	// Then tunnel lock for cleanup
 	tunnel.mu.Lock()
 	defer tunnel.mu.Unlock()
 
@@ -149,12 +159,6 @@ func (m *SSHTunnelManager) CloseTunnel(tunnel *SSHTunnel) error {
 	}
 
 	tunnel.wg.Wait()
-
-	// Remove from manager
-	tunnelID := fmt.Sprintf("%s:%d->%s:%d", tunnel.config.Host, tunnel.config.Port, tunnel.remoteHost, tunnel.remotePort)
-	m.mu.Lock()
-	delete(m.tunnels, tunnelID)
-	m.mu.Unlock()
 
 	m.logger.WithField("local_port", tunnel.localPort).Info("SSH tunnel closed")
 	return nil

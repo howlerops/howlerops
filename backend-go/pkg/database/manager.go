@@ -826,12 +826,14 @@ func (m *Manager) GetMultiConnectionSchema(ctx context.Context, connectionIDs []
 		db          Database
 	}
 
+	// Copy all needed data while holding manager lock
+	// Release lock BEFORE spawning any goroutines
+	m.mu.RLock()
 	resolved := make([]resolvedConnection, 0, len(connectionIDs))
 	missing := make([]string, 0)
-
-	m.mu.RLock()
 	cache := m.schemaCache
 	logger := m.logger
+
 	for _, connID := range connectionIDs {
 		resolvedID := connID
 		if _, exists := m.connections[connID]; !exists {
@@ -855,6 +857,7 @@ func (m *Manager) GetMultiConnectionSchema(ctx context.Context, connectionIDs []
 		})
 	}
 	m.mu.RUnlock()
+	// Manager lock is now fully released before any goroutine spawning
 
 	for _, connID := range missing {
 		logger.WithField("connection", connID).Warn("Connection not found while loading schema")

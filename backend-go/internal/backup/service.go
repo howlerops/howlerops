@@ -68,7 +68,8 @@ func (s *Service) CreateBackup(ctx context.Context, opts *BackupOptions) (*Datab
 
 // performBackup executes the backup operation
 func (s *Service) performBackup(backup *DatabaseBackup, opts *BackupOptions) {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Hour)
+	defer cancel()
 
 	logger := s.logger.WithFields(logrus.Fields{
 		"backup_id": backup.ID,

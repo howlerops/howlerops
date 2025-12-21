@@ -249,7 +249,10 @@ func (s *Service) ExecuteTemplate(ctx context.Context, templateID string, params
 
 	// Increment usage counter (non-blocking)
 	go func() {
-		if err := s.templateStore.IncrementUsage(context.Background(), templateID); err != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		if err := s.templateStore.IncrementUsage(ctx, templateID); err != nil {
 			s.logger.WithError(err).Warn("Failed to increment template usage")
 		}
 	}()

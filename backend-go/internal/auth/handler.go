@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
@@ -111,7 +112,10 @@ func (h *Handler) HandleSignup(w http.ResponseWriter, r *http.Request) {
 
 	// Send welcome email (non-blocking)
 	go func() {
-		if err := h.service.SendWelcomeEmail(context.Background(), user.ID); err != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		if err := h.service.SendWelcomeEmail(ctx, user.ID); err != nil {
 			h.logger.WithError(err).Warn("Failed to send welcome email")
 		}
 	}()

@@ -35,11 +35,12 @@ type Scheduler struct {
 	queryExecutor   QueryExecutor
 	logger          *logrus.Logger
 
-	ticker   *time.Ticker
-	stopChan chan struct{}
-	wg       sync.WaitGroup
-	mu       sync.Mutex
-	running  bool
+	ticker    *time.Ticker
+	stopChan  chan struct{}
+	wg        sync.WaitGroup
+	mu        sync.Mutex
+	running   bool
+	semaphore chan struct{}
 
 	// Configuration
 	interval      time.Duration
@@ -81,6 +82,7 @@ func NewScheduler(
 		queryExecutor:   queryExecutor,
 		logger:          logger,
 		stopChan:        make(chan struct{}),
+		semaphore:       make(chan struct{}, config.MaxConcurrent),
 		interval:        config.Interval,
 		maxConcurrent:   config.MaxConcurrent,
 		timeout:         config.Timeout,
@@ -171,18 +173,15 @@ func (s *Scheduler) checkAndExecuteSchedules() {
 
 	s.logger.WithField("count", len(schedules)).Info("Found schedules due for execution")
 
-	// Use a semaphore to limit concurrent executions
-	sem := make(chan struct{}, s.maxConcurrent)
-
 	for _, schedule := range schedules {
 		select {
 		case <-s.stopChan:
 			return
-		case sem <- struct{}{}:
+		case s.semaphore <- struct{}{}:
 			s.wg.Add(1)
 			go func(sched *turso.QuerySchedule) {
 				defer s.wg.Done()
-				defer func() { <-sem }()
+				defer func() { <-s.semaphore }()
 
 				s.executeSchedule(context.Background(), sched)
 			}(schedule)
@@ -413,7 +412,23 @@ func (s *Scheduler) ExecuteNow(ctx context.Context, scheduleID string) error {
 		return fmt.Errorf("schedule is not active")
 	}
 
-	go s.executeSchedule(context.Background(), schedule)
+	// Use semaphore for backpressure control
+	select {
+	case s.semaphore <- struct{}{}:
+		s.wg.Add(1)
+		go func() {
+			defer s.wg.Done()
+			defer func() { <-s.semaphore }()
+
+			// Create execution context with timeout
+			execCtx, cancel := context.WithTimeout(ctx, s.timeout)
+			defer cancel()
+
+			s.executeSchedule(execCtx, schedule)
+		}()
+	default:
+		return fmt.Errorf("max concurrent executions (%d) reached, cannot execute schedule now", s.maxConcurrent)
+	}
 
 	s.logger.WithField("schedule_id", scheduleID).Info("Manual execution triggered")
 	return nil

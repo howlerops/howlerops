@@ -18,6 +18,7 @@ type ConnectionPool struct {
 	logger          *logrus.Logger
 	stats           *PoolStats
 	healthCheckStop chan struct{}
+	wg              sync.WaitGroup
 	mu              sync.RWMutex
 	healthStatus    bool
 }
@@ -98,6 +99,7 @@ func NewOptimizedPool(config *PoolConfig, logger *logrus.Logger) (*ConnectionPoo
 	}
 
 	// Start health monitoring
+	pool.wg.Add(1)
 	go pool.monitorHealth()
 
 	logger.WithFields(logrus.Fields{
@@ -194,6 +196,7 @@ func (p *ConnectionPool) GetStats() *PoolStats {
 
 // monitorHealth performs periodic health checks
 func (p *ConnectionPool) monitorHealth() {
+	defer p.wg.Done()
 	ticker := time.NewTicker(p.config.HealthCheckPeriod)
 	defer ticker.Stop()
 
@@ -335,6 +338,7 @@ func (p *ConnectionPool) WarmUp(ctx context.Context, connections int) error {
 func (p *ConnectionPool) Close() error {
 	// Stop health monitoring
 	close(p.healthCheckStop)
+	p.wg.Wait() // Wait for health monitor to stop
 
 	// Log final stats
 	stats := p.GetStats()

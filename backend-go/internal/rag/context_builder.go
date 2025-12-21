@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"golang.org/x/sync/errgroup"
 )
 
 // QueryContext represents enriched context for a query
@@ -162,79 +163,71 @@ func (cb *ContextBuilder) BuildContext(ctx context.Context, query string, connec
 		Confidence: 0.0,
 	}
 
-	// Parallel context enrichment
-	errChan := make(chan error, 5)
-	doneChan := make(chan bool, 5)
+	// Create timeout context for parallel enrichment
+	timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	// Use errgroup for coordinated parallel execution with automatic cancellation
+	g, gCtx := errgroup.WithContext(timeoutCtx)
 
 	// Fetch relevant schemas
-	go func() {
-		schemas, err := cb.fetchRelevantSchemas(ctx, embedding, connectionID)
+	g.Go(func() error {
+		schemas, err := cb.fetchRelevantSchemas(gCtx, embedding, connectionID)
 		if err != nil {
-			errChan <- err
-			return
+			cb.logger.WithError(err).Warn("Error fetching relevant schemas")
+			return nil // Don't fail the entire operation
 		}
 		queryContext.RelevantSchemas = schemas
-		doneChan <- true
-	}()
+		return nil
+	})
 
 	// Find similar queries
-	go func() {
-		patterns, err := cb.findSimilarQueries(ctx, embedding, connectionID)
+	g.Go(func() error {
+		patterns, err := cb.findSimilarQueries(gCtx, embedding, connectionID)
 		if err != nil {
-			errChan <- err
-			return
+			cb.logger.WithError(err).Warn("Error finding similar queries")
+			return nil // Don't fail the entire operation
 		}
 		queryContext.SimilarQueries = patterns
-		doneChan <- true
-	}()
+		return nil
+	})
 
 	// Extract business rules
-	go func() {
-		rules, err := cb.extractBusinessRules(ctx, query, embedding)
+	g.Go(func() error {
+		rules, err := cb.extractBusinessRules(gCtx, query, embedding)
 		if err != nil {
-			errChan <- err
-			return
+			cb.logger.WithError(err).Warn("Error extracting business rules")
+			return nil // Don't fail the entire operation
 		}
 		queryContext.BusinessRules = rules
-		doneChan <- true
-	}()
+		return nil
+	})
 
 	// Generate optimization hints
-	go func() {
-		hints, err := cb.generateOptimizationHints(ctx, query, connectionID)
+	g.Go(func() error {
+		hints, err := cb.generateOptimizationHints(gCtx, query, connectionID)
 		if err != nil {
-			errChan <- err
-			return
+			cb.logger.WithError(err).Warn("Error generating optimization hints")
+			return nil // Don't fail the entire operation
 		}
 		queryContext.PerformanceHints = hints
-		doneChan <- true
-	}()
+		return nil
+	})
 
 	// Collect data statistics
-	go func() {
-		stats, err := cb.collectDataStatistics(ctx, query, connectionID)
+	g.Go(func() error {
+		stats, err := cb.collectDataStatistics(gCtx, query, connectionID)
 		if err != nil {
-			errChan <- err
-			return
+			cb.logger.WithError(err).Warn("Error collecting data statistics")
+			return nil // Don't fail the entire operation
 		}
 		queryContext.DataStatistics = stats
-		doneChan <- true
-	}()
+		return nil
+	})
 
-	// Wait for all goroutines to complete
-	completed := 0
-WAIT_LOOP:
-	for completed < 5 {
-		select {
-		case <-doneChan:
-			completed++
-		case err := <-errChan:
-			cb.logger.WithError(err).Warn("Error during context enrichment")
-			completed++
-		case <-time.After(5 * time.Second):
-			cb.logger.Warn("Context building timeout")
-			break WAIT_LOOP
-		}
+	// Wait for all goroutines to complete or timeout
+	if err := g.Wait(); err != nil {
+		cb.logger.WithError(err).Warn("Context enrichment completed with errors")
 	}
 
 	// Generate suggestions based on context

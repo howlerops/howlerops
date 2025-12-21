@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -122,10 +123,11 @@ type SQLiteVectorConfig struct {
 
 // SQLiteVectorStore implements VectorStore using SQLite
 type SQLiteVectorStore struct {
-	db          *sql.DB
-	collections map[string]*CollectionConfig
-	logger      *logrus.Logger
-	config      *SQLiteVectorConfig
+	db            *sql.DB
+	collections   map[string]*CollectionConfig
+	collectionsMu sync.RWMutex
+	logger        *logrus.Logger
+	config        *SQLiteVectorConfig
 
 	// Hybrid search configuration
 	rrfConstant  int
@@ -340,6 +342,7 @@ func (s *SQLiteVectorStore) Initialize(ctx context.Context) error {
 		}
 	}()
 
+	s.collectionsMu.Lock()
 	for rows.Next() {
 		var name, distance string
 		var vectorSize, docCount int
@@ -356,6 +359,7 @@ func (s *SQLiteVectorStore) Initialize(ctx context.Context) error {
 			Distance:   distance,
 		}
 	}
+	s.collectionsMu.Unlock()
 
 	// Check if HNSW index is available (after migrations have run)
 	if s.vecVersion != "" {
@@ -983,11 +987,13 @@ func (s *SQLiteVectorStore) CreateCollection(ctx context.Context, name string, d
 		return fmt.Errorf("failed to create collection: %w", err)
 	}
 
+	s.collectionsMu.Lock()
 	s.collections[name] = &CollectionConfig{
 		Name:       name,
 		VectorSize: dimension,
 		Distance:   "cosine",
 	}
+	s.collectionsMu.Unlock()
 
 	s.logger.WithField("collection", name).Info("Collection created")
 	return nil
@@ -1000,7 +1006,10 @@ func (s *SQLiteVectorStore) DeleteCollection(ctx context.Context, name string) e
 		return fmt.Errorf("failed to delete collection: %w", err)
 	}
 
+	s.collectionsMu.Lock()
 	delete(s.collections, name)
+	s.collectionsMu.Unlock()
+
 	s.logger.WithField("collection", name).Info("Collection deleted")
 	return nil
 }
@@ -1037,9 +1046,13 @@ func (s *SQLiteVectorStore) GetStats(ctx context.Context) (*VectorStoreStats, er
 		return nil, fmt.Errorf("failed to get document count: %w", err)
 	}
 
+	s.collectionsMu.RLock()
+	collectionsCount := len(s.collections)
+	s.collectionsMu.RUnlock()
+
 	stats := &VectorStoreStats{
 		TotalDocuments:   totalDocs,
-		TotalCollections: len(s.collections),
+		TotalCollections: collectionsCount,
 		LastOptimized:    time.Now(), // TODO: Track this properly
 	}
 

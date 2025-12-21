@@ -56,35 +56,43 @@ func NewSchemaCache(logger *logrus.Logger) *SchemaCache {
 func (sc *SchemaCache) GetCachedSchema(ctx context.Context, connectionID string, db Database) (*CachedSchema, error) {
 	sc.mu.RLock()
 	cached, exists := sc.cache[connectionID]
-	sc.mu.RUnlock()
-
 	if !exists {
+		sc.mu.RUnlock()
 		sc.logger.WithField("connection", connectionID).Debug("Schema cache miss")
 		return nil, nil
 	}
 
-	// Check if cache is expired
+	// Check if cache is expired (read while holding lock)
 	if time.Now().After(cached.ExpiresAt) {
+		sc.mu.RUnlock()
 		sc.logger.WithField("connection", connectionID).Debug("Schema cache expired")
 		sc.InvalidateCache(connectionID)
 		return nil, nil
 	}
 
-	// Quick check - if cache is fresh (< 5 minutes), return immediately
+	// Quick check - if cache is fresh (< 5 minutes), return defensive copy immediately
 	if time.Since(cached.LastCheckedAt) < 5*time.Minute {
+		cachedCopy := sc.deepCopy(cached)
+		sc.mu.RUnlock()
 		sc.logger.WithField("connection", connectionID).Debug("Schema cache hit (fresh)")
-		return cached, nil
+		return cachedCopy, nil
 	}
 
-	// Otherwise, do a lightweight change detection
-	hasChanged, err := sc.detectSchemaChange(ctx, connectionID, cached, db)
+	// Create defensive copy for change detection (while holding lock)
+	cachedCopy := sc.deepCopy(cached)
+	sc.mu.RUnlock()
+
+	// Do a lightweight change detection using the copy
+	hasChanged, err := sc.detectSchemaChange(ctx, connectionID, cachedCopy, db)
 	if err != nil {
 		sc.logger.WithError(err).Warn("Failed to detect schema changes, using cached")
 		// Update last checked time even on error
 		sc.mu.Lock()
-		cached.LastCheckedAt = time.Now()
+		if stillCached, stillExists := sc.cache[connectionID]; stillExists {
+			stillCached.LastCheckedAt = time.Now()
+		}
 		sc.mu.Unlock()
-		return cached, nil
+		return cachedCopy, nil
 	}
 
 	if hasChanged {
@@ -95,11 +103,46 @@ func (sc *SchemaCache) GetCachedSchema(ctx context.Context, connectionID string,
 
 	// Update last checked time
 	sc.mu.Lock()
-	cached.LastCheckedAt = time.Now()
+	if stillCached, stillExists := sc.cache[connectionID]; stillExists {
+		stillCached.LastCheckedAt = time.Now()
+	}
 	sc.mu.Unlock()
 
 	sc.logger.WithField("connection", connectionID).Debug("Schema cache hit (verified)")
-	return cached, nil
+	return cachedCopy, nil
+}
+
+// deepCopy creates a defensive copy of CachedSchema to prevent concurrent modifications
+func (sc *SchemaCache) deepCopy(cached *CachedSchema) *CachedSchema {
+	result := &CachedSchema{
+		ConnectionID:     cached.ConnectionID,
+		Schemas:          make([]string, len(cached.Schemas)),
+		Tables:           make(map[string][]TableInfo),
+		Columns:          make(map[string][]ColumnInfo),
+		Hash:             cached.Hash,
+		MigrationHash:    cached.MigrationHash,
+		CachedAt:         cached.CachedAt,
+		ExpiresAt:        cached.ExpiresAt,
+		LastCheckedAt:    cached.LastCheckedAt,
+		ChangeDetectedAt: cached.ChangeDetectedAt,
+	}
+
+	// Copy Schemas slice
+	copy(result.Schemas, cached.Schemas)
+
+	// Deep copy Tables map
+	for k, v := range cached.Tables {
+		result.Tables[k] = make([]TableInfo, len(v))
+		copy(result.Tables[k], v)
+	}
+
+	// Deep copy Columns map
+	for k, v := range cached.Columns {
+		result.Columns[k] = make([]ColumnInfo, len(v))
+		copy(result.Columns[k], v)
+	}
+
+	return result
 }
 
 // CacheSchema stores schema information with metadata

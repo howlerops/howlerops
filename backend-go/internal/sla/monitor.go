@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -13,8 +14,12 @@ import (
 
 // Monitor handles SLA monitoring and calculation
 type Monitor struct {
-	store  *Store
-	logger *logrus.Logger
+	store           *Store
+	logger          *logrus.Logger
+	wg              sync.WaitGroup
+	mu              sync.Mutex
+	schedulerActive bool
+	cleanupActive   bool
 }
 
 // NewMonitor creates a new SLA monitor
@@ -212,14 +217,27 @@ func (m *Monitor) GetLatestMetrics(ctx context.Context, orgID string, days int) 
 }
 
 // StartScheduler starts the background scheduler for SLA calculation
-func (m *Monitor) StartScheduler(ctx context.Context) {
+func (m *Monitor) StartScheduler(ctx context.Context) error {
+	m.mu.Lock()
+	if m.schedulerActive {
+		m.mu.Unlock()
+		return fmt.Errorf("scheduler already running")
+	}
+	m.schedulerActive = true
+	m.mu.Unlock()
+
 	// Calculate SLA for all organizations daily at 1 AM
 	ticker := time.NewTicker(1 * time.Hour)
+	m.wg.Add(1)
 	go func() {
+		defer m.wg.Done()
+		defer ticker.Stop()
 		for {
 			select {
 			case <-ctx.Done():
-				ticker.Stop()
+				m.mu.Lock()
+				m.schedulerActive = false
+				m.mu.Unlock()
 				return
 			case now := <-ticker.C:
 				// Only run at 1 AM
@@ -231,6 +249,7 @@ func (m *Monitor) StartScheduler(ctx context.Context) {
 	}()
 
 	m.logger.Info("SLA monitoring scheduler started")
+	return nil
 }
 
 // calculateAllOrgSLAs calculates SLA for all organizations for a given date
@@ -277,14 +296,27 @@ func (m *Monitor) calculateAllOrgSLAs(ctx context.Context, date time.Time) {
 }
 
 // StartCleanupScheduler starts background cleanup of old logs
-func (m *Monitor) StartCleanupScheduler(ctx context.Context, retentionDays int) {
+func (m *Monitor) StartCleanupScheduler(ctx context.Context, retentionDays int) error {
+	m.mu.Lock()
+	if m.cleanupActive {
+		m.mu.Unlock()
+		return fmt.Errorf("cleanup scheduler already running")
+	}
+	m.cleanupActive = true
+	m.mu.Unlock()
+
 	// Run cleanup daily at 2 AM
 	ticker := time.NewTicker(1 * time.Hour)
+	m.wg.Add(1)
 	go func() {
+		defer m.wg.Done()
+		defer ticker.Stop()
 		for {
 			select {
 			case <-ctx.Done():
-				ticker.Stop()
+				m.mu.Lock()
+				m.cleanupActive = false
+				m.mu.Unlock()
 				return
 			case now := <-ticker.C:
 				if now.Hour() == 2 {
@@ -299,6 +331,14 @@ func (m *Monitor) StartCleanupScheduler(ctx context.Context, retentionDays int) 
 	}()
 
 	m.logger.WithField("retention_days", retentionDays).Info("SLA cleanup scheduler started")
+	return nil
+}
+
+// Shutdown waits for all background goroutines to complete gracefully
+func (m *Monitor) Shutdown() {
+	m.logger.Info("Shutting down SLA monitor, waiting for schedulers to complete")
+	m.wg.Wait()
+	m.logger.Info("SLA monitor shutdown complete")
 }
 
 // Helper function to convert []*SLAMetrics to []SLAMetrics

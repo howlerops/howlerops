@@ -115,7 +115,8 @@ func (s *Service) GetUserExportRequests(ctx context.Context, userID string) ([]*
 
 // performExport executes the data export in the background
 func (s *Service) performExport(request *DataExportRequest) {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
 
 	logger := s.logger.WithFields(logrus.Fields{
 		"request_id": request.ID,
@@ -252,7 +253,8 @@ func (s *Service) collectUserData(ctx context.Context, userID string) (*UserData
 
 // performDeletion executes the data deletion in the background
 func (s *Service) performDeletion(request *DataExportRequest) {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
 
 	logger := s.logger.WithFields(logrus.Fields{
 		"request_id": request.ID,
