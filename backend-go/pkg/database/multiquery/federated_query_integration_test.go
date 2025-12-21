@@ -1,7 +1,7 @@
 package multiquery
 
 import (
-		"testing"
+	"testing"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -16,7 +16,7 @@ func TestFederatedQuery_ParseAndValidate(t *testing.T) {
 	logger := logrus.New()
 	logger.SetLevel(logrus.ErrorLevel)
 	parser := NewQueryParser(&Config{
-		Enabled:         true,
+		Enabled:            true,
 		MaxConcurrentConns: 10,
 	}, logger)
 
@@ -46,8 +46,8 @@ func TestFederatedQuery_ExecutionStrategySelection(t *testing.T) {
 		{
 			name: "Auto strategy for single connection",
 			config: &Config{
-				Enabled:            true,
-				DefaultStrategy:    StrategyAuto,
+				Enabled:                true,
+				DefaultStrategy:        StrategyAuto,
 				EnableCrossTypeQueries: true,
 			},
 			query:            "SELECT * FROM @prod.users WHERE id = 1",
@@ -351,7 +351,7 @@ func TestFederatedQuery_LargeScaleQuery(t *testing.T) {
 	logger := logrus.New()
 	logger.SetLevel(logrus.ErrorLevel)
 	parser := NewQueryParser(&Config{
-		Enabled:         true,
+		Enabled:            true,
 		MaxConcurrentConns: 10,
 	}, logger)
 
