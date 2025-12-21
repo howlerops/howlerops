@@ -142,37 +142,48 @@ export const useTableState = (
     columnId: string,
     newValue: CellValue,
     addToHistory = true
-  ) => {
-    const rowIndex = dataRef.current.findIndex(row => row.__rowId === rowId);
-    if (rowIndex === -1) return false;
-
-    const oldValue = dataRef.current[rowIndex][columnId];
-
-    if (isEqual(oldValue, newValue)) {
-      return true;
-    }
+  ): boolean => {
+    let success = false;
+    let oldValue: CellValue = undefined;
 
     setData(prevData => {
+      const rowIndex = prevData.findIndex(row => row.__rowId === rowId);
+      if (rowIndex === -1) {
+        return prevData; // No change, row not found
+      }
+
+      oldValue = prevData[rowIndex][columnId];
+      if (isEqual(oldValue, newValue)) {
+        success = true; // No change needed but still successful
+        return prevData;
+      }
+
+      // Create new data array with updated cell
       const newData = [...prevData];
       newData[rowIndex] = { ...newData[rowIndex], [columnId]: newValue };
+
+      success = true;
       return newData;
     });
 
-    setState(prev => ({
-      ...prev,
-      dirtyRows: new Set([...prev.dirtyRows, rowId]),
-      editingCell: null,
-    }));
+    // Handle state updates and history outside the data update
+    if (success && !isEqual(oldValue, newValue)) {
+      setState(prev => ({
+        ...prev,
+        dirtyRows: new Set([...prev.dirtyRows, rowId]),
+        editingCell: null,
+      }));
 
-    if (addToHistory) {
-      addToUndoStack({
-        type: 'edit',
-        payload: { rowId, columnId, oldValue, newValue },
-        timestamp: Date.now(),
-      });
+      if (addToHistory) {
+        addToUndoStack({
+          type: 'edit',
+          payload: { rowId, columnId, oldValue, newValue },
+          timestamp: Date.now(),
+        });
+      }
     }
 
-    return true;
+    return success;
   }, [addToUndoStack, setData]);
 
   const startEditing = useCallback((
@@ -487,6 +498,13 @@ export const useTableState = (
       setData(assignRowIds(newData));
       setState(prev => ({
         ...prev,
+        // PRESERVE column configuration:
+        // columnOrder: prev.columnOrder,         // Already preserved by spread
+        // columnVisibility: prev.columnVisibility,
+        // columnSizing: prev.columnSizing,
+
+        // CLEAR editing and dirty state:
+        editingCell: null,
         dirtyRows: new Set(),
         invalidCells: new Map(),
         undoStack: [],

@@ -15,9 +15,9 @@ import {
 import { defaultKeymap, history, historyKeymap, indentMore } from '@codemirror/commands'
 import { sql, SQLDialect } from '@codemirror/lang-sql'
 import { searchKeymap } from '@codemirror/search'
-import { EditorState, Extension, StateEffect, StateField } from '@codemirror/state'
+import { EditorState, Extension, RangeSetBuilder, StateEffect, StateField } from '@codemirror/state'
 import { oneDark } from '@codemirror/theme-one-dark'
-import { EditorView, keymap, ViewUpdate } from '@codemirror/view'
+import { Decoration, DecorationSet, EditorView, keymap, ViewPlugin, ViewUpdate } from '@codemirror/view'
 
 import { getTablesInScope,isAlias, parseQueryContext, resolveAlias } from './sql-context-parser'
 
@@ -731,6 +731,106 @@ export function sqlAutocompletion(columnLoader?: ColumnLoader): Extension {
   })
 }
 
+// ================================================================
+// Multi-Database Connection Syntax Highlighting
+// ================================================================
+
+/**
+ * Decoration styles for multi-database connection references
+ * Highlights @connection.table patterns in the SQL editor
+ */
+const connectionRefMark = Decoration.mark({
+  class: 'cm-connection-ref',
+  attributes: {
+    'data-tooltip': 'Multi-database reference'
+  }
+})
+
+/**
+ * Build decorations for @connection references in the document
+ */
+function buildConnectionDecorations(view: EditorView): DecorationSet {
+  const builder = new RangeSetBuilder<Decoration>()
+
+  // Pattern: @connection.table or @connection.schema.table
+  // Also matches @alias.table when used after aliasing
+  const connectionPattern = /@[\w-]+(?:\.[\w-]+)+/g
+
+  for (const { from, to } of view.visibleRanges) {
+    const text = view.state.doc.sliceString(from, to)
+    let match: RegExpExecArray | null
+
+    connectionPattern.lastIndex = 0
+    while ((match = connectionPattern.exec(text))) {
+      builder.add(from + match.index, from + match.index + match[0].length, connectionRefMark)
+    }
+  }
+
+  return builder.finish()
+}
+
+/**
+ * ViewPlugin for highlighting @connection references
+ */
+const connectionHighlighter = ViewPlugin.fromClass(
+  class {
+    decorations: DecorationSet
+
+    constructor(view: EditorView) {
+      this.decorations = buildConnectionDecorations(view)
+    }
+
+    update(update: ViewUpdate) {
+      if (update.docChanged || update.viewportChanged) {
+        this.decorations = buildConnectionDecorations(update.view)
+      }
+    }
+  },
+  {
+    decorations: v => v.decorations
+  }
+)
+
+/**
+ * Theme extension for connection reference highlighting
+ * Adds visual styles for the @connection.table syntax
+ */
+const connectionHighlightTheme = EditorView.baseTheme({
+  '.cm-connection-ref': {
+    color: 'var(--cm-connection-color, #7c3aed)', // Purple/violet for connection references
+    fontWeight: '500',
+    backgroundColor: 'var(--cm-connection-bg, rgba(124, 58, 237, 0.1))',
+    borderRadius: '2px',
+    padding: '0 2px'
+  }
+})
+
+/**
+ * Dark theme overrides for connection highlighting
+ */
+const connectionHighlightDarkTheme = EditorView.theme({
+  '.cm-connection-ref': {
+    color: '#a78bfa', // Lighter purple for dark mode
+    backgroundColor: 'rgba(167, 139, 250, 0.15)'
+  }
+})
+
+/**
+ * Create the multi-database syntax highlighting extension
+ */
+export function multiDatabaseHighlighting(theme: 'light' | 'dark'): Extension[] {
+  const extensions: Extension[] = [
+    connectionHighlighter,
+    connectionHighlightTheme
+  ]
+
+  if (theme === 'dark') {
+    extensions.push(connectionHighlightDarkTheme)
+  }
+
+  return extensions
+}
+
 /**
  * Create base SQL extensions
  */
@@ -752,6 +852,8 @@ export function createSQLExtensions(
     }),
     schemaState,
     sqlAutocompletion(columnLoader),
+    // Multi-database @connection.table syntax highlighting
+    ...multiDatabaseHighlighting(theme),
     keymap.of([
       // Tab key accepts completion if available, otherwise indents
       {

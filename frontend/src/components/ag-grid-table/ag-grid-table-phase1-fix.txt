@@ -1,0 +1,13 @@
+      // Phase 1: Normalize to single source of truth - field and colId must match
+      const field = col.accessorKey || col.id || col.header;
+      const colId = field; // ALWAYS match field
+
+      // Add dev-mode validation (only log once per column)
+      if (process.env.NODE_ENV === 'development' && data.length > 0 && index === 0) {
+        const sampleRow = data[0];
+        if (field && !(field in sampleRow)) {
+          console.warn(`[AG Grid] Column field "${field}" not found in row data. Available keys:`, Object.keys(sampleRow));
+        }
+      }
+
+      const isFirstColumn = index === 0;

@@ -1,4 +1,4 @@
-import { AlertCircle, BarChart3, Clock, Database, RotateCcw, Wand2 } from 'lucide-react'
+import { AlertCircle, BarChart3, Clock, Database, Link2, RotateCcw, Wand2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
 import { DataProcessingIndicator } from '@/components/data-processing-indicator'
@@ -381,6 +381,29 @@ export function ResultsPanel({ onFixWithAI, onPageChange }: ResultsPanelProps = 
                     {latestResult.error ? 'Failed' : 'Succeeded'}
                   </div>
                 </div>
+                {latestResult.connectionsUsed && latestResult.connectionsUsed.length > 0 && (
+                  <div className="sm:col-span-2 lg:col-span-4">
+                    <div className="flex items-center gap-1">
+                      <Link2 className="h-3 w-3 text-muted-foreground" />
+                      <span className="text-xs text-muted-foreground">Connections Used</span>
+                    </div>
+                    <div className="font-medium flex flex-wrap gap-1 mt-1">
+                      {latestResult.connectionsUsed.map((conn) => (
+                        <span
+                          key={conn}
+                          className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary"
+                        >
+                          @{conn}
+                        </span>
+                      ))}
+                      {latestResult.federationStrategy && (
+                        <span className="text-xs text-muted-foreground ml-2">
+                          (strategy: {latestResult.federationStrategy})
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
 

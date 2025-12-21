@@ -427,6 +427,24 @@ export class WailsApiClient {
 
   async executeMultiDatabaseQuery(sql: string, options?: { limit?: number; timeout?: number }) {
     try {
+      // Validate multi-query first
+      const validation = await App.ValidateMultiQuery(sql)
+      if (!validation.valid) {
+        return {
+          data: {
+            queryId: `query-${Date.now()}`,
+            success: false,
+            columns: [],
+            rows: [],
+            rowCount: 0,
+            stats: {},
+            warnings: []
+          },
+          success: false,
+          message: validation.errors?.join('\n') || 'Multi-database query validation failed'
+        }
+      }
+
       // Load timeout default if not provided
       const { PreferenceRepository } = await import('@/lib/storage/repositories/preference-repository')
       const pref = new PreferenceRepository()
@@ -436,7 +454,7 @@ export class WailsApiClient {
       const result = await App.ExecuteMultiDatabaseQuery({
         query: sql,
         timeout: timeoutSeconds, // seconds
-        strategy: 'federated',
+        strategy: validation.estimatedStrategy || 'federated',
         limit: options?.limit || 5000
       })
 

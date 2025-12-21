@@ -5,6 +5,9 @@ import {
   AllCommunityModule,
   type CellValueChangedEvent,
   type ColDef,
+  type ColumnMovedEvent,
+  type ColumnResizedEvent,
+  type ColumnVisibleEvent,
   type FirstDataRenderedEvent,
   type GetRowIdParams,
   type GridApi,
@@ -98,6 +101,11 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
 
   // Track select all pages mode
   const [selectAllPagesMode, setSelectAllPagesMode] = useState(false);
+
+  // Track column state
+  const [columnOrder, setColumnOrder] = useState<string[]>([]);
+  const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>({});
+  const [columnSizing, setColumnSizing] = useState<Record<string, number>>({});
 
   /**
    * Map TableColumn type to AG Grid column type
@@ -254,7 +262,18 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
 
     // Add data columns
     tableColumns.forEach((col, index) => {
-      const colId = col.id || col.accessorKey || col.header;
+      // Phase 1: Normalize to single source of truth - field and colId must match
+      const field = col.accessorKey || col.id || col.header;
+      const colId = field; // ALWAYS match field
+
+      // Add dev-mode validation (only log once per column)
+      if (process.env.NODE_ENV === 'development' && data.length > 0 && index === 0) {
+        const sampleRow = data[0];
+        if (field && !(field in sampleRow)) {
+          console.warn(`[AG Grid] Column field "${field}" not found in row data. Available keys:`, Object.keys(sampleRow));
+        }
+      }
+
       const isFirstColumn = index === 0;
 
       // Determine optimal width based on column type
@@ -272,18 +291,19 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
       const usePopupEditor = isEditable && isTextType;
 
       cols.push({
-        field: col.accessorKey || colId,
+        field,
         headerName: col.header,
         colId,
         type: mapColumnType(col.type),
-        // Don't set fixed width - let autoSizeStrategy handle it
+        // Phase 3: Use initial* properties to preserve user customizations
+        initialWidth: col.width,
         minWidth: baseMinWidth,
         maxWidth: baseMaxWidth,
         sortable: col.sortable !== false,
         filter: col.filterable !== false,
         editable: isEditable,
         resizable: enableColumnResizing,
-        pinned: col.sticky || undefined,
+        initialPinned: col.sticky || undefined,
         // Never wrap text or auto-height - always truncate to maintain consistent row height
         wrapText: false,
         autoHeight: false,
@@ -483,6 +503,50 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
   }, [gridApi, onFilter]);
 
   /**
+   * Handle column moved (reordering)
+   * Syncs column order changes to application state
+   */
+  const onColumnMoved = useCallback((event: ColumnMovedEvent) => {
+    if (event.finished && event.api) {
+      const newOrder = event.api.getAllDisplayedColumns()
+        .map(col => col.getColId())
+        .filter(Boolean) as string[];
+
+      setColumnOrder(newOrder);
+    }
+  }, []);
+
+  /**
+   * Handle column visibility changed
+   * Syncs column show/hide to application state
+   */
+  const onColumnVisible = useCallback((event: ColumnVisibleEvent) => {
+    if (event.api) {
+      const visibilityState: Record<string, boolean> = {};
+      event.api.getAllGridColumns().forEach(col => {
+        visibilityState[col.getColId()] = col.isVisible();
+      });
+
+      setColumnVisibility(visibilityState);
+    }
+  }, []);
+
+  /**
+   * Handle column resized
+   * Syncs column width changes to application state
+   */
+  const onColumnResized = useCallback((event: ColumnResizedEvent) => {
+    if (event.finished && event.api) {
+      const sizingState: Record<string, number> = {};
+      event.api.getAllDisplayedColumns().forEach(col => {
+        sizingState[col.getColId()] = col.getActualWidth();
+      });
+
+      setColumnSizing(sizingState);
+    }
+  }, []);
+
+  /**
    * Apply global filter
    */
   useEffect(() => {
@@ -512,9 +576,9 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
       sorting,
       columnFilters: filters,
       globalFilter,
-      columnVisibility: {},
-      columnOrder: [],
-      columnSizing: {},
+      columnVisibility,
+      columnOrder,
+      columnSizing,
       dirtyRows,
       invalidCells: new Map(),
       undoStack: [],
@@ -572,9 +636,15 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
       updateGlobalFilter: (filter: string) => {
         setGlobalFilter(filter);
       },
-      updateColumnVisibility: () => {},
-      updateColumnSizing: () => {},
-      updateColumnOrder: () => {},
+      updateColumnVisibility: (visibility: Record<string, boolean>) => {
+        setColumnVisibility(visibility);
+      },
+      updateColumnSizing: (sizing: Record<string, number>) => {
+        setColumnSizing(sizing);
+      },
+      updateColumnOrder: (order: string[]) => {
+        setColumnOrder(order);
+      },
       undo: () => {},
       redo: () => {},
       clearDirtyRows: () => setDirtyRows(new Set()),
@@ -598,6 +668,9 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
     sorting,
     filters,
     globalFilter,
+    columnOrder,
+    columnVisibility,
+    columnSizing,
     dirtyRows,
     gridApi,
     onSort,
@@ -716,6 +789,9 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
           onRowClicked={onRowClicked}
           onSortChanged={onSortChanged}
           onFilterChanged={onFilterChanged}
+          onColumnMoved={onColumnMoved}
+          onColumnVisible={onColumnVisible}
+          onColumnResized={onColumnResized}
           rowSelection={rowSelectionConfig}
           selectionColumnDef={selectionColumnDef}
           // Performance: disable row animations for smoother scrolling

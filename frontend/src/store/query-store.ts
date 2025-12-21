@@ -106,6 +106,9 @@ export interface QueryResult {
   hasMore?: boolean // More data available
   offset?: number // Current offset
   limit?: number // Page size
+  // Multi-database query metadata
+  connectionsUsed?: string[] // Connection aliases used in federated query
+  federationStrategy?: string // Query execution strategy (federated, union, etc.)
 }
 
 interface QueryState {
@@ -675,6 +678,10 @@ export const useQueryStore = create<QueryState>()(
           // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Backend response.data may contain optional pagination fields
           const backendOffset = (response.data as any).offset
 
+          // Extract multi-database query metadata (only present for federated queries)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Backend response.data may contain optional federation fields
+          const connectionsUsed = (response.data as any).connectionsUsed as string[] | undefined
+
           const statsRecord = (stats ?? {}) as Record<string, unknown>
           const affectedRows =
             typeof statsRecord.affectedRows === 'number'
@@ -710,6 +717,8 @@ export const useQueryStore = create<QueryState>()(
             hasMore: typeof backendHasMore === 'boolean' ? backendHasMore : undefined,
             offset: typeof backendOffset === 'number' ? backendOffset : offset,
             limit,
+            // Multi-database query metadata
+            connectionsUsed,
           })
 
           const jobId = editableMetadata?.jobId || editableMetadata?.job_id

@@ -1,4 +1,4 @@
-import { AlertCircle, Bug, ChevronDown, Database, Layout, Loader2, MessageCircle, Network, Pencil, Play, Plus, Save,Sparkles, Square, Trash2, Users, Wand2, X } from "lucide-react"
+import { AlertCircle, Bug, ChevronDown, Database, HelpCircle, Layout, Loader2, MessageCircle, Network, Pencil, Play, Plus, Save,Sparkles, Square, Trash2, Users, Wand2, X } from "lucide-react"
 import { forwardRef, lazy, Suspense, type SyntheticEvent, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react"
 
 import { AIQueryTabView } from "@/components/ai-query-tab"
@@ -2146,9 +2146,48 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
           </Button>
         </div>
 
-        <div className="text-xs text-muted-foreground">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
           {mode === 'multi' ? (
-            <span>Multi-database mode active</span>
+            <>
+              <span>Multi-database mode active</span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-5 w-5 p-0 text-muted-foreground hover:text-foreground">
+                    <HelpCircle className="h-3.5 w-3.5" />
+                    <span className="sr-only">Multi-database syntax help</span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80" side="bottom" align="end">
+                  <div className="space-y-3">
+                    <h4 className="font-medium text-sm">Multi-Database Query Syntax</h4>
+                    <div className="space-y-2 text-sm">
+                      <div>
+                        <code className="px-1.5 py-0.5 rounded bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 font-mono text-xs">
+                          @connection.table
+                        </code>
+                        <p className="text-muted-foreground mt-1">
+                          Reference a table from another database connection
+                        </p>
+                      </div>
+                      <div>
+                        <code className="px-1.5 py-0.5 rounded bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 font-mono text-xs">
+                          @connection.schema.table
+                        </code>
+                        <p className="text-muted-foreground mt-1">
+                          Include schema name for databases that require it
+                        </p>
+                      </div>
+                    </div>
+                    <div className="pt-2 border-t">
+                      <p className="text-xs text-muted-foreground">
+                        <span className="inline-block w-2 h-2 rounded-sm bg-violet-500/20 border border-violet-500/50 mr-1.5" />
+                        Purple highlighting indicates multi-database references
+                      </p>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </>
           ) : (
             <span>Single database mode</span>
           )}
