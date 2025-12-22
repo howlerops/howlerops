@@ -40,35 +40,35 @@ help:
 .PHONY: build
 build: deps proto
 	@echo "$(COLOR_BLUE)Building Wails desktop application...$(COLOR_RESET)"
-	@$(WAILS) build -clean
+	@$(WAILS) build -tags duckdb -clean
 	@echo "$(COLOR_GREEN)✓ Desktop application built$(COLOR_RESET)"
 
 ## build-debug: Build the application with debug symbols
 .PHONY: build-debug
 build-debug: deps proto
 	@echo "$(COLOR_BLUE)Building debug version...$(COLOR_RESET)"
-	@$(WAILS) build -debug -clean
+	@$(WAILS) build -tags duckdb -debug -clean
 	@echo "$(COLOR_GREEN)✓ Debug build complete$(COLOR_RESET)"
 
 ## build-mac: Build for macOS (universal binary)
 .PHONY: build-mac
 build-mac: deps proto
 	@echo "$(COLOR_BLUE)Building macOS universal binary...$(COLOR_RESET)"
-	@$(WAILS) build -platform darwin/universal -clean
+	@$(WAILS) build -tags duckdb -platform darwin/universal -clean
 	@echo "$(COLOR_GREEN)✓ macOS build complete$(COLOR_RESET)"
 
 ## build-windows: Build for Windows
 .PHONY: build-windows
 build-windows: deps proto
 	@echo "$(COLOR_BLUE)Building Windows executable...$(COLOR_RESET)"
-	@$(WAILS) build -platform windows/amd64 -clean
+	@$(WAILS) build -tags duckdb -platform windows/amd64 -clean
 	@echo "$(COLOR_GREEN)✓ Windows build complete$(COLOR_RESET)"
 
 ## build-linux: Build for Linux
 .PHONY: build-linux
 build-linux: deps proto
 	@echo "$(COLOR_BLUE)Building Linux executable...$(COLOR_RESET)"
-	@$(WAILS) build -platform linux/amd64 -clean
+	@$(WAILS) build -tags duckdb -platform linux/amd64 -clean
 	@echo "$(COLOR_GREEN)✓ Linux build complete$(COLOR_RESET)"
 
 ## deps: Install all dependencies
@@ -130,7 +130,7 @@ dev: check-node check-wails deps proto init-local-db
 		echo \"$(COLOR_BLUE)Waiting for Vite dev server...$(COLOR_RESET)\"; \
 		sleep 2; \
 		cd ..; \
-		$(WAILS) dev -s -frontenddevserverurl http://127.0.0.1:5173 || true; \
+		$(WAILS) dev -s -tags duckdb -frontenddevserverurl http://127.0.0.1:5173 || true; \
 		kill "$$FRONTEND_PID" 2>/dev/null || true'
 
 ## dev-browser: Start development mode in browser with hot reload
@@ -146,7 +146,7 @@ dev-browser: check-node check-wails deps proto
 		echo \"$(COLOR_BLUE)Waiting for Vite dev server...$(COLOR_RESET)\"; \
 		sleep 2; \
 		cd ..; \
-		$(WAILS) dev -browser -s -frontenddevserverurl http://127.0.0.1:5173 || true; \
+		$(WAILS) dev -browser -s -tags duckdb -frontenddevserverurl http://127.0.0.1:5173 || true; \
 		kill "$$FRONTEND_PID" 2>/dev/null || true'
 
 ## proto: Generate protobuf files

@@ -154,21 +154,21 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 
 # Run tests (excluding slow database package)
 echo -n "Running unit tests... "
-if go test $(go list ./... | grep -v '/pkg/database$') -short -timeout=30s &>/dev/null; then
+if CGO_ENABLED=1 go test -tags duckdb $(go list ./... | grep -v '/pkg/database$') -short -timeout=30s &>/dev/null; then
     echo -e "${GREEN}✅ Unit tests pass${NC}"
 else
     echo -e "${RED}❌ Unit tests fail${NC}"
-    echo "Run: go test \$(go list ./... | grep -v '/pkg/database\$') -short -v"
+    echo "Run: CGO_ENABLED=1 go test -tags duckdb \$(go list ./... | grep -v '/pkg/database\$') -short -v"
     FAILED=1
 fi
 
 # Run race detector (optional but recommended)
 echo -n "Checking for race conditions... "
-if go test -race ./... -short -timeout=120s &>/dev/null; then
+if CGO_ENABLED=1 go test -tags duckdb -race ./... -short -timeout=120s &>/dev/null; then
     echo -e "${GREEN}✅ No race conditions detected${NC}"
 else
     echo -e "${YELLOW}⚠️  Potential race conditions detected${NC}"
-    echo -e "  ${YELLOW}Run: go test -race ./... -v${NC}"
+    echo -e "  ${YELLOW}Run: CGO_ENABLED=1 go test -tags duckdb -race ./... -v${NC}"
     WARNINGS=$((WARNINGS + 1))
 fi
 
@@ -179,12 +179,12 @@ echo -e "${BLUE}5. Build${NC}"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 echo -n "Building application... "
-if go build -o /tmp/sql-studio-backend-test cmd/server/main.go 2>/dev/null; then
+if CGO_ENABLED=1 go build -tags duckdb -o /tmp/sql-studio-backend-test cmd/server/main.go 2>/dev/null; then
     echo -e "${GREEN}✅ Build succeeds${NC}"
     rm -f /tmp/sql-studio-backend-test
 else
     echo -e "${RED}❌ Build fails${NC}"
-    echo "Run: go build -v cmd/server/main.go"
+    echo "Run: CGO_ENABLED=1 go build -tags duckdb -v cmd/server/main.go"
     FAILED=1
 fi
 

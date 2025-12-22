@@ -72,7 +72,7 @@ run_unit_tests() {
     print_section "1. Unit Tests"
     log_both "Running unit tests..."
 
-    if go test ./... -v -coverprofile=coverage.out 2>&1 | tee -a "$REPORT_FILE"; then
+    if CGO_ENABLED=1 go test -tags duckdb ./... -v -coverprofile=coverage.out 2>&1 | tee -a "$REPORT_FILE"; then
         log_both "$(echo -e ${GREEN}✓ Unit tests PASSED${NC})"
         UNIT_TESTS_PASSED=true
 
@@ -98,7 +98,7 @@ check_server() {
         log_both "$(echo -e ${YELLOW}⚠ Server not running, attempting to start...${NC})"
 
         # Try to start server
-        go build -o server cmd/server/main.go
+        CGO_ENABLED=1 go build -tags duckdb -o server cmd/server/main.go
         ./server > server.log 2>&1 &
         SERVER_PID=$!
         echo $SERVER_PID > server.pid
@@ -135,7 +135,7 @@ run_integration_tests() {
     print_section "4. Integration Tests"
     log_both "Running integration tests..."
 
-    if go test ./test/integration/... -v -timeout 10m 2>&1 | tee -a "$REPORT_FILE"; then
+    if CGO_ENABLED=1 go test -tags duckdb ./test/integration/... -v -timeout 10m 2>&1 | tee -a "$REPORT_FILE"; then
         log_both "$(echo -e ${GREEN}✓ Integration tests PASSED${NC})"
         INTEGRATION_TESTS_PASSED=true
     else

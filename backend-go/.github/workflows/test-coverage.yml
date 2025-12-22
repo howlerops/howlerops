@@ -60,10 +60,10 @@ jobs:
         run: mockery --all
 
       - name: Run unit tests
-        run: go test -short -v ./...
+        run: CGO_ENABLED=1 go test -tags duckdb -short -v ./...
 
       - name: Run integration tests
-        run: go test -tags=integration -v ./...
+        run: CGO_ENABLED=1 go test -tags=duckdb,integration -v ./...
         env:
           POSTGRES_HOST: localhost
           POSTGRES_PORT: 5432
@@ -77,7 +77,7 @@ jobs:
           MYSQL_DB: test
 
       - name: Run tests with coverage
-        run: go test -coverprofile=coverage.out -covermode=atomic -coverpkg=./... ./...
+        run: CGO_ENABLED=1 go test -tags duckdb -coverprofile=coverage.out -covermode=atomic -coverpkg=./... ./...
 
       - name: Check coverage threshold (80%)
         run: |
@@ -121,7 +121,7 @@ jobs:
           cache: true
 
       - name: Run tests with race detector
-        run: go test -race -short ./...
+        run: CGO_ENABLED=1 go test -tags duckdb -race -short ./...
 
   benchmarks:
     name: Benchmarks
@@ -137,7 +137,7 @@ jobs:
           cache: true
 
       - name: Run benchmarks
-        run: go test -bench=. -benchmem ./... | tee benchmark.txt
+        run: CGO_ENABLED=1 go test -tags duckdb -bench=. -benchmem ./... | tee benchmark.txt
 
       - name: Upload benchmark results
         uses: actions/upload-artifact@v4

@@ -13,17 +13,26 @@ GIT_COMMIT := $(shell git rev-parse --short HEAD)
 BUILD_DATE := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 LDFLAGS := -ldflags="-X main.Version=$(VERSION) -X main.Commit=$(GIT_COMMIT) -X main.BuildDate=$(BUILD_DATE) -w -s"
 
+# Build tags - enable DuckDB federation engine
+# Set DUCKDB=0 to disable: make build DUCKDB=0
+DUCKDB ?= 1
+ifeq ($(DUCKDB),1)
+BUILD_TAGS := -tags duckdb
+else
+BUILD_TAGS :=
+endif
+
 # Build the application (server)
 build:
-	@echo "Building $(BINARY_NAME)..."
+	@echo "Building $(BINARY_NAME) (DuckDB=$(DUCKDB))..."
 	@mkdir -p $(BUILD_DIR)
-	go build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) cmd/server/main.go
+	CGO_ENABLED=1 go build $(BUILD_TAGS) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) cmd/server/main.go
 
 # Build the CLI tool
 build-cli:
 	@echo "Building Howlerops CLI..."
 	@mkdir -p $(BUILD_DIR)
-	go build $(LDFLAGS) -o $(BUILD_DIR)/sqlstudio cmd/sqlstudio/main.go
+	CGO_ENABLED=1 go build $(BUILD_TAGS) $(LDFLAGS) -o $(BUILD_DIR)/sqlstudio cmd/sqlstudio/main.go
 	@echo "✓ Built: $(BUILD_DIR)/sqlstudio"
 
 # Build both server and CLI
@@ -38,19 +47,19 @@ clean:
 
 # Run tests
 test:
-	@echo "Running tests..."
-	go test -v ./...
+	@echo "Running tests (DuckDB=$(DUCKDB))..."
+	CGO_ENABLED=1 go test $(BUILD_TAGS) -v ./...
 
 # Run tests with coverage
 test-coverage:
-	@echo "Running tests with coverage..."
-	go test -race -coverprofile=coverage.out -covermode=atomic ./...
+	@echo "Running tests with coverage (DuckDB=$(DUCKDB))..."
+	CGO_ENABLED=1 go test $(BUILD_TAGS) -race -coverprofile=coverage.out -covermode=atomic ./...
 	go tool cover -html=coverage.out -o coverage.html
 
 # Run benchmarks
 bench:
-	@echo "Running benchmarks..."
-	go test -bench=. -benchmem ./...
+	@echo "Running benchmarks (DuckDB=$(DUCKDB))..."
+	CGO_ENABLED=1 go test $(BUILD_TAGS) -bench=. -benchmem ./...
 
 # Generate protobuf code
 proto:
@@ -105,7 +114,7 @@ setup-local-dev:
 # Run database migrations
 migrate: setup-local-dev
 	@echo "Running database migrations..."
-	@env -u LOG_FORMAT -u LOG_OUTPUT ENVIRONMENT=development go run cmd/migrate/main.go
+	@env -u LOG_FORMAT -u LOG_OUTPUT CGO_ENABLED=1 ENVIRONMENT=development go run $(BUILD_TAGS) cmd/migrate/main.go
 	@echo "✓ Migrations complete"
 
 # Run the application in development mode
@@ -131,7 +140,7 @@ dev:
 	@echo ""
 	@echo "Press Ctrl+C to stop the server"
 	@echo "==================================================================="
-	@env -u LOG_FORMAT -u LOG_OUTPUT ENVIRONMENT=development go run cmd/server/main.go
+	@env -u LOG_FORMAT -u LOG_OUTPUT CGO_ENABLED=1 ENVIRONMENT=development go run $(BUILD_TAGS) cmd/server/main.go
 
 # Clean local database
 clean-db:
@@ -152,8 +161,8 @@ reset-dev: clean-db
 
 # Test with local database
 test-local: setup-local-dev
-	@echo "Running tests with local database..."
-	@ENVIRONMENT=development go test ./... -v
+	@echo "Running tests with local database (DuckDB=$(DUCKDB))..."
+	@CGO_ENABLED=1 ENVIRONMENT=development go test $(BUILD_TAGS) ./... -v
 
 # Database shell (SQLite CLI)
 db-shell:
@@ -257,10 +266,10 @@ setup: deps proto
 # Build for Darwin AMD64 (Intel Macs)
 .PHONY: release-darwin-amd64
 release-darwin-amd64:
-	@echo "Building for Darwin AMD64..."
+	@echo "Building for Darwin AMD64 (DuckDB=$(DUCKDB))..."
 	@mkdir -p $(BUILD_DIR)
 	CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build \
-		$(LDFLAGS) \
+		$(BUILD_TAGS) $(LDFLAGS) \
 		-o $(BUILD_DIR)/sql-studio-darwin-amd64 \
 		cmd/server/main.go
 	@echo "✓ Built: $(BUILD_DIR)/sql-studio-darwin-amd64"
@@ -268,10 +277,10 @@ release-darwin-amd64:
 # Build for Darwin ARM64 (Apple Silicon)
 .PHONY: release-darwin-arm64
 release-darwin-arm64:
-	@echo "Building for Darwin ARM64..."
+	@echo "Building for Darwin ARM64 (DuckDB=$(DUCKDB))..."
 	@mkdir -p $(BUILD_DIR)
 	CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build \
-		$(LDFLAGS) \
+		$(BUILD_TAGS) $(LDFLAGS) \
 		-o $(BUILD_DIR)/sql-studio-darwin-arm64 \
 		cmd/server/main.go
 	@echo "✓ Built: $(BUILD_DIR)/sql-studio-darwin-arm64"
@@ -279,10 +288,10 @@ release-darwin-arm64:
 # Build for Linux AMD64
 .PHONY: release-linux-amd64
 release-linux-amd64:
-	@echo "Building for Linux AMD64..."
+	@echo "Building for Linux AMD64 (DuckDB=$(DUCKDB))..."
 	@mkdir -p $(BUILD_DIR)
 	CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build \
-		$(LDFLAGS) \
+		$(BUILD_TAGS) $(LDFLAGS) \
 		-o $(BUILD_DIR)/sql-studio-linux-amd64 \
 		cmd/server/main.go
 	@echo "✓ Built: $(BUILD_DIR)/sql-studio-linux-amd64"
@@ -290,10 +299,10 @@ release-linux-amd64:
 # Build for Linux ARM64
 .PHONY: release-linux-arm64
 release-linux-arm64:
-	@echo "Building for Linux ARM64..."
+	@echo "Building for Linux ARM64 (DuckDB=$(DUCKDB))..."
 	@mkdir -p $(BUILD_DIR)
 	CGO_ENABLED=1 GOOS=linux GOARCH=arm64 go build \
-		$(LDFLAGS) \
+		$(BUILD_TAGS) $(LDFLAGS) \
 		-o $(BUILD_DIR)/sql-studio-linux-arm64 \
 		cmd/server/main.go
 	@echo "✓ Built: $(BUILD_DIR)/sql-studio-linux-arm64"
@@ -301,10 +310,10 @@ release-linux-arm64:
 # Build for Windows AMD64
 .PHONY: release-windows-amd64
 release-windows-amd64:
-	@echo "Building for Windows AMD64..."
+	@echo "Building for Windows AMD64 (DuckDB=$(DUCKDB))..."
 	@mkdir -p $(BUILD_DIR)
 	CGO_ENABLED=1 GOOS=windows GOARCH=amd64 go build \
-		$(LDFLAGS) \
+		$(BUILD_TAGS) $(LDFLAGS) \
 		-o $(BUILD_DIR)/sql-studio-windows-amd64.exe \
 		cmd/server/main.go
 	@echo "✓ Built: $(BUILD_DIR)/sql-studio-windows-amd64.exe"
@@ -369,14 +378,15 @@ release-all: clean release-darwin-amd64 release-darwin-arm64 release-linux-amd64
 # Quick release shortcut (just current platform)
 .PHONY: release
 release:
-	@echo "Building release version for current platform..."
+	@echo "Building release version for current platform (DuckDB=$(DUCKDB))..."
 	@mkdir -p $(BUILD_DIR)
-	@go build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) cmd/server/main.go
+	@CGO_ENABLED=1 go build $(BUILD_TAGS) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) cmd/server/main.go
 	@echo "✓ Built: $(BUILD_DIR)/$(BINARY_NAME)"
 	@echo ""
 	@echo "Version: $(VERSION)"
 	@echo "Commit:  $(GIT_COMMIT)"
 	@echo "Date:    $(BUILD_DATE)"
+	@echo "DuckDB:  $(DUCKDB)"
 
 # Help
 help:

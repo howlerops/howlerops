@@ -51,7 +51,8 @@ RUN go mod download && go mod verify
 COPY ./backend-go/ .
 
 # Build the application with production optimizations
-# CGO_ENABLED=1: Required for SQLite driver (mattn/go-sqlite3)
+# CGO_ENABLED=1: Required for SQLite driver and DuckDB
+# -tags duckdb: Enable DuckDB federation engine
 # -ldflags flags explanation:
 #   -s: Strip debug information
 #   -w: Strip DWARF symbol table
@@ -63,6 +64,7 @@ ARG GIT_COMMIT
 ARG TARGETARCH
 
 RUN CGO_ENABLED=1 go build \
+    -tags duckdb \
     -a \
     -installsuffix cgo \
     -ldflags="-s -w \

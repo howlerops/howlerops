@@ -23,13 +23,14 @@
   },
   "nsisType": "multiple",
   "obfuscated": false,
+  "build:tags": "duckdb",
   "debug": {
     "splitBuildDir": true,
     "buildSubdirectory": "build"
   },
   "build": {
     "compiler": "go",
-    "tags": [],
+    "tags": ["duckdb"],
     "ldflags": "-w -s",
     "mode": "production",
     "frontend": {

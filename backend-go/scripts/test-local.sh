@@ -39,9 +39,9 @@ else
     echo -e "${YELLOW}SQLite database file will be created on first run${NC}"
 fi
 
-# Build the server
+# Build the server (with DuckDB support)
 echo -e "\n${BLUE}Building server...${NC}"
-go build -o ./tmp/server ./cmd/server/main.go
+CGO_ENABLED=1 go build -tags duckdb -o ./tmp/server ./cmd/server/main.go
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}Build successful${NC}"
 else
