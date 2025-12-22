@@ -9,7 +9,6 @@ import (
 
 	"github.com/jbeck018/howlerops/backend-go/internal/middleware"
 	"github.com/jbeck018/howlerops/backend-go/pkg/export"
-	"github.com/jbeck018/howlerops/backend-go/pkg/storage"
 	"github.com/sirupsen/logrus"
 )
 

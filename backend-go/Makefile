@@ -117,6 +117,21 @@ migrate: setup-local-dev
 	@env -u LOG_FORMAT -u LOG_OUTPUT CGO_ENABLED=1 ENVIRONMENT=development go run $(BUILD_TAGS) cmd/migrate/main.go
 	@echo "✓ Migrations complete"
 
+# Analyze shared credentials migration status
+migrate-analyze-shared:
+	@echo "Analyzing shared credentials migration status..."
+	@if [ -z "$(TURSO_URL)" ]; then \
+		echo "Error: TURSO_URL is required"; \
+		echo "Usage: TURSO_URL=libsql://... TURSO_AUTH_TOKEN=... make migrate-analyze-shared"; \
+		exit 1; \
+	fi
+	@CGO_ENABLED=1 go run scripts/migrate_shared_credentials.go $(MIGRATE_FLAGS)
+	@echo ""
+
+# Analyze shared credentials migration (verbose mode)
+migrate-analyze-shared-verbose:
+	@MIGRATE_FLAGS="--verbose" make migrate-analyze-shared
+
 # Run the application in development mode
 dev:
 	@echo "==================================================================="
@@ -411,6 +426,8 @@ help:
 	@echo "  db-schema             - Show complete database schema"
 	@echo "  db-backup             - Backup database to ./backups/"
 	@echo "  db-restore            - Restore latest database backup"
+	@echo "  migrate-analyze-shared - Analyze shared credentials migration status"
+	@echo "  migrate-analyze-shared-verbose - Verbose analysis with details"
 	@echo ""
 	@echo "🏗️  Building:"
 	@echo "  build                 - Build the server binary"

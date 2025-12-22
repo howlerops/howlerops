@@ -23,6 +23,8 @@ const (
 	UserIDKey ContextKey = "user_id"
 	// UsernameKey is the context key for username
 	UsernameKey ContextKey = "username"
+	// UserEmailKey is the context key for user email
+	UserEmailKey ContextKey = "user_email"
 	// RoleKey is the context key for role
 	RoleKey ContextKey = "role"
 )

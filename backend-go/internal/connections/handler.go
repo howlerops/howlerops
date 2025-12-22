@@ -1,11 +1,13 @@
 package connections
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 
 	"github.com/gorilla/mux"
 	"github.com/jbeck018/howlerops/backend-go/internal/middleware"
+	"github.com/jbeck018/howlerops/backend-go/pkg/crypto"
 	"github.com/jbeck018/howlerops/backend-go/pkg/storage/turso"
 	"github.com/sirupsen/logrus"
 )
@@ -24,9 +26,107 @@ func NewHandler(service *Service, logger *logrus.Logger) *Handler {
 	}
 }
 
+// RegisterRoutes registers connection routes on the router
+func (h *Handler) RegisterRoutes(r *mux.Router) {
+	// Connection CRUD
+	r.HandleFunc("/api/connections", h.CreateConnection).Methods("POST")
+	r.HandleFunc("/api/connections", h.GetAccessibleConnections).Methods("GET")
+	r.HandleFunc("/api/connections/{id}", h.UpdateConnection).Methods("PUT")
+	r.HandleFunc("/api/connections/{id}", h.DeleteConnection).Methods("DELETE")
+
+	// Connection sharing
+	r.HandleFunc("/api/connections/{id}/share", h.ShareConnection).Methods("POST")
+	r.HandleFunc("/api/connections/{id}/share-with-credential", h.ShareConnectionWithCredential).Methods("POST")
+	r.HandleFunc("/api/connections/{id}/unshare", h.UnshareConnection).Methods("POST")
+	r.HandleFunc("/api/connections/{id}/password", h.GetConnectionPassword).Methods("GET")
+
+	// Organization connections
+	r.HandleFunc("/api/organizations/{org_id}/connections", h.GetOrganizationConnections).Methods("GET")
+}
+
 // ShareConnectionRequest represents the request to share a connection
 type ShareConnectionRequest struct {
 	OrganizationID string `json:"organization_id" validate:"required"`
+}
+
+// ShareConnectionWithCredentialRequest includes encrypted password for OEK re-encryption
+type ShareConnectionWithCredentialRequest struct {
+	OrganizationID     string `json:"organization_id" validate:"required"`
+	EncryptedMasterKey string `json:"encrypted_master_key"` // Base64-encoded, encrypted with session key
+	Password           string `json:"password"`             // Already decrypted by frontend (temporary in memory)
+}
+
+// ShareConnectionWithCredential handles POST /api/connections/{id}/share-with-credential
+// Share connection with password re-encryption for OEK
+func (h *Handler) ShareConnectionWithCredential(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	connectionID := vars["id"]
+	if connectionID == "" {
+		h.respondError(w, http.StatusBadRequest, "connection ID is required")
+		return
+	}
+
+	// Get user ID from context (set by auth middleware)
+	userID, ok := r.Context().Value(middleware.UserIDKey).(string)
+	if !ok || userID == "" {
+		h.respondError(w, http.StatusUnauthorized, "user not authenticated")
+		return
+	}
+
+	var req ShareConnectionWithCredentialRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.respondError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if req.OrganizationID == "" {
+		h.respondError(w, http.StatusBadRequest, "organization_id is required")
+		return
+	}
+
+	// Decode master key from base64
+	masterKey, err := base64.StdEncoding.DecodeString(req.EncryptedMasterKey)
+	if err != nil {
+		h.respondError(w, http.StatusBadRequest, "invalid encrypted_master_key encoding")
+		return
+	}
+	defer crypto.ClearBytes(masterKey)
+
+	// Convert password to bytes
+	password := []byte(req.Password)
+	defer crypto.ClearBytes(password)
+
+	if err := h.service.ShareConnectionWithCredential(
+		r.Context(),
+		connectionID,
+		userID,
+		req.OrganizationID,
+		masterKey,
+		password,
+	); err != nil {
+		h.logger.WithError(err).WithFields(logrus.Fields{
+			"connection_id":   connectionID,
+			"user_id":         userID,
+			"organization_id": req.OrganizationID,
+		}).Error("Failed to share connection with credential")
+
+		status := http.StatusInternalServerError
+		if err.Error() == "connection not found" {
+			status = http.StatusNotFound
+		} else if err.Error() == "only the creator can share this connection" ||
+			err.Error() == "user not member of organization" ||
+			err.Error() == "insufficient permissions to share connections" {
+			status = http.StatusForbidden
+		}
+
+		h.respondError(w, status, err.Error())
+		return
+	}
+
+	h.respondJSON(w, http.StatusOK, map[string]interface{}{
+		"success": true,
+		"message": "Connection shared successfully with credential",
+	})
 }
 
 // ShareConnection handles POST /api/connections/{id}/share
@@ -300,6 +400,77 @@ func (h *Handler) DeleteConnection(w http.ResponseWriter, r *http.Request) {
 	h.respondJSON(w, http.StatusOK, map[string]interface{}{
 		"success": true,
 		"message": "Connection deleted successfully",
+	})
+}
+
+// GetConnectionPassword handles GET /api/connections/{id}/password
+// Retrieve the decrypted password for a connection
+func (h *Handler) GetConnectionPassword(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	connectionID := vars["id"]
+	if connectionID == "" {
+		h.respondError(w, http.StatusBadRequest, "connection ID is required")
+		return
+	}
+
+	// Get user ID from context
+	userID, ok := r.Context().Value(middleware.UserIDKey).(string)
+	if !ok || userID == "" {
+		h.respondError(w, http.StatusUnauthorized, "user not authenticated")
+		return
+	}
+
+	// Get orgID from query param (optional, for shared connections)
+	orgID := r.URL.Query().Get("org_id")
+
+	// Get master key from header (Base64-encoded)
+	masterKeyHeader := r.Header.Get("X-Master-Key")
+	if masterKeyHeader == "" {
+		h.respondError(w, http.StatusBadRequest, "X-Master-Key header is required")
+		return
+	}
+
+	// Decode master key from base64
+	masterKey, err := base64.StdEncoding.DecodeString(masterKeyHeader)
+	if err != nil {
+		h.respondError(w, http.StatusBadRequest, "invalid X-Master-Key encoding")
+		return
+	}
+	defer crypto.ClearBytes(masterKey)
+
+	// Get the password
+	password, err := h.service.GetConnectionPassword(
+		r.Context(),
+		connectionID,
+		userID,
+		orgID,
+		masterKey,
+	)
+	if err != nil {
+		h.logger.WithError(err).WithFields(logrus.Fields{
+			"connection_id": connectionID,
+			"user_id":       userID,
+			"org_id":        orgID,
+		}).Error("Failed to get connection password")
+
+		status := http.StatusInternalServerError
+		if err.Error() == "connection not found" {
+			status = http.StatusNotFound
+		} else if err.Error() == "user not member of organization" ||
+			err.Error() == "insufficient permissions to access this connection" {
+			status = http.StatusForbidden
+		}
+
+		h.respondError(w, status, err.Error())
+		return
+	}
+	defer crypto.ClearBytes(password)
+
+	// Encode password to base64 for response
+	encodedPassword := base64.StdEncoding.EncodeToString(password)
+
+	h.respondJSON(w, http.StatusOK, map[string]interface{}{
+		"password": encodedPassword,
 	})
 }
 

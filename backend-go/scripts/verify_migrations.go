@@ -1,3 +1,5 @@
+//go:build verify_migrations
+
 package main
 
 import (

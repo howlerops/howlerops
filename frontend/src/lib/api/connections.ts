@@ -71,6 +71,22 @@ export interface UpdateConnectionInput {
 }
 
 /**
+ * Input for sharing a connection with credential re-encryption
+ */
+export interface ShareConnectionWithCredentialInput {
+  organization_id: string
+  master_key: string // Base64-encoded master key from session storage
+  password: string // Decrypted password from local storage
+}
+
+/**
+ * Response from password retrieval
+ */
+export interface ConnectionPasswordResponse {
+  password: string // Base64-encoded password
+}
+
+/**
  * API response wrapper
  */
 interface ApiResponse<T> {
@@ -194,6 +210,27 @@ export async function shareConnection(
 }
 
 /**
+ * Share a connection with OEK credential re-encryption
+ * This re-encrypts the password with the organization's envelope key
+ */
+export async function shareConnectionWithCredential(
+  connectionId: string,
+  input: ShareConnectionWithCredentialInput
+): Promise<void> {
+  const response = await authFetch<ApiResponse<void>>(
+    `/api/connections/${connectionId}/share-with-credential`,
+    {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }
+  )
+
+  if (!response.success) {
+    throw new Error(response.message || 'Failed to share connection with credentials')
+  }
+}
+
+/**
  * Unshare a connection (make it personal)
  */
 export async function unshareConnection(connectionId: string): Promise<void> {
@@ -220,6 +257,39 @@ export async function getOrganizationConnections(
   )
 
   return response.data?.connections || []
+}
+
+/**
+ * Retrieve decrypted password for a connection
+ * For shared connections, requires organization context and OEK decryption
+ *
+ * @param connectionId - The connection ID
+ * @param masterKey - Base64-encoded user master key
+ * @param organizationId - Optional org ID for shared connections
+ * @returns Base64-encoded decrypted password
+ */
+export async function getConnectionPassword(
+  connectionId: string,
+  masterKey: string,
+  organizationId?: string
+): Promise<string> {
+  const queryParams = organizationId ? `?org_id=${organizationId}` : ''
+
+  const response = await authFetch<ApiResponse<ConnectionPasswordResponse>>(
+    `/api/connections/${connectionId}/password${queryParams}`,
+    {
+      method: 'GET',
+      headers: {
+        'X-Master-Key': masterKey,
+      },
+    }
+  )
+
+  if (!response.data?.password) {
+    throw new Error(response.message || 'Failed to retrieve password')
+  }
+
+  return response.data.password
 }
 
 // ============================================================================

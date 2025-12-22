@@ -51,12 +51,19 @@ type RateLimiter interface {
 	CheckBothLimits(userID, orgID string) (allowed bool, reason string)
 }
 
+// OEKProvisioner handles OEK lifecycle for organization members
+type OEKProvisioner interface {
+	ProvisionOEKForNewMember(ctx context.Context, orgID, existingUserID string, existingUserMasterKey []byte, newUserID string, newUserMasterKey []byte) error
+	RevokeOEKForMember(ctx context.Context, orgID, userID string) error
+}
+
 // Service handles business logic for organizations
 type Service struct {
-	repo        Repository
-	logger      *logrus.Logger
-	emailSvc    EmailService
-	rateLimiter RateLimiter
+	repo           Repository
+	logger         *logrus.Logger
+	emailSvc       EmailService
+	rateLimiter    RateLimiter
+	oekProvisioner OEKProvisioner
 }
 
 // NewService creates a new organization service
@@ -75,6 +82,11 @@ func (s *Service) SetEmailService(emailSvc EmailService) {
 // SetRateLimiter sets the rate limiter for the organization service
 func (s *Service) SetRateLimiter(rateLimiter RateLimiter) {
 	s.rateLimiter = rateLimiter
+}
+
+// SetOEKProvisioner sets the OEK provisioner for the organization service
+func (s *Service) SetOEKProvisioner(provisioner OEKProvisioner) {
+	s.oekProvisioner = provisioner
 }
 
 // ====================================================================
@@ -390,6 +402,18 @@ func (s *Service) RemoveMember(ctx context.Context, orgID string, targetUserID s
 		"actor_user_id":   actorUserID,
 	}).Info("Member removed from organization")
 
+	// Revoke OEK access for removed member (non-blocking, log errors but don't fail)
+	if s.oekProvisioner != nil {
+		go func() {
+			if err := s.oekProvisioner.RevokeOEKForMember(context.Background(), orgID, targetUserID); err != nil {
+				s.logger.WithError(err).WithFields(logrus.Fields{
+					"organization_id": orgID,
+					"user_id":         targetUserID,
+				}).Warn("Failed to revoke OEK for removed member")
+			}
+		}()
+	}
+
 	// Send removal notification email (non-blocking, log errors but don't fail)
 	if s.emailSvc != nil && targetMember.User != nil {
 		go func() {
@@ -655,6 +679,15 @@ func (s *Service) AcceptInvitation(ctx context.Context, token string, userID str
 		"organization_id": invitation.OrganizationID,
 		"user_id":         userID,
 	}).Info("Invitation accepted")
+
+	// Note: OEK provisioning for new member is pending
+	// Full provisioning requires both the existing member's and new member's master keys
+	// This will be triggered separately when the new user logs in with their master key
+	// and an existing member is available to provision access
+	s.logger.WithFields(logrus.Fields{
+		"organization_id": invitation.OrganizationID,
+		"user_id":         userID,
+	}).Info("OEK provisioning pending for new member (requires master keys)")
 
 	// Send welcome email (non-blocking, log errors but don't fail)
 	if s.emailSvc != nil {
