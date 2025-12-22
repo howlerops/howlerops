@@ -23,22 +23,121 @@ type ConnectionStore interface {
 
 // Service handles business logic for connections
 type Service struct {
-	store   ConnectionStore
-	orgRepo organization.Repository
-	logger  *logrus.Logger
+	store      ConnectionStore
+	orgRepo    organization.Repository
+	orgCredSvc *OrgCredentialService
+	logger     *logrus.Logger
+}
+
+// ServiceOption is a function that configures a Service
+type ServiceOption func(*Service)
+
+// WithOrgCredentialService configures the Service with an OrgCredentialService
+func WithOrgCredentialService(svc *OrgCredentialService) ServiceOption {
+	return func(s *Service) {
+		s.orgCredSvc = svc
+	}
 }
 
 // NewService creates a new connections service
-func NewService(store ConnectionStore, orgRepo organization.Repository, logger *logrus.Logger) *Service {
-	return &Service{
+func NewService(store ConnectionStore, orgRepo organization.Repository, logger *logrus.Logger, opts ...ServiceOption) *Service {
+	s := &Service{
 		store:   store,
 		orgRepo: orgRepo,
 		logger:  logger,
 	}
+
+	for _, opt := range opts {
+		opt(s)
+	}
+
+	return s
+}
+
+// ShareConnectionWithCredential shares a connection AND re-encrypts the password with OEK
+// This is the method to call when the caller has the user's master key available
+func (s *Service) ShareConnectionWithCredential(
+	ctx context.Context,
+	connID, userID, orgID string,
+	userMasterKey []byte,
+	password []byte,
+) error {
+	// Get connection to verify it exists and belongs to user
+	conn, err := s.store.GetByID(ctx, connID)
+	if err != nil {
+		return fmt.Errorf("connection not found: %w", err)
+	}
+
+	// Verify user created this connection
+	if conn.CreatedBy != userID {
+		return fmt.Errorf("only the creator can share this connection")
+	}
+
+	// Verify user is a member of the organization
+	member, err := s.orgRepo.GetMember(ctx, orgID, userID)
+	if err != nil || member == nil {
+		return fmt.Errorf("user not member of organization")
+	}
+
+	// Check permission
+	if !organization.HasPermission(member.Role, organization.PermUpdateConnections) {
+		// Log permission denial
+		s.createAuditLog(ctx, &organization.AuditLog{
+			OrganizationID: &orgID,
+			UserID:         userID,
+			Action:         "permission_denied",
+			ResourceType:   "connection",
+			ResourceID:     &connID,
+			Details: map[string]interface{}{
+				"permission": string(organization.PermUpdateConnections),
+				"role":       string(member.Role),
+				"attempted":  "share_connection",
+			},
+		})
+		return fmt.Errorf("insufficient permissions to share connections")
+	}
+
+	// Re-encrypt credential with OEK if OrgCredentialService is available
+	if s.orgCredSvc != nil {
+		if err := s.orgCredSvc.ShareCredential(ctx, connID, orgID, userID, userMasterKey, password); err != nil {
+			return fmt.Errorf("failed to share credential: %w", err)
+		}
+	}
+
+	// Update connection to be shared in organization
+	conn.OrganizationID = &orgID
+	conn.Visibility = "shared"
+
+	if err := s.store.Update(ctx, conn); err != nil {
+		return fmt.Errorf("failed to share connection: %w", err)
+	}
+
+	// Create audit log
+	s.createAuditLog(ctx, &organization.AuditLog{
+		OrganizationID: &orgID,
+		UserID:         userID,
+		Action:         "share_connection",
+		ResourceType:   "connection",
+		ResourceID:     &connID,
+		Details: map[string]interface{}{
+			"visibility":      "shared",
+			"connection_name": conn.Name,
+			"connection_type": conn.Type,
+		},
+	})
+
+	s.logger.WithFields(logrus.Fields{
+		"connection_id":   connID,
+		"organization_id": orgID,
+		"user_id":         userID,
+	}).Info("Connection shared with organization")
+
+	return nil
 }
 
 // ShareConnection changes a connection's visibility to 'shared' in an organization
 // Validates: user has connections:update permission in the org
+// Note: This method does NOT handle password re-encryption. Use ShareConnectionWithCredential for that.
 func (s *Service) ShareConnection(ctx context.Context, connID, userID, orgID string) error {
 	// Get connection to verify it exists and belongs to user
 	conn, err := s.store.GetByID(ctx, connID)
@@ -128,6 +227,14 @@ func (s *Service) UnshareConnection(ctx context.Context, connID, userID string) 
 
 		if !organization.HasPermission(member.Role, organization.PermUpdateConnections) {
 			return fmt.Errorf("insufficient permissions to unshare connections")
+		}
+
+		// Clean up shared credential if OrgCredentialService is available
+		if s.orgCredSvc != nil {
+			if err := s.orgCredSvc.UnshareCredential(ctx, connID, *conn.OrganizationID); err != nil {
+				s.logger.WithError(err).Warn("Failed to delete shared credential")
+				// Don't fail the unshare operation if credential cleanup fails
+			}
 		}
 
 		// Create audit log for unsharing
@@ -328,6 +435,28 @@ func (s *Service) DeleteConnection(ctx context.Context, connID, userID string) e
 	}
 
 	return nil
+}
+
+// GetConnectionPassword retrieves the decrypted password for a connection
+// For personal connections: decrypts with user's master key directly (not implemented here)
+// For shared connections: uses OEK to decrypt
+func (s *Service) GetConnectionPassword(
+	ctx context.Context,
+	connID, userID, orgID string,
+	userMasterKey []byte,
+) ([]byte, error) {
+	conn, err := s.store.GetByID(ctx, connID)
+	if err != nil {
+		return nil, fmt.Errorf("connection not found: %w", err)
+	}
+
+	// If shared and has OrgCredentialService, use OEK path
+	if conn.Visibility == "shared" && conn.OrganizationID != nil && s.orgCredSvc != nil {
+		return s.orgCredSvc.GetSharedCredentialPassword(ctx, connID, *conn.OrganizationID, userID, userMasterKey)
+	}
+
+	// Fall back to personal credential path (would need credentialStore)
+	return nil, fmt.Errorf("personal credential decryption not implemented in this service")
 }
 
 // createAuditLog is a helper to create audit logs (non-blocking)
