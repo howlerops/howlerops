@@ -1380,99 +1380,15 @@ export const QueryResultsTable = ({
   }, [connectionId, metadata, originalRows, columnsLookup, columnNames, query, resolveCurrentRows, updateResultRows, resultId])
 
   const handleCellEdit = useCallback(async (
-    rowId: string,
-    columnId: string,
-    value: unknown
+    _rowId: string,
+    _columnId: string,
+    _value: unknown
   ): Promise<boolean> => {
-    // Early return if no rows or metadata is not properly initialized
-    if (!metadata?.enabled || !metadata || rows.length === 0) {
-      return false
-    }
-
-    try {
-      // Find the row and column info
-      const currentRows = resolveCurrentRows()
-      const currentRow = currentRows.find((row) => row.__rowId === rowId)
-      const originalRow = originalRows[rowId]
-
-      if (!currentRow || !originalRow) {
-        return false
-      }
-
-      // Check if the column is editable
-      const metaColumn = metadata?.columns?.find((col) => {
-        const candidate = col.resultName ?? col.name
-        return candidate ? candidate.toLowerCase() === columnId.toLowerCase() : false
-      })
-
-      if (!metaColumn?.editable) {
-        return false
-      }
-
-      // Build primary key for the update
-      const primaryKey = buildPrimaryKeyMap(originalRow, metadata, columnsLookup)
-      if (!primaryKey) {
-        throw new Error('Unable to determine primary key for the selected row.')
-      }
-
-      // Prepare the update
-      const updateData = {
-        connectionId,
-        query,
-        columns: columnNames,
-        schema: metadata?.schema,
-        table: metadata?.table,
-        primaryKey,
-        values: { [columnId]: value },
-      }
-
-      // Optimistic update - update UI immediately
-      const updatedRows = currentRows.map(row => 
-        row.__rowId === rowId 
-          ? { ...row, [columnId]: value }
-          : row
-      )
-      
-      // Update the table data optimistically
-      updateResultRows(resultId, updatedRows, originalRows)
-      
-      // Mark row as dirty
-      setDirtyRowIds(prev => [...new Set([...prev, rowId])])
-
-      // Save to database in background
-      const response = await wailsEndpoints.queries.updateRow(updateData)
-      
-      if (!response.success) {
-        // Rollback on failure
-        updateResultRows(resultId, currentRows, originalRows)
-        setDirtyRowIds(prev => prev.filter(id => id !== rowId))
-        throw new Error(response.message || 'Failed to save changes')
-      }
-
-      // Update original rows to reflect the successful save
-      const newOriginalRows = { ...originalRows }
-      newOriginalRows[rowId] = { ...originalRows[rowId], [columnId]: value }
-      
-      // Remove from dirty list since it's now saved
-      setDirtyRowIds(prev => prev.filter(id => id !== rowId))
-      
-      return true
-    } catch (error) {
-      console.error('Cell edit failed:', error)
-      return false
-    }
-  }, [
-    metadata,
-    rows,
-    resolveCurrentRows,
-    originalRows,
-    columnsLookup,
-    connectionId,
-    query,
-    columnNames,
-    resultId,
-    updateResultRows,
-  ])
+    // NOTE: This is now a no-op since we don't auto-save on cell edit
+    // All saving happens via the "Save Changes" button (handleSave)
+    // We keep this callback to maintain the interface contract
+    return true
+  }, [])
 
   const canSave = Boolean(metadata?.enabled && dirtyRowIds.length > 0 && !saving)
 

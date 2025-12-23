@@ -126,8 +126,9 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
 
   /**
    * Create cell renderer for custom types
+   * Eye icon appears on hover at the end of each cell for row inspection
    */
-  const createCellRenderer = (column: TableColumn, isFirstColumn: boolean) => {
+  const createCellRenderer = (column: TableColumn) => {
     return (params: { value: CellValue; data: TableRow }) => {
       const { value, data: rowData } = params;
 
@@ -137,16 +138,36 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
         return customRenderer(value, rowData);
       }
 
+      // Eye icon component - appears on hover in every cell
+      const eyeIcon = onRowInspect ? (
+        <button
+          className="inspect-row-btn opacity-0 group-hover:opacity-100 ml-1 p-0.5 rounded hover:bg-accent transition-opacity flex-shrink-0"
+          onClick={(e) => {
+            e.stopPropagation();
+            const rowId = rowData.__rowId;
+            if (rowId && onRowInspect) {
+              onRowInspect(rowId, rowData);
+            }
+          }}
+          title="View row details"
+        >
+          <Eye className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+        </button>
+      ) : null;
+
       // Boolean renderer
       if (column.type === 'boolean') {
         return (
-          <div className="flex items-center justify-center h-full">
-            <input
-              type="checkbox"
-              checked={Boolean(value)}
-              readOnly={!column.editable}
-              className="w-4 h-4 cursor-pointer rounded"
-            />
+          <div className="group flex items-center justify-between h-full w-full">
+            <div className="flex items-center justify-center flex-1">
+              <input
+                type="checkbox"
+                checked={Boolean(value)}
+                readOnly={!column.editable}
+                className="w-4 h-4 cursor-pointer rounded"
+              />
+            </div>
+            {eyeIcon}
           </div>
         );
       }
@@ -154,16 +175,19 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
       // Select renderer
       if (column.type === 'select' && column.options) {
         return (
-          <select
-            value={String(value || '')}
-            disabled={!column.editable}
-            className="w-full h-full bg-transparent border-none outline-none"
-          >
-            <option value="">Select...</option>
-            {column.options.map(opt => (
-              <option key={opt} value={opt}>{opt}</option>
-            ))}
-          </select>
+          <div className="group flex items-center h-full w-full">
+            <select
+              value={String(value || '')}
+              disabled={!column.editable}
+              className="flex-1 h-full bg-transparent border-none outline-none"
+            >
+              <option value="">Select...</option>
+              {column.options.map(opt => (
+                <option key={opt} value={opt}>{opt}</option>
+              ))}
+            </select>
+            {eyeIcon}
+          </div>
         );
       }
 
@@ -174,9 +198,6 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
         column.monospace && 'font-mono'
       );
 
-      // Add eye icon on first column for row inspection
-      const showInspectIcon = isFirstColumn && onRowInspect;
-
       return (
         <div className="group flex items-center h-full w-full">
           <div className={textClasses} title={String(value ?? '')}>
@@ -186,21 +207,7 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
               String(value)
             )}
           </div>
-          {showInspectIcon && (
-            <button
-              className="inspect-row-btn opacity-0 group-hover:opacity-100 ml-2 p-1 rounded hover:bg-accent transition-opacity"
-              onClick={(e) => {
-                e.stopPropagation();
-                const rowId = rowData.__rowId;
-                if (rowId && onRowInspect) {
-                  onRowInspect(rowId, rowData);
-                }
-              }}
-              title="View row details"
-            >
-              <Eye className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
-            </button>
-          )}
+          {eyeIcon}
         </div>
       );
     };
@@ -274,13 +281,12 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
         }
       }
 
-      const isFirstColumn = index === 0;
-
       // Determine optimal width based on column type
-      // UUIDs and short text: wider min width, no max
+      // UUIDs: minimum 280px to prevent truncation
       // Long text: allow auto-size with max cap
       const isLongText = col.longText || col.type === 'text' && (col.maxWidth ?? 0) > 400;
-      const baseMinWidth = col.minWidth || 80;
+      const isUuidColumn = field?.toLowerCase().includes('id') || field?.toLowerCase().includes('uuid');
+      const baseMinWidth = isUuidColumn ? 280 : (col.minWidth || 80);
       const baseMaxWidth = isLongText ? 400 : col.maxWidth; // Cap long text columns
 
       // Check if column is editable (use Boolean coercion for truthy values)
@@ -307,7 +313,7 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
         // Never wrap text or auto-height - always truncate to maintain consistent row height
         wrapText: false,
         autoHeight: false,
-        cellRenderer: createCellRenderer(col, isFirstColumn),
+        cellRenderer: createCellRenderer(col),
         // Only set editor for editable columns
         cellEditor: isEditable
           ? (usePopupEditor ? 'agLargeTextCellEditor' : createCellEditor(col))
@@ -339,17 +345,50 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
         valueGetter: col.type === 'boolean'
           ? (params) => Boolean(params.data?.[params.colDef.field || ''])
           : undefined,
+        // Parse string input to correct type before valueSetter
+        valueParser: (params) => {
+          const value = params.newValue;
+
+          // Parse number columns
+          if (col.type === 'number') {
+            if (value === null || value === undefined || value === '') {
+              return null;
+            }
+            const parsed = parseFloat(value);
+            if (isNaN(parsed)) {
+              console.warn('Invalid number input:', value);
+              return params.oldValue; // Revert to old value on parse error
+            }
+            return parsed;
+          }
+
+          // Parse boolean columns
+          if (col.type === 'boolean') {
+            if (typeof value === 'boolean') return value;
+            if (typeof value === 'string') {
+              return value.toLowerCase() === 'true';
+            }
+            return Boolean(value);
+          }
+
+          // Return as-is for other types
+          return value;
+        },
         valueSetter: (params) => {
           const field = params.colDef.field;
           if (!field) return false;
 
           let newValue: CellValue = params.newValue;
 
-          // Type conversion
+          // Type conversion (already done by valueParser, but keep for safety)
           if (col.type === 'number') {
-            newValue = newValue === null || newValue === '' ? null : Number(newValue);
+            if (typeof newValue !== 'number') {
+              newValue = newValue === null || newValue === '' ? null : Number(newValue);
+            }
           } else if (col.type === 'boolean') {
-            newValue = Boolean(newValue);
+            if (typeof newValue !== 'boolean') {
+              newValue = Boolean(newValue);
+            }
           }
 
           // Validation
@@ -398,37 +437,19 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
 
   /**
    * Handle cell value changed (editing)
+   * NOTE: This now ONLY updates local state and marks rows dirty
+   * Actual save happens when user clicks "Save Changes" button
    */
-  const onCellValueChanged = useCallback(async (event: CellValueChangedEvent<TableRow>) => {
+  const onCellValueChanged = useCallback((event: CellValueChangedEvent<TableRow>) => {
     const rowId = event.data.__rowId;
     const columnId = event.colDef.field;
-    const newValue = event.newValue;
 
     if (!rowId || !columnId) return;
 
-    // Mark row as dirty
+    // Mark row as dirty (but don't save yet)
     setDirtyRows(prev => new Set(prev).add(rowId));
 
-    // Call parent onCellEdit handler
-    if (onCellEdit) {
-      try {
-        const success = await onCellEdit(rowId, columnId, newValue);
-        if (success) {
-          // Remove from dirty set on successful save
-          setDirtyRows(prev => {
-            const next = new Set(prev);
-            next.delete(rowId);
-            return next;
-          });
-        }
-      } catch (error) {
-        console.error('Error saving cell edit:', error);
-        // Revert the change
-        event.node.setDataValue(columnId, event.oldValue);
-      }
-    }
-
-    // Call onDataChange
+    // Call onDataChange to update local state
     if (onDataChange && gridApi) {
       const allData: TableRow[] = [];
       gridApi.forEachNode(node => {
@@ -436,7 +457,7 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
       });
       onDataChange(allData);
     }
-  }, [onCellEdit, onDataChange, gridApi]);
+  }, [onDataChange, gridApi]);
 
   /**
    * Handle row selection
