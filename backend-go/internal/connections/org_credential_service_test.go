@@ -896,31 +896,43 @@ func TestOEKConcurrency(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("multiple goroutines sharing credentials simultaneously", func(t *testing.T) {
-		service, _, _, _ := setupTestService()
+		service, oekStore, _, _ := setupTestService()
 
-		// Generate master keys for multiple users
-		numUsers := 10
-		userKeys := make([][]byte, numUsers)
-		for i := 0; i < numUsers; i++ {
-			key, err := crypto.GenerateMasterKey()
-			require.NoError(t, err)
-			userKeys[i] = key
+		// Generate a single master key for the test user (same user sharing multiple connections)
+		userKey, err := crypto.GenerateMasterKey()
+		require.NoError(t, err)
+
+		// Pre-create OEK for the org (simulating user already having access)
+		oek, err := crypto.GenerateOrgEnvelopeKey()
+		require.NoError(t, err)
+		wrappedOEK, err := crypto.EncryptOEKForUser(oek, userKey)
+		require.NoError(t, err)
+		tursoOEK := &turso.OEKEncryptedData{
+			Ciphertext: wrappedOEK.Ciphertext,
+			IV:         wrappedOEK.IV,
+			AuthTag:    wrappedOEK.AuthTag,
 		}
+		err = oekStore.StoreOEKForUser(ctx, "org-concurrent", "user-concurrent", tursoOEK)
+		require.NoError(t, err)
 
-		// Share credentials concurrently
+		// Share credentials concurrently (same user, different connections)
+		numConnections := 10
 		var wg sync.WaitGroup
-		errors := make(chan error, numUsers)
+		errors := make(chan error, numConnections)
 
-		for i := 0; i < numUsers; i++ {
+		for i := 0; i < numConnections; i++ {
 			wg.Add(1)
-			go func(userID int) {
+			go func(connIdx int) {
 				defer wg.Done()
 
-				connID := "conn-" + string(rune(userID))
-				password := []byte("password-" + string(rune(userID)))
-				userIDStr := "user-" + string(rune(userID))
+				connID := fmt.Sprintf("conn-concurrent-%d", connIdx)
+				password := []byte(fmt.Sprintf("password-%d", connIdx))
 
-				err := service.ShareCredential(ctx, connID, "org-456", userIDStr, userKeys[userID], password)
+				// Create a copy of the user key for this goroutine
+				keyCopy := make([]byte, len(userKey))
+				copy(keyCopy, userKey)
+
+				err := service.ShareCredential(ctx, connID, "org-concurrent", "user-concurrent", keyCopy, password)
 				if err != nil {
 					errors <- err
 				}
@@ -937,25 +949,42 @@ func TestOEKConcurrency(t *testing.T) {
 	})
 
 	t.Run("multiple goroutines reading passwords simultaneously", func(t *testing.T) {
-		service, _, _, _ := setupTestService()
+		service, oekStore, _, _ := setupTestService()
 
 		// Setup - create shared credentials
 		numCreds := 10
 		userKey, err := crypto.GenerateMasterKey()
 		require.NoError(t, err)
 
+		// Pre-create OEK for the org
+		oek, err := crypto.GenerateOrgEnvelopeKey()
+		require.NoError(t, err)
+		wrappedOEK, err := crypto.EncryptOEKForUser(oek, userKey)
+		require.NoError(t, err)
+		tursoOEK := &turso.OEKEncryptedData{
+			Ciphertext: wrappedOEK.Ciphertext,
+			IV:         wrappedOEK.IV,
+			AuthTag:    wrappedOEK.AuthTag,
+		}
+		err = oekStore.StoreOEKForUser(ctx, "org-read-test", "user-read-test", tursoOEK)
+		require.NoError(t, err)
+
 		userKeyCopies := make([][]byte, numCreds*5)
 		passwords := make([][]byte, numCreds)
 
 		for i := 0; i < numCreds; i++ {
-			connID := "conn-" + string(rune(i))
-			password := []byte("password-" + string(rune(i)))
-			passwords[i] = password
+			connID := fmt.Sprintf("conn-read-%d", i)
+			password := []byte(fmt.Sprintf("password-%d", i))
+
+			// Store a COPY of password since ShareCredential zeros the original
+			passwordCopy := make([]byte, len(password))
+			copy(passwordCopy, password)
+			passwords[i] = passwordCopy
 
 			userKeyCopy := make([]byte, len(userKey))
 			copy(userKeyCopy, userKey)
 
-			err := service.ShareCredential(ctx, connID, "org-456", "user-789", userKeyCopy, password)
+			err := service.ShareCredential(ctx, connID, "org-read-test", "user-read-test", userKeyCopy, password)
 			require.NoError(t, err)
 
 			// Create copies for reading
@@ -976,9 +1005,9 @@ func TestOEKConcurrency(t *testing.T) {
 				go func(credID, copyIdx int) {
 					defer wg.Done()
 
-					connID := "conn-" + string(rune(credID))
+					connID := fmt.Sprintf("conn-read-%d", credID)
 
-					password, err := service.GetSharedCredentialPassword(ctx, connID, "org-456", "user-789", userKeyCopies[copyIdx])
+					password, err := service.GetSharedCredentialPassword(ctx, connID, "org-read-test", "user-read-test", userKeyCopies[copyIdx])
 					if err != nil {
 						errors <- err
 						return
@@ -986,9 +1015,13 @@ func TestOEKConcurrency(t *testing.T) {
 					defer crypto.ClearBytes(password)
 
 					expectedPass := passwords[credID]
+					if len(password) != len(expectedPass) {
+						errors <- fmt.Errorf("password length mismatch for conn %d: got %d, want %d", credID, len(password), len(expectedPass))
+						return
+					}
 					for k, b := range password {
-						if k >= len(expectedPass) || b != expectedPass[k] {
-							errors <- err
+						if b != expectedPass[k] {
+							errors <- fmt.Errorf("password byte mismatch for conn %d at position %d", credID, k)
 							return
 						}
 					}
