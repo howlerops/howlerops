@@ -1,5 +1,5 @@
-import { AlertTriangle, ArrowLeft, Brain, CheckCircle,Download, Key, Play, Server } from "lucide-react"
-import { useCallback,useEffect, useRef, useState } from "react"
+import { AlertTriangle, ArrowLeft, Brain, CheckCircle, Download, Key, Play, Server, Share2, Ticket, Users } from "lucide-react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
 
 import { PageErrorBoundary } from "@/components/page-error-boundary"
@@ -14,6 +14,8 @@ import { useTheme } from "@/hooks/use-theme"
 import { useToast } from "@/hooks/use-toast"
 import { PreferenceCategory,PreferenceRepository } from '@/lib/storage/repositories/preference-repository'
 import { useAIConfig } from "@/store/ai-store"
+import { useOrganizationStore } from "@/store/organization-store"
+import { useConnectionsStore } from "@/store/connections-store"
 
 const prefRepo = new PreferenceRepository()
 const DEVICE_USER = 'local-user'
@@ -72,6 +74,11 @@ export function Settings() {
   const { theme, setTheme } = useTheme()
   const navigate = useNavigate()
   const { toast } = useToast()
+
+  // Organization state for Team Sharing card
+  const { currentOrgId, organizations } = useOrganizationStore()
+  const { sharedConnections } = useConnectionsStore()
+  const currentOrg = organizations.find((o) => o.id === currentOrgId)
 
   // AI Configuration
   const { config: aiConfig, updateConfig, testConnection, connectionStatus } = useAIConfig()
@@ -1124,6 +1131,62 @@ You can also start it manually by running: ollama serve`)
                   </div>
                 </div>
               </>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Team Sharing */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Share2 className="h-5 w-5" />
+              Team Sharing
+            </CardTitle>
+            <CardDescription>
+              Share database connections and queries with your team
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {currentOrgId && currentOrg ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/20">
+                  <div className="flex items-center gap-3">
+                    <Users className="h-8 w-8 text-primary" />
+                    <div>
+                      <p className="font-medium">{currentOrg.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {sharedConnections.length} shared connection{sharedConnections.length !== 1 ? 's' : ''}
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={() => navigate('/connections?tab=team')}
+                  >
+                    View Shared Resources
+                  </Button>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Access shared connections and queries from the Connections page under the "Team" tab.
+                </p>
+              </div>
+            ) : (
+              <div className="text-center py-6 border-2 border-dashed rounded-lg">
+                <Users className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
+                <h3 className="font-semibold mb-2">No Organization Selected</h3>
+                <p className="text-sm text-muted-foreground mb-4 max-w-sm mx-auto">
+                  Create or join an organization to share database connections and queries with your team.
+                </p>
+                <div className="flex gap-3 justify-center">
+                  <Button variant="default" onClick={() => navigate('/shared')}>
+                    Create Organization
+                  </Button>
+                  <Button variant="outline" onClick={() => navigate('/shared')}>
+                    <Ticket className="h-4 w-4 mr-2" />
+                    Join with Invite
+                  </Button>
+                </div>
+              </div>
             )}
           </CardContent>
         </Card>

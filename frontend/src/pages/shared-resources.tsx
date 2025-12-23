@@ -1,25 +1,31 @@
 /**
  * SharedResourcesPage
  *
- * Main page for viewing and managing shared resources (connections and queries)
- * within an organization. Provides tabs, filtering, and action menus.
+ * Organization onboarding page. Redirects users with an org to /connections?tab=team.
+ * Shows org creation/join options for users without an organization.
  *
  * @module pages/SharedResourcesPage
  */
 
-import { AlertCircle, Code2, Database, Users } from 'lucide-react'
+import { AlertCircle, Ticket, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 
-import { SharedResourceCard } from '@/components/sharing/SharedResourceCard'
+import { OrganizationCreateModal } from '@/components/organizations'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import type { Connection } from '@/lib/api/connections'
-import type { SavedQuery } from '@/lib/api/queries'
-import { useConnectionsStore } from '@/store/connections-store'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { useOrganizationStore } from '@/store/organization-store'
-import { useQueriesStore } from '@/store/queries-store'
 
 /**
  * SharedResourcesPage Component
@@ -30,304 +36,188 @@ import { useQueriesStore } from '@/store/queries-store'
  * ```
  */
 export function SharedResourcesPage() {
-  const [activeTab, setActiveTab] = useState<'connections' | 'queries'>(
-    'connections'
-  )
+  const navigate = useNavigate()
 
-  const { currentOrgId, organizations } = useOrganizationStore()
-  const {
-    sharedConnections,
-    fetchSharedConnections,
-    unshareConnection,
-    deleteConnection,
-    loading: connectionsLoading,
-    error: connectionsError,
-  } = useConnectionsStore()
+  // Modal states
+  const [showCreateOrgModal, setShowCreateOrgModal] = useState(false)
+  const [showJoinOrgModal, setShowJoinOrgModal] = useState(false)
+  const [inviteCode, setInviteCode] = useState('')
+  const [joinLoading, setJoinLoading] = useState(false)
 
   const {
-    sharedQueries,
-    fetchSharedQueries,
-    unshareQuery,
-    deleteQuery,
-    loading: queriesLoading,
-    error: queriesError,
-  } = useQueriesStore()
+    currentOrgId,
+    organizations,
+    createOrganization,
+    loading: orgLoading,
+    error: orgError,
+  } = useOrganizationStore()
 
-  // Get current organization details
-  const currentOrg = organizations.find((o) => o.id === currentOrgId)
-
-  // Fetch shared resources when organization changes
+  // Redirect users with an org to the connections team tab
   useEffect(() => {
     if (currentOrgId) {
-      fetchSharedConnections(currentOrgId).catch((error) => {
-        console.error('Failed to fetch shared connections:', error)
-      })
-
-      fetchSharedQueries(currentOrgId).catch((error) => {
-        console.error('Failed to fetch shared queries:', error)
-      })
+      navigate('/connections?tab=team', { replace: true })
     }
-  }, [currentOrgId, fetchSharedConnections, fetchSharedQueries])
+  }, [currentOrgId, navigate])
 
-  // Handle unsharing connection
-  const handleUnshareConnection = async (connection: Connection) => {
+  // Handle creating organization
+  const handleCreateOrganization = async (data: { name: string; description?: string }) => {
     try {
-      await unshareConnection(connection.id)
-      toast.success('Connection is now personal')
-
-      // Refresh list
-      if (currentOrgId) {
-        await fetchSharedConnections(currentOrgId)
-      }
+      const org = await createOrganization(data)
+      toast.success(`Organization "${org.name}" created!`)
+      setShowCreateOrgModal(false)
+      // Will redirect via useEffect when currentOrgId updates
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : 'Failed to unshare connection'
-      )
+      console.error('Failed to create organization:', error)
+      throw error
     }
   }
 
-  // Handle deleting connection
-  const handleDeleteConnection = async (connection: Connection) => {
-    if (
-      !confirm(
-        `Are you sure you want to delete "${connection.name}"? This action cannot be undone.`
-      )
-    ) {
+  // Handle joining via invite code
+  const handleJoinWithInviteCode = () => {
+    if (!inviteCode.trim()) {
+      toast.error('Please enter an invite code')
       return
     }
 
-    try {
-      await deleteConnection(connection.id)
-      toast.success('Connection deleted')
+    setJoinLoading(true)
 
-      // Refresh list
-      if (currentOrgId) {
-        await fetchSharedConnections(currentOrgId)
-      }
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : 'Failed to delete connection'
-      )
-    }
+    const token = inviteCode.trim()
+
+    setShowJoinOrgModal(false)
+    setInviteCode('')
+    setJoinLoading(false)
+
+    navigate(`/invite/${token}`)
   }
 
-  // Handle unsharing query
-  const handleUnshareQuery = async (query: SavedQuery) => {
-    try {
-      await unshareQuery(query.id)
-      toast.success('Query is now personal')
-
-      // Refresh list
-      if (currentOrgId) {
-        await fetchSharedQueries(currentOrgId)
-      }
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : 'Failed to unshare query'
-      )
-    }
-  }
-
-  // Handle deleting query
-  const handleDeleteQuery = async (query: SavedQuery) => {
-    if (
-      !confirm(
-        `Are you sure you want to delete "${query.title}"? This action cannot be undone.`
-      )
-    ) {
-      return
-    }
-
-    try {
-      await deleteQuery(query.id)
-      toast.success('Query deleted')
-
-      // Refresh list
-      if (currentOrgId) {
-        await fetchSharedQueries(currentOrgId)
-      }
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : 'Failed to delete query'
-      )
-    }
-  }
-
-  // No organization selected
-  if (!currentOrgId) {
+  // If user has an org, show loading while redirecting
+  if (currentOrgId) {
     return (
-      <div className="container mx-auto p-6 max-w-7xl">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold mb-2">Shared Resources</h1>
-          <p className="text-muted-foreground">
-            View and manage resources shared within your organization
-          </p>
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent" />
+          <p className="mt-4 text-muted-foreground">Redirecting to team resources...</p>
         </div>
-
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>No Organization Selected</AlertTitle>
-          <AlertDescription>
-            Please select an organization to view shared resources. You can
-            select an organization from the organization switcher in the
-            sidebar.
-          </AlertDescription>
-        </Alert>
       </div>
     )
   }
 
-  const isLoading = connectionsLoading || queriesLoading
-  const hasError = connectionsError || queriesError
+  const hasOrganizations = organizations.length > 0
 
   return (
     <div className="container mx-auto p-6 max-w-7xl">
-      {/* Header */}
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-2">
           <Users className="h-6 w-6 text-primary" />
-          <h1 className="text-3xl font-bold">Shared Resources</h1>
+          <h1 className="text-3xl font-bold">Team Sharing</h1>
         </div>
         <p className="text-muted-foreground">
-          Resources shared within{' '}
-          <span className="font-medium">{currentOrg?.name}</span>
+          Share database connections and queries with your team
         </p>
       </div>
 
-      {/* Error Alert */}
-      {hasError && (
-        <Alert variant="destructive" className="mb-6">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Error Loading Resources</AlertTitle>
-          <AlertDescription>
-            {connectionsError || queriesError}
-          </AlertDescription>
-        </Alert>
-      )}
+      <div className="text-center py-12 border-2 border-dashed rounded-lg">
+        <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
 
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'connections' | 'queries')}>
-        <TabsList className="mb-6">
-          <TabsTrigger value="connections" className="gap-2">
-            <Database className="h-4 w-4" />
-            Connections
-            {sharedConnections.length > 0 && (
-              <span className="ml-1 text-xs bg-primary/20 px-1.5 py-0.5 rounded-full">
-                {sharedConnections.length}
-              </span>
-            )}
-          </TabsTrigger>
+        {hasOrganizations ? (
+          <>
+            <h3 className="text-lg font-semibold mb-2">
+              Select an Organization
+            </h3>
+            <p className="text-muted-foreground mb-4 max-w-md mx-auto">
+              You have access to {organizations.length} organization{organizations.length > 1 ? 's' : ''}.
+              Select one from the organization switcher to view shared resources.
+            </p>
+            <Alert className="max-w-md mx-auto text-left">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>How to select an organization</AlertTitle>
+              <AlertDescription>
+                Use the organization switcher in the header or sidebar to
+                switch between your organizations.
+              </AlertDescription>
+            </Alert>
+          </>
+        ) : (
+          <>
+            <h3 className="text-lg font-semibold mb-2">
+              Personal Account
+            </h3>
+            <p className="text-muted-foreground mb-4 max-w-md mx-auto">
+              You're using a personal account. To share connections and queries
+              with teammates, create or join an organization.
+            </p>
+            <div className="flex gap-3 justify-center">
+              <Button variant="default" onClick={() => setShowCreateOrgModal(true)}>
+                Create Organization
+              </Button>
+              <Button variant="outline" onClick={() => setShowJoinOrgModal(true)}>
+                <Ticket className="h-4 w-4 mr-2" />
+                Join with Invite Code
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-4">
+              Organizations allow secure credential sharing with end-to-end encryption
+            </p>
+          </>
+        )}
+      </div>
 
-          <TabsTrigger value="queries" className="gap-2">
-            <Code2 className="h-4 w-4" />
-            Queries
-            {sharedQueries.length > 0 && (
-              <span className="ml-1 text-xs bg-primary/20 px-1.5 py-0.5 rounded-full">
-                {sharedQueries.length}
-              </span>
-            )}
-          </TabsTrigger>
-        </TabsList>
+      {/* Create Organization Modal */}
+      <OrganizationCreateModal
+        open={showCreateOrgModal}
+        onOpenChange={setShowCreateOrgModal}
+        onCreate={handleCreateOrganization}
+        loading={orgLoading.creating}
+        error={orgError}
+      />
 
-        {/* Connections Tab */}
-        <TabsContent value="connections" className="space-y-4">
-          {isLoading && sharedConnections.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent" />
-              <p className="mt-4 text-muted-foreground">
-                Loading connections...
+      {/* Join with Invite Code Modal */}
+      <Dialog open={showJoinOrgModal} onOpenChange={setShowJoinOrgModal}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Ticket className="h-5 w-5" />
+              Join Organization
+            </DialogTitle>
+            <DialogDescription>
+              Enter the invite code you received to join an organization.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="invite-code">Invite Code</Label>
+              <Input
+                id="invite-code"
+                placeholder="Enter invite code or paste invite link"
+                value={inviteCode}
+                onChange={(e) => setInviteCode(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleJoinWithInviteCode()
+                  }
+                }}
+              />
+              <p className="text-xs text-muted-foreground">
+                The invite code looks like: abc123xyz or a full URL
               </p>
             </div>
-          ) : sharedConnections.length === 0 ? (
-            <div className="text-center py-12 border-2 border-dashed rounded-lg">
-              <Database className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">
-                No Shared Connections
-              </h3>
-              <p className="text-muted-foreground mb-4">
-                No database connections have been shared in this organization
-                yet.
-              </p>
-              <Button variant="outline">Create Connection</Button>
-            </div>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {sharedConnections.map((connection) => (
-                <SharedResourceCard
-                  key={connection.id}
-                  resource={connection}
-                  type="connection"
-                  onView={(resource) => {
-                    // TODO: Open connection details modal
-                    console.log('View connection:', resource)
-                  }}
-                  onEdit={(resource) => {
-                    // TODO: Open connection edit form
-                    console.log('Edit connection:', resource)
-                  }}
-                  onUnshare={(resource) =>
-                    handleUnshareConnection(resource as Connection)
-                  }
-                  onDelete={(resource) =>
-                    handleDeleteConnection(resource as Connection)
-                  }
-                  onUse={(resource) => {
-                    // TODO: Connect to database
-                    console.log('Use connection:', resource)
-                  }}
-                />
-              ))}
-            </div>
-          )}
-        </TabsContent>
-
-        {/* Queries Tab */}
-        <TabsContent value="queries" className="space-y-4">
-          {isLoading && sharedQueries.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent" />
-              <p className="mt-4 text-muted-foreground">Loading queries...</p>
-            </div>
-          ) : sharedQueries.length === 0 ? (
-            <div className="text-center py-12 border-2 border-dashed rounded-lg">
-              <Code2 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No Shared Queries</h3>
-              <p className="text-muted-foreground mb-4">
-                No queries have been shared in this organization yet.
-              </p>
-              <Button variant="outline">Create Query</Button>
-            </div>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {sharedQueries.map((query) => (
-                <SharedResourceCard
-                  key={query.id}
-                  resource={query}
-                  type="query"
-                  onView={(resource) => {
-                    // TODO: Open query details modal
-                    console.log('View query:', resource)
-                  }}
-                  onEdit={(resource) => {
-                    // TODO: Open query editor
-                    console.log('Edit query:', resource)
-                  }}
-                  onUnshare={(resource) =>
-                    handleUnshareQuery(resource as SavedQuery)
-                  }
-                  onDelete={(resource) =>
-                    handleDeleteQuery(resource as SavedQuery)
-                  }
-                  onUse={(resource) => {
-                    // TODO: Execute query
-                    console.log('Run query:', resource)
-                  }}
-                />
-              ))}
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowJoinOrgModal(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleJoinWithInviteCode}
+              disabled={!inviteCode.trim() || joinLoading}
+            >
+              {joinLoading ? 'Joining...' : 'Join Organization'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -18,10 +18,14 @@ import {
   getConnections,
   getOrganizationConnections,
   shareConnection as apiShareConnection,
+  shareConnectionWithCredential as apiShareConnectionWithCredential,
   unshareConnection as apiUnshareConnection,
   updateConnection as apiUpdateConnection,
   type UpdateConnectionInput,
 } from '@/lib/api/connections'
+import { getSecureStorage } from '@/lib/secure-storage'
+import { exportMasterKeyToBase64 } from '@/lib/crypto/encryption'
+import { useAuthStore } from '@/store/auth-store'
 
 /**
  * Store state interface
@@ -340,7 +344,25 @@ export const useConnectionsStore = create<ConnectionsStore>()(
         )
 
         try {
-          await apiShareConnection(id, orgId)
+          // Try OEK-aware credential sharing first
+          // This re-encrypts the password with the organization's envelope key
+          const masterKey = useAuthStore.getState().getMasterKey()
+          const secureStorage = getSecureStorage()
+          const credentials = await secureStorage.getCredentials(id)
+
+          if (masterKey && credentials?.password) {
+            // Use credential-aware sharing with OEK encryption
+            const masterKeyBase64 = await exportMasterKeyToBase64(masterKey)
+            await apiShareConnectionWithCredential(id, {
+              organization_id: orgId,
+              master_key: masterKeyBase64,
+              password: credentials.password,
+            })
+          } else {
+            // Fall back to basic sharing (no credential re-encryption)
+            // This works for connections without stored passwords
+            await apiShareConnection(id, orgId)
+          }
 
           set({ loading: false }, false, 'shareConnection/success')
 

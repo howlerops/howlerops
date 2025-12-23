@@ -29,6 +29,7 @@ const SchemaDiff = lazy(() => import('./pages/schema-diff').then(m => ({ default
 const DataCatalog = lazy(() => import('./pages/data-catalog').then(m => ({ default: m.DataCatalog })))
 const AuthPage = lazy(() => import('./pages/auth-page').then(m => ({ default: m.AuthPage })))
 const AuthCallback = lazy(() => import('./pages/auth-callback').then(m => ({ default: m.AuthCallback })))
+const SharedResourcesPage = lazy(() => import('./pages/shared-resources').then(m => ({ default: m.SharedResourcesPage })))
 
 // Loading component
 function LoadingSpinner() {
@@ -87,6 +88,7 @@ function App() {
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/schema-diff" element={<SchemaDiff />} />
             <Route path="/data-catalog" element={<DataCatalog />} />
+            <Route path="/shared" element={<SharedResourcesPage />} />
           </Routes>
         </Suspense>
       </div>

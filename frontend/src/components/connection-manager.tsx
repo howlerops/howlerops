@@ -134,7 +134,11 @@ const DATABASE_TYPE_OPTIONS = [
   { value: 'opensearch', label: 'OpenSearch' },
 ] as const
 
-export function ConnectionManager() {
+interface ConnectionManagerProps {
+  hideHeader?: boolean
+}
+
+export function ConnectionManager({ hideHeader = false }: ConnectionManagerProps) {
   const {
     connections,
     addConnection,
@@ -646,14 +650,18 @@ export function ConnectionManager() {
   )
 
   return (
-    <div className="p-6">
+    <div className={hideHeader ? "" : "p-6"}>
       <div className="flex flex-col gap-4 mb-6">
-        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Database Connections</h1>
-            <p className="text-muted-foreground">Manage your database connections</p>
+        {!hideHeader && (
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h1 className="text-2xl font-bold">Database Connections</h1>
+              <p className="text-muted-foreground">Manage your database connections</p>
+            </div>
           </div>
+        )}
 
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <Dialog
             open={isDialogOpen}
             onOpenChange={(open) => {
