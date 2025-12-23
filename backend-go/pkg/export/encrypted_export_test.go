@@ -333,12 +333,12 @@ func TestValidatePassphrase(t *testing.T) {
 		{"all lowercase", "alllowercase", ErrPassphraseTooWeak},
 		{"all uppercase", "ALLUPPERCASE", ErrPassphraseTooWeak},
 		{"all numbers", "123456789012", ErrPassphraseTooWeak},
-		{"lowercase with number", "lowercase123", nil},           // 2 types
-		{"uppercase with special", "UPPERCASE!!!", nil},          // 2 types
-		{"mixed case", "MixedCasePass", nil},                     // 2 types
-		{"complex passphrase", "MyP@ssw0rd!23", nil},             // All types
-		{"unicode passphrase", "Пароль123!test", nil},            // Works with unicode
-		{"spaces allowed", "Has Spaces 123!", nil},               // Spaces count as special
+		{"lowercase with number", "lowercase123", nil},  // 2 types
+		{"uppercase with special", "UPPERCASE!!!", nil}, // 2 types
+		{"mixed case", "MixedCasePass", nil},            // 2 types
+		{"complex passphrase", "MyP@ssw0rd!23", nil},    // All types
+		{"unicode passphrase", "Пароль123!test", nil},   // Works with unicode
+		{"spaces allowed", "Has Spaces 123!", nil},      // Spaces count as special
 	}
 
 	for _, tt := range tests {

@@ -17,12 +17,12 @@ import (
 // - Shared credentials are encrypted once with the OEK
 // - All operations use proper Go concurrency patterns and crypto cleanup
 type OrgCredentialService struct {
-	oekStore         *turso.OrgEnvelopeKeyStore
-	sharedCredStore  *turso.SharedCredentialStore
-	auditStore       *turso.CredentialAuditStore
-	masterKeyStore   *turso.MasterKeyStore
-	credentialStore  *turso.CredentialStore
-	logger           *logrus.Logger
+	oekStore        *turso.OrgEnvelopeKeyStore
+	sharedCredStore *turso.SharedCredentialStore
+	auditStore      *turso.CredentialAuditStore
+	masterKeyStore  *turso.MasterKeyStore
+	credentialStore *turso.CredentialStore
+	logger          *logrus.Logger
 }
 
 // NewOrgCredentialService creates a new organization credential service
@@ -194,9 +194,9 @@ func (s *OrgCredentialService) ProvisionOEKForNewMember(
 	}
 
 	s.logger.WithFields(logrus.Fields{
-		"organization_id":    orgID,
-		"existing_user_id":   existingUserID,
-		"new_user_id":        newUserID,
+		"organization_id":  orgID,
+		"existing_user_id": existingUserID,
+		"new_user_id":      newUserID,
 	}).Info("OEK provisioned for new organization member")
 
 	return nil

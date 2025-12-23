@@ -174,8 +174,8 @@ func (h *Handler) ImportConfig(w http.ResponseWriter, r *http.Request) {
 	// Validate config
 	if issues := export.ValidateConfig(config); len(issues) > 0 {
 		h.respondJSON(w, http.StatusBadRequest, map[string]interface{}{
-			"success":          false,
-			"message":          "config validation failed",
+			"success":           false,
+			"message":           "config validation failed",
 			"validation_issues": issues,
 		})
 		return
