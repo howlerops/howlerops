@@ -81,13 +81,14 @@ func (m *mockUserStore) ListUsers(ctx context.Context, limit, offset int) ([]*au
 
 // mockSessionStore implements auth.SessionStore for testing
 type mockSessionStore struct {
-	createSessionFunc          func(ctx context.Context, session *auth.Session) error
-	getSessionFunc             func(ctx context.Context, token string) (*auth.Session, error)
-	updateSessionFunc          func(ctx context.Context, session *auth.Session) error
-	deleteSessionFunc          func(ctx context.Context, token string) error
-	deleteUserSessionsFunc     func(ctx context.Context, userID string) error
-	getUserSessionsFunc        func(ctx context.Context, userID string) ([]*auth.Session, error)
-	cleanupExpiredSessionsFunc func(ctx context.Context) error
+	createSessionFunc            func(ctx context.Context, session *auth.Session) error
+	getSessionFunc               func(ctx context.Context, token string) (*auth.Session, error)
+	updateSessionFunc            func(ctx context.Context, session *auth.Session) error
+	deleteSessionFunc            func(ctx context.Context, token string) error
+	deleteUserSessionsFunc       func(ctx context.Context, userID string) error
+	getUserSessionsFunc          func(ctx context.Context, userID string) ([]*auth.Session, error)
+	cleanupExpiredSessionsFunc   func(ctx context.Context) error
+	getSessionByRefreshTokenFunc func(ctx context.Context, refreshToken string) (*auth.Session, error)
 }
 
 func (m *mockSessionStore) CreateSession(ctx context.Context, session *auth.Session) error {
@@ -137,6 +138,13 @@ func (m *mockSessionStore) CleanupExpiredSessions(ctx context.Context) error {
 		return m.cleanupExpiredSessionsFunc(ctx)
 	}
 	return errors.New("not implemented")
+}
+
+func (m *mockSessionStore) GetSessionByRefreshToken(ctx context.Context, refreshToken string) (*auth.Session, error) {
+	if m.getSessionByRefreshTokenFunc != nil {
+		return m.getSessionByRefreshTokenFunc(ctx, refreshToken)
+	}
+	return nil, errors.New("not implemented")
 }
 
 // mockLoginAttemptStore implements auth.LoginAttemptStore for testing

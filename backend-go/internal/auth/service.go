@@ -74,6 +74,7 @@ type SessionStore interface {
 	DeleteUserSessions(ctx context.Context, userID string) error
 	GetUserSessions(ctx context.Context, userID string) ([]*Session, error)
 	CleanupExpiredSessions(ctx context.Context) error
+	GetSessionByRefreshToken(ctx context.Context, refreshToken string) (*Session, error)
 }
 
 // LoginAttemptStore defines the interface for login attempt storage
@@ -534,10 +535,17 @@ func (s *Service) recordLoginAttempt(ctx context.Context, ip, username string, s
 
 // getSessionByRefreshToken gets a session by refresh token
 func (s *Service) getSessionByRefreshToken(ctx context.Context, refreshToken string) (*Session, error) {
-	// This is a simplified implementation
-	// In a real implementation, you might need to add an index on refresh_token
-	// or store refresh tokens separately
-	return nil, fmt.Errorf("not implemented")
+	session, err := s.sessionStore.GetSessionByRefreshToken(ctx, refreshToken)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get session by refresh token: %w", err)
+	}
+
+	// Verify session is active
+	if !session.Active {
+		return nil, fmt.Errorf("session is inactive")
+	}
+
+	return session, nil
 }
 
 // CleanupExpiredSessions removes expired sessions
