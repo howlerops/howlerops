@@ -1,3 +1,50 @@
+/**
+ * Schema Visualizer - React Flow Performance Optimizations
+ *
+ * This component follows React Flow best practices for performance optimization.
+ * Key optimizations implemented (per https://reactflow.dev/learn/advanced-use/performance):
+ *
+ * 1. NODE/EDGE TYPES OUTSIDE COMPONENT
+ *    - ERD_NODE_TYPES, CLASSIC_NODE_TYPES defined outside SchemaVisualizer
+ *    - ERD_EDGE_TYPES, CLASSIC_EDGE_TYPES defined outside SchemaVisualizer
+ *    - This prevents React from creating new objects on every render
+ *
+ * 2. CUSTOM NODES/EDGES WRAPPED IN React.memo
+ *    - ERDTableNode, TableNode: React.memo wrapped
+ *    - SchemaSummaryNode: React.memo wrapped
+ *    - ERDEdge: React.memo with custom comparator
+ *    - CustomEdge: React.memo with custom comparator
+ *
+ * 3. CALLBACKS WRAPPED IN useCallback
+ *    - handleNodeClick, handleEdgeClick, handlePaneClick
+ *    - handleViewportChange (throttled to prevent pan re-renders)
+ *    - handleEdgeHover, applyLayout, export functions
+ *
+ * 4. COMPUTED VALUES MEMOIZED WITH useMemo
+ *    - displayNodes, filteredEdges
+ *    - adjacencyMap, neighborWhitelist
+ *    - performanceLevel, computedDetailLevel
+ *
+ * 5. VIEWPORT OPTIMIZATION
+ *    - onlyRenderVisibleElements={true} enabled
+ *    - Zoom state updates throttled (5% delta threshold)
+ *    - Uses ref for lastZoom to avoid state updates during pan
+ *
+ * 6. SELECTION STATE DECOUPLED
+ *    - selectedTableId tracked separately from nodes array
+ *    - hoveredEdgeId debounced (50ms) to reduce edge highlight re-renders
+ *
+ * 7. PERFORMANCE PROPS ENABLED
+ *    - elevateEdgesOnSelect={false}
+ *    - elevateNodesOnSelect={false}
+ *    - selectNodesOnDrag={false}
+ *    - nodesDraggable={false} by default
+ *
+ * 8. STATIC CONSTANTS OUTSIDE COMPONENT
+ *    - DEFAULT_VIEWPORT, MIN_ZOOM, MAX_ZOOM, NODE_EXTENT
+ *    - Prevents object recreation on every render
+ */
+
 import 'reactflow/dist/style.css'
 
 import {
@@ -13,11 +60,10 @@ import {
   Settings,
   X,
 } from 'lucide-react'
-import React, { useCallback, useEffect, useMemo,useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  addEdge,
   Background,
-  Connection,
+  ConnectionLineType,
   Controls,
   Edge,
   MiniMap,
@@ -27,6 +73,8 @@ import {
   ReactFlowProvider,
   useEdgesState,
   useNodesState,
+  useReactFlow,
+  Viewport,
 } from 'reactflow'
 
 import { Badge } from '@/components/ui/badge'
@@ -51,6 +99,8 @@ import {
 } from '@/types/schema-visualizer'
 
 import { CustomEdge } from './custom-edge'
+import { ERDEdge } from './erd-edge'
+import { ERDTableNode } from './erd-table-node'
 import { RelationshipInspector } from './relationship-inspector'
 import { SchemaErrorBoundary } from './schema-error-boundary'
 import { SchemaSummaryNode } from './schema-summary-node'
@@ -62,20 +112,51 @@ interface SchemaVisualizerProps {
   connectionId?: string
 }
 
+// Performance constants - defined outside component to prevent recreation
+const DEFAULT_VIEWPORT: Viewport = { x: 0, y: 0, zoom: 0.5 }
+const MIN_ZOOM = 0.1
+const MAX_ZOOM = 2
+const NODE_EXTENT: [[number, number], [number, number]] = [
+  [-10000, -10000],
+  [10000, 10000],
+]
+
+// Define node types OUTSIDE component to prevent recreation on every render
+// These are static and should never change during component lifecycle
+const ERD_NODE_TYPES = {
+  table: ERDTableNode,
+  schemaSummary: SchemaSummaryNode,
+}
+
+const CLASSIC_NODE_TYPES = {
+  table: TableNode,
+  schemaSummary: SchemaSummaryNode,
+}
+
+// Define edge types OUTSIDE component
+const ERD_EDGE_TYPES = {
+  smoothstep: ERDEdge,
+  erd: ERDEdge,
+}
+
+const CLASSIC_EDGE_TYPES = {
+  smoothstep: CustomEdge,
+  erd: ERDEdge,
+}
+
 export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState([])
   const [edges, setEdges, onEdgesChange] = useEdgesState([])
   const [schemaConfig, setSchemaConfig] = useState<SchemaConfig | null>(null)
+  const [initialFitDone, setInitialFitDone] = useState(false)
+  const reactFlowInstance = useReactFlow()
 
-  // Memoize nodeTypes and edgeTypes to prevent unnecessary re-renders
-  const nodeTypes = useMemo(() => ({
-    table: TableNode,
-    schemaSummary: SchemaSummaryNode,
-  }), [])
+  // ERD mode toggle - 'erd' for new dark design, 'classic' for original
+  const [visualizationMode, setVisualizationMode] = useState<'erd' | 'classic'>('erd')
 
-  const edgeTypes = useMemo(() => ({
-    smoothstep: CustomEdge,
-  }), [])
+  // Use pre-defined node/edge types based on mode - no useMemo needed since they're static
+  const nodeTypes = visualizationMode === 'erd' ? ERD_NODE_TYPES : CLASSIC_NODE_TYPES
+  const edgeTypes = visualizationMode === 'erd' ? ERD_EDGE_TYPES : CLASSIC_EDGE_TYPES
   
   // UI State
   const [searchInput, setSearchInput] = useState('')
@@ -94,6 +175,7 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
   // Interactive state
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null)
   const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null)
+  const [nodesDraggable, setNodesDraggable] = useState(false) // Disabled by default for performance
   const [selectedEdge, setSelectedEdge] = useState<{
     edge: EdgeConfig
     sourceTable: TableConfig
@@ -129,48 +211,53 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
           const config = await SchemaConfigBuilder.fromSchemaNodes(schema)
           setSchemaConfig(config)
 
-          console.log('Schema config created:', {
-            tables: config.tables.length,
-            edges: config.edges.length,
-            edgeDetails: config.edges.map(e => ({
-              id: e.id,
-              source: e.source,
-              target: e.target,
-              relation: e.relation,
-              label: e.label
-            }))
-          })
-
           const { nodes: flowNodes, edges: flowEdges } = SchemaConfigBuilder.toReactFlowNodes(config)
-          setNodes(flowNodes as Node[])
-          setEdges(flowEdges as Edge[])
-
-          console.log('ReactFlow nodes and edges:', {
-            nodes: flowNodes.length,
-            edges: flowEdges.length,
-            edgeTypes: (flowEdges as Edge[]).map((e: Edge) => e.type)
-          })
 
           // Smart layout selection based on table count
           // Performance thresholds based on ReactFlow limitations
           const tableCount = config.tables.length
+          let selectedLayout: LayoutAlgorithm = 'hierarchical'
+
           if (tableCount < 50) {
-            // Optimal range: full features
-            setLayoutAlgorithm('hierarchical')
+            // Optimal range: full features with hierarchical layout
+            selectedLayout = 'hierarchical'
           } else if (tableCount < 100) {
             // Degraded range: switch to grid, keep animations
-            setLayoutAlgorithm('grid')
+            selectedLayout = 'grid'
             console.info(`Medium schema detected: ${tableCount} tables. Using grid layout for better performance.`)
           } else if (tableCount < 200) {
             // Minimal range: grid only, no animations
-            setLayoutAlgorithm('grid')
+            selectedLayout = 'grid'
             setSidebarCollapsed(false) // Encourage filtering
             console.warn(`Large schema detected: ${tableCount} tables. Performance may be degraded. Use filters to reduce complexity.`)
           } else {
             // Critical range: warn user strongly
-            setLayoutAlgorithm('grid')
+            selectedLayout = 'grid'
             setSidebarCollapsed(false) // Force sidebar open for filtering
             console.error(`Very large schema: ${tableCount} tables. Browser visualization not recommended. Consider using a dedicated database client tool or export to documentation.`)
+          }
+
+          setLayoutAlgorithm(selectedLayout)
+
+          // Apply initial layout if we have edges (FK relationships)
+          if (flowEdges.length > 0) {
+            const layoutOptions: LayoutOptions = {
+              algorithm: selectedLayout,
+              spacing: { x: 300, y: 200 },
+            }
+
+            const { nodes: layoutedNodes } = LayoutEngine.applyLayout(
+              flowNodes as SchemaVisualizerNode[],
+              flowEdges as SchemaVisualizerEdge[],
+              layoutOptions
+            )
+
+            setNodes(layoutedNodes as Node[])
+            setEdges(flowEdges as Edge[])
+          } else {
+            // No edges, just set nodes and edges without layout
+            setNodes(flowNodes as Node[])
+            setEdges(flowEdges as Edge[])
           }
 
           // Extract unique schemas for filtering
@@ -184,6 +271,17 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
 
     initializeSchema()
   }, [schema, setNodes, setEdges])
+
+  // Perform fitView only once after initial nodes are loaded
+  useEffect(() => {
+    if (!initialFitDone && nodes.length > 0 && reactFlowInstance) {
+      // Use requestAnimationFrame to ensure DOM is ready
+      requestAnimationFrame(() => {
+        reactFlowInstance.fitView({ padding: 0.1, maxZoom: 1 })
+        setInitialFitDone(true)
+      })
+    }
+  }, [nodes.length, initialFitDone, reactFlowInstance])
 
   const tableSchemaLookup = useMemo(() => {
     if (!schemaConfig) return new Map<string, string>()
@@ -252,16 +350,20 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
         }
 
         const isFocused = selectedTableId === node.id
+        const isRelated = selectedTableId !== null &&
+          selectedTableId !== node.id &&
+          neighborWhitelist?.has(node.id)
         const isDimmed =
           selectedTableId !== null &&
           selectedTableId !== node.id &&
-          (focusNeighborsOnly ? !!neighborWhitelist : true)
+          (focusNeighborsOnly ? !neighborWhitelist?.has(node.id) : false)
 
         return {
           ...node,
           data: {
             ...node.data,
             isFocused,
+            isRelated,
             isDimmed,
           },
         }
@@ -405,8 +507,6 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
     const selectedSummaryId = selectedTableId ? collapsedNodeMap.get(selectedTableId) : null
 
     edges.forEach((edge) => {
-      const isSourceCompact = compactNodeIds.has(edge.source)
-      const isTargetCompact = compactNodeIds.has(edge.target)
       const mappedSource = collapsedNodeMap.get(edge.source) ?? edge.source
       const mappedTarget = collapsedNodeMap.get(edge.target) ?? edge.target
 
@@ -434,15 +534,26 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
       const isDimmed = selectedTableId !== null && !isConnectedToSelectedTable
       const shouldAnimate = !shouldDisableAnimations && edge.animated
 
+      // Determine handles - use column-specific handles when available,
+      // fall back to table-level handles for collapsed/compact nodes
+      let sourceHandle = edge.sourceHandle
+      let targetHandle = edge.targetHandle
+
+      // For collapsed schemas, use table-level handles
+      if (collapsedNodeMap.has(edge.source)) {
+        sourceHandle = 'table-source'
+      }
+      if (collapsedNodeMap.has(edge.target)) {
+        targetHandle = 'table-target'
+      }
+
       const baseEdge: Edge = {
         ...edge,
         id: aggregateKey,
         source: mappedSource,
         target: mappedTarget,
-        sourceHandle:
-          isSourceCompact || collapsedNodeMap.has(edge.source) ? undefined : edge.sourceHandle,
-        targetHandle:
-          isTargetCompact || collapsedNodeMap.has(edge.target) ? undefined : edge.targetHandle,
+        sourceHandle,
+        targetHandle,
         animated: shouldAnimate,
         data: {
           ...edge.data,
@@ -486,7 +597,6 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
     showForeignKeys,
     collapsedNodeMap,
     visibleNodeIds,
-    compactNodeIds,
     selectedTableId,
     debouncedHoveredEdgeId,
     handleEdgeHover,
@@ -548,14 +658,6 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
     navigator.clipboard.writeText(JSON.stringify(positions, null, 2))
   }, [nodes])
 
-  // Handle edge connections
-  const onConnect = useCallback(
-    (params: Connection) => {
-      setEdges((eds) => addEdge(params, eds))
-    },
-    [setEdges]
-  )
-
   // Handle node click (focus mode)
   const handleNodeClick = useCallback(
     (event: React.MouseEvent, node: Node) => {
@@ -603,8 +705,21 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
     setSelectedEdge(null)
   }, [])
 
+  // Memoized close handler for RelationshipInspector
+  const handleInspectorClose = useCallback(() => {
+    setSelectedEdge(null)
+  }, [])
+
+  // Throttled viewport change handler - only update zoom state when zoom changes significantly
+  // This prevents constant re-renders during pan operations
+  const lastZoomRef = useRef(1)
   const handleViewportChange = useCallback<OnMove>((_event, viewport) => {
-    setViewportZoom(viewport.zoom)
+    // Only update state if zoom changed by more than 5% - prevents re-renders during panning
+    const zoomDelta = Math.abs(viewport.zoom - lastZoomRef.current)
+    if (zoomDelta > 0.05) {
+      lastZoomRef.current = viewport.zoom
+      setViewportZoom(viewport.zoom)
+    }
   }, [])
 
   // Keyboard support for focus mode
@@ -688,6 +803,16 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
           </div>
           
           <div className="flex items-center space-x-2">
+            {/* ERD/Classic Mode Toggle */}
+            <Button
+              variant={visualizationMode === 'erd' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setVisualizationMode(visualizationMode === 'erd' ? 'classic' : 'erd')}
+              title={visualizationMode === 'erd' ? 'Switch to Classic mode' : 'Switch to ERD mode'}
+            >
+              <Database className="h-4 w-4 mr-1" />
+              {visualizationMode === 'erd' ? 'ERD' : 'Classic'}
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -797,6 +922,17 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
                       onCheckedChange={setFocusNeighborsOnly}
                     />
                   </div>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="draggable-nodes" className="text-sm">Draggable nodes</Label>
+                    <Switch
+                      id="draggable-nodes"
+                      checked={nodesDraggable}
+                      onCheckedChange={setNodesDraggable}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Enable dragging to rearrange tables manually. Disabled by default for better performance.
+                  </p>
                   <p className="text-xs text-muted-foreground">
                     Select a table, then enable focus mode to show only directly related tables.
                   </p>
@@ -862,26 +998,56 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
           )}
 
           {/* Main Visualization Area */}
-          <div className="flex-1">
+          <div className="flex-1 bg-background">
             <ReactFlow
               nodes={displayNodes}
               edges={filteredEdges}
               onNodesChange={onNodesChange}
               onEdgesChange={onEdgesChange}
-              onConnect={onConnect}
               onNodeClick={handleNodeClick}
               onEdgeClick={handleEdgeClick}
               onPaneClick={handlePaneClick}
               onMove={handleViewportChange}
               nodeTypes={nodeTypes}
               edgeTypes={edgeTypes}
+              // Performance optimizations - critical for smooth scrolling
               onlyRenderVisibleElements={true}
-              fitView
+              nodesDraggable={nodesDraggable}
+              nodesConnectable={false}
+              elementsSelectable={false}
+              minZoom={MIN_ZOOM}
+              maxZoom={MAX_ZOOM}
+              defaultViewport={DEFAULT_VIEWPORT}
+              nodeExtent={NODE_EXTENT}
+              panOnScroll={true}
+              panOnDrag={true}
+              zoomOnScroll={true}
+              zoomOnPinch={true}
+              zoomOnDoubleClick={false}
+              selectNodesOnDrag={false}
+              // Additional performance props
+              elevateEdgesOnSelect={false}
+              elevateNodesOnSelect={false}
+              connectionLineType={ConnectionLineType.SmoothStep}
+              deleteKeyCode={null}
+              multiSelectionKeyCode={null}
+              selectionKeyCode={null}
+              // fitView removed - handled by useEffect for single execution
               attributionPosition="bottom-left"
+              className="[&_.react-flow__pane]:bg-background"
             >
-              <Background />
-              <Controls />
-              <MiniMap />
+              <Background
+                className="!stroke-border"
+                gap={visualizationMode === 'erd' ? 20 : 16}
+              />
+              <Controls
+                className="[&>button]:bg-card [&>button]:border-border [&>button]:text-foreground [&>button:hover]:bg-accent"
+              />
+              <MiniMap
+                nodeColor="hsl(var(--muted))"
+                maskColor="hsl(var(--background) / 0.7)"
+                className="bg-card border-border"
+              />
             </ReactFlow>
 
             {/* Relationship Inspector */}
@@ -891,7 +1057,7 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
                 sourceTable={selectedEdge.sourceTable}
                 targetTable={selectedEdge.targetTable}
                 position={selectedEdge.position}
-                onClose={() => setSelectedEdge(null)}
+                onClose={handleInspectorClose}
               />
             )}
           </div>
@@ -907,10 +1073,30 @@ export function SchemaVisualizerWrapper(props: SchemaVisualizerProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Load schema for specific connection if connectionId is provided
+  // Update loaded schema when props.schema changes
+  // If schema is already provided with columns, use it directly
   useEffect(() => {
-    if (!props.connectionId) {
+    // Check if schema has columns (not just empty children arrays)
+    const hasColumns = props.schema?.some(schemaNode =>
+      schemaNode.children?.some(tableNode =>
+        tableNode.children && tableNode.children.length > 0
+      )
+    )
+
+    if (props.schema && props.schema.length > 0 && hasColumns) {
+      console.log('[SchemaVisualizer] Using provided schema with columns')
       setLoadedSchema(props.schema)
+      setLoading(false)
+      return
+    }
+
+    // Load schema with columns from schema store if we have a connectionId
+    if (!props.connectionId) {
+      // If no connectionId and schema has no columns, just use what we have
+      if (props.schema && props.schema.length > 0) {
+        setLoadedSchema(props.schema)
+        setLoading(false)
+      }
       return
     }
 
@@ -919,81 +1105,34 @@ export function SchemaVisualizerWrapper(props: SchemaVisualizerProps) {
       setError(null)
 
       try {
-        // Import the Wails API dynamically
-        const { GetSchemas, GetTables } = await import('../../../wailsjs/go/main/App')
-        
         // Get the connection from the store
         const { useConnectionStore } = await import('@/store/connection-store')
         const connections = useConnectionStore.getState().connections
         const connection = connections.find(conn => conn.id === props.connectionId)
-        
+
         if (!connection?.sessionId) {
           throw new Error('Connection not found or not connected')
         }
 
-        const schemas = await GetSchemas(connection.sessionId)
+        // Use the schema store to get fully populated schema with columns and FKs
+        const { useSchemaStore } = await import('@/store/schema-store')
+        const schemaData = await useSchemaStore.getState().getSchema(
+          connection.sessionId,
+          connection.name,
+          false // don't force - use cache if available
+        )
 
-        if (!schemas || !Array.isArray(schemas)) {
-          throw new Error('Failed to load schemas')
+        if (!schemaData || schemaData.length === 0) {
+          throw new Error('No schema data available')
         }
 
-        // Get tables for each schema
-        const schemaNames = (schemas as string[]) || []
-        const allTables: Array<{ name: string; schema: string }> = []
-        
-        for (const schemaName of schemaNames) {
-          try {
-            const tables = await GetTables(connection.sessionId, schemaName)
-            if (Array.isArray(tables)) {
-              allTables.push(...tables.map(table => ({
-                name: table.name || '',
-                schema: schemaName
-              })))
-            }
-          } catch (err) {
-            console.warn(`Failed to load tables for schema ${schemaName}:`, err)
-          }
-        }
+        console.log('[SchemaVisualizer] Loaded schema from store:', {
+          schemaCount: schemaData.length,
+          tableCount: schemaData.reduce((acc, s) => acc + (s.children?.length || 0), 0),
+          firstSchemaColumns: schemaData[0]?.children?.[0]?.children?.length || 0
+        })
 
-        // Convert to SchemaNode format
-        const schemaNodes: SchemaNode[] = []
-
-        // Process each schema
-        for (const schemaName of schemaNames) {
-          const schemaTables = allTables.filter(t => t.schema === schemaName)
-          
-          // Skip migration table and internal postgres tables
-          const nonMigrationTables = schemaTables.filter(t => 
-            t.name !== 'schema_migrations' && 
-            t.name !== 'goose_db_version' &&
-            t.name !== '_prisma_migrations' &&
-            !t.name.startsWith('__drizzle') &&
-            !schemaName.startsWith('pg_temp') &&
-            !schemaName.startsWith('pg_toast')
-          )
-          
-          // Skip empty schemas
-          if (nonMigrationTables.length === 0) {
-            continue
-          }
-          
-          const tablesWithColumns: SchemaNode[] = nonMigrationTables.map(table => ({
-            id: `${props.connectionId}-${schemaName}-${table.name}`,
-            name: table.name,
-            type: 'table' as const,
-            schema: table.schema,
-            children: [] // Columns loaded on demand
-          }))
-          
-          schemaNodes.push({
-            id: `${props.connectionId}-${schemaName}`,
-            name: schemaName,
-            type: 'schema' as const,
-            children: tablesWithColumns
-          })
-        }
-
-        setLoadedSchema(schemaNodes)
+        setLoadedSchema(schemaData)
       } catch (err) {
         console.error('Failed to load schema:', err)
         setError(err instanceof Error ? err.message : 'Failed to load schema')

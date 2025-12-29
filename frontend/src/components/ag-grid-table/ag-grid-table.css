@@ -53,7 +53,7 @@
 
   /* Typography - use Fira Code monospace */
   --ag-font-family: var(--font-mono);
-  --ag-font-size: 13px;
+  --ag-font-size: 10px;
 
   /* Grid dimensions matching EditableTable */
   --ag-row-height: 31px;
@@ -197,6 +197,7 @@
   border-right: none;
   color: var(--foreground);
   font-family: var(--font-mono);
+  font-size: 10px;
   /* Force consistent cell height - never overflow */
   overflow: hidden;
   text-overflow: ellipsis;
@@ -236,7 +237,7 @@
   background-color: transparent;
   color: var(--foreground);
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 10px;
 }
 
 /* ============================================================================
@@ -512,7 +513,7 @@
   background-color: var(--background) !important;
   color: var(--foreground) !important;
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 10px;
   padding: 12px;
   border: none !important;
   outline: none;

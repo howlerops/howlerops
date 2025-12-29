@@ -84,3 +84,33 @@ export interface SchemaSummaryNodeData {
   tableCount: number
   onExpand: (schema: string) => void
 }
+
+/**
+ * ERD-specific node data extending TableConfig
+ */
+export interface ERDTableNodeData extends TableConfig {
+  isSelected?: boolean
+  isFocused?: boolean
+  isDimmed?: boolean
+  isRelated?: boolean
+}
+
+/**
+ * ERD-specific edge data
+ */
+export interface ERDEdgeData {
+  data?: EdgeConfig
+  onEdgeHover?: (edgeId: string | null) => void
+  isHighlighted?: boolean
+  isDimmed?: boolean
+}
+
+/**
+ * ERD visualization mode
+ */
+export type ERDMode = 'standard' | 'compact' | 'detailed'
+
+/**
+ * ERD layout direction
+ */
+export type ERDLayoutDirection = 'LR' | 'RL' | 'TB' | 'BT'

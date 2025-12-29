@@ -1,4 +1,4 @@
-import React, { useCallback,useState } from 'react'
+import React, { memo, useCallback, useMemo, useState } from 'react'
 import {
   BaseEdge,
   EdgeLabelRenderer,
@@ -16,7 +16,47 @@ interface CustomEdgeData {
   isDimmed?: boolean
 }
 
-export function CustomEdge({
+// Pre-computed base styles to avoid object recreation
+const baseEdgeStyles = {
+  default: {
+    opacity: edgeDesignSystem.opacity.default,
+    strokeWidth: edgeDesignSystem.widths.default,
+  },
+  dimmed: {
+    opacity: edgeDesignSystem.opacity.dimmed,
+    strokeWidth: edgeDesignSystem.widths.dimmed,
+  },
+  highlighted: {
+    opacity: edgeDesignSystem.opacity.highlighted,
+    strokeWidth: edgeDesignSystem.widths.highlighted,
+    filter: 'drop-shadow(0 0 2px currentColor)',
+  },
+  hover: {
+    opacity: edgeDesignSystem.opacity.hover,
+    strokeWidth: edgeDesignSystem.widths.hover,
+    filter: 'drop-shadow(0 0 4px currentColor)',
+    transition: edgeDesignSystem.animations.transition.duration + ' ' + edgeDesignSystem.animations.transition.easing,
+  },
+}
+
+// Relationship label lookup - avoids switch statement
+const RELATIONSHIP_LABELS: Record<string, string> = {
+  hasOne: 'One-to-One',
+  hasMany: 'One-to-Many',
+  belongsTo: 'Many-to-One',
+  manyToMany: 'Many-to-Many',
+}
+
+/**
+ * CustomEdge - Classic mode edge with smooth step path
+ *
+ * Performance optimizations:
+ * - Wrapped in React.memo with custom comparator
+ * - Pre-computed style objects outside component
+ * - Hover state only for tooltip (minimized state updates)
+ * - Memoized edge style computation
+ */
+function CustomEdgeComponent({
   id,
   sourceX,
   sourceY,
@@ -28,8 +68,13 @@ export function CustomEdge({
   markerEnd,
   data,
 }: EdgeProps<CustomEdgeData>) {
-  const [isHovered, setIsHovered] = useState(false)
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
+  // Track hover state and mouse position for tooltip
+  // Note: Mouse position state only updates during hover, minimizing re-renders
+  const [hoverState, setHoverState] = useState<{ isHovered: boolean; x: number; y: number }>({
+    isHovered: false,
+    x: 0,
+    y: 0,
+  })
 
   const edgeData = data?.data
   const isHighlighted = data?.isHighlighted || false
@@ -46,88 +91,47 @@ export function CustomEdge({
 
   const handleMouseEnter = useCallback(
     (event: React.MouseEvent) => {
-      setIsHovered(true)
-      setMousePosition({ x: event.clientX, y: event.clientY })
-      if (data?.onEdgeHover) {
-        data.onEdgeHover(id)
-      }
+      setHoverState({ isHovered: true, x: event.clientX, y: event.clientY })
+      data?.onEdgeHover?.(id)
     },
     [id, data]
   )
 
   const handleMouseLeave = useCallback(() => {
-    setIsHovered(false)
-    if (data?.onEdgeHover) {
-      data.onEdgeHover(null)
-    }
+    setHoverState(prev => ({ ...prev, isHovered: false }))
+    data?.onEdgeHover?.(null)
   }, [data])
 
+  // Only update position when already hovered (avoids extra state updates)
   const handleMouseMove = useCallback((event: React.MouseEvent) => {
-    setMousePosition({ x: event.clientX, y: event.clientY })
+    setHoverState(prev => prev.isHovered ? { ...prev, x: event.clientX, y: event.clientY } : prev)
   }, [])
 
-  // Calculate relationship type display using design tokens
-  const getRelationshipType = () => {
+  // Memoize relationship type to avoid recalculation
+  const relationshipType = useMemo(() => {
     if (!edgeData) return ''
     return getCardinalitySymbol(edgeData.relation)
-  }
+  }, [edgeData])
 
-  // Get relationship type label
-  const getRelationshipLabel = () => {
+  // Memoize relationship label using lookup table
+  const relationshipLabel = useMemo(() => {
     if (!edgeData) return ''
+    return RELATIONSHIP_LABELS[edgeData.relation] || ''
+  }, [edgeData])
 
-    switch (edgeData.relation) {
-      case 'hasOne':
-        return 'One-to-One'
-      case 'hasMany':
-        return 'One-to-Many'
-      case 'belongsTo':
-        return 'Many-to-One'
-      case 'manyToMany':
-        return 'Many-to-Many'
-      default:
-        return ''
-    }
-  }
-
-  // Determine edge styling based on state using design tokens
-  const getEdgeStyle = () => {
-    const baseStyle = { ...style }
-    const tokens = edgeDesignSystem
-
+  // Memoize edge style - only recalculate when state changes
+  const edgeStyle = useMemo(() => {
     if (isDimmed) {
-      return {
-        ...baseStyle,
-        opacity: tokens.opacity.dimmed,
-        strokeWidth: tokens.widths.dimmed,
-      }
+      return { ...style, ...baseEdgeStyles.dimmed }
     }
-
-    if (isHovered) {
-      return {
-        ...baseStyle,
-        opacity: tokens.opacity.hover,
-        strokeWidth: tokens.widths.hover,
-        filter: 'drop-shadow(0 0 4px currentColor)',
-        transition: tokens.animations.transition.duration + ' ' + tokens.animations.transition.easing,
-      }
+    if (hoverState.isHovered) {
+      return { ...style, ...baseEdgeStyles.hover }
     }
-
     if (isHighlighted) {
-      return {
-        ...baseStyle,
-        opacity: tokens.opacity.highlighted,
-        strokeWidth: tokens.widths.highlighted,
-        filter: 'drop-shadow(0 0 2px currentColor)',
-      }
+      return { ...style, ...baseEdgeStyles.highlighted }
     }
-
-    return {
-      ...baseStyle,
-      opacity: tokens.opacity.default,
-      strokeWidth: tokens.widths.default,
-    }
-  }
+    return { ...style, ...baseEdgeStyles.default }
+  }, [style, isDimmed, hoverState.isHovered, isHighlighted])
 
   return (
     <>
@@ -135,7 +139,7 @@ export function CustomEdge({
         id={id}
         path={edgePath}
         markerEnd={markerEnd}
-        style={getEdgeStyle()}
+        style={edgeStyle}
       />
 
       {/* Invisible wider path for easier hover detection */}
@@ -151,13 +155,13 @@ export function CustomEdge({
       />
 
       {/* Enhanced tooltip on hover with design system styling */}
-      {isHovered && edgeData && (
+      {hoverState.isHovered && edgeData && (
         <EdgeLabelRenderer>
           <div
             style={{
               position: 'fixed',
-              left: mousePosition.x + 10,
-              top: mousePosition.y + 10,
+              left: hoverState.x + 10,
+              top: hoverState.y + 10,
               pointerEvents: 'none',
               zIndex: 1000,
               ...edgeDesignSystem.labels.typography,
@@ -167,11 +171,11 @@ export function CustomEdge({
             aria-live="polite"
           >
             <div className="font-semibold mb-1 flex items-center gap-2">
-              <span>{getRelationshipLabel()}</span>
-              <span className="text-lg">{getRelationshipType()}</span>
+              <span>{relationshipLabel}</span>
+              <span className="text-lg">{relationshipType}</span>
             </div>
             <div className="text-muted-foreground font-mono text-[11px]">
-              {edgeData.sourceKey} → {edgeData.targetKey}
+              {edgeData.sourceKey} {'->'} {edgeData.targetKey}
             </div>
             <div className="text-xs text-muted-foreground mt-1">
               {edgeData.source.split('.').pop()} to {edgeData.target.split('.').pop()}
@@ -199,12 +203,25 @@ export function CustomEdge({
               letterSpacing: edgeDesignSystem.labels.typography.letterSpacing,
             }}
             className="text-foreground"
-            aria-label={`${getRelationshipLabel()} relationship`}
+            aria-label={`${relationshipLabel} relationship`}
           >
-            {getRelationshipType()}
+            {relationshipType}
           </div>
         </EdgeLabelRenderer>
       )}
     </>
   )
 }
+
+// Wrap in React.memo with custom comparator for optimal performance
+// Only re-render when position or visual state changes
+export const CustomEdge = memo(CustomEdgeComponent, (prevProps, nextProps) => {
+  return (
+    prevProps.sourceX === nextProps.sourceX &&
+    prevProps.sourceY === nextProps.sourceY &&
+    prevProps.targetX === nextProps.targetX &&
+    prevProps.targetY === nextProps.targetY &&
+    prevProps.data?.isHighlighted === nextProps.data?.isHighlighted &&
+    prevProps.data?.isDimmed === nextProps.data?.isDimmed
+  )
+})

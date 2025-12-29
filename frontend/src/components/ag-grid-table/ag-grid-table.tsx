@@ -769,7 +769,7 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
   const autoSizeStrategy = useMemo<SizeColumnsToFitGridStrategy>(() => ({
     type: 'fitGridWidth',
     defaultMinWidth: 80,
-    defaultMaxWidth: 400,
+    defaultMaxWidth: 800,
   }), []);
 
   /**
@@ -793,6 +793,7 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
         className={cn(
           'ag-theme-quartz-dark',
           'border border-border',
+          'font-size-10',
           'w-full'
         )}
         style={{ height: containerHeight }}
@@ -837,7 +838,7 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
           rowBuffer={20}
           // Performance: reduce DOM overhead by removing row transform animations
           suppressRowTransform={true}
-          className="w-full h-full"
+          className="w-full h-full font-size-10"
         />
       </div>
 

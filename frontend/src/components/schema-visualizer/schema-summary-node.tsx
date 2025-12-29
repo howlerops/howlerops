@@ -1,4 +1,5 @@
 import { FolderOpen, Plus } from 'lucide-react'
+import React, { useCallback } from 'react'
 import { NodeProps } from 'reactflow'
 
 import { cn } from '@/lib/utils'
@@ -10,8 +11,20 @@ export interface SchemaSummaryNodeData {
   onExpand: (schema: string) => void
 }
 
-export function SchemaSummaryNode({ data }: NodeProps<SchemaSummaryNodeData>) {
+/**
+ * SchemaSummaryNode - Collapsed schema placeholder node
+ *
+ * Performance optimizations:
+ * - Wrapped in React.memo to prevent re-renders during pan/zoom
+ * - useCallback for click handler to maintain stable reference
+ */
+function SchemaSummaryNodeComponent({ data }: NodeProps<SchemaSummaryNodeData>) {
   const { schema, tableCount, color, onExpand } = data
+
+  // Memoize click handler to prevent unnecessary re-renders
+  const handleExpand = useCallback(() => {
+    onExpand(schema)
+  }, [onExpand, schema])
 
   return (
     <div
@@ -37,7 +50,7 @@ export function SchemaSummaryNode({ data }: NodeProps<SchemaSummaryNodeData>) {
         <button
           type="button"
           className="w-full inline-flex items-center justify-center rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted transition-colors"
-          onClick={() => onExpand(schema)}
+          onClick={handleExpand}
         >
           <Plus className="h-3 w-3 mr-1" />
           Expand Schema
@@ -46,3 +59,6 @@ export function SchemaSummaryNode({ data }: NodeProps<SchemaSummaryNodeData>) {
     </div>
   )
 }
+
+// Wrap in React.memo to prevent re-renders during viewport changes (pan/zoom)
+export const SchemaSummaryNode = React.memo(SchemaSummaryNodeComponent)

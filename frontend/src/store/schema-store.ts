@@ -344,6 +344,13 @@ export const useSchemaStore = create<SchemaStoreState>()(
                           tableInfo.name
                         )
 
+                        console.log(`[SchemaStore] 🔍 Table: ${schemaInfo.name}.${tableInfo.name}`, {
+                          columnsCount: columnsResponse.data.length,
+                          rawForeignKeys: columnsResponse.foreignKeys,
+                          normalizedFKs: normalizedForeignKeys,
+                          fkCount: normalizedForeignKeys.length
+                        })
+
                         const foreignKeyByColumn = new Map<string, NormalizedForeignKeyInfo>()
                         normalizedForeignKeys.forEach(fk => {
                           if (!foreignKeyByColumn.has(fk.columnName)) {

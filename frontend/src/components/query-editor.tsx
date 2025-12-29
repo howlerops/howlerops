@@ -1,4 +1,4 @@
-import { AlertCircle, Bug, ChevronDown, Database, HelpCircle, Layout, Loader2, MessageCircle, Network, Pencil, Play, Plus, Save,Sparkles, Square, Trash2, Users, Wand2, X } from "lucide-react"
+import { AlertCircle, Bug, ChevronDown, Database, HelpCircle, Layout, Loader2, MessageCircle, Network, Pencil, Play, Plug, Plus, Save,Sparkles, Square, Trash2, Users, Wand2, X } from "lucide-react"
 import { forwardRef, lazy, Suspense, type SyntheticEvent, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react"
 
 import { AIQueryTabView } from "@/components/ai-query-tab"
@@ -1371,7 +1371,7 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
               )}
 
               <Badge variant="secondary" className="gap-1.5 font-medium">
-                <Users className="h-3 w-3" />
+                <Plug className="h-3 w-3" />
                 {environmentFilteredConnections.filter(c => c.isConnected).length}/{environmentFilteredConnections.length} Connected
               </Badge>
             </div>

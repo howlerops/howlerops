@@ -55,15 +55,16 @@ export class LayoutEngine {
     const dagreGraph = new dagre.graphlib.Graph()
     dagreGraph.setDefaultEdgeLabel(() => ({}))
 
-    // Configure the layout
+    // Configure the layout with optimized settings for FK relationships
     dagreGraph.setGraph({
       rankdir: direction, // TB, BT, LR, RL
-      align: 'UL',
-      nodesep: spacing.x / 2,
-      edgesep: 10,
-      ranksep: spacing.y,
-      marginx: 0,
-      marginy: 0,
+      align: 'UL', // Align nodes to upper-left within ranks
+      nodesep: spacing.x / 2, // Horizontal spacing between nodes at same level
+      edgesep: 25, // Spacing between edges
+      ranksep: spacing.y, // Vertical spacing between hierarchical levels
+      marginx: 50,
+      marginy: 50,
+      ranker: 'network-simplex', // Best algorithm for hierarchical layouts
     })
 
     // Add nodes to the graph with size information
@@ -82,8 +83,15 @@ export class LayoutEngine {
     })
 
     // Add edges to the graph
+    // For FK relationships, the edge direction determines hierarchy:
+    // - Source table (with FK column) points to target table (referenced)
+    // - Target tables should be at higher level (top) in hierarchy
     edges.forEach(edge => {
-      dagreGraph.setEdge(edge.source, edge.target)
+      // Reverse the edge direction so that referenced tables (targets) appear at top
+      // and tables with FKs (sources) appear below their dependencies
+      dagreGraph.setEdge(edge.target, edge.source, {
+        weight: 1, // All FK relationships have equal weight
+      })
     })
 
     // Calculate the layout

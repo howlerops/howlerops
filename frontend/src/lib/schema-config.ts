@@ -183,7 +183,6 @@ export class SchemaConfigBuilder {
 
       // Skip this edge if we can't find valid handles
       if (!sourceHandle || !targetHandle) {
-        console.warn(`Skipping edge ${edge.id}: Cannot find handle for source "${edge.sourceKey}" or target "${edge.targetKey}"`)
         return null
       }
 
@@ -198,7 +197,7 @@ export class SchemaConfigBuilder {
         style: edgeStyle,
         markerEnd,
         label: edge.label,
-        data: edge,
+        data: { data: edge },
       }
     }).filter(edge => edge !== null) // Remove any edges that couldn't be mapped
 
@@ -258,6 +257,7 @@ export class SchemaConfigBuilder {
 
         // Look for foreign key information in table metadata
         const tableMetadata = tableNode.metadata as { foreignKeys?: ForeignKeyInfo[] }
+
         if (tableMetadata?.foreignKeys) {
           for (const fk of tableMetadata.foreignKeys) {
             // Find the source table
