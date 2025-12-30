@@ -260,6 +260,7 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
 
   /**
    * Convert TableColumn[] to AG Grid ColDef[]
+   * CRITICAL: Do NOT include dirtyRows in dependencies - causes flicker on state changes
    */
   const columnDefs = useMemo<ColDef[]>(() => {
     const cols: ColDef[] = [];
@@ -282,12 +283,51 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
       }
 
       // Determine optimal width based on column type
-      // UUIDs: minimum 280px to prevent truncation
-      // Long text: allow auto-size with max cap
-      const isLongText = col.longText || col.type === 'text' && (col.maxWidth ?? 0) > 400;
+      // Strategy: Use flex for proportional sizing instead of fixed widths
+      // - UUID/ID columns: fixed width (no flex) with reasonable max
+      // - Number columns: narrow fixed width
+      // - Text columns: flex to fill remaining space
       const isUuidColumn = field?.toLowerCase().includes('id') || field?.toLowerCase().includes('uuid');
-      const baseMinWidth = isUuidColumn ? 280 : (col.minWidth || 80);
-      const baseMaxWidth = isLongText ? 400 : col.maxWidth; // Cap long text columns
+      const isNumericColumn = col.type === 'number';
+      const isLongText = col.longText || col.type === 'text' && (col.maxWidth ?? 0) > 400;
+
+      // Width sizing strategy per column type
+      let columnWidth: number | undefined;
+      let columnFlex: number | undefined;
+      let columnMinWidth: number;
+      let columnMaxWidth: number | undefined;
+
+      if (isUuidColumn) {
+        // UUID columns: fixed reasonable width, no flex
+        columnWidth = 300;
+        columnMinWidth = 250;
+        columnMaxWidth = 350;
+        columnFlex = undefined; // No flex - fixed width
+      } else if (isNumericColumn) {
+        // Numeric columns: narrow fixed width
+        columnWidth = 120;
+        columnMinWidth = 100;
+        columnMaxWidth = 150;
+        columnFlex = undefined; // No flex - fixed width
+      } else if (isLongText) {
+        // Long text: flex with constraints
+        columnWidth = undefined;
+        columnFlex = 2; // Get more space than regular text
+        columnMinWidth = 200;
+        columnMaxWidth = 500;
+      } else {
+        // Regular text: flex proportionally
+        columnWidth = undefined;
+        columnFlex = 1;
+        columnMinWidth = col.minWidth || 100;
+        columnMaxWidth = col.maxWidth;
+      }
+
+      // Allow column config to override defaults
+      if (col.width !== undefined) {
+        columnWidth = col.width;
+        columnFlex = undefined;
+      }
 
       // Check if column is editable (use Boolean coercion for truthy values)
       const isEditable = !!col.editable;
@@ -296,15 +336,22 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
       const isTextType = col.type === 'text' || col.type === undefined || col.longText;
       const usePopupEditor = isEditable && isTextType;
 
+      // Static cell classes - determined once at definition time to prevent re-renders
+      const staticCellClasses: string[] = [];
+      if (col.isPrimaryKey) {
+        staticCellClasses.push('ag-cell-primary-key');
+      }
+
       cols.push({
         field,
         headerName: col.header,
         colId,
         type: mapColumnType(col.type),
-        // Phase 3: Use initial* properties to preserve user customizations
-        initialWidth: col.width,
-        minWidth: baseMinWidth,
-        maxWidth: baseMaxWidth,
+        // Column sizing: use width/flex strategy calculated above
+        width: columnWidth,
+        flex: columnFlex,
+        minWidth: columnMinWidth,
+        maxWidth: columnMaxWidth,
         sortable: col.sortable !== false,
         filter: col.filterable !== false,
         editable: isEditable,
@@ -322,25 +369,17 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
         cellEditorParams: isEditable
           ? (usePopupEditor ? { maxLength: 10000, rows: 6, cols: 40 } : createCellEditorParams(col))
           : undefined,
-        cellClass: (params) => {
-          const classes = [];
-
-          // Mark dirty cells
-          if (params.data?.__rowId && dirtyRows.has(params.data.__rowId)) {
-            classes.push('ag-cell-dirty');
-          }
-
-          // Mark new rows
-          if (params.data?.__isNewRow) {
-            classes.push('ag-row-new');
-          }
-
-          // Mark primary key columns
-          if (col.isPrimaryKey) {
-            classes.push('ag-cell-primary-key');
-          }
-
-          return classes.join(' ');
+        // Use static classes only - no dynamic state to prevent flickering
+        cellClass: staticCellClasses.length > 0 ? staticCellClasses : undefined,
+        // Use cellClassRules for dynamic state instead - more efficient
+        cellClassRules: {
+          'ag-cell-dirty': (params) => {
+            // Access dirtyRows from outer scope at render time, not definition time
+            return !!(params.data?.__rowId && dirtyRows.has(params.data.__rowId));
+          },
+          'ag-row-new': (params) => {
+            return !!params.data?.__isNewRow;
+          },
         },
         valueGetter: col.type === 'boolean'
           ? (params) => Boolean(params.data?.[params.colDef.field || ''])
@@ -419,7 +458,15 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
     });
 
     return cols;
-  }, [tableColumns, enableColumnResizing, dirtyRows, customCellRenderers, onRowInspect]);
+  }, [tableColumns, enableColumnResizing, customCellRenderers, onRowInspect]);
+  // IMPORTANT: Do NOT add dirtyRows to dependencies - causes flicker
+  // We use cellClassRules which accesses dirtyRows dynamically
+
+  /**
+   * Memoize row data to prevent unnecessary re-renders
+   * CRITICAL: Only update when data array reference changes
+   */
+  const memoizedRowData = useMemo(() => data, [data]);
 
   /**
    * Get row ID for AG Grid
@@ -760,17 +807,11 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
   }), []);
 
   /**
-   * Auto-size strategy for intelligent column width distribution
-   * - Auto-sizes based on content initially
-   * - Distributes any remaining space proportionally across columns
-   * - Still respects min/max width constraints
-   * - Enables horizontal scrolling when columns exceed available width
+   * Auto-size strategy: undefined to disable auto-sizing
+   * CRITICAL: Not using autoSizeStrategy prevents flicker from layout recalculations
+   * Column widths are controlled via flex/width properties in columnDefs
    */
-  const autoSizeStrategy = useMemo<SizeColumnsToFitGridStrategy>(() => ({
-    type: 'fitGridWidth',
-    defaultMinWidth: 80,
-    defaultMaxWidth: 800,
-  }), []);
+  const autoSizeStrategy = useMemo(() => undefined, []);
 
   /**
    * Container height calculation
@@ -800,7 +841,7 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
       >
         <AgGridReact
           ref={gridRef}
-          rowData={data}
+          rowData={memoizedRowData}
           columnDefs={columnDefs}
           defaultColDef={defaultColDef}
           autoSizeStrategy={autoSizeStrategy}
@@ -816,7 +857,7 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
           onColumnResized={onColumnResized}
           rowSelection={rowSelectionConfig}
           selectionColumnDef={selectionColumnDef}
-          // Performance: disable row animations for smoother scrolling
+          // Performance: disable all animations to prevent flicker
           animateRows={false}
           enableCellTextSelection={false}
           loading={loading}
@@ -838,6 +879,13 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
           rowBuffer={20}
           // Performance: reduce DOM overhead by removing row transform animations
           suppressRowTransform={true}
+          // CRITICAL: Suppress layout recalculations that cause size changes/flicker
+          suppressColumnVirtualisation={false}
+          suppressRowVirtualisation={false}
+          // Prevent automatic column sizing that causes flicker
+          suppressAutoSize={true}
+          // Skip header on horizontal scroll to prevent layout shift
+          suppressHorizontalScroll={false}
           className="w-full h-full font-size-10"
         />
       </div>
