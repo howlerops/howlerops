@@ -411,7 +411,7 @@ export function SchemaVisualizer({ schema, onClose }: SchemaVisualizerProps) {
   const {
     displayNodes,
     collapsedNodeMap,
-    compactNodeIds,
+    compactNodeIds: _compactNodeIds,
   } = useMemo(() => {
     const collapsedMap = new Map<string, string>()
     const nodesOut: Node[] = []
