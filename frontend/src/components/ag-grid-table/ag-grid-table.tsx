@@ -74,6 +74,7 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
   footer,
   onDirtyChange,
   customCellRenderers = {},
+  isEditable = false,
   // Phase 2: Chunked data loading
   resultId,
   totalRows,
@@ -329,12 +330,13 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
         columnFlex = undefined;
       }
 
-      // Check if column is editable (use Boolean coercion for truthy values)
-      const isEditable = !!col.editable;
+      // Check if column has editable capability
+      // We'll use a function for the editable property to access isEditable dynamically
+      const columnCanBeEditable = !!col.editable;
 
       // Determine if this column should use popup editor (for text types that are editable)
       const isTextType = col.type === 'text' || col.type === undefined || col.longText;
-      const usePopupEditor = isEditable && isTextType;
+      const usePopupEditor = columnCanBeEditable && isTextType;
 
       // Static cell classes - determined once at definition time to prevent re-renders
       const staticCellClasses: string[] = [];
@@ -354,19 +356,21 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
         maxWidth: columnMaxWidth,
         sortable: col.sortable !== false,
         filter: col.filterable !== false,
-        editable: isEditable,
+        // CRITICAL: Use function to dynamically check isEditable at edit-time
+        // This prevents column regeneration when global editable state changes
+        editable: columnCanBeEditable ? () => isEditable : false,
         resizable: enableColumnResizing,
         initialPinned: col.sticky || undefined,
         // Never wrap text or auto-height - always truncate to maintain consistent row height
         wrapText: false,
         autoHeight: false,
         cellRenderer: createCellRenderer(col),
-        // Only set editor for editable columns
-        cellEditor: isEditable
+        // Only set editor for columns that can be editable
+        cellEditor: columnCanBeEditable
           ? (usePopupEditor ? 'agLargeTextCellEditor' : createCellEditor(col))
           : undefined,
         cellEditorPopup: usePopupEditor,
-        cellEditorParams: isEditable
+        cellEditorParams: columnCanBeEditable
           ? (usePopupEditor ? { maxLength: 10000, rows: 6, cols: 40 } : createCellEditorParams(col))
           : undefined,
         // Use static classes only - no dynamic state to prevent flickering
@@ -459,6 +463,10 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
 
     return cols;
   }, [tableColumns, enableColumnResizing, customCellRenderers, onRowInspect]);
+  // CRITICAL: Do NOT include isEditable in dependencies!
+  // Column editability is determined at render time via the editable property
+  // which references the outer isEditable variable dynamically
+  // This prevents column regeneration when global editable state changes
   // IMPORTANT: Do NOT add dirtyRows to dependencies - causes flicker
   // We use cellClassRules which accesses dirtyRows dynamically
 

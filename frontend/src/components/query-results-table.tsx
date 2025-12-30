@@ -1096,7 +1096,9 @@ export const QueryResultsTable = ({
         accessorKey: columnName,
         header: columnName,
         type: columnType,
-        editable: Boolean(metadata?.enabled && metaColumn?.editable),
+        // CRITICAL: Store editable capability (not current state) to prevent column regeneration
+        // Actual editability is controlled by AGGridTable based on metadata?.enabled
+        editable: Boolean(metaColumn?.editable),
         sortable: true,
         filterable: true,
         minWidth: traits.minWidth,
@@ -1113,7 +1115,7 @@ export const QueryResultsTable = ({
         isPrimaryKey: Boolean(metaColumn?.primaryKey),
       }
     })
-  }, [columnNames, metadataLookup, metadata?.enabled])
+  }, [columnNames, metadataLookup])
 
   // const handleExportCsv = useCallback(() => {
   //   const currentRows = resolveCurrentRows()
@@ -1567,6 +1569,8 @@ export const QueryResultsTable = ({
             onSelectAllPages={effectiveTotalRows > rows.length ? handleSelectAllPages : undefined}
             toolbar={renderToolbar}
             footer={null}
+            // Global editable state - stable value prevents column regeneration
+            isEditable={Boolean(metadata?.enabled)}
             // Phase 2: Chunked data loading
             resultId={resultId}
             totalRows={effectiveTotalRows}

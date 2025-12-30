@@ -121,6 +121,8 @@ export interface EditableTableProps {
   footer?: ReactNode | EditableTableRenderer;
   onDirtyChange?: (dirtyRowIds: string[]) => void;
   customCellRenderers?: Record<string, (value: CellValue, row: TableRow) => ReactNode>;
+  // Global editable state - prevents column regeneration when metadata loads async
+  isEditable?: boolean;
   // Phase 2: Chunked data loading
   resultId?: string;
   totalRows?: number;
