@@ -49,6 +49,7 @@ interface ToolbarProps {
   onSave: () => void
   onExport: (options: ExportOptions) => Promise<void>
   metadata?: QueryEditableMetadata | null
+  hasEditableColumns?: boolean
   onDiscardChanges?: () => void
   onJumpToFirstError?: () => void
   canDeleteRows?: boolean
@@ -304,6 +305,7 @@ const QueryResultsToolbar = ({
   onSave,
   onExport,
   metadata,
+  hasEditableColumns,
   onDiscardChanges,
   onJumpToFirstError,
   canDeleteRows,
@@ -403,7 +405,9 @@ const QueryResultsToolbar = ({
               variant="outline"
               size="sm"
               onClick={onAddRow}
+              disabled={metadata?.pending || !metadata?.enabled}
               className="gap-2"
+              title={metadata?.pending ? 'Checking table editability...' : undefined}
             >
               <Plus className="h-4 w-4" />
               Add Row
@@ -416,8 +420,13 @@ const QueryResultsToolbar = ({
               variant="destructive"
               size="icon"
               onClick={onDeleteSelected}
+              disabled={metadata?.pending || !metadata?.enabled}
               className="h-9 w-9"
-              title={`Delete ${selectedCount} selected row${selectedCount === 1 ? '' : 's'}`}
+              title={
+                metadata?.pending
+                  ? 'Checking table editability...'
+                  : `Delete ${selectedCount} selected row${selectedCount === 1 ? '' : 's'}`
+              }
             >
               <Trash2 className="h-4 w-4" />
             </Button>
@@ -425,11 +434,12 @@ const QueryResultsToolbar = ({
           
           {/* Export Button */}
           <ExportButton context={context} onExport={onExport} />
-          
-          {metadata?.enabled && (
+
+          {/* Show save controls when table has editable columns and metadata is available */}
+          {metadata && hasEditableColumns && (
             <>
               {/* Discard Changes Button */}
-              {dirtyRowCount > 0 && onDiscardChanges && (
+              {dirtyRowCount > 0 && onDiscardChanges && metadata.enabled && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -440,19 +450,32 @@ const QueryResultsToolbar = ({
                   Discard Changes
                 </Button>
               )}
-              
-              {/* Save Button */}
+
+              {/* Save Button - always shown when metadata exists, disabled while pending */}
               <Button
                 size="sm"
                 onClick={onSave}
-                disabled={!canSaveWithValidation}
+                disabled={!canSaveWithValidation || metadata.pending || !metadata.enabled}
                 className="gap-2"
-                title={hasValidationErrors ? `Cannot save: ${invalidCellsCount} validation errors` : undefined}
+                title={
+                  metadata.pending
+                    ? 'Checking table editability...'
+                    : !metadata.enabled
+                      ? 'Table is not editable'
+                      : hasValidationErrors
+                        ? `Cannot save: ${invalidCellsCount} validation errors`
+                        : undefined
+                }
               >
                 {saving ? (
                   <span className="flex items-center gap-2">
                     <span className="h-3 w-3 animate-spin rounded-full border-2 border-b-transparent border-current" />
                     Saving…
+                  </span>
+                ) : metadata.pending ? (
+                  <span className="flex items-center gap-2">
+                    <span className="h-3 w-3 animate-spin rounded-full border-2 border-b-transparent border-current" />
+                    Checking...
                   </span>
                 ) : (
                   <>
@@ -660,14 +683,25 @@ export const QueryResultsTable = ({
     return columnNames[0]
   }, [columnNames, metadataLookup])
   const tableContextRef = useRef<EditableTableContext | null>(null)
+  // Determine if table has editable columns (check capability, not current state)
+  const hasEditableColumns = useMemo(() => {
+    return columnNames.some(columnName => {
+      const metaColumn = metadataLookup.get(columnName.toLowerCase())
+      return Boolean(metaColumn?.editable)
+    })
+  }, [columnNames, metadataLookup])
+
+  // Show insert/delete buttons based on metadata capabilities (not pending state)
+  // This prevents buttons from flashing in/out when metadata loads
   const canInsertRows = useMemo(() => {
-    if (!metadata?.enabled || !metadata.table) {
+    if (!metadata || !metadata.table) {
       return false
     }
-    return Boolean(metadata.capabilities?.canInsert)
-  }, [metadata])
+    return Boolean(metadata.capabilities?.canInsert && hasEditableColumns)
+  }, [metadata, hasEditableColumns])
+
   const canDeleteRows = useMemo(() => {
-    if (!metadata?.enabled || !metadata?.table || !metadata?.primaryKeys?.length) {
+    if (!metadata || !metadata.table || !metadata.primaryKeys?.length) {
       return false
     }
     return Boolean(metadata.capabilities?.canDelete)
@@ -1403,7 +1437,7 @@ export const QueryResultsTable = ({
   const renderToolbar = useCallback((context: EditableTableContext) => {
     // Capture context in ref outside of render
     tableContextRef.current = context
-    
+
     return (
       <QueryResultsToolbar
         context={context}
@@ -1417,6 +1451,7 @@ export const QueryResultsTable = ({
         onSave={handleSave}
         onExport={handleExport}
         metadata={metadata}
+        hasEditableColumns={hasEditableColumns}
         onDiscardChanges={handleDiscardChanges}
         onJumpToFirstError={handleJumpToFirstError}
         canDeleteRows={canDeleteRows}
@@ -1431,7 +1466,7 @@ export const QueryResultsTable = ({
       />
     )
   }, [rowCount, columnNames.length, executionTimeMs, executedAt, dirtyRowIds.length,
-      canSave, saving, handleSave, handleExport, metadata,
+      canSave, saving, handleSave, handleExport, metadata, hasEditableColumns,
       handleDiscardChanges, handleJumpToFirstError, canDeleteRows, handleRequestDelete,
       canInsertRows, handleAddRow, databaseSelectorEnabled, databaseList,
       activeDatabase, handleDatabaseSelection, databaseLoading, isSwitchingDatabase])
@@ -1569,8 +1604,10 @@ export const QueryResultsTable = ({
             onSelectAllPages={effectiveTotalRows > rows.length ? handleSelectAllPages : undefined}
             toolbar={renderToolbar}
             footer={null}
-            // Global editable state - stable value prevents column regeneration
-            isEditable={Boolean(metadata?.enabled)}
+            // CRITICAL: Always render as editable if columns have editable capability
+            // This prevents table flashing when metadata.enabled changes from pending to true
+            // The Save button handles the pending/enabled state, not the table rendering
+            isEditable={hasEditableColumns}
             // Phase 2: Chunked data loading
             resultId={resultId}
             totalRows={effectiveTotalRows}
