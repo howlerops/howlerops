@@ -139,6 +139,7 @@ func EncryptExport(payload *FullExportPayload, passphrase string) (*EncryptedCon
 	}
 
 	// Encrypt with authenticated encryption
+	// #nosec G407 - nonce is cryptographically generated via rand.Read() above, not hardcoded
 	ciphertext := gcm.Seal(nil, nonce, plaintext, nil)
 
 	// Generate export ID
