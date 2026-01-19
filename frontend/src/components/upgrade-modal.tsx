@@ -30,7 +30,7 @@ import {
   Users,
   Zap,
 } from "lucide-react";
-import React, { useEffect,useState } from "react";
+import React, { useCallback,useEffect, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -50,6 +50,8 @@ import {
   type UpgradeTrigger,
   useUpgradePromptStore,
 } from "@/store/upgrade-prompt-store";
+
+import { UpgradeSuccessAnimation } from "./upgrade-success-animation";
 
 /**
  * Trigger-specific messages
@@ -187,35 +189,74 @@ export function UpgradeModal({
   trigger = "manual",
   recommendedTier = "individual",
 }: UpgradeModalProps) {
-  useTierStore();
-  const { markShown, dismiss } = useUpgradePromptStore();
+  const { startTrial, isTrialActive, getTrialDaysRemaining } = useTierStore();
+  const { markShown, dismiss, recordUpgrade } = useUpgradePromptStore();
   const [selectedPlan, setSelectedPlan] = useState<"individual" | "team">(
     recommendedTier
   );
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [trialError, setTrialError] = useState<string | null>(null);
+  const [isStartingTrial, setIsStartingTrial] = useState(false);
 
   const message = TRIGGER_MESSAGES[trigger];
   const individualMetadata = TIER_METADATA.individual;
   const teamMetadata = TIER_METADATA.team;
 
+  // Check if user is already in an active trial
+  const existingTrialDays = isTrialActive ? getTrialDaysRemaining() : 0;
+
   // Mark as shown when opened
   useEffect(() => {
     if (open) {
       markShown(trigger);
+      // Reset error state when modal opens
+      setTrialError(null);
     }
   }, [open, trigger, markShown]);
 
-  const handleDismiss = (hours?: number) => {
+  const handleDismiss = useCallback((hours?: number) => {
     if (hours !== undefined) {
       dismiss(trigger, hours);
     }
     onOpenChange(false);
-  };
+  }, [dismiss, trigger, onOpenChange]);
 
-  const handleStartTrial = () => {
-    // TODO: Implement trial start flow
-    console.log("Starting trial for:", selectedPlan);
+  const handleStartTrial = useCallback(() => {
+    setIsStartingTrial(true);
+    setTrialError(null);
+
+    // Small delay for UI feedback
+    setTimeout(() => {
+      const result = startTrial(selectedPlan);
+
+      if (result.success) {
+        // Record the upgrade/trial start for analytics
+        recordUpgrade();
+        // Show success animation
+        setShowSuccess(true);
+      } else {
+        // Show error message
+        setTrialError(result.error || "Failed to start trial");
+        setIsStartingTrial(false);
+      }
+    }, 300);
+  }, [selectedPlan, startTrial, recordUpgrade]);
+
+  const handleSuccessComplete = useCallback(() => {
+    setShowSuccess(false);
+    setIsStartingTrial(false);
     onOpenChange(false);
-  };
+  }, [onOpenChange]);
+
+  // Show success animation if trial was started
+  if (showSuccess) {
+    return (
+      <UpgradeSuccessAnimation
+        tier={selectedPlan}
+        onComplete={handleSuccessComplete}
+      />
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -365,20 +406,52 @@ export function UpgradeModal({
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 0.4 }}
-          className="mt-6 p-4 rounded-lg bg-green-50 border border-green-200 dark:bg-green-950 dark:border-green-800"
+          className={cn(
+            "mt-6 p-4 rounded-lg border",
+            existingTrialDays > 0
+              ? "bg-blue-50 border-blue-200 dark:bg-blue-950 dark:border-blue-800"
+              : "bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800"
+          )}
         >
           <div className="flex items-start gap-3">
-            <Clock className="w-5 h-5 text-green-600 mt-0.5" />
+            <Clock className={cn(
+              "w-5 h-5 mt-0.5",
+              existingTrialDays > 0 ? "text-blue-600" : "text-green-600"
+            )} />
             <div>
-              <p className="font-semibold text-green-900 dark:text-green-100">
-                14-day free trial
-              </p>
-              <p className="text-sm text-green-700 dark:text-green-300 mt-1">
-                No credit card required. Cancel anytime.
-              </p>
+              {existingTrialDays > 0 ? (
+                <>
+                  <p className="font-semibold text-blue-900 dark:text-blue-100">
+                    You have an active trial
+                  </p>
+                  <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                    {existingTrialDays} {existingTrialDays === 1 ? "day" : "days"} remaining in your trial.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="font-semibold text-green-900 dark:text-green-100">
+                    14-day free trial
+                  </p>
+                  <p className="text-sm text-green-700 dark:text-green-300 mt-1">
+                    No credit card required. Cancel anytime.
+                  </p>
+                </>
+              )}
             </div>
           </div>
         </motion.div>
+
+        {/* Error Message */}
+        {trialError && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-4 p-3 rounded-lg bg-red-50 border border-red-200 dark:bg-red-950 dark:border-red-800"
+          >
+            <p className="text-sm text-red-700 dark:text-red-300">{trialError}</p>
+          </motion.div>
+        )}
 
         {/* Action Buttons */}
         <motion.div
@@ -391,6 +464,7 @@ export function UpgradeModal({
             <Button
               variant="ghost"
               onClick={() => handleDismiss(DISMISSAL_DURATIONS.short)}
+              disabled={isStartingTrial}
             >
               Maybe Later
             </Button>
@@ -399,17 +473,33 @@ export function UpgradeModal({
               size="sm"
               onClick={() => handleDismiss(DISMISSAL_DURATIONS.long)}
               className="text-xs text-muted-foreground"
+              disabled={isStartingTrial}
             >
               Don't show for 30 days
             </Button>
           </div>
           <Button
             size="lg"
-            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white disabled:opacity-50"
             onClick={handleStartTrial}
+            disabled={isStartingTrial || existingTrialDays > 0}
           >
-            Start Free Trial
-            <ArrowRight className="w-4 h-4 ml-2" />
+            {isStartingTrial ? (
+              <>
+                <Sparkles className="w-4 h-4 mr-2 animate-spin" />
+                Starting Trial...
+              </>
+            ) : existingTrialDays > 0 ? (
+              <>
+                Trial Active
+                <Check className="w-4 h-4 ml-2" />
+              </>
+            ) : (
+              <>
+                Start Free Trial
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </>
+            )}
           </Button>
         </motion.div>
 

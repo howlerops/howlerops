@@ -1,17 +1,33 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
+import {
+  decryptMasterKey,
+  type EncryptedMasterKey,
+  encryptMasterKey,
+  generateMasterKey,
+} from '@/lib/crypto/encryption'
+
+import * as App from '../../wailsjs/go/main/App'
+
+// Service name for keychain storage
+const KEYCHAIN_SERVICE = 'sql-studio-keystore'
+const KEYCHAIN_MASTER_KEY = 'encrypted-master-key'
+
+// In-memory master key (never persisted to disk)
+let sessionMasterKey: CryptoKey | null = null
+
 interface SecretsState {
   // Key store state
   isLocked: boolean
   hasUserKey: boolean
   teamKeyCount: number
-  
+
   // UI state
   showPassphrasePrompt: boolean
   isUnlocking: boolean
   unlockError: string | null
-  
+
   // Actions
   setLocked: (locked: boolean) => void
   setUserKey: (hasKey: boolean) => void
@@ -22,6 +38,10 @@ interface SecretsState {
   setUnlockError: (error: string | null) => void
   lock: () => void
   unlock: (passphrase: string) => Promise<void>
+
+  // Master key access (read-only, key lives in memory only)
+  getMasterKey: () => CryptoKey | null
+  hasMasterKey: () => boolean
 }
 
 export const useSecretsStore = create<SecretsState>()(
@@ -47,6 +67,9 @@ export const useSecretsStore = create<SecretsState>()(
       setUnlockError: (error) => set({ unlockError: error }),
       
       lock: () => {
+        // Clear master key from memory
+        sessionMasterKey = null
+
         set({
           isLocked: true,
           hasUserKey: false,
@@ -57,25 +80,69 @@ export const useSecretsStore = create<SecretsState>()(
       },
       
       unlock: async (passphrase: string) => {
-        // TODO: Use passphrase when implementing actual UnlockKeyStore API
-        console.debug('UnlockKeyStore called with passphrase length:', passphrase.length)
         const { setUnlocking, setUnlockError, setLocked, setUserKey } = get()
-        
+
         setUnlocking(true)
         setUnlockError(null)
-        
+
         try {
-          // Call the backend to unlock the key store
-          // TODO: Implement UnlockKeyStore API call when backend is ready
-          // For now, simulate successful unlock
-          const response = { success: true, error: null }
-          
-          if (response?.success) {
+          // Try to retrieve encrypted master key from OS keychain
+          let encryptedKeyJson: string | null = null
+
+          try {
+            if (typeof App.GetPassword === 'function') {
+              encryptedKeyJson = await App.GetPassword(KEYCHAIN_SERVICE, KEYCHAIN_MASTER_KEY)
+            }
+          } catch (err) {
+            // Key not found is expected for first-time setup
+            const errorMsg = String(err)
+            if (!errorMsg.includes('not found') && !errorMsg.includes('NotFound')) {
+              console.error('[SecretsStore] Failed to retrieve encrypted key:', err)
+            }
+          }
+
+          if (encryptedKeyJson) {
+            // Existing key found - decrypt it with the passphrase
+            try {
+              const encryptedKey: EncryptedMasterKey = JSON.parse(encryptedKeyJson)
+              sessionMasterKey = await decryptMasterKey(encryptedKey, passphrase)
+
+              setLocked(false)
+              setUserKey(true)
+              set({ showPassphrasePrompt: false })
+            } catch {
+              // Decryption failed - wrong passphrase
+              console.debug('[SecretsStore] Decryption failed, likely wrong passphrase')
+              setUnlockError('Invalid passphrase. Please try again.')
+            }
+          } else {
+            // No existing key - create a new master key and encrypt it
+            console.debug('[SecretsStore] No existing key found, creating new master key')
+
+            const newMasterKey = await generateMasterKey()
+            const encryptedKey = await encryptMasterKey(newMasterKey, passphrase)
+
+            // Store encrypted key in OS keychain
+            try {
+              if (typeof App.StorePassword === 'function') {
+                await App.StorePassword(
+                  KEYCHAIN_SERVICE,
+                  KEYCHAIN_MASTER_KEY,
+                  JSON.stringify(encryptedKey)
+                )
+              } else {
+                console.warn('[SecretsStore] Keychain API not available, key stored in memory only')
+              }
+            } catch (storeError) {
+              console.error('[SecretsStore] Failed to store encrypted key:', storeError)
+              // Continue anyway - key is in memory for this session
+            }
+
+            sessionMasterKey = newMasterKey
+
             setLocked(false)
             setUserKey(true)
             set({ showPassphrasePrompt: false })
-          } else {
-            setUnlockError(response?.error || 'Failed to unlock key store')
           }
         } catch (error) {
           setUnlockError(error instanceof Error ? error.message : 'Unknown error')
@@ -83,6 +150,10 @@ export const useSecretsStore = create<SecretsState>()(
           setUnlocking(false)
         }
       },
+
+      // Master key access
+      getMasterKey: () => sessionMasterKey,
+      hasMasterKey: () => sessionMasterKey !== null,
     }),
     {
       name: 'secrets-store',

@@ -1,4 +1,4 @@
-import { AlertCircle, Bug, ChevronDown, Database, HelpCircle, Layout, Loader2, MessageCircle, Network, Pencil, Play, Plug, Plus, Save,Sparkles, Square, Trash2, Users, Wand2, X } from "lucide-react"
+import { AlertCircle, Bug, ChevronDown, Database, HelpCircle, Layout, Loader2, MessageCircle, Network, Pencil, Play, Plug, Plus, Save,Sparkles, Square, Trash2, Wand2, X } from "lucide-react"
 import { forwardRef, lazy, Suspense, type SyntheticEvent, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react"
 
 import { AIQueryTabView } from "@/components/ai-query-tab"
@@ -39,6 +39,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import type { ColumnInfo, SchemaInfo, TableInfo } from "@/components/visual-query-builder/types"
 import { useQueryMode } from "@/hooks/use-query-mode"
 import { type SchemaNode,useSchemaIntrospection } from "@/hooks/use-schema-introspection"
 import { useTheme } from "@/hooks/use-theme"
@@ -64,6 +65,79 @@ const VisualQueryBuilder = lazy(() => import("@/components/visual-query-builder"
 const preloadGenericChatSidebar = () => import("@/components/generic-chat-sidebar").then(m => ({ default: m.GenericChatSidebar as React.ComponentType<unknown> }))
 const preloadVisualQueryBuilder = () => import("@/components/visual-query-builder").then(m => ({ default: m.VisualQueryBuilder as React.ComponentType<unknown> }))
 
+/**
+ * Map connection database type to SQL dialect for query generation
+ */
+type SqlDialect = 'postgres' | 'mysql' | 'sqlite' | 'mssql'
+
+function getDialectFromConnectionType(connectionType: string | undefined): SqlDialect {
+  if (!connectionType) return 'postgres'
+  switch (connectionType.toLowerCase()) {
+    case 'postgresql':
+    case 'postgres':
+      return 'postgres'
+    case 'mysql':
+    case 'mariadb':
+    case 'tidb':
+      return 'mysql'
+    case 'sqlite':
+      return 'sqlite'
+    case 'mssql':
+    case 'sqlserver':
+      return 'mssql'
+    default:
+      return 'postgres'
+  }
+}
+
+/**
+ * Convert SchemaNode[] (hierarchical tree) to SchemaInfo[] (flat list for visual query builder)
+ */
+function convertSchemaNodes(schemaNodes: SchemaNode[]): SchemaInfo[] {
+  const result: SchemaInfo[] = []
+
+  for (const schemaOrDb of schemaNodes) {
+    // Handle both database-level nodes and schema-level nodes
+    if (schemaOrDb.type === 'schema') {
+      const tables: TableInfo[] = []
+      for (const tableNode of schemaOrDb.children || []) {
+        if (tableNode.type === 'table') {
+          const columns: ColumnInfo[] = []
+          for (const colNode of tableNode.children || []) {
+            if (colNode.type === 'column') {
+              const meta = colNode.metadata as Record<string, unknown> | undefined
+              columns.push({
+                name: colNode.name,
+                dataType: (meta?.dataType as string) || (meta?.data_type as string) || 'unknown',
+                isNullable: meta?.isNullable === true || meta?.nullable === true || meta?.isNullable === 'YES',
+                isPrimaryKey: meta?.isPrimaryKey === true || meta?.primaryKey === true,
+                isForeignKey: meta?.isForeignKey === true || meta?.foreignKey === true,
+              })
+            }
+          }
+          const tableMeta = tableNode.metadata as Record<string, unknown> | undefined
+          tables.push({
+            name: tableNode.name,
+            schema: schemaOrDb.name,
+            columns,
+            rowCount: tableMeta?.rowCount as number | undefined,
+            sizeBytes: tableMeta?.sizeBytes as number | undefined,
+          })
+        }
+      }
+      result.push({ name: schemaOrDb.name, tables })
+    } else if (schemaOrDb.type === 'database') {
+      // Recurse into database children (which should be schemas)
+      for (const childSchema of schemaOrDb.children || []) {
+        if (childSchema.type === 'schema') {
+          result.push(...convertSchemaNodes([childSchema]))
+        }
+      }
+    }
+  }
+
+  return result
+}
 
 export interface QueryEditorProps {
   mode?: 'single' | 'multi';
@@ -314,6 +388,30 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
   }, [environmentFilteredConnections, connections])
 
   const activeTab = tabs.find(tab => tab.id === activeTabId)
+
+  // Get SQL dialect from active tab's connection
+  const activeDialect = useMemo((): SqlDialect => {
+    if (!activeTab) return 'postgres'
+
+    // Try single connection first
+    if (activeTab.connectionId) {
+      const conn = connections.find(c => c.id === activeTab.connectionId)
+      if (conn) return getDialectFromConnectionType(conn.type)
+    }
+
+    // Try multi-select connections (use first connection's dialect)
+    if (activeTab.selectedConnectionIds?.length) {
+      const conn = connections.find(c => c.id === activeTab.selectedConnectionIds![0])
+      if (conn) return getDialectFromConnectionType(conn.type)
+    }
+
+    // Fall back to active connection
+    if (activeConnection) {
+      return getDialectFromConnectionType(activeConnection.type)
+    }
+
+    return 'postgres'
+  }, [activeTab, connections, activeConnection])
 
   const handleFixQueryError = useCallback(async (error: string, query: string) => {
     if (!aiEnabled) return
@@ -743,7 +841,7 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
 
     // Generate SQL from IR
     try {
-      const sql = generateSQLFromIR(queryIR, 'postgres') // TODO: Get dialect from connection
+      const sql = generateSQLFromIR(queryIR, activeDialect)
       setEditorContent(sql)
 
       if (activeTab) {
@@ -755,11 +853,11 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
     } catch (error) {
       console.error('Failed to generate SQL from visual query:', error)
     }
-  }, [activeTab, updateTab])
+  }, [activeTab, updateTab, activeDialect])
 
   const handleVisualSQLChange = useCallback((sql: string) => {
     setEditorContent(sql)
-    
+
     if (activeTab) {
       updateTab(activeTab.id, {
         content: sql,
@@ -790,12 +888,12 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
 
     // Check if SQL has changed from visual mode
     if (isVisualMode && visualQueryIR) {
-      const generatedSQL = generateSQLFromIR(visualQueryIR, 'postgres') // TODO: Get dialect from connection
+      const generatedSQL = generateSQLFromIR(visualQueryIR, activeDialect)
       if (value.trim() !== generatedSQL.trim()) {
         // Keep visual builder results in sync with SQL editor
       }
     }
-  }, [activeTab?.id, isVisualMode, scheduleTabUpdate, visualQueryIR])
+  }, [activeTab?.id, isVisualMode, scheduleTabUpdate, visualQueryIR, activeDialect])
 
   const handleDatabaseSelected = useCallback(async (connectionId: string) => {
     if (!activeTab || !pendingQuery) return
@@ -1291,6 +1389,17 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
     })
   }, [aiEnabled, aiConfig.syncMemories, hydrateMemoriesFromBackend])
 
+  const editorSchemas = mode === 'multi' ? multiDBSchemas : singleConnectionSchemas
+
+  // Convert editorSchemas (Map<string, SchemaNode[]>) to VisualQueryBuilder format (Map<string, SchemaInfo[]>)
+  const visualBuilderSchemas = useMemo((): Map<string, SchemaInfo[]> => {
+    const converted = new Map<string, SchemaInfo[]>()
+    for (const [connId, schemaNodes] of editorSchemas.entries()) {
+      converted.set(connId, convertSchemaNodes(schemaNodes))
+    }
+    return converted
+  }, [editorSchemas])
+
   if (tabs.length === 0) {
     return (
       <div className="flex-1 flex w-full items-center justify-center">
@@ -1333,7 +1442,6 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
     }
   }
 
-  const editorSchemas = mode === 'multi' ? multiDBSchemas : singleConnectionSchemas
   const isAiTab = !!activeTab && activeTab.type === 'ai'
 
   return (
@@ -2210,7 +2318,7 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
                   type: conn.type,
                   isConnected: conn.isConnected
                 }))}
-                schemas={new Map()} // TODO: Convert schema format
+                schemas={visualBuilderSchemas}
                 onQueryChange={handleVisualQueryChange}
                 onSQLChange={handleVisualSQLChange}
                 initialQuery={visualQueryIR || undefined}

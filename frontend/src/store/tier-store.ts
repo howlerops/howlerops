@@ -35,6 +35,11 @@ import type {
 } from '@/types/tiers'
 
 /**
+ * Trial configuration
+ */
+const TRIAL_DURATION_DAYS = 14
+
+/**
  * Tier store state interface
  */
 interface TierState {
@@ -56,6 +61,12 @@ interface TierState {
   isInitialized: boolean
   /** Development mode override (ignores all limits/features) */
   devMode: boolean
+  /** Whether user is currently in a trial */
+  isTrialActive: boolean
+  /** When the trial started */
+  trialStartedAt?: Date
+  /** The tier being trialed */
+  trialTier?: TierLevel
 }
 
 /**
@@ -171,6 +182,34 @@ interface TierActions {
    * Disable development mode
    */
   disableDevMode: () => void
+
+  /**
+   * Start a free trial for a tier
+   * @param tier - The tier to trial (individual or team)
+   * @returns Success status and any error message
+   */
+  startTrial: (tier: 'individual' | 'team') => {
+    success: boolean
+    error?: string
+    daysRemaining: number
+  }
+
+  /**
+   * Cancel the active trial and revert to local tier
+   */
+  cancelTrial: () => void
+
+  /**
+   * Check if the trial has expired
+   * @returns True if trial is expired
+   */
+  isTrialExpired: () => boolean
+
+  /**
+   * Get the number of days remaining in the trial
+   * @returns Days remaining, or 0 if not in trial or expired
+   */
+  getTrialDaysRemaining: () => number
 }
 
 type TierStore = TierState & TierActions
@@ -182,6 +221,7 @@ const DEFAULT_STATE: TierState = {
   currentTier: 'local',
   isInitialized: false,
   devMode: false,
+  isTrialActive: false,
 }
 
 /**
@@ -465,6 +505,99 @@ export const useTierStore = create<TierStore>()(
           set({ devMode: false }, false, 'disableDevMode')
           console.log('🔒 Development mode disabled')
         },
+
+        startTrial: (tier: 'individual' | 'team') => {
+          const state = get()
+
+          // Check if already in a trial
+          if (state.isTrialActive && !get().isTrialExpired()) {
+            return {
+              success: false,
+              error: 'You already have an active trial',
+              daysRemaining: get().getTrialDaysRemaining(),
+            }
+          }
+
+          // Check if already on a paid tier with a license
+          if (state.licenseKey && !get().isLicenseExpired()) {
+            return {
+              success: false,
+              error: 'You already have an active subscription',
+              daysRemaining: 0,
+            }
+          }
+
+          // Calculate trial expiration (14 days from now)
+          const trialStartedAt = new Date()
+          const expiresAt = new Date()
+          expiresAt.setDate(expiresAt.getDate() + TRIAL_DURATION_DAYS)
+
+          set(
+            {
+              currentTier: tier,
+              isTrialActive: true,
+              trialStartedAt,
+              trialTier: tier,
+              expiresAt,
+              // Clear any existing license key since this is a trial
+              licenseKey: undefined,
+            },
+            false,
+            'startTrial'
+          )
+
+          console.log(`🎉 Trial started for ${tier} tier, expires: ${expiresAt.toLocaleDateString()}`)
+
+          return {
+            success: true,
+            daysRemaining: TRIAL_DURATION_DAYS,
+          }
+        },
+
+        cancelTrial: () => {
+          set(
+            {
+              currentTier: 'local',
+              isTrialActive: false,
+              trialStartedAt: undefined,
+              trialTier: undefined,
+              expiresAt: undefined,
+            },
+            false,
+            'cancelTrial'
+          )
+          console.log('🚫 Trial cancelled')
+        },
+
+        isTrialExpired: () => {
+          const state = get()
+
+          if (!state.isTrialActive || !state.expiresAt) {
+            return false
+          }
+
+          return new Date() > new Date(state.expiresAt)
+        },
+
+        getTrialDaysRemaining: () => {
+          const state = get()
+
+          if (!state.isTrialActive || !state.expiresAt) {
+            return 0
+          }
+
+          const now = new Date()
+          const expiresAt = new Date(state.expiresAt)
+
+          if (now > expiresAt) {
+            return 0
+          }
+
+          const msRemaining = expiresAt.getTime() - now.getTime()
+          const daysRemaining = Math.ceil(msRemaining / (1000 * 60 * 60 * 24))
+
+          return daysRemaining
+        },
       }),
       {
         name: 'sql-studio-tier-storage',
@@ -484,6 +617,9 @@ export const useTierStore = create<TierStore>()(
               }
               if (state.lastValidated) {
                 state.lastValidated = new Date(state.lastValidated)
+              }
+              if (state.trialStartedAt) {
+                state.trialStartedAt = new Date(state.trialStartedAt)
               }
 
               return { state }
@@ -508,6 +644,9 @@ export const useTierStore = create<TierStore>()(
           teamId: state.teamId,
           teamName: state.teamName,
           teamRole: state.teamRole,
+          isTrialActive: state.isTrialActive,
+          trialStartedAt: state.trialStartedAt?.toISOString(),
+          trialTier: state.trialTier,
         }),
       }
     ),
@@ -535,4 +674,6 @@ export const tierSelectors = {
   isTeam: (state: TierStore) => state.currentTier === 'team',
   isPaid: (state: TierStore) => state.currentTier !== 'local',
   hasActiveTeam: (state: TierStore) => state.currentTier === 'team' && !!state.teamId,
+  isInTrial: (state: TierStore) => state.isTrialActive && !state.isTrialExpired(),
+  hasActiveTrial: (state: TierStore) => state.isTrialActive && state.trialTier !== undefined,
 }

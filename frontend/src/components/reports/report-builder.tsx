@@ -128,7 +128,7 @@ export function ReportBuilder({ report, disabled, onChange, onRun }: ReportBuild
     setViewMode('list')
   }
 
-  const handleComponentRun = (id: string) => {
+  const handleComponentRun = (_id: string) => {
     // For now, run all components. In future, could support running individual components
     onRun?.()
   }
@@ -638,7 +638,7 @@ interface ComponentPreviewProps {
   result: ReportRunComponentResult
 }
 
-function ComponentPreview({ type, result }: ComponentPreviewProps) {
+function ComponentPreview({ type: _type, result }: ComponentPreviewProps) {
   if (result.content) {
     return (
       <div className="whitespace-pre-wrap rounded-md bg-muted p-4 text-sm">

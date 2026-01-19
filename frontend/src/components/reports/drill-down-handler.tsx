@@ -63,7 +63,8 @@ export function useDrillDown(options: UseDrillDownOptions = {}): UseDrillDownRet
         console.error('Failed to parse filters from URL:', err)
       }
     }
-  }, []) // Only run on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // Only run on mount - intentionally empty deps
 
   // Update URL when filters change
   const updateUrlFilters = useCallback(
@@ -115,7 +116,8 @@ export function useDrillDown(options: UseDrillDownOptions = {}): UseDrillDownRet
         setDetailError(err instanceof Error ? err.message : 'Unknown error occurred')
       }
     },
-    [executeQuery, onFilterChange, navigate]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [executeQuery, onFilterChange, navigate] // Helper functions defined below are stable
   )
 
   // Show detail drawer with query results

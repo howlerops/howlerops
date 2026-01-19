@@ -2,6 +2,7 @@
  * Main Visual Query Builder Component
  * Orchestrates all sub-components for building queries visually
  */
+ 
 
 import { AlertCircle, ArrowUpDown, Code, Database, Filter, Link,Table } from 'lucide-react'
 import { useCallback,useEffect, useState } from 'react'
@@ -19,7 +20,29 @@ import { JoinBuilder } from './join-builder'
 import { SortLimit } from './sort-limit'
 import { SourcePicker } from './source-picker'
 import { SqlPreview } from './sql-preview'
-import { ColumnInfo,TableInfo, VisualQueryBuilderProps, VisualQueryState } from './types'
+import { ColumnInfo, SqlPreviewProps, TableInfo, VisualQueryBuilderProps, VisualQueryState } from './types'
+
+/**
+ * Map connection database type to SQL dialect for query generation
+ */
+function getDialectFromConnectionType(connectionType: string): SqlPreviewProps['dialect'] {
+  switch (connectionType.toLowerCase()) {
+    case 'postgresql':
+    case 'postgres':
+      return 'postgres'
+    case 'mysql':
+    case 'mariadb':
+    case 'tidb':
+      return 'mysql'
+    case 'sqlite':
+      return 'sqlite'
+    case 'mssql':
+    case 'sqlserver':
+      return 'mssql'
+    default:
+      return 'postgres'
+  }
+}
 
 export function VisualQueryBuilder({
   connections,
@@ -44,6 +67,31 @@ export function VisualQueryBuilder({
   const [manualSQL, setManualSQL] = useState('')
   const [isExecuting, setIsExecuting] = useState(false)
   const [executionResult, setExecutionResult] = useState<MergedResult | null>(null)
+  const [executionError, setExecutionError] = useState<string | null>(null)
+
+  // Get dialect from selected connection(s)
+  const selectedDialect = useCallback((): SqlPreviewProps['dialect'] => {
+    if (queryState.connections.length === 0) {
+      return 'postgres'
+    }
+    const firstConnectionId = queryState.connections[0]
+    const connection = connections.find(c => c.id === firstConnectionId)
+    if (!connection) {
+      return 'postgres'
+    }
+    return getDialectFromConnectionType(connection.type)
+  }, [queryState.connections, connections])
+
+  // Get all available tables from schemas for joins
+  const availableTables = useCallback((): TableInfo[] => {
+    const tables: TableInfo[] = []
+    for (const connectionSchemas of schemas.values()) {
+      for (const schema of connectionSchemas) {
+        tables.push(...schema.tables)
+      }
+    }
+    return tables
+  }, [schemas])
 
   // Initialize from initial query
   useEffect(() => {
@@ -175,6 +223,7 @@ export function VisualQueryBuilder({
 
     setIsExecuting(true)
     setExecutionResult(null)
+    setExecutionError(null)
 
     try {
       const queryIR = generateQueryIR()
@@ -184,14 +233,14 @@ export function VisualQueryBuilder({
 
       const executor = createMultiConnectionExecutor(connections)
       const result = await executor.executeQuery(queryIR, queryState.connections, {
-        dialect: 'postgres', // TODO: Get from connection
+        dialect: selectedDialect(),
         addProvenance: queryState.connections.length > 1
       })
 
       setExecutionResult(result)
     } catch (error) {
       console.error('Query execution failed:', error)
-      // TODO: Show error to user
+      setExecutionError(error instanceof Error ? error.message : 'Query execution failed')
     } finally {
       setIsExecuting(false)
     }
@@ -339,7 +388,7 @@ export function VisualQueryBuilder({
             </CardHeader>
             <CardContent>
               <JoinBuilder
-                availableTables={[]} // TODO: Get available tables from schema
+                availableTables={availableTables()}
                 existingJoins={queryState.joins}
                 onJoinsChange={(joins) => setQueryState(prev => ({ ...prev, joins }))}
               />
@@ -390,7 +439,7 @@ export function VisualQueryBuilder({
               {isQueryValid ? (
                 <SqlPreview
                   queryIR={generateQueryIR()!}
-                  dialect="postgres" // TODO: Get from connection
+                  dialect={selectedDialect()}
                   manualSQL={manualSQL}
                   onSQLChange={handleSQLChange}
                 />
@@ -430,6 +479,14 @@ export function VisualQueryBuilder({
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Execution Error */}
+      {executionError && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{executionError}</AlertDescription>
+        </Alert>
       )}
 
       {/* Execution Results */}

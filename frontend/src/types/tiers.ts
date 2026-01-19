@@ -73,6 +73,10 @@ export interface TierPersistence {
   teamId?: string
   teamName?: string
   teamRole?: TeamRole
+  /** Trial-specific fields */
+  isTrialActive?: boolean
+  trialStartedAt?: string // ISO date string
+  trialTier?: TierLevel // The tier being trialed
 }
 
 /**

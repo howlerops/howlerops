@@ -1,5 +1,26 @@
-import { useState, useCallback } from 'react'
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Database,
+  Eye,
+  EyeOff,
+  FileJson,
+  FileText,
+  FolderOpen,
+  Key,
+  Loader2,
+  Lock,
+  ShieldCheck,
+  Tag,
+  Upload,
+} from 'lucide-react'
+import { useCallback,useState } from 'react'
 import { useDropzone } from 'react-dropzone'
+
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -8,13 +29,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
-import { Separator } from '@/components/ui/separator'
-import { Badge } from '@/components/ui/badge'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Label } from '@/components/ui/label'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Select,
@@ -23,34 +39,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Separator } from '@/components/ui/separator'
 import {
-  Upload,
-  FileJson,
-  Database,
-  FileText,
-  AlertTriangle,
-  CheckCircle2,
-  Loader2,
-  Key,
-  Tag,
-  FolderOpen,
-  Lock,
-  Eye,
-  EyeOff,
-  ShieldCheck,
-} from 'lucide-react'
-import {
-  type ExportedConfig,
-  type EncryptedConfigExport,
   type ConflictStrategy,
-  type ImportResult,
-  readConfigFile,
-  readEncryptedConfigFile,
-  isEncryptedExport,
-  validateConfig,
-  previewImport,
+  type EncryptedConfigExport,
+  type ExportedConfig,
   importConfig,
   importEncryptedConfig,
+  type ImportResult,
+  isEncryptedExport,
+  previewImport,
+  readConfigFile,
+  readEncryptedConfigFile,
+  validateConfig,
 } from '@/lib/api/config-export'
 
 interface ConfigImportDialogProps {
@@ -78,7 +79,7 @@ export function ConfigImportDialog({
   const [encryptedConfig, setEncryptedConfig] = useState<EncryptedConfigExport | null>(null)
   const [passphrase, setPassphrase] = useState('')
   const [showPassphrase, setShowPassphrase] = useState(false)
-  const [rawFileContent, setRawFileContent] = useState<string>('')
+  const [_rawFileContent, setRawFileContent] = useState<string>('')
 
   // Import options
   const [importConnections, setImportConnections] = useState(true)

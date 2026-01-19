@@ -139,12 +139,14 @@ function formatNumber(value: number): string {
 /**
  * Custom tooltip with better formatting and drill-down hints
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function CustomTooltip({ active, payload, label, drillDownEnabled }: any) {
   if (!active || !payload?.length) return null
 
   return (
     <div className="rounded-lg border bg-background p-3 shadow-lg">
       <p className="mb-2 font-medium">{label}</p>
+      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
       {payload.map((entry: any, index: number) => (
         <div key={index} className="flex items-center gap-2 text-sm">
           <div className="h-3 w-3 rounded" style={{ backgroundColor: entry.color }} />
@@ -275,6 +277,7 @@ export function ChartRenderer({
                 dataKey={field}
                 fill={CHART_COLORS[idx % CHART_COLORS.length]}
                 radius={[4, 4, 0, 0]}
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 onClick={drillDownEnabled ? ((data: any) => handleElementClick(data)) : undefined}
                 style={{ cursor: drillDownEnabled ? 'pointer' : 'default' }}
                 activeBar={drillDownEnabled ? { fill: 'hsl(var(--primary))' } : undefined}

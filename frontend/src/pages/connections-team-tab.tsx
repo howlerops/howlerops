@@ -11,7 +11,6 @@ import { toast } from 'sonner'
 
 import { SharedResourceCard } from '@/components/sharing/SharedResourceCard'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { Connection } from '@/lib/api/connections'
 import type { SavedQuery } from '@/lib/api/queries'

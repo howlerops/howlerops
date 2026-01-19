@@ -23,8 +23,8 @@ import {
   updateConnection as apiUpdateConnection,
   type UpdateConnectionInput,
 } from '@/lib/api/connections'
-import { getSecureStorage } from '@/lib/secure-storage'
 import { exportMasterKeyToBase64 } from '@/lib/crypto/encryption'
+import { getSecureStorage } from '@/lib/secure-storage'
 import { useAuthStore } from '@/store/auth-store'
 
 /**

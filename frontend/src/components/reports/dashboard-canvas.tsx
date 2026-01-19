@@ -43,6 +43,23 @@ import type {
 
 const ResponsiveGridLayout = WidthProvider(Responsive)
 
+// Helper function to render icon for component type - renders JSX directly to avoid dynamic component issues
+const renderComponentIcon = (type: ReportComponentType, className: string) => {
+  switch (type) {
+    case 'chart':
+    case 'combo':
+      return <BarChart3 className={className} />
+    case 'metric':
+      return <Gauge className={className} />
+    case 'table':
+      return <Table2 className={className} />
+    case 'llm':
+      return <MessageSquare className={className} />
+    default:
+      return <Grid3x3 className={className} />
+  }
+}
+
 interface DashboardCanvasProps {
   components: ReportComponent[]
   layout: ReportLayoutSlot[]
@@ -298,24 +315,6 @@ const GridComponent = React.memo(
   ({ component, result, editMode, onEdit, onRun, onDelete, onClick }: GridComponentProps) => {
     const [isHovered, setIsHovered] = useState(false)
 
-    const getComponentIcon = (type: ReportComponentType) => {
-      switch (type) {
-        case 'chart':
-        case 'combo':
-          return BarChart3
-        case 'metric':
-          return Gauge
-        case 'table':
-          return Table2
-        case 'llm':
-          return MessageSquare
-        default:
-          return Grid3x3
-      }
-    }
-
-    const Icon = getComponentIcon(component.type)
-
     return (
       <Card
         className={cn(
@@ -336,7 +335,7 @@ const GridComponent = React.memo(
           )}
         >
           <div className="flex items-center gap-2 min-w-0 flex-1">
-            <Icon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            {renderComponentIcon(component.type, "h-4 w-4 text-muted-foreground flex-shrink-0")}
             <CardTitle className="text-sm truncate">{component.title}</CardTitle>
             <Badge variant="outline" className="text-xs flex-shrink-0">
               {component.type}
@@ -545,6 +544,7 @@ function ComponentPalette({ onAddComponent }: ComponentPaletteProps) {
 }
 
 // Layout Templates
+// eslint-disable-next-line react-refresh/only-export-components
 export const LAYOUT_TEMPLATES = {
   'single-kpi': {
     name: 'Single KPI',

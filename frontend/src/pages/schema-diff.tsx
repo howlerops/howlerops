@@ -22,6 +22,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useToast } from '@/hooks/use-toast'
+import { useConnectionStore } from '@/store/connection-store'
+
 import {
   CompareConnectionSchemas,
   CompareWithSnapshot,
@@ -32,7 +34,6 @@ import {
   ListSchemaSnapshots,
 } from '../../wailsjs/go/main/App'
 import { schemadiff } from '../../wailsjs/go/models'
-import { useConnectionStore } from '@/store/connection-store'
 
 // Map Wails model status to our display change types
 type ChangeType = 'added' | 'modified' | 'deleted'
@@ -238,7 +239,7 @@ export function SchemaDiff() {
     try {
       await navigator.clipboard.writeText(generatedSQL)
       toast({ title: 'Copied to clipboard', duration: 2000 })
-    } catch (err) {
+    } catch {
       toast({ title: 'Failed to copy', variant: 'destructive', duration: 2000 })
     }
   }

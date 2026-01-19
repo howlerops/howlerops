@@ -72,7 +72,7 @@ export function useDeleteGrpcConnection() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: () => Promise.resolve({ success: true, message: 'Delete not implemented in Wails API' }), // Note: Delete not implemented in Wails API yet
+    mutationFn: (connectionId: string) => wailsEndpoints.connections.remove(connectionId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['grpc-connections'] })
     },
@@ -132,11 +132,13 @@ export function useGrpcQuery() {
 }
 
 // Hook for getting query history
-export function useGrpcQueryHistory(connectionId: string, limit: number = 50) {
+// Note: Query history is not yet implemented in the Go backend.
+// This returns an empty result until backend support is added.
+export function useGrpcQueryHistory(_connectionId: string, _limit: number = 50) {
   return useQuery({
-    queryKey: ['grpc-query-history', connectionId, limit],
-    queryFn: () => Promise.resolve({ data: [], hasMore: false, nextCursor: '' }), // Note: Query history not implemented in Wails API yet
-    enabled: !!connectionId,
+    queryKey: ['grpc-query-history', _connectionId, _limit],
+    queryFn: () => Promise.resolve({ data: [], hasMore: false, nextCursor: '' }),
+    enabled: false, // Disabled until backend implements query history
     staleTime: 1 * 60 * 1000, // 1 minute
   })
 }
@@ -144,14 +146,14 @@ export function useGrpcQueryHistory(connectionId: string, limit: number = 50) {
 // Hook for explaining queries
 export function useGrpcExplainQuery() {
   return useMutation({
-    mutationFn: () =>
-      Promise.resolve({ data: { plan: '', format: '', estimatedStats: {}, warnings: [] }, success: true, message: 'Explain not implemented in Wails API yet' }), // Note: Explain query not implemented in Wails API yet
+    mutationFn: ({ connectionId, sql }: { connectionId: string; sql: string }) =>
+      wailsEndpoints.queries.explain(connectionId, sql),
   })
 }
 
 // Hook for cancelling queries
 export function useGrpcCancelQuery() {
   return useMutation({
-    mutationFn: () => Promise.resolve({ success: true, message: 'Cancel not implemented in Wails API yet', wasRunning: false }), // Note: Cancel query not implemented in Wails API yet
+    mutationFn: (streamId: string) => wailsEndpoints.queries.cancel(streamId),
   })
 }

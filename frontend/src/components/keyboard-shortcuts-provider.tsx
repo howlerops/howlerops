@@ -16,6 +16,7 @@ interface KeyboardShortcutsContextValue {
 
 const KeyboardShortcutsContext = createContext<KeyboardShortcutsContextValue | null>(null)
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useKeyboardShortcutsContext() {
   const context = useContext(KeyboardShortcutsContext)
   if (!context) {
@@ -62,7 +63,7 @@ export function KeyboardShortcutsProvider({
     unregisterShortcut,
     helpVisible,
     setHelpVisible,
-    toggleHelp,
+    _toggleHelp,
     getShortcutsByCategory,
   } = useKeyboardShortcuts({ enabled: true, ignoreInputs: true })
 

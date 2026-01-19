@@ -8,13 +8,11 @@ import {
   type ColumnMovedEvent,
   type ColumnResizedEvent,
   type ColumnVisibleEvent,
-  type FirstDataRenderedEvent,
   type GetRowIdParams,
   type GridApi,
   type GridReadyEvent,
-  type SizeColumnsToFitGridStrategy,
   ModuleRegistry,
-  type RowSelectedEvent,
+  type RowClickedEvent,
   type SelectionColumnDef,
   type SortChangedEvent,
 } from 'ag-grid-community';
@@ -23,6 +21,8 @@ import { Eye } from 'lucide-react';
 
 // Register AG Grid Community modules
 ModuleRegistry.registerModules([AllCommunityModule]);
+import './ag-grid-table.css';
+
 import { type ColumnFiltersState, type SortingState } from '@tanstack/react-table';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -35,8 +35,6 @@ import {
   TableRow,
 } from '../../types/table';
 import { cn } from '../../utils/cn';
-
-import './ag-grid-table.css';
 
 /**
  * AG Grid-based Table Component
@@ -52,35 +50,35 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
   data,
   columns: tableColumns,
   onDataChange,
-  onCellEdit,
+  _onCellEdit,
   onRowSelect,
   onRowClick,
   onRowInspect,
   onSort,
   onFilter,
-  onExport,
+  _onExport,
   onSelectAllPages,
   loading = false,
   error = null,
-  virtualScrolling = true,
+  _virtualScrolling = true,
   className,
   height = 600,
   enableMultiSelect = true,
   enableColumnResizing = true,
   enableColumnReordering = false,
   enableGlobalFilter = true,
-  enableExport = true,
+  _enableExport = true,
   toolbar,
   footer,
   onDirtyChange,
   customCellRenderers = {},
   isEditable = false,
   // Phase 2: Chunked data loading
-  resultId,
-  totalRows,
-  isLargeResult = false,
-  chunkingEnabled = false,
-  displayMode,
+  _resultId,
+  _totalRows,
+  _isLargeResult = false,
+  _chunkingEnabled = false,
+  _displayMode,
 }) => {
   const gridRef = useRef<AgGridReact>(null);
   const [gridApi, setGridApi] = useState<GridApi | null>(null);
@@ -462,6 +460,7 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
     });
 
     return cols;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- INTENTIONAL: See comments below
   }, [tableColumns, enableColumnResizing, customCellRenderers, onRowInspect]);
   // CRITICAL: Do NOT include isEditable in dependencies!
   // Column editability is determined at render time via the editable property
@@ -535,7 +534,7 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
   /**
    * Handle row click
    */
-  const onRowClicked = useCallback((event: any) => {
+  const onRowClicked = useCallback((event: RowClickedEvent) => {
     const rowId = event.data?.__rowId;
     if (rowId && onRowClick) {
       onRowClick(rowId, event.data);
@@ -548,7 +547,7 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
   /**
    * Handle sort changed
    */
-  const onSortChanged = useCallback((event: SortChangedEvent) => {
+  const onSortChanged = useCallback((_event: SortChangedEvent) => {
     if (!gridApi || !onSort) return;
 
     const sortModel = gridApi.getColumnState()
@@ -749,6 +748,7 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
     columnSizing,
     dirtyRows,
     gridApi,
+    columnDefs,
     onSort,
     onFilter,
     onSelectAllPages,

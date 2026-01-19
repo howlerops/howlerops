@@ -22,7 +22,9 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useUpgradeModal } from '@/components/upgrade-modal'
 import { getQueryHistoryRepository } from '@/lib/storage/repositories/query-history-repository'
+import { getSavedQueryRepository } from '@/lib/storage/repositories/saved-query-repository'
 import { cn } from '@/lib/utils'
+import { useAIMemoryStore } from '@/store/ai-memory-store'
 import { useConnectionStore } from '@/store/connection-store'
 import { useTierStore } from '@/store/tier-store'
 
@@ -98,20 +100,30 @@ export function UsageStats({
   const { getLimits, currentTier } = useTierStore()
   const { connections } = useConnectionStore()
   const { showUpgradeModal, UpgradeModalComponent } = useUpgradeModal()
+  const { sessions } = useAIMemoryStore()
 
   const [queryCount, setQueryCount] = useState(0)
+  const [savedQueryCount, setSavedQueryCount] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
+
+  // AI memory count is the number of sessions
+  const aiMemoryCount = Object.keys(sessions).length
 
   const limits = getLimits()
   const isPaidTier = currentTier !== 'local'
 
-  // Load query count
+  // Load query and saved query counts
   useEffect(() => {
     const loadCounts = async () => {
       try {
-        const repo = getQueryHistoryRepository()
-        const count = await repo.count()
-        setQueryCount(count)
+        const historyRepo = getQueryHistoryRepository()
+        const savedRepo = getSavedQueryRepository()
+        const [historyCount, savedCount] = await Promise.all([
+          historyRepo.count(),
+          savedRepo.count(),
+        ])
+        setQueryCount(historyCount)
+        setSavedQueryCount(savedCount)
       } catch (error) {
         console.error('Failed to load usage stats:', error)
       } finally {
@@ -140,16 +152,16 @@ export function UsageStats({
     {
       name: 'AI Memories',
       icon: <Brain className="w-5 h-5" />,
-      current: 0, // TODO: Get actual count
+      current: aiMemoryCount,
       limit: limits.aiMemories,
-      ...calculateUsageMetrics(0, limits.aiMemories),
+      ...calculateUsageMetrics(aiMemoryCount, limits.aiMemories),
     },
     {
       name: 'Saved Queries',
       icon: <BookMarked className="w-5 h-5" />,
-      current: 0, // TODO: Get actual count
+      current: savedQueryCount,
       limit: limits.savedQueries,
-      ...calculateUsageMetrics(0, limits.savedQueries),
+      ...calculateUsageMetrics(savedQueryCount, limits.savedQueries),
     },
   ]
 

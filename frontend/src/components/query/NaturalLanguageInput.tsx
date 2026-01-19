@@ -131,7 +131,7 @@ export function NaturalLanguageInput({
         }
       })
     }, 100)
-  }, [examples, onSQLGenerated])
+  }, [onSQLGenerated])
 
   const getConfidenceBadge = useCallback((confidence: number) => {
     if (confidence >= 0.8) {

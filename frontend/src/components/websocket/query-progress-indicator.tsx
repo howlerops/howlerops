@@ -11,7 +11,6 @@ import {
   Play,
   Square,
   XCircle,
-  Zap,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 

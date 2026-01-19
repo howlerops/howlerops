@@ -68,6 +68,104 @@ interface PIIField {
   verified: boolean;
 }
 
+// =============================================================================
+// DEMO DATA - Replace with actual Wails API calls when backend is implemented
+// These demonstrate the compliance features available in Howlerops Enterprise
+// =============================================================================
+
+const DEMO_RETENTION_POLICIES: RetentionPolicy[] = [
+  {
+    id: "rp-1",
+    resource_type: "Query History",
+    retention_days: 90,
+    auto_archive: true,
+    archive_location: "local_archive",
+  },
+  {
+    id: "rp-2",
+    resource_type: "Audit Logs",
+    retention_days: 365,
+    auto_archive: true,
+    archive_location: "local_archive",
+  },
+  {
+    id: "rp-3",
+    resource_type: "Connection Logs",
+    retention_days: 30,
+    auto_archive: false,
+  },
+  {
+    id: "rp-4",
+    resource_type: "Export Files",
+    retention_days: 7,
+    auto_archive: false,
+  },
+];
+
+const DEMO_GDPR_REQUESTS: GDPRRequest[] = [
+  {
+    id: "gdpr-1",
+    request_type: "export",
+    status: "completed",
+    requested_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+    completed_at: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(),
+    export_url: "#demo-export",
+  },
+  {
+    id: "gdpr-2",
+    request_type: "export",
+    status: "processing",
+    requested_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+];
+
+const DEMO_PII_FIELDS: PIIField[] = [
+  {
+    id: "pii-1",
+    table_name: "users",
+    field_name: "email",
+    pii_type: "EMAIL",
+    confidence_score: 0.98,
+    verified: true,
+  },
+  {
+    id: "pii-2",
+    table_name: "users",
+    field_name: "phone_number",
+    pii_type: "PHONE",
+    confidence_score: 0.95,
+    verified: true,
+  },
+  {
+    id: "pii-3",
+    table_name: "customers",
+    field_name: "ssn",
+    pii_type: "SSN",
+    confidence_score: 0.99,
+    verified: true,
+  },
+  {
+    id: "pii-4",
+    table_name: "orders",
+    field_name: "billing_address",
+    pii_type: "ADDRESS",
+    confidence_score: 0.87,
+    verified: false,
+  },
+  {
+    id: "pii-5",
+    table_name: "employees",
+    field_name: "date_of_birth",
+    pii_type: "DOB",
+    confidence_score: 0.92,
+    verified: false,
+  },
+];
+
+// =============================================================================
+// END DEMO DATA
+// =============================================================================
+
 export const CompliancePage: React.FC = () => {
   const [retentionPolicies, setRetentionPolicies] = useState<RetentionPolicy[]>(
     []
@@ -75,22 +173,22 @@ export const CompliancePage: React.FC = () => {
   const [gdprRequests, setGDPRRequests] = useState<GDPRRequest[]>([]);
   const [piiFields, setPIIFields] = useState<PIIField[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isDemo, setIsDemo] = useState(false);
   const toast = useToast();
   const { _isOpen, onOpen, _onClose } = useDisclosure();
 
   const loadRetentionPolicies = useCallback(async () => {
     try {
-      // TODO: Replace with actual API call
-      const orgId = "current-org-id";
-      const response = await fetch(
-        `/api/organizations/${orgId}/retention-policy`
-      );
-      const data = await response.json();
-      setRetentionPolicies(data);
+      // When backend compliance API is implemented, replace with:
+      // const result = await wailsEndpoints.compliance.getRetentionPolicies()
+      // For now, use demo data to showcase the feature
+      setRetentionPolicies(DEMO_RETENTION_POLICIES);
+      setIsDemo(true);
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
       toast({
         title: "Error loading retention policies",
-        description: error.message,
+        description: errorMessage,
         status: "error",
         duration: 5000,
       });
@@ -108,10 +206,10 @@ export const CompliancePage: React.FC = () => {
 
   const loadGDPRRequests = async () => {
     try {
-      // TODO: Replace with actual API call
-      const response = await fetch("/api/gdpr/requests");
-      const data = await response.json();
-      setGDPRRequests(data);
+      // When backend compliance API is implemented, replace with:
+      // const result = await wailsEndpoints.compliance.getGDPRRequests()
+      // For now, use demo data to showcase the feature
+      setGDPRRequests(DEMO_GDPR_REQUESTS);
     } catch (error) {
       console.error("Error loading GDPR requests:", error);
     }
@@ -119,9 +217,10 @@ export const CompliancePage: React.FC = () => {
 
   const loadPIIFields = async () => {
     try {
-      const response = await fetch("/api/pii/fields");
-      const data = await response.json();
-      setPIIFields(data);
+      // When backend compliance API is implemented, replace with:
+      // const result = await wailsEndpoints.compliance.getPIIFields()
+      // For now, use demo data to showcase the feature
+      setPIIFields(DEMO_PII_FIELDS);
     } catch (error) {
       console.error("Error loading PII fields:", error);
     }
@@ -157,19 +256,29 @@ export const CompliancePage: React.FC = () => {
 
   const requestDataExport = async () => {
     try {
-      const response = await fetch("/api/gdpr/export", { method: "POST" });
-      const data = await response.json();
-      setGDPRRequests([data, ...gdprRequests]);
+      // When backend compliance API is implemented, replace with:
+      // const result = await wailsEndpoints.compliance.requestDataExport()
+      // For now, simulate the request with demo data
+      const newRequest: GDPRRequest = {
+        id: `gdpr-${Date.now()}`,
+        request_type: "export",
+        status: "pending",
+        requested_at: new Date().toISOString(),
+      };
+      setGDPRRequests([newRequest, ...gdprRequests]);
       toast({
-        title: "Data export requested",
-        description: "You will receive an email when the export is ready",
+        title: isDemo ? "[Demo] Data export requested" : "Data export requested",
+        description: isDemo
+          ? "This is a demo - no actual export will be created"
+          : "You will receive an email when the export is ready",
         status: "info",
         duration: 5000,
       });
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
       toast({
         title: "Error requesting export",
-        description: error.message,
+        description: errorMessage,
         status: "error",
         duration: 5000,
       });
@@ -179,26 +288,38 @@ export const CompliancePage: React.FC = () => {
   const requestDataDeletion = async () => {
     if (
       !confirm(
-        "Are you sure you want to delete all your data? This action cannot be undone."
+        isDemo
+          ? "This is a demo - no data will actually be deleted. Continue?"
+          : "Are you sure you want to delete all your data? This action cannot be undone."
       )
     ) {
       return;
     }
 
     try {
-      const response = await fetch("/api/gdpr/delete", { method: "POST" });
-      const data = await response.json();
-      setGDPRRequests([data, ...gdprRequests]);
+      // When backend compliance API is implemented, replace with:
+      // const result = await wailsEndpoints.compliance.requestDataDeletion()
+      // For now, simulate the request with demo data
+      const newRequest: GDPRRequest = {
+        id: `gdpr-${Date.now()}`,
+        request_type: "delete",
+        status: "pending",
+        requested_at: new Date().toISOString(),
+      };
+      setGDPRRequests([newRequest, ...gdprRequests]);
       toast({
-        title: "Data deletion requested",
-        description: "Your account and all data will be deleted within 30 days",
+        title: isDemo ? "[Demo] Data deletion requested" : "Data deletion requested",
+        description: isDemo
+          ? "This is a demo - no data will be deleted"
+          : "Your account and all data will be deleted within 30 days",
         status: "warning",
         duration: 5000,
       });
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
       toast({
         title: "Error requesting deletion",
-        description: error.message,
+        description: errorMessage,
         status: "error",
         duration: 5000,
       });
@@ -221,6 +342,20 @@ export const CompliancePage: React.FC = () => {
   return (
     <Box p={6}>
       <VStack spacing={6} align="stretch">
+        {isDemo && (
+          <Alert status="warning" variant="left-accent">
+            <AlertIcon />
+            <Box>
+              <AlertTitle>Demo Mode</AlertTitle>
+              <AlertDescription>
+                Compliance features are shown with sample data. Connect this page
+                to the backend compliance API to manage real retention policies,
+                GDPR requests, and PII detection.
+              </AlertDescription>
+            </Box>
+          </Alert>
+        )}
+
         <Box>
           <Heading size="lg" mb={2}>
             Data Compliance & Management

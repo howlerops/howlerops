@@ -6,6 +6,8 @@
  *
  * NOTE: This is an example/template, not production code.
  */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 
 import { ExternalLink, Filter, Globe, List } from 'lucide-react'
 import { useState } from 'react'
@@ -199,9 +201,9 @@ export function DrillDownConfigEditor({
  */
 export function DrillDownEnabledReport() {
   // Your existing report state
-  const [report, setReport] = useState<any>(null)
-  const [components, setComponents] = useState<ReportComponent[]>([])
-  const [lastRun, setLastRun] = useState<any>(null)
+  const [_report, _setReport] = useState<any>(null)
+  const [_components, _setComponents] = useState<ReportComponent[]>([])
+  const [_lastRun, _setLastRun] = useState<any>(null)
 
   // Initialize drill-down hook
   const drillDown = useDrillDown({
@@ -308,8 +310,10 @@ export function DrillDownEnabledReport() {
  */
 import { ChartRenderer } from '@/components/reports/chart-renderer'
 
+// eslint-disable-next-line unused-imports/no-unused-vars
 function ExampleChartWithDrillDown() {
   const { executeDrillDown } = useDrillDown({
+    // eslint-disable-next-line unused-imports/no-unused-vars
     executeQuery: async (sql) => {
       /* ... */
       return null as any

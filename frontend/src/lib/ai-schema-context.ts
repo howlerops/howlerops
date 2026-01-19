@@ -120,34 +120,93 @@ export class AISchemaContextBuilder {
     interface ColumnMetadata {
       dataType?: string
       nullable?: boolean
+      isNullable?: string
       primaryKey?: boolean
+      isPrimaryKey?: boolean
       unique?: boolean
       defaultValue?: string
+      columnDefault?: string
+      isForeignKey?: boolean
+      foreignKey?: {
+        name?: string
+        referencedTable?: string
+        referencedSchema?: string
+        referencedColumns?: string[]
+      }
+    }
+
+    // Type guard for table metadata with foreign keys
+    interface TableMetadata {
+      rowCount?: number
+      sizeBytes?: number
+      comment?: string
+      foreignKeys?: Array<{
+        name: string
+        columnName: string
+        referencedTableName: string
+        referencedSchemaName: string
+        referencedColumnName: string
+        deleteRule?: string
+        updateRule?: string
+      }>
     }
 
     return schemas.map(schema => ({
       name: schema.name,
-      tables: (schema.children || []).map(table => ({
-        name: table.name,
-        columns: (table.children || []).map(col => {
-          const metadata = col.metadata as ColumnMetadata | undefined
-          return {
-            name: col.name,
-            dataType: metadata?.dataType || 'unknown',
-            nullable: metadata?.nullable || false,
-            primaryKey: metadata?.primaryKey,
-            unique: metadata?.unique,
-            defaultValue: metadata?.defaultValue
+      tables: (schema.children || []).map(table => {
+        const tableMetadata = table.metadata as TableMetadata | undefined
+
+        // Extract foreign keys from table metadata (primary source)
+        const foreignKeys: ForeignKeyInfo[] = (tableMetadata?.foreignKeys || []).map(fk => ({
+          column: fk.columnName,
+          referencedTable: fk.referencedTableName,
+          referencedColumn: fk.referencedColumnName,
+          referencedSchema: fk.referencedSchemaName !== schema.name ? fk.referencedSchemaName : undefined
+        }))
+
+        // Also check column metadata for foreign keys (fallback)
+        if (foreignKeys.length === 0) {
+          for (const col of table.children || []) {
+            const colMeta = col.metadata as ColumnMetadata | undefined
+            if (colMeta?.foreignKey?.referencedTable) {
+              // Extract the raw column name (before the colon that adds type info)
+              const rawColName = col.name.split(':')[0].trim()
+              foreignKeys.push({
+                column: rawColName,
+                referencedTable: colMeta.foreignKey.referencedTable,
+                referencedColumn: colMeta.foreignKey.referencedColumns?.[0] || 'id',
+                referencedSchema: colMeta.foreignKey.referencedSchema !== schema.name
+                  ? colMeta.foreignKey.referencedSchema
+                  : undefined
+              })
+            }
           }
-        }),
-        primaryKeys: (table.children || [])
-          .filter(col => {
+        }
+
+        return {
+          name: table.name,
+          columns: (table.children || []).map(col => {
             const metadata = col.metadata as ColumnMetadata | undefined
-            return metadata?.primaryKey
-          })
-          .map(col => col.name),
-        foreignKeys: [] // TODO: Extract foreign key information if available
-      }))
+            // Extract raw column name (the formatted name includes type info after colon)
+            const rawColName = col.name.split(':')[0].trim()
+            return {
+              name: rawColName,
+              dataType: metadata?.dataType || 'unknown',
+              nullable: metadata?.isNullable === 'YES' || metadata?.nullable || false,
+              primaryKey: metadata?.isPrimaryKey || metadata?.primaryKey,
+              unique: metadata?.unique,
+              defaultValue: metadata?.columnDefault || metadata?.defaultValue
+            }
+          }),
+          primaryKeys: (table.children || [])
+            .filter(col => {
+              const metadata = col.metadata as ColumnMetadata | undefined
+              return metadata?.isPrimaryKey || metadata?.primaryKey
+            })
+            .map(col => col.name.split(':')[0].trim()),
+          foreignKeys
+        }
+      })
     }))
   }
 
@@ -246,7 +305,10 @@ export class AISchemaContextBuilder {
 
           prompt += `- ${tableName}:\n`
           for (const col of table.columns.slice(0, 10)) { // Limit columns for brevity
-            prompt += `  - ${col.name} (${col.dataType}${col.nullable ? ', nullable' : ''}${col.primaryKey ? ', PK' : ''})\n`
+            // Check if this column is a foreign key
+            const fk = table.foreignKeys.find(f => f.column === col.name)
+            const fkInfo = fk ? `, FK -> ${fk.referencedSchema ? fk.referencedSchema + '.' : ''}${fk.referencedTable}.${fk.referencedColumn}` : ''
+            prompt += `  - ${col.name} (${col.dataType}${col.nullable ? ', nullable' : ''}${col.primaryKey ? ', PK' : ''}${fkInfo})\n`
           }
           if (table.columns.length > 10) {
             prompt += `  ... and ${table.columns.length - 10} more columns\n`
@@ -270,7 +332,10 @@ export class AISchemaContextBuilder {
 
             prompt += `- ${tablePath}:\n`
             for (const col of table.columns.slice(0, 5)) { // Fewer columns in multi-DB mode
-              prompt += `  - ${col.name} (${col.dataType}${col.primaryKey ? ', PK' : ''})\n`
+              // Check if this column is a foreign key
+              const fk = table.foreignKeys.find(f => f.column === col.name)
+              const fkInfo = fk ? `, FK -> ${fk.referencedTable}` : ''
+              prompt += `  - ${col.name} (${col.dataType}${col.primaryKey ? ', PK' : ''}${fkInfo})\n`
             }
             if (table.columns.length > 5) {
               prompt += `  ... and ${table.columns.length - 5} more columns\n`

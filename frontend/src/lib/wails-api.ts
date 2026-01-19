@@ -2,6 +2,7 @@ import * as App from '../../wailsjs/go/main/App'
 import { isWailsReady,waitForWails } from './wails-runtime'
 
 // Wails-based API client for desktop application
+ 
 export class WailsApiClient {
   // Schema introspection methods
   async getSchemas(connectionId: string) {
@@ -604,6 +605,64 @@ export class WailsApiClient {
       }
     }
   }
+
+  async explainQuery(connectionId: string, query: string) {
+    try {
+      await waitForWails()
+
+      if (!isWailsReady()) {
+        throw new Error('Wails runtime not available')
+      }
+
+      const plan = await App.ExplainQuery(connectionId, query)
+
+      return {
+        data: {
+          plan,
+          format: 'text',
+          estimatedStats: {},
+          warnings: []
+        },
+        success: true,
+        message: 'Query explanation retrieved successfully'
+      }
+    } catch (error) {
+      return {
+        data: {
+          plan: '',
+          format: '',
+          estimatedStats: {},
+          warnings: []
+        },
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to explain query'
+      }
+    }
+  }
+
+  async cancelQueryStream(streamId: string) {
+    try {
+      await waitForWails()
+
+      if (!isWailsReady()) {
+        throw new Error('Wails runtime not available')
+      }
+
+      await App.CancelQueryStream(streamId)
+
+      return {
+        success: true,
+        message: 'Query cancelled successfully',
+        wasRunning: true
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to cancel query',
+        wasRunning: false
+      }
+    }
+  }
 }
 
 const multiDbPattern = /@[\w-]+\./i
@@ -681,6 +740,12 @@ export const wailsEndpoints = {
     },
     deleteRows: async (payload: unknown) => {
       return wailsApiClient.deleteQueryRows(payload)
+    },
+    explain: async (connectionId: string, query: string) => {
+      return wailsApiClient.explainQuery(connectionId, query)
+    },
+    cancel: async (streamId: string) => {
+      return wailsApiClient.cancelQueryStream(streamId)
     }
   },
 

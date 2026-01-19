@@ -14,8 +14,8 @@ import { useTheme } from "@/hooks/use-theme"
 import { useToast } from "@/hooks/use-toast"
 import { PreferenceCategory,PreferenceRepository } from '@/lib/storage/repositories/preference-repository'
 import { useAIConfig } from "@/store/ai-store"
-import { useOrganizationStore } from "@/store/organization-store"
 import { useConnectionsStore } from "@/store/connections-store"
+import { useOrganizationStore } from "@/store/organization-store"
 
 const prefRepo = new PreferenceRepository()
 const DEVICE_USER = 'local-user'

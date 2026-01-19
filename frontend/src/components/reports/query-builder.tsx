@@ -22,6 +22,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { cn } from '@/lib/utils'
+import { wailsApiClient } from '@/lib/wails-api'
 import type {
   AggregationFunction,
   ColumnSelection,
@@ -904,28 +905,73 @@ function OrderBySelector({ orderBy, availableColumns, onChange, onRemove, disabl
 // ===== Utility Functions =====
 
 async function fetchDatabaseSchema(connectionId: string): Promise<DatabaseSchema> {
-  // TODO: Replace with actual API call
-  const response = await fetch(`/api/connections/${connectionId}/schema`)
-  if (!response.ok) {
-    throw new Error('Failed to fetch schema')
+  // Get schemas for the connection
+  const schemasResponse = await wailsApiClient.getSchemas(connectionId)
+  if (!schemasResponse.success || !schemasResponse.data) {
+    throw new Error(schemasResponse.message || 'Failed to fetch schemas')
   }
-  return response.json()
+
+  const tables: TableMetadata[] = []
+
+  // For each schema, get tables and their columns
+  for (const schema of schemasResponse.data) {
+    const tablesResponse = await wailsApiClient.getTables(connectionId, schema.name)
+    if (!tablesResponse.success || !tablesResponse.data) {
+      continue
+    }
+
+    for (const table of tablesResponse.data) {
+      // Get columns for each table
+      const columnsResponse = await wailsApiClient.getTableStructure(connectionId, schema.name, table.name)
+
+      const columns: ColumnMetadata[] = (columnsResponse.data || []).map((col, index) => ({
+        name: col.name,
+        dataType: col.dataType || col.type || 'unknown',
+        nullable: col.nullable ?? true,
+        defaultValue: col.defaultValue,
+        primaryKey: col.isPrimaryKey ?? false,
+        unique: col.isUnique ?? false,
+        indexed: col.isIndexed ?? false,
+        comment: col.comment,
+        ordinalPosition: col.ordinalPosition ?? index + 1,
+        characterMaxLength: col.characterMaxLength,
+        numericPrecision: col.numericPrecision,
+        numericScale: col.numericScale,
+      }))
+
+      tables.push({
+        schema: schema.name,
+        name: table.name,
+        type: table.type || 'table',
+        comment: table.comment,
+        rowCount: table.rowCount ?? 0,
+        columns,
+        foreignKeys: [], // Foreign keys would need additional API support
+      })
+    }
+  }
+
+  return { tables }
 }
 
 async function runPreviewQuery(connectionId: string, sql: string): Promise<QueryPreview> {
-  // TODO: Replace with actual API call
-  const response = await fetch(`/api/connections/${connectionId}/preview`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ sql, limit: 10 }),
-  })
-  if (!response.ok) {
-    throw new Error('Preview query failed')
+  const result = await wailsApiClient.executeQuery(connectionId, sql, 10)
+
+  if (!result.success || !result.data) {
+    throw new Error(result.message || 'Preview query failed')
   }
-  return response.json()
+
+  return {
+    sql,
+    estimatedRows: result.data.rowCount ?? 0,
+    columns: result.data.columns || [],
+    rows: result.data.rows || [],
+    totalRows: result.data.rowCount ?? 0,
+    executionTimeMs: result.data.stats?.duration ?? 0,
+  }
 }
 
-function validateQuery(state: QueryBuilderState, schema: DatabaseSchema | null): QueryValidationError[] {
+function validateQuery(state: QueryBuilderState, _schema: DatabaseSchema | null): QueryValidationError[] {
   const errors: QueryValidationError[] = []
 
   // Must have table selected

@@ -1,28 +1,21 @@
 import {
-  AlertCircle,
   BookOpen,
   ChevronRight,
   Database,
   Edit2,
-  Eye,
-  EyeOff,
   Filter,
   Plus,
   RefreshCw,
   Search,
   Shield,
-  Tag,
-  Tags,
   Trash2,
   User,
-  X,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import {
@@ -47,20 +40,16 @@ import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
 import { useConnectionStore } from '@/store/connection-store'
+
 import {
   AssignTableSteward,
   CreateCatalogTag,
-  CreateColumnCatalogEntry,
-  CreateTableCatalogEntry,
   DeleteCatalogTag,
   GetCatalogStats,
-  GetColumnCatalogEntry,
-  GetTableCatalogEntry,
   ListCatalogTags,
   ListColumnCatalogEntries,
   ListTableCatalogEntries,
   MarkColumnAsPII,
-  SearchCatalog,
   SyncCatalogFromConnection,
   UpdateColumnCatalogEntry,
   UpdateTableCatalogEntry,
@@ -163,7 +152,8 @@ export function DataCatalog() {
   // Load initial data when sessionId becomes available
   useEffect(() => {
     loadData()
-  }, [activeSessionId])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSessionId]) // loadData is stable, only re-run when session changes
 
   const loadData = async () => {
     setLoading(true)

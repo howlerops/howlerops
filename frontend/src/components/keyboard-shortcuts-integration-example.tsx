@@ -24,8 +24,8 @@ import { useQueryStore } from '@/store/query-store'
  * Example parent component that wraps the app with keyboard shortcuts
  */
 export function AppWithKeyboardShortcuts({ children }: { children: React.ReactNode }) {
-  const queryEditorRef = useRef<QueryEditorHandle>(null)
-  const [aiChatOpen, setAIChatOpen] = useState(false)
+  const _queryEditorRef = useRef<QueryEditorHandle>(null)
+  const [_aiChatOpen, setAIChatOpen] = useState(false)
 
   const {
     createTab,

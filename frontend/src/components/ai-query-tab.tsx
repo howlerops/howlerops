@@ -124,7 +124,7 @@ export function AIQueryTabView({
   const sendMessage = useAIQueryAgentStore(state => state.sendMessage)
   const setActiveSession = useAIQueryAgentStore(state => state.setActiveSession)
   const session = useAIQueryAgentStore(state => (tab.aiSessionId ? state.sessions[tab.aiSessionId] : undefined))
-  const streamingTurnId = useAIQueryAgentStore(state => state.streamingTurnId)
+  const _streamingTurnId = useAIQueryAgentStore(state => state.streamingTurnId)
 
   const [input, setInput] = useState("")
   const [isRenaming, setIsRenaming] = useState(false)

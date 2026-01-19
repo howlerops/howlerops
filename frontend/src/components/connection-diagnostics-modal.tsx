@@ -14,6 +14,7 @@ import { Progress } from '@/components/ui/progress'
 import { Separator } from '@/components/ui/separator'
 import { toast } from '@/hooks/use-toast'
 import type { DatabaseConnection } from '@/store/connection-store'
+
 import {
   GetConnectionHealth,
   GetConnectionStats,
