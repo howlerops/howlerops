@@ -430,7 +430,7 @@ describe('AGGridTable', () => {
         <AGGridTable data={mockData} columns={mockColumns} height={500} />
       );
 
-      const gridContainer = container.querySelector('.ag-theme-alpine-dark');
+      const gridContainer = container.querySelector('.ag-theme-quartz-dark');
       expect(gridContainer).toHaveStyle({ height: '500px' });
     });
 
@@ -439,8 +439,9 @@ describe('AGGridTable', () => {
         <AGGridTable data={mockData} columns={mockColumns} height="100vh" />
       );
 
-      const gridContainer = container.querySelector('.ag-theme-alpine-dark');
-      expect(gridContainer).toHaveStyle({ height: '100vh' });
+      const gridContainer = container.querySelector('.ag-theme-quartz-dark');
+      // Check inline style attribute since computed style converts viewport units to pixels
+      expect(gridContainer?.getAttribute('style')).toContain('height: 100vh');
     });
   });
 
