@@ -129,15 +129,35 @@ export interface QueryColumn {
 }
 
 export interface QueryStats {
-  duration?: number
+  duration?: string | number  // Backend may return "123ms" string or numeric ms
   affectedRows?: number
+  affected_rows?: number  // Snake case variant
+}
+
+export interface EditableColumn {
+  name: string
+  dataType: string
+  nullable?: boolean
+  primaryKey?: boolean
 }
 
 export interface EditableMetadata {
+  enabled?: boolean
+  reason?: string
   schema?: string
   table?: string
   primaryKey?: string[]
-  columns?: string[]
+  primaryKeys?: string[]  // Variant naming
+  columns?: string[] | EditableColumn[]
+  pending?: boolean
+  jobId?: string
+  job_id?: string  // Snake case variant
+  capabilities?: {
+    canInsert?: boolean
+    canUpdate?: boolean
+    canDelete?: boolean
+    reason?: string
+  }
 }
 
 export interface UpdateRowRequest {

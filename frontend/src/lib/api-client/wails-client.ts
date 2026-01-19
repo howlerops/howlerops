@@ -143,7 +143,8 @@ export const wailsApiClient: ApiClient = {
       timeout?: number
     ): Promise<ApiResponse<QueryResult>> => {
       const result = await wailsEndpoints.queries.execute(connectionId, sql, limit, offset, timeout)
-      const data = result.data || {}
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Backend returns dynamic shape
+      const data = (result.data || {}) as Record<string, any>
 
       return {
         data: {
@@ -152,14 +153,14 @@ export const wailsApiClient: ApiClient = {
           columns: transformColumns(data.columns || []),
           rows: data.rows || [],
           rowCount: data.rowCount || 0,
-          stats: data.stats || {},
+          stats: (data.stats || {}) as QueryStats,
           warnings: data.warnings || [],
-          editable: data.editable || null,
-          totalRows: data.totalRows,
-          pagedRows: data.pagedRows,
-          hasMore: data.hasMore,
-          offset: data.offset,
-          connectionsUsed: data.connectionsUsed,
+          editable: (data.editable || null) as EditableMetadata | null,
+          totalRows: data.totalRows as number | undefined,
+          pagedRows: data.pagedRows as number | undefined,
+          hasMore: data.hasMore as boolean | undefined,
+          offset: data.offset as number | undefined,
+          connectionsUsed: data.connectionsUsed as string[] | undefined,
         },
         success: result.success,
         message: result.message,
@@ -169,7 +170,7 @@ export const wailsApiClient: ApiClient = {
     getEditableMetadata: async (jobId: string): Promise<ApiResponse<EditableMetadata | null>> => {
       const result = await wailsEndpoints.queries.getEditableMetadata(jobId)
       return {
-        data: result.data || null,
+        data: (result.data || null) as EditableMetadata | null,
         success: result.success,
         message: result.message,
       }
