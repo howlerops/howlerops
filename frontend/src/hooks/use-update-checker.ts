@@ -1,5 +1,7 @@
 import { useCallback,useEffect, useState } from 'react';
 
+import { isWailsEnvironment } from '@/lib/wails-runtime';
+
 import { CheckForUpdates, GetCurrentVersion,OpenDownloadPage } from '../../wailsjs/go/main/App';
 
 export interface UpdateInfo {
@@ -36,8 +38,13 @@ export function useUpdateChecker(): UseUpdateCheckerReturn {
     return dismissed === version;
   }, []);
 
-  // Check for updates
+  // Check for updates (only in Wails environment)
   const checkForUpdates = useCallback(async () => {
+    // Skip if not running in Wails desktop environment
+    if (!isWailsEnvironment()) {
+      return;
+    }
+
     setIsChecking(true);
     setError(null);
 
@@ -67,8 +74,13 @@ export function useUpdateChecker(): UseUpdateCheckerReturn {
     setUpdateInfo(null);
   }, [updateInfo]);
 
-  // Open download page
+  // Open download page (only in Wails environment)
   const openDownloadPage = useCallback(async () => {
+    // Skip if not running in Wails desktop environment
+    if (!isWailsEnvironment()) {
+      return;
+    }
+
     try {
       await OpenDownloadPage();
       // After opening download page, dismiss the notification
@@ -79,9 +91,14 @@ export function useUpdateChecker(): UseUpdateCheckerReturn {
     }
   }, [dismissUpdate]);
 
-  // Get current version on mount
+  // Get current version on mount (only in Wails environment)
   useEffect(() => {
     const fetchCurrentVersion = async () => {
+      // Skip if not running in Wails desktop environment
+      if (!isWailsEnvironment()) {
+        return;
+      }
+
       try {
         const version = await GetCurrentVersion();
         setCurrentVersion(version);

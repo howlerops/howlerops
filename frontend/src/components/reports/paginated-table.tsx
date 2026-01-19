@@ -1,5 +1,5 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -59,8 +59,8 @@ export function PaginatedTable({
     }
   }, [rows, currentPage, itemsPerPage])
 
-  // Reset to page 1 when rows change (e.g., new query results)
-  useMemo(() => {
+  // Reset to page 1 when total pages shrinks below current page
+  useEffect(() => {
     if (currentPage > totalPages && totalPages > 0) {
       setCurrentPage(1)
     }

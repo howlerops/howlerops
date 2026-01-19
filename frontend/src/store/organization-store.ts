@@ -776,7 +776,7 @@ export const useOrganizationStore = create<OrganizationStore>()(
 
           try {
             const response = await authFetch<{ invitations: OrganizationInvitation[] }>(
-              '/api/invitations/pending'
+              '/api/invitations'
             )
 
             const invitations = (response.invitations ?? []).map(parseInvDates)
