@@ -11,7 +11,7 @@ import {
   type StoredQueryResult,
   storeQueryResult,
 } from '@/lib/query-result-storage'
-import { wailsEndpoints } from '@/lib/wails-api'
+import { api } from '@/lib/api-client'
 
 import { EventsOn } from '../../wailsjs/runtime/runtime'
 import { type DatabaseConnection,useConnectionStore } from './connection-store'
@@ -387,7 +387,7 @@ export const useQueryStore = create<QueryState>()(
 
       const timer = window.setTimeout(async () => {
         try {
-          const response = await wailsEndpoints.queries.getEditableMetadata(jobId)
+          const response = await api.queries.getEditableMetadata(jobId)
 
           if (!response.success || !response.data) {
             if (attempt + 1 >= MAX_EDITABLE_METADATA_ATTEMPTS) {
@@ -640,7 +640,7 @@ export const useQueryStore = create<QueryState>()(
         }
 
         try {
-          const response = await wailsEndpoints.queries.execute(connection.sessionId, query, limit, offset)
+          const response = await api.queries.execute(connection.sessionId, query, limit, offset)
 
           if (!response.success || !response.data) {
             const message = response.message || 'Query execution failed'
@@ -661,12 +661,18 @@ export const useQueryStore = create<QueryState>()(
           }
 
           const {
-            columns = [],
+            columns: rawColumns = [],
             rows = [],
             rowCount = 0,
             stats = {},
             editable: rawEditable = null,
           } = response.data
+
+          // Convert QueryColumn[] to string[] for column names
+          // The API returns QueryColumn objects but internal store expects string[]
+          const columns = rawColumns.map((col: unknown) =>
+            typeof col === 'string' ? col : (col as { name: string }).name
+          )
 
           // Extract pagination metadata with optional chaining (may not exist in all responses)
           // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Backend response.data may contain optional pagination fields
@@ -989,7 +995,7 @@ export const useQueryStore = create<QueryState>()(
           // Set loading state
           get().updateResultProcessing(resultId, true, 0)
 
-          const response = await wailsEndpoints.queries.execute(
+          const response = await api.queries.execute(
             connection.sessionId,
             result.query,
             pageSize,

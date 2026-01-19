@@ -8,7 +8,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
-import { wailsEndpoints } from '@/lib/wails-api'
+import { api } from '@/lib/api-client'
 
 export interface SchemaNode {
   id: string
@@ -289,7 +289,7 @@ export const useSchemaStore = create<SchemaStoreState>()(
             }))
 
             // Fetch schemas/databases
-            const schemasResponse = await wailsEndpoints.schema.databases(sessionId)
+            const schemasResponse = await api.schema.databases(sessionId)
 
             if (!schemasResponse.success || !schemasResponse.data) {
               throw new Error(schemasResponse.message || 'Failed to fetch schemas')
@@ -308,7 +308,7 @@ export const useSchemaStore = create<SchemaStoreState>()(
               }
 
               // Fetch tables for this schema
-              const tablesResponse = await wailsEndpoints.schema.tables(
+              const tablesResponse = await api.schema.tables(
                 sessionId,
                 schemaInfo.name
               )
@@ -331,7 +331,7 @@ export const useSchemaStore = create<SchemaStoreState>()(
 
                     // Fetch columns for this table
                     try {
-                      const columnsResponse = await wailsEndpoints.schema.columns(
+                      const columnsResponse = await api.schema.columns(
                         sessionId,
                         schemaInfo.name,
                         tableInfo.name

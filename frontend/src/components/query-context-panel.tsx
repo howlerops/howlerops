@@ -10,7 +10,7 @@
 import { AlertTriangle, Clock, Database, Info,Table2, TrendingUp } from 'lucide-react';
 import React, { useCallback,useEffect, useState } from 'react';
 
-import { wailsEndpoints } from '@/lib/wails-api';
+import { api } from '@/lib/api-client';
 
 interface QueryContext {
   relevantTables: TableContext[];
@@ -152,7 +152,7 @@ export const QueryContextPanel: React.FC<QueryContextPanelProps> = ({ connection
       const referencedTables = extractTableReferences(query);
 
       // Fetch actual table data from backend
-      const tablesResult = await wailsEndpoints.schema.tables(connectionId);
+      const tablesResult = await api.schema.tables(connectionId);
 
       const relevantTables: TableContext[] = [];
 
@@ -166,7 +166,7 @@ export const QueryContextPanel: React.FC<QueryContextPanelProps> = ({ connection
             // Fetch column info for directly referenced tables
             let columns: string[] = [];
             try {
-              const structureResult = await wailsEndpoints.schema.columns(
+              const structureResult = await api.schema.columns(
                 connectionId,
                 table.schema || 'public',
                 table.name

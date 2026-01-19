@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
-import { wailsEndpoints } from '../lib/wails-api'
+import { api } from '../lib/api-client'
 
 export interface Connection {
   id: string
@@ -39,7 +39,7 @@ export interface CreateConnectionData {
 export function useGrpcConnections(page: number = 1, pageSize: number = 50, filter?: string) {
   return useQuery({
     queryKey: ['grpc-connections', page, pageSize, filter],
-    queryFn: () => wailsEndpoints.connections.list(page, pageSize, filter),
+    queryFn: () => api.connections.list(page, pageSize, filter),
     staleTime: 30 * 1000, // 30 seconds
   })
 }
@@ -48,7 +48,7 @@ export function useCreateGrpcConnection() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (data: CreateConnectionData) => wailsEndpoints.connections.create(data),
+    mutationFn: (data: CreateConnectionData) => api.connections.create(data),
     onSuccess: () => {
       // Invalidate and refetch connections
       queryClient.invalidateQueries({ queryKey: ['grpc-connections'] })
@@ -61,7 +61,7 @@ export function useUpdateGrpcConnection() {
 
   return useMutation({
     mutationFn: ({ data }: { id: string; data: Partial<CreateConnectionData> }) =>
-      wailsEndpoints.connections.create(data), // Note: Update not implemented in Wails API yet
+      api.connections.create(data), // Note: Update not implemented in Wails API yet
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['grpc-connections'] })
     },
@@ -72,7 +72,7 @@ export function useDeleteGrpcConnection() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (connectionId: string) => wailsEndpoints.connections.remove(connectionId),
+    mutationFn: (connectionId: string) => api.connections.remove(connectionId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['grpc-connections'] })
     },
@@ -81,14 +81,14 @@ export function useDeleteGrpcConnection() {
 
 export function useTestGrpcConnection() {
   return useMutation({
-    mutationFn: (data: CreateConnectionData) => wailsEndpoints.connections.test(data),
+    mutationFn: (data: CreateConnectionData) => api.connections.test(data),
   })
 }
 
 export function useGrpcSchemas(connectionId: string) {
   return useQuery({
     queryKey: ['grpc-schemas', connectionId],
-    queryFn: () => wailsEndpoints.schema.databases(connectionId),
+    queryFn: () => api.schema.databases(connectionId),
     enabled: !!connectionId,
     staleTime: 5 * 60 * 1000, // 5 minutes
   })
@@ -97,7 +97,7 @@ export function useGrpcSchemas(connectionId: string) {
 export function useGrpcTables(connectionId: string, schemaName?: string, _tableType?: string) {
   return useQuery({
     queryKey: ['grpc-tables', connectionId, schemaName, _tableType],
-    queryFn: () => wailsEndpoints.schema.tables(connectionId, schemaName),
+    queryFn: () => api.schema.tables(connectionId, schemaName),
     enabled: !!connectionId,
     staleTime: 2 * 60 * 1000, // 2 minutes
   })
@@ -106,7 +106,7 @@ export function useGrpcTables(connectionId: string, schemaName?: string, _tableT
 export function useGrpcTableMetadata(connectionId: string, schemaName: string, tableName: string) {
   return useQuery({
     queryKey: ['grpc-table-metadata', connectionId, schemaName, tableName],
-    queryFn: () => wailsEndpoints.schema.columns(connectionId, schemaName, tableName),
+    queryFn: () => api.schema.columns(connectionId, schemaName, tableName),
     enabled: !!(connectionId && schemaName && tableName),
     staleTime: 5 * 60 * 1000, // 5 minutes
   })
@@ -126,7 +126,7 @@ export function useGrpcQuery() {
     }) => {
       const limit = options?.limit
       const timeout = options?.timeout
-      return wailsEndpoints.queries.execute(connectionId, sql, limit, undefined, timeout)
+      return api.queries.execute(connectionId, sql, limit, undefined, timeout)
     },
   })
 }
@@ -147,13 +147,13 @@ export function useGrpcQueryHistory(_connectionId: string, _limit: number = 50) 
 export function useGrpcExplainQuery() {
   return useMutation({
     mutationFn: ({ connectionId, sql }: { connectionId: string; sql: string }) =>
-      wailsEndpoints.queries.explain(connectionId, sql),
+      api.queries.explain(connectionId, sql),
   })
 }
 
 // Hook for cancelling queries
 export function useGrpcCancelQuery() {
   return useMutation({
-    mutationFn: (streamId: string) => wailsEndpoints.queries.cancel(streamId),
+    mutationFn: (streamId: string) => api.queries.cancel(streamId),
   })
 }

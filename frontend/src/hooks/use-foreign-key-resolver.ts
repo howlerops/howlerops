@@ -1,6 +1,6 @@
 import { useCallback,useState } from 'react'
 
-import { wailsEndpoints } from '@/lib/wails-api'
+import { api } from '@/lib/api-client'
 import type { CellValue } from '@/types/table'
 
 interface ForeignKeyData {
@@ -34,18 +34,23 @@ export function useForeignKeyResolver() {
       const escapedValue = typeof value === 'string' ? `'${value.replace(/'/g, "''")}'` : String(value)
       const query = `SELECT * FROM ${tableName} WHERE "${foreignKeyInfo.columnName}" = ${escapedValue} LIMIT 10`
 
-      const response = await wailsEndpoints.queries.execute(connectionId, query, 10)
+      const response = await api.queries.execute(connectionId, query, 10)
 
       if (!response.success || response.message) {
         throw new Error(response.message || 'Query execution failed')
       }
+
+      // Convert QueryColumn[] to string[] for column names
+      const columnNames = response.data.columns.map((col: unknown) =>
+        typeof col === 'string' ? col : (col as { name: string }).name
+      )
 
       const data: ForeignKeyData = {
         tableName: foreignKeyInfo.tableName,
         columnName: foreignKeyInfo.columnName,
         relatedRows: (response.data.rows || []).map((row: CellValue[]) => {
           const record: Record<string, CellValue> = {}
-          response.data.columns.forEach((col: string, index: number) => {
+          columnNames.forEach((col: string, index: number) => {
             record[col] = row[index]
           })
           return record

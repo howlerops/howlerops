@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { SSHAuthMethod } from "@/generated/database"
-import { wailsEndpoints } from "@/lib/wails-api"
+import { api } from "@/lib/api-client"
 import { DatabaseTypeString, SSHTunnelConfig, useConnectionStore, VPCConfig } from "@/store/connection-store"
 import { DatabaseConnection } from "@/store/connection-store"
 
@@ -533,7 +533,7 @@ export function ConnectionManager({ hideHeader = false }: ConnectionManagerProps
     const connectionData = buildConnectionPayload()
 
     try {
-      const result = await wailsEndpoints.connections.test({
+      const result = await api.connections.test({
         ...connectionData,
         ssl_mode: connectionData.sslMode,  // Convert camelCase to snake_case for Wails API
         connection_timeout: 30,

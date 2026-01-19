@@ -2,7 +2,7 @@ import { AlertCircle, CheckCircle2, Clock, Database, Download, Inbox, Loader2, P
 import { useCallback,useEffect, useMemo, useRef, useState } from 'react'
 
 import { toast } from '../hooks/use-toast'
-import { wailsEndpoints } from '../lib/wails-api'
+import { api } from '../lib/api-client'
 import { useConnectionStore } from '../store/connection-store'
 import { type QueryEditableColumn,QueryEditableMetadata, QueryResultRow, useQueryStore } from '../store/query-store'
 import type { CellValue, EditableTableContext } from '../types/table'
@@ -898,7 +898,7 @@ export const QueryResultsTable = ({
             }
           })
 
-          const response = await wailsEndpoints.queries.insertRow({
+          const response = await api.queries.insertRow({
             connectionId,
             query,
             columns: columnNames,
@@ -954,7 +954,7 @@ export const QueryResultsTable = ({
           continue
         }
 
-        const response = await wailsEndpoints.queries.updateRow({
+        const response = await api.queries.updateRow({
           connectionId,
           query,
           columns: columnNames,
@@ -1056,7 +1056,7 @@ export const QueryResultsTable = ({
       })
 
       if (primaryKeysPayload.length > 0) {
-        const response = await wailsEndpoints.queries.deleteRows({
+        const response = await api.queries.deleteRows({
           connectionId,
           query,
           columns: columnNames,
@@ -1384,7 +1384,7 @@ export const QueryResultsTable = ({
 
       if (Object.keys(changedValues).length === 0) return true
 
-      const response = await wailsEndpoints.queries.updateRow({
+      const response = await api.queries.updateRow({
         connectionId,
         query,
         columns: columnNames,

@@ -3,7 +3,7 @@ import { devtools, persist } from 'zustand/middleware'
 
 import { SSHAuthMethod } from '@/generated/database'
 import { getSecureStorage, migratePasswordsFromLocalStorage } from '@/lib/secure-storage'
-import { wailsEndpoints } from '@/lib/wails-api'
+import { api } from '@/lib/api-client'
 
 import { useTierStore } from './tier-store'
 
@@ -270,7 +270,7 @@ export const useConnectionStore = create<ConnectionState>()(
               }
             }
 
-            const response = await wailsEndpoints.connections.create({
+            const response = await api.connections.create({
               id: connectionId, // Pass stored connection ID for reconnecting
               name: connection.name,
               type: connection.type,
@@ -289,7 +289,7 @@ export const useConnectionStore = create<ConnectionState>()(
 
             // Save connection metadata to backend storage for RAG indexing
             try {
-              await wailsEndpoints.connections.save({
+              await api.connections.save({
                 id: connectionId,
                 name: connection.name,
                 type: connection.type,
@@ -336,7 +336,7 @@ export const useConnectionStore = create<ConnectionState>()(
           }
 
           if (connection.sessionId) {
-            const response = await wailsEndpoints.connections.remove(connection.sessionId)
+            const response = await api.connections.remove(connection.sessionId)
             if (!response.success) {
               console.error('Failed to remove connection:', response.message)
             }
@@ -363,7 +363,7 @@ export const useConnectionStore = create<ConnectionState>()(
 
           if (!connection) {
             // If we don't know about this connection but it might be a live session ID, try once.
-            const response = await wailsEndpoints.connections.listDatabases(connectionId)
+            const response = await api.connections.listDatabases(connectionId)
             if (!response.success) {
               throw new Error(response.message || 'Unable to fetch databases for this connection.')
             }
@@ -375,7 +375,7 @@ export const useConnectionStore = create<ConnectionState>()(
             return []
           }
 
-          const response = await wailsEndpoints.connections.listDatabases(connection.sessionId)
+          const response = await api.connections.listDatabases(connection.sessionId)
           if (!response.success) {
             throw new Error(response.message || 'Unable to fetch databases for this connection.')
           }
@@ -394,7 +394,7 @@ export const useConnectionStore = create<ConnectionState>()(
             throw new Error('Connection is not active')
           }
 
-          const response = await wailsEndpoints.connections.switchDatabase(managerId, database)
+          const response = await api.connections.switchDatabase(managerId, database)
           if (!response.success) {
             throw new Error(response.message || 'Failed to switch database.')
           }

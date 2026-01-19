@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { toast } from '@/hooks/use-toast'
-import { wailsEndpoints } from '@/lib/wails-api'
+import { api } from '@/lib/api-client'
 import { useConnectionStore } from '@/store/connection-store'
 import { QueryEditableMetadata } from '@/store/query-store'
 import { CellValue } from '@/types/table'
@@ -104,16 +104,21 @@ export function ForeignKeyCard({
       const query = `SELECT * FROM ${foreignKeyInfo.schema ? `"${foreignKeyInfo.schema}"."${foreignKeyInfo.tableName}"` : `"${foreignKeyInfo.tableName}"`} WHERE "${foreignKeyInfo.columnName}" = ${escapedValue} LIMIT 10`
 
       // Execute query
-      const response = await wailsEndpoints.queries.execute(actualConnectionId, query, 10)
+      const response = await api.queries.execute(actualConnectionId, query, 10)
 
       if (!response.success || response.message) {
         throw new Error(response.message || 'Query execution failed')
       }
 
+      // Convert QueryColumn[] to string[] for column names
+      const columnNames = response.data.columns.map((col: unknown) =>
+        typeof col === 'string' ? col : (col as { name: string }).name
+      )
+
       const relatedRows = (response.data.rows || []).map((row: unknown): ForeignKeyRecord => {
         const cells = Array.isArray(row) ? row : ([] as unknown[])
         const record: ForeignKeyRecord = {}
-        response.data.columns.forEach((col: string, index: number) => {
+        columnNames.forEach((col: string, index: number) => {
           record[col] = cells[index] as CellValue
         })
         return record

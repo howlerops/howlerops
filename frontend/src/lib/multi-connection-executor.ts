@@ -4,7 +4,7 @@
  */
 
 import { generateSQL,QueryIR } from './query-ir'
-import { wailsEndpoints } from './wails-api'
+import { api } from './api-client'
 
 export interface MultiConnectionResult {
   connectionId: string
@@ -110,7 +110,7 @@ export class MultiConnectionExecutor {
       })
 
       // Execute query with timeout
-      const queryPromise = wailsEndpoints.queries.execute(connectionId, sql)
+      const queryPromise = api.queries.execute(connectionId, sql)
       const response = await Promise.race([queryPromise, timeoutPromise])
 
       if (!response.success || !response.data) {
@@ -122,7 +122,11 @@ export class MultiConnectionExecutor {
         }
       }
 
-      const { columns = [], rows = [], rowCount = 0 } = response.data
+      const { columns: rawColumns = [], rows = [], rowCount = 0 } = response.data
+      // Convert QueryColumn[] to string[] for column names
+      const columns = rawColumns.map(col =>
+        typeof col === 'string' ? col : col.name
+      )
 
       return {
         connectionId,
