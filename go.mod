@@ -9,7 +9,7 @@ require (
 	github.com/jbeck018/howlerops/backend-go v0.0.0
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/sirupsen/logrus v1.9.4
-	github.com/wailsapp/wails/v2 v2.11.0
+	github.com/wailsapp/wails/v2 v2.10.2
 	github.com/zalando/go-keyring v0.2.6
 	golang.org/x/oauth2 v0.34.0
 	golang.org/x/text v0.33.0
@@ -23,7 +23,7 @@ require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.42.0 // indirect
 	github.com/andybalholm/brotli v1.2.0 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
-	github.com/apache/arrow-go/v18 v18.5.0 // indirect
+	github.com/apache/arrow-go/v18 v18.5.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bep/debounce v1.2.1 // indirect
 	github.com/boombuler/barcode v1.1.0 // indirect
@@ -31,20 +31,13 @@ require (
 	github.com/coder/websocket v1.8.14 // indirect
 	github.com/danieljoos/wincred v1.2.3 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
-	github.com/duckdb/duckdb-go-bindings v0.3.2 // indirect
-	github.com/duckdb/duckdb-go-bindings/darwin-amd64 v0.1.24 // indirect
-	github.com/duckdb/duckdb-go-bindings/darwin-arm64 v0.1.24 // indirect
-	github.com/duckdb/duckdb-go-bindings/lib/darwin-amd64 v0.3.2 // indirect
-	github.com/duckdb/duckdb-go-bindings/lib/darwin-arm64 v0.3.2 // indirect
-	github.com/duckdb/duckdb-go-bindings/lib/linux-amd64 v0.3.2 // indirect
-	github.com/duckdb/duckdb-go-bindings/lib/linux-arm64 v0.3.2 // indirect
-	github.com/duckdb/duckdb-go-bindings/lib/windows-amd64 v0.3.2 // indirect
-	github.com/duckdb/duckdb-go-bindings/linux-amd64 v0.1.24 // indirect
-	github.com/duckdb/duckdb-go-bindings/linux-arm64 v0.1.24 // indirect
-	github.com/duckdb/duckdb-go-bindings/windows-amd64 v0.1.24 // indirect
-	github.com/duckdb/duckdb-go/arrowmapping v0.0.27 // indirect
-	github.com/duckdb/duckdb-go/mapping v0.0.27 // indirect
-	github.com/duckdb/duckdb-go/v2 v2.5.4 // indirect
+	github.com/duckdb/duckdb-go-bindings v0.3.3 // indirect
+	github.com/duckdb/duckdb-go-bindings/lib/darwin-amd64 v0.3.3 // indirect
+	github.com/duckdb/duckdb-go-bindings/lib/darwin-arm64 v0.3.3 // indirect
+	github.com/duckdb/duckdb-go-bindings/lib/linux-amd64 v0.3.3 // indirect
+	github.com/duckdb/duckdb-go-bindings/lib/linux-arm64 v0.3.3 // indirect
+	github.com/duckdb/duckdb-go-bindings/lib/windows-amd64 v0.3.3 // indirect
+	github.com/duckdb/duckdb-go/v2 v2.5.5 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
 	github.com/go-chi/chi/v5 v5.2.4 // indirect
 	github.com/go-faster/city v1.0.1 // indirect
@@ -113,7 +106,7 @@ require (
 	github.com/xuri/excelize/v2 v2.10.0 // indirect
 	github.com/xuri/nfp v0.0.2-0.20250530014748-2ddeb826f9a9 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
-	github.com/zeebo/xxh3 v1.0.2 // indirect
+	github.com/zeebo/xxh3 v1.1.0 // indirect
 	go.mongodb.org/mongo-driver v1.17.6 // indirect
 	go.opentelemetry.io/otel v1.39.0 // indirect
 	go.opentelemetry.io/otel/trace v1.39.0 // indirect
@@ -137,3 +130,7 @@ require (
 
 // Replace the backend-go module with the local path
 replace github.com/jbeck018/howlerops/backend-go => ./backend-go
+
+// Stub out darwin-amd64 bindings on arm64 to fix Wails binding generation
+// The actual bindings are only needed when building for amd64
+replace github.com/duckdb/duckdb-go-bindings/lib/darwin-amd64 => ./internal/stubs/darwin-amd64
