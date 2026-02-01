@@ -1,5 +1,6 @@
 import { AlertCircle, BarChart3, Clock, Database, Link2, RotateCcw, Wand2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 
 import { DataProcessingIndicator } from '@/components/data-processing-indicator'
 import { QueryLoadingIndicator } from '@/components/query-loading-indicator'
@@ -9,20 +10,35 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useQueryActionsOptional } from '@/contexts'
 import { useAIConfig } from '@/store/ai-store'
 import { useConnectionStore } from '@/store/connection-store'
 import { useQueryStore } from '@/store/query-store'
 
+/**
+ * @deprecated Props are deprecated - use QueryActionsProvider context instead.
+ * The component will continue to work with props for backward compatibility.
+ */
 export interface ResultsPanelProps {
+  /** @deprecated Use QueryActionsProvider instead */
   onFixWithAI?: (error: string, query: string) => void
+  /** @deprecated Use QueryActionsProvider instead */
   onPageChange?: (tabId: string, limit: number, offset: number) => Promise<void>
 }
 
-export function ResultsPanel({ onFixWithAI, onPageChange }: ResultsPanelProps = {}) {
-  const tabs = useQueryStore((state) => state.tabs)
-  const activeTabId = useQueryStore((state) => state.activeTabId)
-  const results = useQueryStore((state) => state.results)
-  const connections = useConnectionStore((state) => state.connections)
+export function ResultsPanel({ onFixWithAI: propOnFixWithAI, onPageChange: propOnPageChange }: ResultsPanelProps = {}) {
+  // Get actions from context (preferred) or fall back to props (backward compatibility)
+  const contextActions = useQueryActionsOptional()
+  const onFixWithAI = contextActions.onFixWithAI ?? propOnFixWithAI
+  const onPageChange = contextActions.onPageChange ?? propOnPageChange
+  const { tabs, activeTabId, results } = useQueryStore(useShallow((state) => ({
+    tabs: state.tabs,
+    activeTabId: state.activeTabId,
+    results: state.results,
+  })))
+  const { connections } = useConnectionStore(useShallow((state) => ({
+    connections: state.connections,
+  })))
 
   const activeTab = tabs.find((tab) => tab.id === activeTabId)
   const tabResults = results.filter((result) => result.tabId === activeTabId)

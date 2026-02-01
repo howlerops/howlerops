@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronRight, Folder, FolderOpen, FolderPlus, MoreHorizontal, Trash2 } from 'lucide-react'
-import { useState } from 'react'
+import React, { useState } from 'react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -89,7 +89,7 @@ interface FolderNodeProps {
   onDrop?: (reportId: string, folderId: string | undefined) => void
 }
 
-function FolderNodeComponent({ folder, level, active, onSelect, onRename, onDelete, onDrop }: FolderNodeProps) {
+const FolderNodeComponent = React.memo(function FolderNodeComponent({ folder, level, active, onSelect, onRename, onDelete, onDrop }: FolderNodeProps) {
   const [expanded, setExpanded] = useState(folder.expanded ?? true)
   const [isDragOver, setIsDragOver] = useState(false)
   const hasChildren = folder.children.length > 0
@@ -184,4 +184,4 @@ function FolderNodeComponent({ folder, level, active, onSelect, onRename, onDele
       )}
     </div>
   )
-}
+})

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback,useState } from 'react'
 
 import { Button } from './ui/button'
 import { Input } from './ui/input'
@@ -38,19 +38,40 @@ export function QueryPagination({
 }: QueryPaginationProps) {
   const [jumpToPage, setJumpToPage] = useState('')
 
-  const handleJumpToPage = () => {
+  const handleJumpToPage = useCallback(() => {
     const page = parseInt(jumpToPage, 10)
     if (page >= 1 && page <= totalPages) {
       onPageChange(page)
       setJumpToPage('')
     }
-  }
+  }, [jumpToPage, totalPages, onPageChange])
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       handleJumpToPage()
     }
-  }
+  }, [handleJumpToPage])
+
+  const handleJumpToPageInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setJumpToPage(e.target.value)
+  }, [])
+
+  const handlePageSizeChange = useCallback((value: string) => {
+    onPageSizeChange(parseInt(value, 10))
+  }, [onPageSizeChange])
+
+  const handleGoToFirst = useCallback(() => onPageChange(1), [onPageChange])
+  const handleGoToPrevious = useCallback(() => onPageChange(currentPage - 1), [onPageChange, currentPage])
+  const handleGoToNext = useCallback(() => onPageChange(currentPage + 1), [onPageChange, currentPage])
+  const handleGoToLast = useCallback(() => onPageChange(totalPages), [onPageChange, totalPages])
+
+  // Single handler for pagination links using data attributes to avoid inline functions in loops
+  const handlePageLinkClick = useCallback((e: React.MouseEvent<HTMLAnchorElement>) => {
+    const page = e.currentTarget.dataset.page
+    if (page) {
+      onPageChange(parseInt(page, 10))
+    }
+  }, [onPageChange])
 
   // Calculate page numbers to show
   const getPageNumbers = () => {
@@ -106,7 +127,7 @@ export function QueryPagination({
           <span>Rows per page:</span>
           <Select
             value={pageSize.toString()}
-            onValueChange={(value) => onPageSizeChange(parseInt(value, 10))}
+            onValueChange={handlePageSizeChange}
             disabled={loading}
           >
             <SelectTrigger className="h-8 w-20">
@@ -132,7 +153,7 @@ export function QueryPagination({
             min={1}
             max={totalPages}
             value={jumpToPage}
-            onChange={(e) => setJumpToPage(e.target.value)}
+            onChange={handleJumpToPageInputChange}
             onKeyPress={handleKeyPress}
             placeholder="Page"
             className="h-8 w-20"
@@ -154,13 +175,13 @@ export function QueryPagination({
           <PaginationContent>
             <PaginationItem>
               <PaginationFirst
-                onClick={() => onPageChange(1)}
+                onClick={handleGoToFirst}
                 className={currentPage === 1 || loading ? 'pointer-events-none opacity-50' : ''}
               />
             </PaginationItem>
             <PaginationItem>
               <PaginationPrevious
-                onClick={() => onPageChange(currentPage - 1)}
+                onClick={handleGoToPrevious}
                 className={currentPage === 1 || loading ? 'pointer-events-none opacity-50' : ''}
               />
             </PaginationItem>
@@ -171,7 +192,8 @@ export function QueryPagination({
                   <PaginationEllipsis />
                 ) : (
                   <PaginationLink
-                    onClick={() => onPageChange(page)}
+                    onClick={handlePageLinkClick}
+                    data-page={page}
                     isActive={currentPage === page}
                     className={loading ? 'pointer-events-none opacity-50' : ''}
                   >
@@ -183,13 +205,13 @@ export function QueryPagination({
 
             <PaginationItem>
               <PaginationNext
-                onClick={() => onPageChange(currentPage + 1)}
+                onClick={handleGoToNext}
                 className={currentPage === totalPages || loading ? 'pointer-events-none opacity-50' : ''}
               />
             </PaginationItem>
             <PaginationItem>
               <PaginationLast
-                onClick={() => onPageChange(totalPages)}
+                onClick={handleGoToLast}
                 className={currentPage === totalPages || loading ? 'pointer-events-none opacity-50' : ''}
               />
             </PaginationItem>

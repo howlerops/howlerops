@@ -7,6 +7,7 @@
 
 import { Loader2, Shield, Trash2, User,UserPlus } from 'lucide-react'
 import * as React from 'react'
+import { useCallback } from 'react'
 
 import { PermissionGate } from '@/components/PermissionGate'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -75,15 +76,15 @@ export function MembersList({
   const canInvite = hasPermission('members:invite')
   const canManage = hasPermission('members:remove')
 
-  const handleRoleChange = async (memberId: string, newRole: OrganizationRole) => {
+  const handleRoleChange = useCallback(async (memberId: string, newRole: OrganizationRole) => {
     try {
       await onRoleChange(memberId, { role: newRole })
     } catch (err) {
       console.error('Failed to change role:', err)
     }
-  }
+  }, [onRoleChange])
 
-  const handleRemove = async () => {
+  const handleRemove = useCallback(async () => {
     if (!removingMemberId) return
 
     try {
@@ -92,7 +93,19 @@ export function MembersList({
     } catch (err) {
       console.error('Failed to remove member:', err)
     }
-  }
+  }, [removingMemberId, onRemoveMember])
+
+  const handleCancelRemove = useCallback(() => {
+    setRemovingMemberId(null)
+  }, [])
+
+  // Handler for remove button using data attribute to avoid inline functions in loops
+  const handleRemoveClick = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
+    const memberId = e.currentTarget.dataset.memberId
+    if (memberId) {
+      setRemovingMemberId(memberId)
+    }
+  }, [])
 
   if (loading && members.length === 0) {
     return (
@@ -211,7 +224,8 @@ export function MembersList({
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => setRemovingMemberId(member.id)}
+                        data-member-id={member.id}
+                        onClick={handleRemoveClick}
                         aria-label={`Remove ${member.user?.email}`}
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
@@ -245,7 +259,7 @@ export function MembersList({
       </div>
 
       {/* Remove Member Confirmation Dialog */}
-      <Dialog open={!!removingMemberId} onOpenChange={() => setRemovingMemberId(null)}>
+      <Dialog open={!!removingMemberId} onOpenChange={handleCancelRemove}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Remove Member</DialogTitle>
@@ -256,7 +270,7 @@ export function MembersList({
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setRemovingMemberId(null)}>
+            <Button variant="outline" onClick={handleCancelRemove}>
               Cancel
             </Button>
             <Button variant="destructive" onClick={handleRemove}>
@@ -286,7 +300,7 @@ export function MembersListMobile({
 
   const canInvite = canRemoveMembers(currentUserRole)
 
-  const handleRemove = async () => {
+  const handleRemove = useCallback(async () => {
     if (!removingMemberId) return
 
     try {
@@ -296,7 +310,11 @@ export function MembersListMobile({
     } catch (err) {
       console.error('Failed to remove member:', err)
     }
-  }
+  }, [removingMemberId, onRemoveMember])
+
+  const handleCancelRemoveMobile = useCallback(() => {
+    setRemovingMemberId(null)
+  }, [])
 
   if (loading && members.length === 0) {
     return (
@@ -354,7 +372,7 @@ export function MembersListMobile({
       </div>
 
       {/* Remove Member Confirmation Dialog */}
-      <Dialog open={!!removingMemberId} onOpenChange={() => setRemovingMemberId(null)}>
+      <Dialog open={!!removingMemberId} onOpenChange={handleCancelRemoveMobile}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Remove Member</DialogTitle>
@@ -363,7 +381,7 @@ export function MembersListMobile({
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setRemovingMemberId(null)} size="sm">
+            <Button variant="outline" onClick={handleCancelRemoveMobile} size="sm">
               Cancel
             </Button>
             <Button variant="destructive" onClick={handleRemove} size="sm">

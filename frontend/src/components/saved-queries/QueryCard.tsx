@@ -25,7 +25,7 @@ import {
   Star,
   Trash2,
 } from 'lucide-react'
-import { useEffect,useState } from 'react'
+import React, { useEffect,useState } from 'react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -103,7 +103,7 @@ export interface QueryCardProps {
  * />
  * ```
  */
-export function QueryCard({
+export const QueryCard = React.memo(function QueryCard({
   query,
   onLoad,
   onEdit,
@@ -340,4 +340,4 @@ export function QueryCard({
       </Dialog>
     </>
   )
-}
+})

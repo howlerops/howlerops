@@ -8,7 +8,7 @@
  * Wrap your app with this provider to enable upgrade prompts globally.
  */
 
-import React, { createContext, useCallback,useContext, useEffect, useState } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 
 import {
   initializeReminderSystem,
@@ -119,10 +119,13 @@ export function UpgradeProvider({
     [shouldShowPrompt]
   )
 
-  const contextValue: UpgradeContextValue = {
-    showUpgrade,
-    isUpgradeModalOpen: isOpen,
-  }
+  const contextValue = useMemo<UpgradeContextValue>(
+    () => ({
+      showUpgrade,
+      isUpgradeModalOpen: isOpen,
+    }),
+    [showUpgrade, isOpen]
+  )
 
   return (
     <UpgradeContext.Provider value={contextValue}>

@@ -24,6 +24,7 @@ import {
   type UpdateConnectionInput,
 } from '@/lib/api/connections'
 import { exportMasterKeyToBase64 } from '@/lib/crypto/encryption'
+import { dedupedRequest } from '@/lib/request-deduplication'
 import { getSecureStorage } from '@/lib/secure-storage'
 import { useAuthStore } from '@/store/auth-store'
 
@@ -142,55 +143,59 @@ export const useConnectionsStore = create<ConnectionsStore>()(
       // ================================================================
 
       fetchConnections: async () => {
-        set({ loading: true, error: null }, false, 'fetchConnections/start')
+        return dedupedRequest('fetchConnections', async () => {
+          set({ loading: true, error: null }, false, 'fetchConnections/start')
 
-        try {
-          const connections = await getConnections()
+          try {
+            const connections = await getConnections()
 
-          set(
-            { connections, loading: false },
-            false,
-            'fetchConnections/success'
-          )
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : 'Failed to fetch connections'
+            set(
+              { connections, loading: false },
+              false,
+              'fetchConnections/success'
+            )
+          } catch (error) {
+            const errorMessage =
+              error instanceof Error ? error.message : 'Failed to fetch connections'
 
-          set(
-            { error: errorMessage, loading: false },
-            false,
-            'fetchConnections/error'
-          )
+            set(
+              { error: errorMessage, loading: false },
+              false,
+              'fetchConnections/error'
+            )
 
-          throw error
-        }
+            throw error
+          }
+        })
       },
 
       fetchSharedConnections: async (orgId: string) => {
-        set({ loading: true, error: null }, false, 'fetchSharedConnections/start')
+        return dedupedRequest(`fetchSharedConnections-${orgId}`, async () => {
+          set({ loading: true, error: null }, false, 'fetchSharedConnections/start')
 
-        try {
-          const sharedConnections = await getOrganizationConnections(orgId)
+          try {
+            const sharedConnections = await getOrganizationConnections(orgId)
 
-          set(
-            { sharedConnections, loading: false },
-            false,
-            'fetchSharedConnections/success'
-          )
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error
-              ? error.message
-              : 'Failed to fetch shared connections'
+            set(
+              { sharedConnections, loading: false },
+              false,
+              'fetchSharedConnections/success'
+            )
+          } catch (error) {
+            const errorMessage =
+              error instanceof Error
+                ? error.message
+                : 'Failed to fetch shared connections'
 
-          set(
-            { error: errorMessage, loading: false },
-            false,
-            'fetchSharedConnections/error'
-          )
+            set(
+              { error: errorMessage, loading: false },
+              false,
+              'fetchSharedConnections/error'
+            )
 
-          throw error
-        }
+            throw error
+          }
+        })
       },
 
       createConnection: async (input) => {
@@ -279,41 +284,43 @@ export const useConnectionsStore = create<ConnectionsStore>()(
       },
 
       deleteConnection: async (id) => {
-        const state = get()
-        const originalConnections = [...state.connections]
+        return dedupedRequest(`deleteConnection-${id}`, async () => {
+          const state = get()
+          const originalConnections = [...state.connections]
 
-        // Optimistic removal
-        set(
-          (state) => ({
-            connections: state.connections.filter((c) => c.id !== id),
-            loading: true,
-            error: null,
-          }),
-          false,
-          'deleteConnection/optimistic'
-        )
-
-        try {
-          await apiDeleteConnection(id)
-
-          set({ loading: false }, false, 'deleteConnection/success')
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : 'Failed to delete connection'
-
-          // Rollback optimistic removal
+          // Optimistic removal
           set(
-            {
-              connections: originalConnections,
-              error: errorMessage,
-              loading: false,
-            },
+            (state) => ({
+              connections: state.connections.filter((c) => c.id !== id),
+              loading: true,
+              error: null,
+            }),
             false,
-            'deleteConnection/rollback'
+            'deleteConnection/optimistic'
           )
 
-          throw error
-        }
+          try {
+            await apiDeleteConnection(id)
+
+            set({ loading: false }, false, 'deleteConnection/success')
+          } catch (error) {
+            const errorMessage =
+              error instanceof Error ? error.message : 'Failed to delete connection'
+
+            // Rollback optimistic removal
+            set(
+              {
+                connections: originalConnections,
+                error: errorMessage,
+                loading: false,
+              },
+              false,
+              'deleteConnection/rollback'
+            )
+
+            throw error
+          }
+        })
       },
 
       // ================================================================
@@ -321,125 +328,129 @@ export const useConnectionsStore = create<ConnectionsStore>()(
       // ================================================================
 
       shareConnection: async (id, orgId) => {
-        const state = get()
-        const originalConnection = state.connections.find((c) => c.id === id)
+        return dedupedRequest(`shareConnection-${id}-${orgId}`, async () => {
+          const state = get()
+          const originalConnection = state.connections.find((c) => c.id === id)
 
-        if (!originalConnection) {
-          throw new Error('Connection not found')
-        }
-
-        // Optimistic update
-        set(
-          (state) => ({
-            connections: state.connections.map((c) =>
-              c.id === id
-                ? { ...c, visibility: 'shared', organization_id: orgId }
-                : c
-            ),
-            loading: true,
-            error: null,
-          }),
-          false,
-          'shareConnection/optimistic'
-        )
-
-        try {
-          // Try OEK-aware credential sharing first
-          // This re-encrypts the password with the organization's envelope key
-          const masterKey = useAuthStore.getState().getMasterKey()
-          const secureStorage = getSecureStorage()
-          const credentials = await secureStorage.getCredentials(id)
-
-          if (masterKey && credentials?.password) {
-            // Use credential-aware sharing with OEK encryption
-            const masterKeyBase64 = await exportMasterKeyToBase64(masterKey)
-            await apiShareConnectionWithCredential(id, {
-              organization_id: orgId,
-              master_key: masterKeyBase64,
-              password: credentials.password,
-            })
-          } else {
-            // Fall back to basic sharing (no credential re-encryption)
-            // This works for connections without stored passwords
-            await apiShareConnection(id, orgId)
+          if (!originalConnection) {
+            throw new Error('Connection not found')
           }
 
-          set({ loading: false }, false, 'shareConnection/success')
-
-          // Refresh shared connections for this org
-          await get().fetchSharedConnections(orgId)
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : 'Failed to share connection'
-
-          // Rollback optimistic update
+          // Optimistic update
           set(
             (state) => ({
               connections: state.connections.map((c) =>
-                c.id === id ? originalConnection : c
+                c.id === id
+                  ? { ...c, visibility: 'shared', organization_id: orgId }
+                  : c
               ),
-              error: errorMessage,
-              loading: false,
+              loading: true,
+              error: null,
             }),
             false,
-            'shareConnection/rollback'
+            'shareConnection/optimistic'
           )
 
-          throw error
-        }
+          try {
+            // Try OEK-aware credential sharing first
+            // This re-encrypts the password with the organization's envelope key
+            const masterKey = useAuthStore.getState().getMasterKey()
+            const secureStorage = getSecureStorage()
+            const credentials = await secureStorage.getCredentials(id)
+
+            if (masterKey && credentials?.password) {
+              // Use credential-aware sharing with OEK encryption
+              const masterKeyBase64 = await exportMasterKeyToBase64(masterKey)
+              await apiShareConnectionWithCredential(id, {
+                organization_id: orgId,
+                master_key: masterKeyBase64,
+                password: credentials.password,
+              })
+            } else {
+              // Fall back to basic sharing (no credential re-encryption)
+              // This works for connections without stored passwords
+              await apiShareConnection(id, orgId)
+            }
+
+            set({ loading: false }, false, 'shareConnection/success')
+
+            // Refresh shared connections for this org
+            await get().fetchSharedConnections(orgId)
+          } catch (error) {
+            const errorMessage =
+              error instanceof Error ? error.message : 'Failed to share connection'
+
+            // Rollback optimistic update
+            set(
+              (state) => ({
+                connections: state.connections.map((c) =>
+                  c.id === id ? originalConnection : c
+                ),
+                error: errorMessage,
+                loading: false,
+              }),
+              false,
+              'shareConnection/rollback'
+            )
+
+            throw error
+          }
+        })
       },
 
       unshareConnection: async (id) => {
-        const state = get()
-        const originalConnection = state.connections.find((c) => c.id === id)
+        return dedupedRequest(`unshareConnection-${id}`, async () => {
+          const state = get()
+          const originalConnection = state.connections.find((c) => c.id === id)
 
-        if (!originalConnection) {
-          throw new Error('Connection not found')
-        }
-
-        // Optimistic update
-        set(
-          (state) => ({
-            connections: state.connections.map((c) =>
-              c.id === id
-                ? { ...c, visibility: 'personal', organization_id: null }
-                : c
-            ),
-            loading: true,
-            error: null,
-          }),
-          false,
-          'unshareConnection/optimistic'
-        )
-
-        try {
-          await apiUnshareConnection(id)
-
-          set({ loading: false }, false, 'unshareConnection/success')
-
-          // Refresh shared connections
-          if (originalConnection.organization_id) {
-            await get().fetchSharedConnections(originalConnection.organization_id)
+          if (!originalConnection) {
+            throw new Error('Connection not found')
           }
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : 'Failed to unshare connection'
 
-          // Rollback optimistic update
+          // Optimistic update
           set(
             (state) => ({
               connections: state.connections.map((c) =>
-                c.id === id ? originalConnection : c
+                c.id === id
+                  ? { ...c, visibility: 'personal', organization_id: null }
+                  : c
               ),
-              error: errorMessage,
-              loading: false,
+              loading: true,
+              error: null,
             }),
             false,
-            'unshareConnection/rollback'
+            'unshareConnection/optimistic'
           )
 
-          throw error
-        }
+          try {
+            await apiUnshareConnection(id)
+
+            set({ loading: false }, false, 'unshareConnection/success')
+
+            // Refresh shared connections
+            if (originalConnection.organization_id) {
+              await get().fetchSharedConnections(originalConnection.organization_id)
+            }
+          } catch (error) {
+            const errorMessage =
+              error instanceof Error ? error.message : 'Failed to unshare connection'
+
+            // Rollback optimistic update
+            set(
+              (state) => ({
+                connections: state.connections.map((c) =>
+                  c.id === id ? originalConnection : c
+                ),
+                error: errorMessage,
+                loading: false,
+              }),
+              false,
+              'unshareConnection/rollback'
+            )
+
+            throw error
+          }
+        })
       },
 
       // ================================================================

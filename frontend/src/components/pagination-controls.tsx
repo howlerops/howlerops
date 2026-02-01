@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react'
-import { useCallback, useMemo, useState } from 'react'
+import React, { useCallback, useMemo, useState } from 'react'
 
 import { Button } from './ui/button'
 import { Input } from './ui/input'
@@ -17,7 +17,7 @@ export interface PaginationControlsProps {
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100, 500, 1000]
 
-export const PaginationControls = ({
+export const PaginationControls = React.memo(function PaginationControls({
   currentPage,
   pageSize,
   totalRows,
@@ -25,7 +25,7 @@ export const PaginationControls = ({
   onPageSizeChange,
   disabled = false,
   compact = false,
-}: PaginationControlsProps) => {
+}: PaginationControlsProps) {
   const [jumpToPage, setJumpToPage] = useState('')
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(totalRows / pageSize)), [totalRows, pageSize])
@@ -183,4 +183,4 @@ export const PaginationControls = ({
       </div>
     </div>
   )
-}
+})

@@ -16,6 +16,7 @@
 import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
 
+import { dedupedRequest } from '@/lib/request-deduplication'
 import {
   getRequiredTier,
   isTierAtLeast,
@@ -252,44 +253,46 @@ export const useTierStore = create<TierStore>()(
         },
 
         activateLicense: async (key: string) => {
-          try {
-            const validation = await validateLicenseKey(key)
+          return dedupedRequest(`activateLicense-${key}`, async () => {
+            try {
+              const validation = await validateLicenseKey(key)
 
-            if (!validation.valid) {
+              if (!validation.valid) {
+                return {
+                  success: false,
+                  error: validation.message || 'Invalid license key',
+                }
+              }
+
+              if (!validation.tier) {
+                return {
+                  success: false,
+                  error: 'License key does not specify a tier',
+                }
+              }
+
+              set(
+                {
+                  currentTier: validation.tier,
+                  licenseKey: key,
+                  expiresAt: validation.expiresAt,
+                  lastValidated: new Date(),
+                },
+                false,
+                'activateLicense'
+              )
+
+              return {
+                success: true,
+                tier: validation.tier,
+              }
+            } catch (error) {
               return {
                 success: false,
-                error: validation.message || 'Invalid license key',
+                error: error instanceof Error ? error.message : 'Unknown error',
               }
             }
-
-            if (!validation.tier) {
-              return {
-                success: false,
-                error: 'License key does not specify a tier',
-              }
-            }
-
-            set(
-              {
-                currentTier: validation.tier,
-                licenseKey: key,
-                expiresAt: validation.expiresAt,
-                lastValidated: new Date(),
-              },
-              false,
-              'activateLicense'
-            )
-
-            return {
-              success: true,
-              tier: validation.tier,
-            }
-          } catch (error) {
-            return {
-              success: false,
-              error: error instanceof Error ? error.message : 'Unknown error',
-            }
-          }
+          })
         },
 
         deactivateLicense: () => {
@@ -438,38 +441,40 @@ export const useTierStore = create<TierStore>()(
         },
 
         validateLicense: async () => {
-          const state = get()
+          return dedupedRequest('validateLicense', async () => {
+            const state = get()
 
-          if (!state.licenseKey) {
-            return true // No license to validate
-          }
+            if (!state.licenseKey) {
+              return true // No license to validate
+            }
 
-          try {
-            const validation = await validateLicenseKey(state.licenseKey)
+            try {
+              const validation = await validateLicenseKey(state.licenseKey)
 
-            if (!validation.valid) {
-              // License is no longer valid, revert to local tier
-              get().deactivateLicense()
+              if (!validation.valid) {
+                // License is no longer valid, revert to local tier
+                get().deactivateLicense()
+                return false
+              }
+
+              // Update expiration date if it changed
+              if (validation.expiresAt) {
+                set(
+                  {
+                    expiresAt: validation.expiresAt,
+                    lastValidated: new Date(),
+                  },
+                  false,
+                  'validateLicense'
+                )
+              }
+
+              return true
+            } catch (error) {
+              console.error('License validation error:', error)
               return false
             }
-
-            // Update expiration date if it changed
-            if (validation.expiresAt) {
-              set(
-                {
-                  expiresAt: validation.expiresAt,
-                  lastValidated: new Date(),
-                },
-                false,
-                'validateLicense'
-              )
-            }
-
-            return true
-          } catch (error) {
-            console.error('License validation error:', error)
-            return false
-          }
+          })
         },
 
         initialize: () => {

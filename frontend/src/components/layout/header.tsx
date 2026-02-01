@@ -1,5 +1,6 @@
 import { Database, Moon, Plus, Sparkles, Sun } from "lucide-react"
 import { Link } from "react-router-dom"
+import { useShallow } from "zustand/react/shallow"
 
 import { AuthButton } from "@/components/auth/auth-button"
 import { TierBadge } from "@/components/tier-badge"
@@ -20,12 +21,18 @@ import { useQueryStore } from "@/store/query-store"
 
 export function Header() {
   const { theme, setTheme } = useTheme()
-  const { createTab } = useQueryStore()
-  const setActiveTab = useQueryStore(state => state.setActiveTab)
-  const { activeConnection } = useConnectionStore()
+  const { createTab, setActiveTab } = useQueryStore(useShallow((state) => ({
+    createTab: state.createTab,
+    setActiveTab: state.setActiveTab,
+  })))
+  const { activeConnection } = useConnectionStore(useShallow((state) => ({
+    activeConnection: state.activeConnection,
+  })))
   const { config: aiConfig } = useAIConfig()
-  const createAgentSession = useAIQueryAgentStore(state => state.createSession)
-  const setActiveAgentSession = useAIQueryAgentStore(state => state.setActiveSession)
+  const { createAgentSession, setActiveAgentSession } = useAIQueryAgentStore(useShallow((state) => ({
+    createAgentSession: state.createSession,
+    setActiveAgentSession: state.setActiveSession,
+  })))
 
   const toggleTheme = () => {
     setTheme(theme === "light" ? "dark" : "light")

@@ -7,6 +7,7 @@
 
 import { Building2, Check, ChevronsUpDown, Plus,User } from 'lucide-react'
 import * as React from 'react'
+import { useCallback, useMemo } from 'react'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -45,18 +46,20 @@ export function OrganizationSwitcher({
     <User className="h-4 w-4" />
   )
 
+  const handleValueChange = useCallback((value: string) => {
+    if (value === 'personal') {
+      onOrganizationChange(null)
+    } else if (value === 'create') {
+      onCreateClick?.()
+    } else {
+      onOrganizationChange(value)
+    }
+  }, [onOrganizationChange, onCreateClick])
+
   return (
     <Select
       value={currentOrganizationId || 'personal'}
-      onValueChange={(value) => {
-        if (value === 'personal') {
-          onOrganizationChange(null)
-        } else if (value === 'create') {
-          onCreateClick?.()
-        } else {
-          onOrganizationChange(value)
-        }
-      }}
+      onValueChange={handleValueChange}
       disabled={loading}
     >
       <SelectTrigger
@@ -121,10 +124,36 @@ export function OrganizationSwitcherCompact({
     <User className="h-5 w-5" />
   )
 
-  const handleSelect = (organizationId: string | null) => {
+  const handleSelect = useCallback((organizationId: string | null) => {
     onOrganizationChange(organizationId)
     setOpen(false)
-  }
+  }, [onOrganizationChange])
+
+  const handleToggleOpen = useCallback(() => {
+    setOpen(prev => !prev)
+  }, [])
+
+  const handleCloseBackdrop = useCallback(() => {
+    setOpen(false)
+  }, [])
+
+  const handleSelectPersonal = useCallback(() => {
+    handleSelect(null)
+  }, [handleSelect])
+
+  const handleCreateClick = useCallback(() => {
+    setOpen(false)
+    onCreateClick?.()
+  }, [onCreateClick])
+
+  // Memoize click handlers for each organization to avoid inline functions in loops
+  const orgClickHandlers = useMemo(() => {
+    const handlers = new Map<string, () => void>()
+    organizations.forEach(org => {
+      handlers.set(org.id, () => handleSelect(org.id))
+    })
+    return handlers
+  }, [organizations, handleSelect])
 
   return (
     <div className={cn('relative', className)}>
@@ -134,7 +163,7 @@ export function OrganizationSwitcherCompact({
         aria-expanded={open}
         aria-label="Select organization"
         className="w-full justify-between"
-        onClick={() => setOpen(!open)}
+        onClick={handleToggleOpen}
         disabled={loading}
       >
         <div className="flex items-center gap-2 min-w-0">
@@ -149,7 +178,7 @@ export function OrganizationSwitcherCompact({
           {/* Backdrop */}
           <div
             className="fixed inset-0 z-40"
-            onClick={() => setOpen(false)}
+            onClick={handleCloseBackdrop}
             aria-hidden="true"
           />
 
@@ -157,7 +186,7 @@ export function OrganizationSwitcherCompact({
           <div className="absolute top-full left-0 right-0 mt-2 z-50 rounded-md border bg-popover shadow-md">
             <div className="p-1">
               <button
-                onClick={() => handleSelect(null)}
+                onClick={handleSelectPersonal}
                 className={cn(
                   'w-full flex items-center gap-3 px-3 py-2 text-sm rounded-sm hover:bg-accent transition-colors',
                   !currentOrganizationId && 'bg-accent'
@@ -175,7 +204,7 @@ export function OrganizationSwitcherCompact({
               {organizations.map((org) => (
                 <button
                   key={org.id}
-                  onClick={() => handleSelect(org.id)}
+                  onClick={orgClickHandlers.get(org.id)}
                   className={cn(
                     'w-full flex items-center gap-3 px-3 py-2 text-sm rounded-sm hover:bg-accent transition-colors',
                     currentOrganizationId === org.id && 'bg-accent'
@@ -191,10 +220,7 @@ export function OrganizationSwitcherCompact({
                 <>
                   <div className="h-px bg-border my-1" />
                   <button
-                    onClick={() => {
-                      setOpen(false)
-                      onCreateClick()
-                    }}
+                    onClick={handleCreateClick}
                     className="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-sm hover:bg-accent transition-colors text-primary"
                   >
                     <Plus className="h-4 w-4" />

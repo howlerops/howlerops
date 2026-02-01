@@ -19,6 +19,7 @@ import {
   Trash2,
   Users,
 } from 'lucide-react'
+import React from 'react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -94,7 +95,7 @@ function isConnection(resource: Resource): resource is Connection {
  * />
  * ```
  */
-export function SharedResourceCard({
+export const SharedResourceCard = React.memo(function SharedResourceCard({
   resource,
   type,
   onView,
@@ -276,4 +277,4 @@ export function SharedResourceCard({
       </CardContent>
     </Card>
   )
-}
+})

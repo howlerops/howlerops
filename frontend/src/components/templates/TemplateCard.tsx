@@ -53,7 +53,7 @@ const CATEGORY_COLORS = {
   custom: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
 }
 
-export function TemplateCard({
+export const TemplateCard = React.memo(function TemplateCard({
   template,
   onExecute,
   onEdit,
@@ -204,7 +204,7 @@ export function TemplateCard({
       )}
     </Card>
   )
-}
+})
 
 // Skeleton loader for template cards
 export function TemplateCardSkeleton() {

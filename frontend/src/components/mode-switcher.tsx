@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import { CheckCircle2, ChevronDown, Circle,Database, Info, Network } from 'lucide-react'
 import { useEffect, useRef,useState } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -70,7 +71,11 @@ const modeConfigs: Record<'single' | 'multi', ModeConfig> = {
 }
 
 export function ModeSwitcher({ mode, toggleMode, className }: ModeSwitcherProps) {
-  const { connections, getFilteredConnections, activeEnvironmentFilter } = useConnectionStore()
+  const { connections, getFilteredConnections, activeEnvironmentFilter } = useConnectionStore(useShallow((state) => ({
+    connections: state.connections,
+    getFilteredConnections: state.getFilteredConnections,
+    activeEnvironmentFilter: state.activeEnvironmentFilter,
+  })))
   const [isOpen, setIsOpen] = useState(false)
 
   const currentConfig = modeConfigs[mode]

@@ -3,6 +3,7 @@ import { useCallback, useRef, useState } from "react"
 import { PageErrorBoundary } from "@/components/page-error-boundary"
 import { QueryEditor, type QueryEditorHandle } from "@/components/query-editor"
 import { ResultsPanel } from "@/components/results-panel"
+import { QueryActionsProvider } from "@/contexts"
 import { useQueryMode } from "@/hooks/use-query-mode"
 
 const MIN_PANEL_FRACTION = 0.02
@@ -73,7 +74,9 @@ export function Dashboard() {
           className="flex min-h-[64px] flex-col overflow-hidden"
           style={{ flexGrow: 1 - editorFraction, flexShrink: 1, flexBasis: 0 }}
         >
-          <ResultsPanel onFixWithAI={handleFixWithAI} onPageChange={handlePageChange} />
+          <QueryActionsProvider onFixWithAI={handleFixWithAI} onPageChange={handlePageChange}>
+            <ResultsPanel />
+          </QueryActionsProvider>
         </div>
       </div>
     </PageErrorBoundary>

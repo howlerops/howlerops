@@ -7,6 +7,7 @@
 
 import { CheckCircle2, Circle,Network } from 'lucide-react'
 import { useEffect,useState } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -36,7 +37,9 @@ export function MultiDBConnectionSelector({
   onSelectionChange,
   filteredConnections
 }: MultiDBConnectionSelectorProps) {
-  const { getFilteredConnections } = useConnectionStore()
+  const { getFilteredConnections } = useConnectionStore(useShallow((state) => ({
+    getFilteredConnections: state.getFilteredConnections,
+  })))
   const connections = filteredConnections || getFilteredConnections()
   
   const [localSelection, setLocalSelection] = useState<string[]>(selectedConnectionIds)

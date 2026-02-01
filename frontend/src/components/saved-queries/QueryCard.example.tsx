@@ -6,7 +6,7 @@
 
 import { toast } from 'sonner'
 
-import { useSavedQueriesStore } from '@/store/saved-queries-store'
+import { useSavedQueriesStore } from '@/store/queries-store'
 import type { SavedQueryRecord } from '@/types/storage'
 
 import { QueryCard } from './QueryCard'

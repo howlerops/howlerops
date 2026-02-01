@@ -1,5 +1,5 @@
 import { MousePointerClick } from 'lucide-react'
-import { useMemo } from 'react'
+import React, { useMemo } from 'react'
 import {
   Area,
   AreaChart,
@@ -169,7 +169,7 @@ function CustomTooltip({ active, payload, label, drillDownEnabled }: any) {
 /**
  * Main chart renderer component
  */
-export function ChartRenderer({
+export const ChartRenderer = React.memo(function ChartRenderer({
   data,
   chartConfig,
   drillDownConfig,
@@ -367,4 +367,4 @@ export function ChartRenderer({
       </p>
     </div>
   )
-}
+})

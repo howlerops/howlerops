@@ -1,435 +1,587 @@
 /**
- * Queries Store
+ * Unified Queries Store
  *
- * Zustand store for managing saved queries with organization sharing.
- * Provides CRUD operations, sharing/unsharing, and permission-aware filtering.
+ * Zustand store for managing saved queries with both local storage and server sync.
+ * Combines personal query library (IndexedDB) with organization sharing (API).
+ *
+ * Features:
+ * - CRUD operations with IndexedDB for local-first storage
+ * - Organization sharing via server API
+ * - Search, filter, and folder organization
+ * - Tier-aware limit checking
+ * - Optimistic updates with rollback
  *
  * @module store/queries-store
  */
 
+import { useEffect } from 'react'
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
 
+import { dedupedRequest } from '@/lib/request-deduplication'
 import {
-  createQuery as apiCreateQuery,
-  type CreateQueryInput,
-  deleteQuery as apiDeleteQuery,
   getOrganizationQueries,
-  getQueries,
-  type SavedQuery,
+  type SavedQuery as ServerSavedQuery,
   shareQuery as apiShareQuery,
   unshareQuery as apiUnshareQuery,
-  updateQuery as apiUpdateQuery,
-  type UpdateQueryInput,
 } from '@/lib/api/queries'
+import {
+  getSavedQueryRepository,
+  type SavedQuerySearchOptions,
+} from '@/lib/storage'
+import type { SavedQueryRecord } from '@/types/storage'
+
+import { useTierStore } from './tier-store'
+
+// ============================================================================
+// Types
+// ============================================================================
+
+/**
+ * Combined query type that works with both local and server data
+ */
+export type SavedQuery = SavedQueryRecord
+
+/**
+ * Re-export ServerSavedQuery for components that need it
+ */
+export type { ServerSavedQuery }
 
 /**
  * Store state interface
  */
 interface QueriesState {
-  /** Personal and accessible shared queries */
-  queries: SavedQuery[]
+  // Local queries (from IndexedDB)
+  queries: SavedQueryRecord[]
+  totalCount: number
 
-  /** Queries shared in current organization (cached) */
-  sharedQueries: SavedQuery[]
+  // Shared queries from organization (from server API)
+  sharedQueries: ServerSavedQuery[]
 
-  /** Loading states */
-  loading: boolean
-
-  /** Error message if operation failed */
+  // Loading states
+  isLoading: boolean
   error: string | null
+
+  // Search & filter state
+  searchText: string
+  selectedFolder: string | null
+  selectedTags: string[]
+  showFavoritesOnly: boolean
+  sortBy: 'title' | 'created_at' | 'updated_at'
+  sortDirection: 'asc' | 'desc'
+
+  // Metadata
+  folders: string[]
+  tags: string[]
+  isInitialized: boolean
 }
 
 /**
  * Store actions interface
  */
 interface QueriesActions {
-  // CRUD operations
-  /**
-   * Fetch all queries for current user
-   */
-  fetchQueries: () => Promise<void>
-
-  /**
-   * Fetch shared queries for an organization
-   */
+  // Data loading
+  loadQueries: (userId: string) => Promise<void>
+  loadMetadata: (userId: string) => Promise<void>
+  refresh: (userId: string) => Promise<void>
   fetchSharedQueries: (orgId: string) => Promise<void>
 
-  /**
-   * Create a new query
-   */
-  createQuery: (input: CreateQueryInput) => Promise<SavedQuery>
-
-  /**
-   * Update an existing query
-   */
-  updateQuery: (id: string, input: UpdateQueryInput) => Promise<void>
-
-  /**
-   * Delete a query
-   */
+  // CRUD operations (local storage)
+  saveQuery: (data: {
+    user_id: string
+    title: string
+    description?: string
+    query_text: string
+    tags?: string[]
+    folder?: string
+    is_favorite?: boolean
+  }) => Promise<SavedQueryRecord>
+  updateQuery: (
+    id: string,
+    updates: {
+      title?: string
+      description?: string
+      query_text?: string
+      tags?: string[]
+      folder?: string
+      is_favorite?: boolean
+    }
+  ) => Promise<void>
   deleteQuery: (id: string) => Promise<void>
+  duplicateQuery: (id: string) => Promise<SavedQueryRecord>
+  toggleFavorite: (id: string) => Promise<void>
 
-  // Sharing operations
-  /**
-   * Share a query with an organization
-   */
+  // Sharing operations (server API)
   shareQuery: (id: string, orgId: string) => Promise<void>
-
-  /**
-   * Unshare a query (make it personal)
-   */
   unshareQuery: (id: string) => Promise<void>
 
-  // Filtering
-  /**
-   * Get queries by organization ID
-   */
-  getQueriesByOrg: (orgId: string) => SavedQuery[]
+  // Search & filter
+  setSearchText: (text: string) => void
+  setSelectedFolder: (folder: string | null) => void
+  setSelectedTags: (tags: string[]) => void
+  toggleTag: (tag: string) => void
+  setShowFavoritesOnly: (show: boolean) => void
+  setSortBy: (sortBy: 'title' | 'created_at' | 'updated_at') => void
+  setSortDirection: (direction: 'asc' | 'desc') => void
+  clearFilters: () => void
 
-  /**
-   * Get only personal queries
-   */
-  getPersonalQueries: () => SavedQuery[]
+  // Filtering helpers
+  getQueriesByOrg: (orgId: string) => ServerSavedQuery[]
+  getPersonalQueries: () => SavedQueryRecord[]
+  getQueriesByTag: (tag: string) => SavedQueryRecord[]
 
-  /**
-   * Get queries by tag
-   */
-  getQueriesByTag: (tag: string) => SavedQuery[]
-
-  // Utilities
-  /**
-   * Clear error message
-   */
+  // Utility
+  getQueryById: (id: string) => SavedQueryRecord | undefined
+  canSaveMore: () => boolean
+  getRemainingQuota: () => number | null
   clearError: () => void
+  reset: () => void
 }
 
 type QueriesStore = QueriesState & QueriesActions
 
-/**
- * Default initial state
- */
-const DEFAULT_STATE: QueriesState = {
+// ============================================================================
+// Initial State
+// ============================================================================
+
+const initialState: QueriesState = {
   queries: [],
+  totalCount: 0,
   sharedQueries: [],
-  loading: false,
+  isLoading: false,
   error: null,
+  searchText: '',
+  selectedFolder: null,
+  selectedTags: [],
+  showFavoritesOnly: false,
+  sortBy: 'updated_at',
+  sortDirection: 'desc',
+  folders: [],
+  tags: [],
+  isInitialized: false,
 }
 
+// ============================================================================
+// Store Implementation
+// ============================================================================
+
 /**
- * Queries Management Store
+ * Unified Queries Store
  *
  * Usage:
  * ```typescript
- * const { queries, shareQuery } = useQueriesStore()
+ * const { queries, saveQuery, shareQuery } = useQueriesStore()
  *
- * // Share a query
- * await shareQuery(queryId, orgId)
+ * // Save a new query locally
+ * const query = await saveQuery({ user_id, title, query_text })
  *
- * // Get org queries
- * const orgQueries = getQueriesByOrg(orgId)
+ * // Share with organization
+ * await shareQuery(query.id, orgId)
+ *
+ * // Get shared queries
+ * await fetchSharedQueries(orgId)
  * ```
  */
 export const useQueriesStore = create<QueriesStore>()(
   devtools(
     (set, get) => ({
-      ...DEFAULT_STATE,
+      ...initialState,
 
       // ================================================================
-      // CRUD Operations
+      // Data Loading
       // ================================================================
 
-      fetchQueries: async () => {
-        set({ loading: true, error: null }, false, 'fetchQueries/start')
+      loadQueries: async (userId: string) => {
+        return dedupedRequest(`loadQueries-${userId}`, async () => {
+          set({ isLoading: true, error: null }, false, 'loadQueries/start')
 
-        try {
-          const queries = await getQueries()
+          try {
+            const repo = getSavedQueryRepository()
+            const state = get()
 
-          set({ queries, loading: false }, false, 'fetchQueries/success')
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : 'Failed to fetch queries'
+            // Build search options from current filter state
+            const searchOptions: SavedQuerySearchOptions = {
+              userId,
+              searchText: state.searchText || undefined,
+              folder: state.selectedFolder || undefined,
+              tags: state.selectedTags.length > 0 ? state.selectedTags : [],
+              favoritesOnly: state.showFavoritesOnly,
+              sortBy: state.sortBy,
+              sortDirection: state.sortDirection,
+              limit: 1000, // Get all for now, implement pagination later
+            }
 
-          set(
-            { error: errorMessage, loading: false },
-            false,
-            'fetchQueries/error'
-          )
+            const result = await repo.search(searchOptions)
 
-          throw error
-        }
+            set(
+              {
+                queries: result.items,
+                totalCount: result.total ?? result.items.length,
+                isLoading: false,
+                isInitialized: true,
+              },
+              false,
+              'loadQueries/success'
+            )
+          } catch (error) {
+            console.error('Failed to load saved queries:', error)
+            set(
+              {
+                error:
+                  error instanceof Error
+                    ? error.message
+                    : 'Failed to load queries',
+                isLoading: false,
+              },
+              false,
+              'loadQueries/error'
+            )
+          }
+        })
+      },
+
+      loadMetadata: async (userId: string) => {
+        return dedupedRequest(`loadMetadata-${userId}`, async () => {
+          try {
+            const repo = getSavedQueryRepository()
+            const [folders, tags] = await Promise.all([
+              repo.getAllFolders(userId),
+              repo.getAllTags(userId),
+            ])
+
+            set({ folders, tags }, false, 'loadMetadata/success')
+          } catch (error) {
+            console.error('Failed to load metadata:', error)
+          }
+        })
+      },
+
+      refresh: async (userId: string) => {
+        await Promise.all([get().loadQueries(userId), get().loadMetadata(userId)])
       },
 
       fetchSharedQueries: async (orgId: string) => {
-        set({ loading: true, error: null }, false, 'fetchSharedQueries/start')
+        return dedupedRequest(`fetchSharedQueries-${orgId}`, async () => {
+          set({ isLoading: true, error: null }, false, 'fetchSharedQueries/start')
 
-        try {
-          const sharedQueries = await getOrganizationQueries(orgId)
+          try {
+            const sharedQueries = await getOrganizationQueries(orgId)
 
-          set(
-            { sharedQueries, loading: false },
-            false,
-            'fetchSharedQueries/success'
-          )
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error
-              ? error.message
-              : 'Failed to fetch shared queries'
+            set(
+              { sharedQueries, isLoading: false },
+              false,
+              'fetchSharedQueries/success'
+            )
+          } catch (error) {
+            const errorMessage =
+              error instanceof Error
+                ? error.message
+                : 'Failed to fetch shared queries'
 
-          set(
-            { error: errorMessage, loading: false },
-            false,
-            'fetchSharedQueries/error'
-          )
+            set(
+              { error: errorMessage, isLoading: false },
+              false,
+              'fetchSharedQueries/error'
+            )
 
-          throw error
-        }
+            throw error
+          }
+        })
       },
 
-      createQuery: async (input) => {
-        set({ loading: true, error: null }, false, 'createQuery/start')
+      // ================================================================
+      // CRUD Operations (Local Storage)
+      // ================================================================
+
+      saveQuery: async (data) => {
+        const repo = getSavedQueryRepository()
 
         try {
-          const newQuery = await apiCreateQuery(input)
+          const query = await repo.create({
+            user_id: data.user_id,
+            title: data.title,
+            description: data.description,
+            query_text: data.query_text,
+            tags: data.tags ?? [],
+            folder: data.folder,
+            is_favorite: data.is_favorite ?? false,
+          })
 
+          // Add to state optimistically
           set(
             (state) => ({
-              queries: [...state.queries, newQuery],
-              loading: false,
+              queries: [query, ...state.queries],
+              totalCount: state.totalCount + 1,
             }),
             false,
-            'createQuery/success'
+            'saveQuery/success'
           )
 
-          return newQuery
+          // Reload metadata to update folders/tags
+          await get().loadMetadata(data.user_id)
+
+          return query
         } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : 'Failed to create query'
-
-          set(
-            { error: errorMessage, loading: false },
-            false,
-            'createQuery/error'
-          )
-
+          console.error('Failed to save query:', error)
           throw error
         }
       },
 
-      updateQuery: async (id, input) => {
-        const state = get()
-        const originalQuery = state.queries.find((q) => q.id === id)
+      updateQuery: async (id, updates) => {
+        const repo = getSavedQueryRepository()
 
-        if (!originalQuery) {
-          throw new Error('Query not found')
-        }
-
-        // Optimistic update
-        set(
-          (state) => ({
-            queries: state.queries.map((q) =>
-              q.id === id ? { ...q, ...input } : q
-            ),
-            loading: true,
-            error: null,
-          }),
-          false,
-          'updateQuery/optimistic'
-        )
+        // Capture current state BEFORE any modifications for rollback
+        const previousQueries = get().queries
 
         try {
-          const updatedQuery = await apiUpdateQuery(id, input)
-
+          // Optimistic update
           set(
             (state) => ({
               queries: state.queries.map((q) =>
-                q.id === id ? updatedQuery : q
+                q.id === id ? { ...q, ...updates } : q
               ),
-              loading: false,
+            }),
+            false,
+            'updateQuery/optimistic'
+          )
+
+          const updated = await repo.update(id, updates)
+
+          // Update with server response
+          set(
+            (state) => ({
+              queries: state.queries.map((q) => (q.id === id ? updated : q)),
             }),
             false,
             'updateQuery/success'
           )
+
+          // Reload metadata if folder or tags changed
+          if (updates.folder !== undefined || updates.tags !== undefined) {
+            if (updated?.user_id) {
+              await get().loadMetadata(updated.user_id)
+            }
+          }
         } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : 'Failed to update query'
+          // Rollback to captured state
+          set({ queries: previousQueries }, false, 'updateQuery/rollback')
 
-          // Rollback optimistic update
-          set(
-            (state) => ({
-              queries: state.queries.map((q) =>
-                q.id === id ? originalQuery : q
-              ),
-              error: errorMessage,
-              loading: false,
-            }),
-            false,
-            'updateQuery/rollback'
-          )
-
+          console.error('Failed to update query:', error)
           throw error
         }
       },
 
       deleteQuery: async (id) => {
-        const state = get()
-        const originalQueries = [...state.queries]
+        return dedupedRequest(`deleteQuery-${id}`, async () => {
+          const repo = getSavedQueryRepository()
 
-        // Optimistic removal
-        set(
-          (state) => ({
-            queries: state.queries.filter((q) => q.id !== id),
-            loading: true,
-            error: null,
-          }),
-          false,
-          'deleteQuery/optimistic'
-        )
+          try {
+            // Optimistic delete
+            const previousQueries = get().queries
+            set(
+              (state) => ({
+                queries: state.queries.filter((q) => q.id !== id),
+                totalCount: Math.max(0, state.totalCount - 1),
+              }),
+              false,
+              'deleteQuery/optimistic'
+            )
+
+            await repo.delete(id)
+
+            // Reload metadata in case folder/tags are now empty
+            const userId = previousQueries.find((q) => q.id === id)?.user_id
+            if (userId) {
+              await get().loadMetadata(userId)
+            }
+          } catch (error) {
+            console.error('Failed to delete query:', error)
+            throw error
+          }
+        })
+      },
+
+      duplicateQuery: async (id) => {
+        const repo = getSavedQueryRepository()
 
         try {
-          await apiDeleteQuery(id)
+          const duplicate = await repo.duplicate(id)
 
-          set({ loading: false }, false, 'deleteQuery/success')
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : 'Failed to delete query'
-
-          // Rollback optimistic removal
+          // Add to state
           set(
-            {
-              queries: originalQueries,
-              error: errorMessage,
-              loading: false,
-            },
+            (state) => ({
+              queries: [duplicate, ...state.queries],
+              totalCount: state.totalCount + 1,
+            }),
             false,
-            'deleteQuery/rollback'
+            'duplicateQuery/success'
           )
 
+          return duplicate
+        } catch (error) {
+          console.error('Failed to duplicate query:', error)
+          throw error
+        }
+      },
+
+      toggleFavorite: async (id) => {
+        const repo = getSavedQueryRepository()
+
+        try {
+          // Optimistic update
+          set(
+            (state) => ({
+              queries: state.queries.map((q) =>
+                q.id === id ? { ...q, is_favorite: !q.is_favorite } : q
+              ),
+            }),
+            false,
+            'toggleFavorite/optimistic'
+          )
+
+          const updated = await repo.toggleFavorite(id)
+
+          // Update with server response
+          set(
+            (state) => ({
+              queries: state.queries.map((q) => (q.id === id ? updated : q)),
+            }),
+            false,
+            'toggleFavorite/success'
+          )
+        } catch (error) {
+          console.error('Failed to toggle favorite:', error)
           throw error
         }
       },
 
       // ================================================================
-      // Sharing Operations
+      // Sharing Operations (Server API)
       // ================================================================
 
       shareQuery: async (id, orgId) => {
-        const state = get()
-        const originalQuery = state.queries.find((q) => q.id === id)
+        return dedupedRequest(`shareQuery-${id}-${orgId}`, async () => {
+          set({ isLoading: true, error: null }, false, 'shareQuery/start')
 
-        if (!originalQuery) {
-          throw new Error('Query not found')
-        }
+          try {
+            await apiShareQuery(id, orgId)
 
-        // Optimistic update
-        set(
-          (state) => ({
-            queries: state.queries.map((q) =>
-              q.id === id
-                ? { ...q, visibility: 'shared', organization_id: orgId }
-                : q
-            ),
-            loading: true,
-            error: null,
-          }),
-          false,
-          'shareQuery/optimistic'
-        )
+            set({ isLoading: false }, false, 'shareQuery/success')
 
-        try {
-          await apiShareQuery(id, orgId)
+            // Refresh shared queries for this org
+            await get().fetchSharedQueries(orgId)
+          } catch (error) {
+            const errorMessage =
+              error instanceof Error ? error.message : 'Failed to share query'
 
-          set({ loading: false }, false, 'shareQuery/success')
+            set(
+              { error: errorMessage, isLoading: false },
+              false,
+              'shareQuery/error'
+            )
 
-          // Refresh shared queries for this org
-          await get().fetchSharedQueries(orgId)
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : 'Failed to share query'
-
-          // Rollback optimistic update
-          set(
-            (state) => ({
-              queries: state.queries.map((q) =>
-                q.id === id ? originalQuery : q
-              ),
-              error: errorMessage,
-              loading: false,
-            }),
-            false,
-            'shareQuery/rollback'
-          )
-
-          throw error
-        }
+            throw error
+          }
+        })
       },
 
       unshareQuery: async (id) => {
-        const state = get()
-        const originalQuery = state.queries.find((q) => q.id === id)
+        return dedupedRequest(`unshareQuery-${id}`, async () => {
+          set({ isLoading: true, error: null }, false, 'unshareQuery/start')
 
-        if (!originalQuery) {
-          throw new Error('Query not found')
-        }
+          try {
+            await apiUnshareQuery(id)
 
-        // Optimistic update
-        set(
-          (state) => ({
-            queries: state.queries.map((q) =>
-              q.id === id
-                ? { ...q, visibility: 'personal', organization_id: null }
-                : q
-            ),
-            loading: true,
-            error: null,
-          }),
-          false,
-          'unshareQuery/optimistic'
-        )
+            // Remove from shared queries list
+            set(
+              (state) => ({
+                sharedQueries: state.sharedQueries.filter((q) => q.id !== id),
+                isLoading: false,
+              }),
+              false,
+              'unshareQuery/success'
+            )
+          } catch (error) {
+            const errorMessage =
+              error instanceof Error ? error.message : 'Failed to unshare query'
 
-        try {
-          await apiUnshareQuery(id)
+            set(
+              { error: errorMessage, isLoading: false },
+              false,
+              'unshareQuery/error'
+            )
 
-          set({ loading: false }, false, 'unshareQuery/success')
-
-          // Refresh shared queries
-          if (originalQuery.organization_id) {
-            await get().fetchSharedQueries(originalQuery.organization_id)
+            throw error
           }
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : 'Failed to unshare query'
-
-          // Rollback optimistic update
-          set(
-            (state) => ({
-              queries: state.queries.map((q) =>
-                q.id === id ? originalQuery : q
-              ),
-              error: errorMessage,
-              loading: false,
-            }),
-            false,
-            'unshareQuery/rollback'
-          )
-
-          throw error
-        }
+        })
       },
 
       // ================================================================
-      // Filtering
+      // Search & Filter Actions
+      // ================================================================
+
+      setSearchText: (text) => {
+        set({ searchText: text }, false, 'setSearchText')
+      },
+
+      setSelectedFolder: (folder) => {
+        set({ selectedFolder: folder }, false, 'setSelectedFolder')
+      },
+
+      setSelectedTags: (tags) => {
+        set({ selectedTags: tags }, false, 'setSelectedTags')
+      },
+
+      toggleTag: (tag) => {
+        set(
+          (state) => ({
+            selectedTags: state.selectedTags.includes(tag)
+              ? state.selectedTags.filter((t) => t !== tag)
+              : [...state.selectedTags, tag],
+          }),
+          false,
+          'toggleTag'
+        )
+      },
+
+      setShowFavoritesOnly: (show) => {
+        set({ showFavoritesOnly: show }, false, 'setShowFavoritesOnly')
+      },
+
+      setSortBy: (sortBy) => {
+        set({ sortBy }, false, 'setSortBy')
+      },
+
+      setSortDirection: (direction) => {
+        set({ sortDirection: direction }, false, 'setSortDirection')
+      },
+
+      clearFilters: () => {
+        set(
+          {
+            searchText: '',
+            selectedFolder: null,
+            selectedTags: [],
+            showFavoritesOnly: false,
+          },
+          false,
+          'clearFilters'
+        )
+      },
+
+      // ================================================================
+      // Filtering Helpers
       // ================================================================
 
       getQueriesByOrg: (orgId) => {
         const state = get()
-        return state.queries.filter((q) => q.organization_id === orgId)
+        return state.sharedQueries.filter((q) => q.organization_id === orgId)
       },
 
       getPersonalQueries: () => {
         const state = get()
-        return state.queries.filter((q) => q.visibility === 'personal')
+        // Local queries are personal by default
+        return state.queries
       },
 
       getQueriesByTag: (tag) => {
@@ -438,11 +590,38 @@ export const useQueriesStore = create<QueriesStore>()(
       },
 
       // ================================================================
-      // Utilities
+      // Utility Functions
       // ================================================================
+
+      getQueryById: (id) => {
+        return get().queries.find((q) => q.id === id)
+      },
+
+      canSaveMore: () => {
+        const tierStore = useTierStore.getState()
+        const currentCount = get().queries.length
+        const limitCheck = tierStore.checkLimit('savedQueries', currentCount + 1)
+        return limitCheck.allowed
+      },
+
+      getRemainingQuota: () => {
+        const tierStore = useTierStore.getState()
+        const currentCount = get().queries.length
+        const limitCheck = tierStore.checkLimit('savedQueries', currentCount)
+
+        if (limitCheck.isUnlimited) {
+          return null // Unlimited
+        }
+
+        return limitCheck.remaining
+      },
 
       clearError: () => {
         set({ error: null }, false, 'clearError')
+      },
+
+      reset: () => {
+        set(initialState, false, 'reset')
       },
     }),
     {
@@ -452,17 +631,19 @@ export const useQueriesStore = create<QueriesStore>()(
   )
 )
 
+// ============================================================================
+// Selectors
+// ============================================================================
+
 /**
  * Selectors for common queries
  */
 export const queriesSelectors = {
   hasQueries: (state: QueriesStore) => state.queries.length > 0,
-  isLoading: (state: QueriesStore) => state.loading,
+  isLoading: (state: QueriesStore) => state.isLoading,
   hasError: (state: QueriesStore) => !!state.error,
-  getSharedCount: (state: QueriesStore) =>
-    state.queries.filter((q) => q.visibility === 'shared').length,
-  getPersonalCount: (state: QueriesStore) =>
-    state.queries.filter((q) => q.visibility === 'personal').length,
+  getSharedCount: (state: QueriesStore) => state.sharedQueries.length,
+  getPersonalCount: (state: QueriesStore) => state.queries.length,
   getAllTags: (state: QueriesStore) => {
     const tags = new Set<string>()
     state.queries.forEach((q) => {
@@ -471,3 +652,29 @@ export const queriesSelectors = {
     return Array.from(tags).sort()
   },
 }
+
+// ============================================================================
+// Hooks
+// ============================================================================
+
+/**
+ * Hook for loading saved queries on mount
+ */
+export function useLoadQueries(userId: string | null) {
+  const store = useQueriesStore()
+
+  // Load queries when userId becomes available
+  useEffect(() => {
+    if (userId && !store.isInitialized) {
+      store.refresh(userId).catch((error) => {
+        console.error('Failed to load saved queries:', error)
+      })
+    }
+  }, [userId, store.isInitialized, store])
+
+  return store
+}
+
+// Legacy alias for backward compatibility
+export const useSavedQueriesStore = useQueriesStore
+export const useLoadSavedQueries = useLoadQueries

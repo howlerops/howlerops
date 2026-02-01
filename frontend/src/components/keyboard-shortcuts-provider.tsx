@@ -63,7 +63,7 @@ export function KeyboardShortcutsProvider({
     unregisterShortcut,
     helpVisible,
     setHelpVisible,
-    _toggleHelp,
+    toggleHelp: _toggleHelp,
     getShortcutsByCategory,
   } = useKeyboardShortcuts({ enabled: true, ignoreInputs: true })
 

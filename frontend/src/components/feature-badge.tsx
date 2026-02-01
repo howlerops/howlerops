@@ -55,7 +55,7 @@ const sizeClasses = {
   lg: 'text-base px-3 py-1.5 gap-2',
 }
 
-export function FeatureBadge({
+export const FeatureBadge = React.memo(function FeatureBadge({
   tier,
   variant = 'inline',
   size = 'sm',
@@ -141,12 +141,12 @@ export function FeatureBadge({
 
   // inline variant
   return badgeContent
-}
+})
 
 /**
  * Animated Feature Badge with glow effect
  */
-export function AnimatedFeatureBadge({
+export const AnimatedFeatureBadge = React.memo(function AnimatedFeatureBadge({
   tier,
   className,
 }: {
@@ -171,12 +171,12 @@ export function AnimatedFeatureBadge({
       <Zap className="h-2.5 w-2.5 shrink-0 opacity-75" />
     </span>
   )
-}
+})
 
 /**
  * Gradient Feature Badge with enhanced styling
  */
-export function GradientFeatureBadge({
+export const GradientFeatureBadge = React.memo(function GradientFeatureBadge({
   tier,
   className,
 }: {
@@ -201,4 +201,4 @@ export function GradientFeatureBadge({
       <span className="uppercase tracking-wide">{config.label}</span>
     </span>
   )
-}
+})

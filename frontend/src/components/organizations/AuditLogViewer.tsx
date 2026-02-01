@@ -24,6 +24,7 @@ import {
   User,
 } from 'lucide-react'
 import * as React from 'react'
+import { useCallback } from 'react'
 import { toast } from 'sonner'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -160,23 +161,65 @@ export function AuditLogViewer({
   }, [autoRefresh, fetchLogs, page])
 
   // Handle filter changes
-  const handleFilterChange = () => {
+  const handleFilterChange = useCallback(() => {
     setPage(0)
     fetchLogs(0)
-  }
+  }, [fetchLogs])
 
   // Pagination
-  const handlePreviousPage = () => {
+  const handlePreviousPage = useCallback(() => {
     const newPage = Math.max(0, page - 1)
     setPage(newPage)
     fetchLogs(newPage * LOGS_PER_PAGE)
-  }
+  }, [page, fetchLogs])
 
-  const handleNextPage = () => {
+  const handleNextPage = useCallback(() => {
     const newPage = page + 1
     setPage(newPage)
     fetchLogs(newPage * LOGS_PER_PAGE)
-  }
+  }, [page, fetchLogs])
+
+  // Memoized handlers for Select components to avoid inline functions
+  const handleActionFilterChange = useCallback((value: string) => {
+    setSelectedAction(value as AuditAction | 'all')
+    // Trigger filter change after state update
+    setPage(0)
+    fetchLogs(0)
+  }, [fetchLogs])
+
+  const handleUserFilterChange = useCallback((value: string) => {
+    setSelectedUserId(value)
+    setPage(0)
+    fetchLogs(0)
+  }, [fetchLogs])
+
+  const handleStartDateChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setStartDate(e.target.value)
+  }, [])
+
+  const handleEndDateChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setEndDate(e.target.value)
+  }, [])
+
+  const handleAutoRefreshChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setAutoRefresh(e.target.checked)
+  }, [])
+
+  const handleRefreshClick = useCallback(() => {
+    fetchLogs(page * LOGS_PER_PAGE)
+  }, [fetchLogs, page])
+
+  const _handleToggleExpand = useCallback((logId: string) => {
+    setExpandedLogId(prev => prev === logId ? null : logId)
+  }, [])
+
+  // Handler for row click using data attribute to avoid inline functions in loops
+  const handleRowClick = useCallback((e: React.MouseEvent<HTMLTableRowElement>) => {
+    const logId = e.currentTarget.dataset.logId
+    if (logId) {
+      setExpandedLogId(prev => prev === logId ? null : logId)
+    }
+  }, [])
 
   // Export to CSV
   const handleExportCSV = () => {
@@ -238,7 +281,7 @@ export function AuditLogViewer({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => fetchLogs(page * LOGS_PER_PAGE)}
+              onClick={handleRefreshClick}
               disabled={loading}
             >
               <RefreshCw
@@ -267,10 +310,7 @@ export function AuditLogViewer({
             </Label>
             <Select
               value={selectedAction}
-              onValueChange={(value) => {
-                setSelectedAction(value as AuditAction | 'all')
-                handleFilterChange()
-              }}
+              onValueChange={handleActionFilterChange}
             >
               <SelectTrigger id="action-filter" className="h-9">
                 <SelectValue />
@@ -297,10 +337,7 @@ export function AuditLogViewer({
             </Label>
             <Select
               value={selectedUserId}
-              onValueChange={(value) => {
-                setSelectedUserId(value)
-                handleFilterChange()
-              }}
+              onValueChange={handleUserFilterChange}
             >
               <SelectTrigger id="user-filter" className="h-9">
                 <SelectValue />
@@ -324,7 +361,7 @@ export function AuditLogViewer({
               id="start-date"
               type="date"
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
+              onChange={handleStartDateChange}
               onBlur={handleFilterChange}
               className="h-9"
             />
@@ -338,7 +375,7 @@ export function AuditLogViewer({
               id="end-date"
               type="date"
               value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
+              onChange={handleEndDateChange}
               onBlur={handleFilterChange}
               className="h-9"
             />
@@ -352,7 +389,7 @@ export function AuditLogViewer({
               <input
                 type="checkbox"
                 checked={autoRefresh}
-                onChange={(e) => setAutoRefresh(e.target.checked)}
+                onChange={handleAutoRefreshChange}
                 className="w-4 h-4"
               />
               <span className="text-muted-foreground">
@@ -405,9 +442,8 @@ export function AuditLogViewer({
                       <React.Fragment key={log.id}>
                         <TableRow
                           className="cursor-pointer hover:bg-muted/50"
-                          onClick={() =>
-                            setExpandedLogId(isExpanded ? null : log.id)
-                          }
+                          data-log-id={log.id}
+                          onClick={handleRowClick}
                         >
                           <TableCell>
                             {isExpanded ? (

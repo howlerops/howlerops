@@ -1,4 +1,5 @@
 import { Lightbulb, LucideIcon } from "lucide-react"
+import React from "react"
 
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -29,7 +30,7 @@ interface EmptyStateProps {
   className?: string
 }
 
-export function EmptyState({
+export const EmptyState = React.memo(function EmptyState({
   icon: Icon,
   illustration,
   title,
@@ -123,4 +124,4 @@ export function EmptyState({
       )}
     </div>
   )
-}
+})

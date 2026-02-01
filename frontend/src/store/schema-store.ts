@@ -358,7 +358,7 @@ export const useSchemaStore = create<SchemaStoreState>()(
                           }
                         })
 
-                        tableNode.children = columnsResponse.data.map((columnInfo: RawColumnInfo, columnIndex: number) => {
+                        tableNode.children = (columnsResponse.data as unknown as RawColumnInfo[]).map((columnInfo: RawColumnInfo, columnIndex: number) => {
                           const normalizedColumn = normalizeColumnInfo(columnInfo, {
                             foreignKey: foreignKeyByColumn.get(columnInfo.name)
                           })

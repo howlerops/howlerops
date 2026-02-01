@@ -13,6 +13,7 @@
 
 import { Cloud, HardDrive, Users } from "lucide-react";
 import React, { useMemo } from "react";
+import { useShallow } from "zustand/react/shallow";
 
 import { Badge } from "@/components/ui/badge";
 import { TIER_METADATA } from "@/config/tier-limits";
@@ -181,7 +182,11 @@ export function TierBadge({
   className,
   showDevMode = true,
 }: TierBadgeProps) {
-  const { currentTier, expiresAt, devMode } = useTierStore();
+  const { currentTier, expiresAt, devMode } = useTierStore(useShallow((state) => ({
+    currentTier: state.currentTier,
+    expiresAt: state.expiresAt,
+    devMode: state.devMode,
+  })));
 
   const tier = overrideTier ?? currentTier;
   const metadata = TIER_METADATA[tier];
@@ -379,7 +384,9 @@ export function TierBadgeList({
   variant = "card",
   className,
 }: TierBadgeListProps) {
-  const { currentTier } = useTierStore();
+  const { currentTier } = useTierStore(useShallow((state) => ({
+    currentTier: state.currentTier,
+  })));
 
   const tiers: TierLevel[] = ["local", "individual", "team"];
 

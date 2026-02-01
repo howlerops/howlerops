@@ -8,6 +8,7 @@
 import { LogOut, Settings, Shield,User } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useShallow } from 'zustand/react/shallow'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -23,7 +24,11 @@ import { useAuthStore } from '@/store/auth-store'
 import { AuthModal } from './auth-modal'
 
 export function AuthButton() {
-  const { isAuthenticated, user, signOut } = useAuthStore()
+  const { isAuthenticated, user, signOut } = useAuthStore(useShallow((state) => ({
+    isAuthenticated: state.isAuthenticated,
+    user: state.user,
+    signOut: state.signOut,
+  })))
   const [showAuthModal, setShowAuthModal] = useState(false)
   const navigate = useNavigate()
 

@@ -4,6 +4,7 @@
  */
 
 import { useEffect,useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 
 import { useConnectionStore } from '@/store/connection-store';
 
@@ -18,7 +19,9 @@ export interface UseQueryModeReturn {
 }
 
 export function useQueryMode(initialMode?: 'auto' | QueryMode): UseQueryModeReturn {
-  const { connections } = useConnectionStore();
+  const { connections } = useConnectionStore(useShallow((state) => ({
+    connections: state.connections,
+  })));
   const connectionCount = connections.length;
   const canToggle = connectionCount > 1;
 
@@ -58,7 +61,9 @@ export function useQueryMode(initialMode?: 'auto' | QueryMode): UseQueryModeRetu
 
 // Hook to check if multi-DB features should be enabled
 export function useMultiDBEnabled(): boolean {
-  const { connections } = useConnectionStore();
+  const { connections } = useConnectionStore(useShallow((state) => ({
+    connections: state.connections,
+  })));
   return connections.length > 1;
 }
 

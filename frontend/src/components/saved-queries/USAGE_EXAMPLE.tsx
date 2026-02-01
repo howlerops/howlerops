@@ -230,9 +230,9 @@ export function CustomActionsExample() {
  * Tips for Integration:
  *
  * 1. State Management:
- *    - The panel uses useSavedQueriesStore internally
+ *    - The panel uses useQueriesStore internally (via useSavedQueriesStore alias)
  *    - No need to manage query state in parent component
- *    - Store is initialized on mount via useLoadSavedQueries hook
+ *    - Store is initialized on mount via useLoadQueries hook
  *
  * 2. Filtering and Search:
  *    - All filter state is managed in the store

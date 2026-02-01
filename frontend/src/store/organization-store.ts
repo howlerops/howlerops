@@ -11,6 +11,7 @@ import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
 
 import { AuthApiError,authFetch } from '@/lib/api/auth-client'
+import { dedupedRequest } from '@/lib/request-deduplication'
 import type {
   AuditLog,
   AuditLogQueryParams,
@@ -234,44 +235,46 @@ export const useOrganizationStore = create<OrganizationStore>()(
         // ================================================================
 
         fetchOrganizations: async () => {
-          set(
-            { loading: { ...get().loading, organizations: true }, error: null },
-            false,
-            'fetchOrganizations/start'
-          )
-
-          try {
-            const response = await authFetch<{ organizations: Organization[] }>(
-              '/api/organizations'
-            )
-
-            const organizations = (response.organizations ?? []).map(parseOrgDates)
-
+          return dedupedRequest('fetchOrganizations', async () => {
             set(
-              {
-                organizations,
-                loading: { ...get().loading, organizations: false },
-              },
+              { loading: { ...get().loading, organizations: true }, error: null },
               false,
-              'fetchOrganizations/success'
-            )
-          } catch (error) {
-            const errorMessage =
-              error instanceof AuthApiError
-                ? error.message
-                : 'Failed to fetch organizations'
-
-            set(
-              {
-                error: errorMessage,
-                loading: { ...get().loading, organizations: false },
-              },
-              false,
-              'fetchOrganizations/error'
+              'fetchOrganizations/start'
             )
 
-            throw error
-          }
+            try {
+              const response = await authFetch<{ organizations: Organization[] }>(
+                '/api/organizations'
+              )
+
+              const organizations = (response.organizations ?? []).map(parseOrgDates)
+
+              set(
+                {
+                  organizations,
+                  loading: { ...get().loading, organizations: false },
+                },
+                false,
+                'fetchOrganizations/success'
+              )
+            } catch (error) {
+              const errorMessage =
+                error instanceof AuthApiError
+                  ? error.message
+                  : 'Failed to fetch organizations'
+
+              set(
+                {
+                  error: errorMessage,
+                  loading: { ...get().loading, organizations: false },
+                },
+                false,
+                'fetchOrganizations/error'
+              )
+
+              throw error
+            }
+          })
         },
 
         createOrganization: async (input) => {
@@ -420,51 +423,53 @@ export const useOrganizationStore = create<OrganizationStore>()(
         },
 
         deleteOrganization: async (id) => {
-          const state = get()
-          const originalOrgs = [...state.organizations]
+          return dedupedRequest(`deleteOrganization-${id}`, async () => {
+            const state = get()
+            const originalOrgs = [...state.organizations]
 
-          // Optimistic removal
-          set(
-            {
-              organizations: state.organizations.filter((org) => org.id !== id),
-              currentOrgId: state.currentOrgId === id ? null : state.currentOrgId,
-              loading: { ...state.loading, deleting: true },
-              error: null,
-            },
-            false,
-            'deleteOrganization/optimistic'
-          )
-
-          try {
-            await authFetch(`/api/organizations/${id}`, {
-              method: 'DELETE',
-            })
-
-            set(
-              { loading: { ...state.loading, deleting: false } },
-              false,
-              'deleteOrganization/success'
-            )
-          } catch (error) {
-            const errorMessage =
-              error instanceof AuthApiError
-                ? error.message
-                : 'Failed to delete organization'
-
-            // Rollback optimistic removal
+            // Optimistic removal
             set(
               {
-                organizations: originalOrgs,
-                currentOrgId: state.currentOrgId,
-                error: errorMessage,
-                loading: { ...state.loading, deleting: false },
+                organizations: state.organizations.filter((org) => org.id !== id),
+                currentOrgId: state.currentOrgId === id ? null : state.currentOrgId,
+                loading: { ...state.loading, deleting: true },
+                error: null,
               },
               false,
-              'deleteOrganization/rollback'
+              'deleteOrganization/optimistic'
             )
 
-            throw error
-          }
+            try {
+              await authFetch(`/api/organizations/${id}`, {
+                method: 'DELETE',
+              })
+
+              set(
+                { loading: { ...state.loading, deleting: false } },
+                false,
+                'deleteOrganization/success'
+              )
+            } catch (error) {
+              const errorMessage =
+                error instanceof AuthApiError
+                  ? error.message
+                  : 'Failed to delete organization'
+
+              // Rollback optimistic removal
+              set(
+                {
+                  organizations: originalOrgs,
+                  currentOrgId: state.currentOrgId,
+                  error: errorMessage,
+                  loading: { ...state.loading, deleting: false },
+                },
+                false,
+                'deleteOrganization/rollback'
+              )
+
+              throw error
+            }
+          })
         },
 
         switchOrganization: (id) => {
@@ -494,48 +499,50 @@ export const useOrganizationStore = create<OrganizationStore>()(
         // ================================================================
 
         fetchMembers: async (orgId) => {
-          set(
-            { loading: { ...get().loading, members: true }, error: null },
-            false,
-            'fetchMembers/start'
-          )
-
-          try {
-            const response = await authFetch<{ members: OrganizationMember[] }>(
-              `/api/organizations/${orgId}/members`
-            )
-
-            const members = (response.members ?? []).map(parseMbrDates)
-
-            // Update cache if this is the current org
-            const updates: Partial<OrganizationState> = {
-              loading: { ...get().loading, members: false },
-            }
-
-            if (get().currentOrgId === orgId) {
-              updates.currentOrgMembers = members
-            }
-
-            set(updates, false, 'fetchMembers/success')
-
-            return members
-          } catch (error) {
-            const errorMessage =
-              error instanceof AuthApiError
-                ? error.message
-                : 'Failed to fetch members'
-
+          return dedupedRequest(`fetchMembers-${orgId}`, async () => {
             set(
-              {
-                error: errorMessage,
-                loading: { ...get().loading, members: false },
-              },
+              { loading: { ...get().loading, members: true }, error: null },
               false,
-              'fetchMembers/error'
+              'fetchMembers/start'
             )
 
-            throw error
-          }
+            try {
+              const response = await authFetch<{ members: OrganizationMember[] }>(
+                `/api/organizations/${orgId}/members`
+              )
+
+              const members = (response.members ?? []).map(parseMbrDates)
+
+              // Update cache if this is the current org
+              const updates: Partial<OrganizationState> = {
+                loading: { ...get().loading, members: false },
+              }
+
+              if (get().currentOrgId === orgId) {
+                updates.currentOrgMembers = members
+              }
+
+              set(updates, false, 'fetchMembers/success')
+
+              return members
+            } catch (error) {
+              const errorMessage =
+                error instanceof AuthApiError
+                  ? error.message
+                  : 'Failed to fetch members'
+
+              set(
+                {
+                  error: errorMessage,
+                  loading: { ...get().loading, members: false },
+                },
+                false,
+                'fetchMembers/error'
+              )
+
+              throw error
+            }
+          })
         },
 
         updateMemberRole: async (orgId, userId, role) => {
@@ -602,59 +609,61 @@ export const useOrganizationStore = create<OrganizationStore>()(
         },
 
         removeMember: async (orgId, userId) => {
-          const state = get()
-          const originalMembers = [...state.currentOrgMembers]
+          return dedupedRequest(`removeMember-${orgId}-${userId}`, async () => {
+            const state = get()
+            const originalMembers = [...state.currentOrgMembers]
 
-          // Optimistic removal
-          set(
-            {
-              currentOrgMembers: originalMembers.filter(
-                (m) => m.user_id !== userId
-              ),
-              loading: { ...state.loading, deleting: true },
-              error: null,
-            },
-            false,
-            'removeMember/optimistic'
-          )
-
-          try {
-            await authFetch(`/api/organizations/${orgId}/members/${userId}`, {
-              method: 'DELETE',
-            })
-
-            // Update member count in organization
+            // Optimistic removal
             set(
               {
-                organizations: state.organizations.map((org) =>
-                  org.id === orgId && org.member_count
-                    ? { ...org, member_count: org.member_count - 1 }
-                    : org
+                currentOrgMembers: originalMembers.filter(
+                  (m) => m.user_id !== userId
                 ),
-                loading: { ...state.loading, deleting: false },
+                loading: { ...state.loading, deleting: true },
+                error: null,
               },
               false,
-              'removeMember/success'
-            )
-          } catch (error) {
-            const errorMessage =
-              error instanceof AuthApiError
-                ? error.message
-                : 'Failed to remove member'
-
-            // Rollback optimistic removal
-            set(
-              {
-                currentOrgMembers: originalMembers,
-                error: errorMessage,
-                loading: { ...state.loading, deleting: false },
-              },
-              false,
-              'removeMember/rollback'
+              'removeMember/optimistic'
             )
 
-            throw error
-          }
+            try {
+              await authFetch(`/api/organizations/${orgId}/members/${userId}`, {
+                method: 'DELETE',
+              })
+
+              // Update member count in organization
+              set(
+                {
+                  organizations: state.organizations.map((org) =>
+                    org.id === orgId && org.member_count
+                      ? { ...org, member_count: org.member_count - 1 }
+                      : org
+                  ),
+                  loading: { ...state.loading, deleting: false },
+                },
+                false,
+                'removeMember/success'
+              )
+            } catch (error) {
+              const errorMessage =
+                error instanceof AuthApiError
+                  ? error.message
+                  : 'Failed to remove member'
+
+              // Rollback optimistic removal
+              set(
+                {
+                  currentOrgMembers: originalMembers,
+                  error: errorMessage,
+                  loading: { ...state.loading, deleting: false },
+                },
+                false,
+                'removeMember/rollback'
+              )
+
+              throw error
+            }
+          })
         },
 
         // ================================================================
@@ -723,241 +732,251 @@ export const useOrganizationStore = create<OrganizationStore>()(
         },
 
         fetchInvitations: async (orgId) => {
-          set(
-            { loading: { ...get().loading, invitations: true }, error: null },
-            false,
-            'fetchInvitations/start'
-          )
-
-          try {
-            const response = await authFetch<{ invitations: OrganizationInvitation[] }>(
-              `/api/organizations/${orgId}/invitations`
-            )
-
-            const invitations = (response.invitations ?? []).map(parseInvDates)
-
-            // Update cache if this is the current org
-            const updates: Partial<OrganizationState> = {
-              loading: { ...get().loading, invitations: false },
-            }
-
-            if (get().currentOrgId === orgId) {
-              updates.currentOrgInvitations = invitations
-            }
-
-            set(updates, false, 'fetchInvitations/success')
-
-            return invitations
-          } catch (error) {
-            const errorMessage =
-              error instanceof AuthApiError
-                ? error.message
-                : 'Failed to fetch invitations'
-
+          return dedupedRequest(`fetchInvitations-${orgId}`, async () => {
             set(
-              {
-                error: errorMessage,
-                loading: { ...get().loading, invitations: false },
-              },
+              { loading: { ...get().loading, invitations: true }, error: null },
               false,
-              'fetchInvitations/error'
+              'fetchInvitations/start'
             )
 
-            throw error
-          }
+            try {
+              const response = await authFetch<{ invitations: OrganizationInvitation[] }>(
+                `/api/organizations/${orgId}/invitations`
+              )
+
+              const invitations = (response.invitations ?? []).map(parseInvDates)
+
+              // Update cache if this is the current org
+              const updates: Partial<OrganizationState> = {
+                loading: { ...get().loading, invitations: false },
+              }
+
+              if (get().currentOrgId === orgId) {
+                updates.currentOrgInvitations = invitations
+              }
+
+              set(updates, false, 'fetchInvitations/success')
+
+              return invitations
+            } catch (error) {
+              const errorMessage =
+                error instanceof AuthApiError
+                  ? error.message
+                  : 'Failed to fetch invitations'
+
+              set(
+                {
+                  error: errorMessage,
+                  loading: { ...get().loading, invitations: false },
+                },
+                false,
+                'fetchInvitations/error'
+              )
+
+              throw error
+            }
+          })
         },
 
         fetchPendingInvitations: async () => {
-          set(
-            { loading: { ...get().loading, invitations: true }, error: null },
-            false,
-            'fetchPendingInvitations/start'
-          )
-
-          try {
-            const response = await authFetch<{ invitations: OrganizationInvitation[] }>(
-              '/api/invitations'
-            )
-
-            const invitations = (response.invitations ?? []).map(parseInvDates)
-
+          return dedupedRequest('fetchPendingInvitations', async () => {
             set(
-              {
-                pendingInvitations: invitations,
-                loading: { ...get().loading, invitations: false },
-              },
+              { loading: { ...get().loading, invitations: true }, error: null },
               false,
-              'fetchPendingInvitations/success'
+              'fetchPendingInvitations/start'
             )
 
-            return invitations
-          } catch (error) {
-            const errorMessage =
-              error instanceof AuthApiError
-                ? error.message
-                : 'Failed to fetch pending invitations'
+            try {
+              const response = await authFetch<{ invitations: OrganizationInvitation[] }>(
+                '/api/invitations'
+              )
 
-            set(
-              {
-                error: errorMessage,
-                loading: { ...get().loading, invitations: false },
-              },
-              false,
-              'fetchPendingInvitations/error'
-            )
+              const invitations = (response.invitations ?? []).map(parseInvDates)
 
-            throw error
-          }
+              set(
+                {
+                  pendingInvitations: invitations,
+                  loading: { ...get().loading, invitations: false },
+                },
+                false,
+                'fetchPendingInvitations/success'
+              )
+
+              return invitations
+            } catch (error) {
+              const errorMessage =
+                error instanceof AuthApiError
+                  ? error.message
+                  : 'Failed to fetch pending invitations'
+
+              set(
+                {
+                  error: errorMessage,
+                  loading: { ...get().loading, invitations: false },
+                },
+                false,
+                'fetchPendingInvitations/error'
+              )
+
+              throw error
+            }
+          })
         },
 
         acceptInvitation: async (inviteId) => {
-          const state = get()
-          const originalInvitations = [...state.pendingInvitations]
+          return dedupedRequest(`acceptInvitation-${inviteId}`, async () => {
+            const state = get()
+            const originalInvitations = [...state.pendingInvitations]
 
-          // Optimistic removal from pending
-          set(
-            {
-              pendingInvitations: originalInvitations.filter(
-                (inv) => inv.id !== inviteId
-              ),
-              loading: { ...state.loading, updating: true },
-              error: null,
-            },
-            false,
-            'acceptInvitation/optimistic'
-          )
-
-          try {
-            await authFetch(`/api/invitations/${inviteId}/accept`, {
-              method: 'POST',
-            })
-
-            set(
-              { loading: { ...state.loading, updating: false } },
-              false,
-              'acceptInvitation/success'
-            )
-
-            // Refresh organizations list as user now has a new org
-            await get().fetchOrganizations()
-          } catch (error) {
-            const errorMessage =
-              error instanceof AuthApiError
-                ? error.message
-                : 'Failed to accept invitation'
-
-            // Rollback optimistic removal
+            // Optimistic removal from pending
             set(
               {
-                pendingInvitations: originalInvitations,
-                error: errorMessage,
-                loading: { ...state.loading, updating: false },
+                pendingInvitations: originalInvitations.filter(
+                  (inv) => inv.id !== inviteId
+                ),
+                loading: { ...state.loading, updating: true },
+                error: null,
               },
               false,
-              'acceptInvitation/rollback'
+              'acceptInvitation/optimistic'
             )
 
-            throw error
-          }
+            try {
+              await authFetch(`/api/invitations/${inviteId}/accept`, {
+                method: 'POST',
+              })
+
+              set(
+                { loading: { ...state.loading, updating: false } },
+                false,
+                'acceptInvitation/success'
+              )
+
+              // Refresh organizations list as user now has a new org
+              await get().fetchOrganizations()
+            } catch (error) {
+              const errorMessage =
+                error instanceof AuthApiError
+                  ? error.message
+                  : 'Failed to accept invitation'
+
+              // Rollback optimistic removal
+              set(
+                {
+                  pendingInvitations: originalInvitations,
+                  error: errorMessage,
+                  loading: { ...state.loading, updating: false },
+                },
+                false,
+                'acceptInvitation/rollback'
+              )
+
+              throw error
+            }
+          })
         },
 
         declineInvitation: async (inviteId) => {
-          const state = get()
-          const originalInvitations = [...state.pendingInvitations]
+          return dedupedRequest(`declineInvitation-${inviteId}`, async () => {
+            const state = get()
+            const originalInvitations = [...state.pendingInvitations]
 
-          // Optimistic removal from pending
-          set(
-            {
-              pendingInvitations: originalInvitations.filter(
-                (inv) => inv.id !== inviteId
-              ),
-              loading: { ...state.loading, deleting: true },
-              error: null,
-            },
-            false,
-            'declineInvitation/optimistic'
-          )
-
-          try {
-            await authFetch(`/api/invitations/${inviteId}/decline`, {
-              method: 'POST',
-            })
-
-            set(
-              { loading: { ...state.loading, deleting: false } },
-              false,
-              'declineInvitation/success'
-            )
-          } catch (error) {
-            const errorMessage =
-              error instanceof AuthApiError
-                ? error.message
-                : 'Failed to decline invitation'
-
-            // Rollback optimistic removal
+            // Optimistic removal from pending
             set(
               {
-                pendingInvitations: originalInvitations,
-                error: errorMessage,
-                loading: { ...state.loading, deleting: false },
+                pendingInvitations: originalInvitations.filter(
+                  (inv) => inv.id !== inviteId
+                ),
+                loading: { ...state.loading, deleting: true },
+                error: null,
               },
               false,
-              'declineInvitation/rollback'
+              'declineInvitation/optimistic'
             )
 
-            throw error
-          }
+            try {
+              await authFetch(`/api/invitations/${inviteId}/decline`, {
+                method: 'POST',
+              })
+
+              set(
+                { loading: { ...state.loading, deleting: false } },
+                false,
+                'declineInvitation/success'
+              )
+            } catch (error) {
+              const errorMessage =
+                error instanceof AuthApiError
+                  ? error.message
+                  : 'Failed to decline invitation'
+
+              // Rollback optimistic removal
+              set(
+                {
+                  pendingInvitations: originalInvitations,
+                  error: errorMessage,
+                  loading: { ...state.loading, deleting: false },
+                },
+                false,
+                'declineInvitation/rollback'
+              )
+
+              throw error
+            }
+          })
         },
 
         revokeInvitation: async (orgId, inviteId) => {
-          const state = get()
-          const originalInvitations = [...state.currentOrgInvitations]
+          return dedupedRequest(`revokeInvitation-${orgId}-${inviteId}`, async () => {
+            const state = get()
+            const originalInvitations = [...state.currentOrgInvitations]
 
-          // Optimistic removal
-          set(
-            {
-              currentOrgInvitations: originalInvitations.filter(
-                (inv) => inv.id !== inviteId
-              ),
-              loading: { ...state.loading, deleting: true },
-              error: null,
-            },
-            false,
-            'revokeInvitation/optimistic'
-          )
-
-          try {
-            await authFetch(
-              `/api/organizations/${orgId}/invitations/${inviteId}`,
-              {
-                method: 'DELETE',
-              }
-            )
-
-            set(
-              { loading: { ...state.loading, deleting: false } },
-              false,
-              'revokeInvitation/success'
-            )
-          } catch (error) {
-            const errorMessage =
-              error instanceof AuthApiError
-                ? error.message
-                : 'Failed to revoke invitation'
-
-            // Rollback optimistic removal
+            // Optimistic removal
             set(
               {
-                currentOrgInvitations: originalInvitations,
-                error: errorMessage,
-                loading: { ...state.loading, deleting: false },
+                currentOrgInvitations: originalInvitations.filter(
+                  (inv) => inv.id !== inviteId
+                ),
+                loading: { ...state.loading, deleting: true },
+                error: null,
               },
               false,
-              'revokeInvitation/rollback'
+              'revokeInvitation/optimistic'
             )
 
-            throw error
-          }
+            try {
+              await authFetch(
+                `/api/organizations/${orgId}/invitations/${inviteId}`,
+                {
+                  method: 'DELETE',
+                }
+              )
+
+              set(
+                { loading: { ...state.loading, deleting: false } },
+                false,
+                'revokeInvitation/success'
+              )
+            } catch (error) {
+              const errorMessage =
+                error instanceof AuthApiError
+                  ? error.message
+                  : 'Failed to revoke invitation'
+
+              // Rollback optimistic removal
+              set(
+                {
+                  currentOrgInvitations: originalInvitations,
+                  error: errorMessage,
+                  loading: { ...state.loading, deleting: false },
+                },
+                false,
+                'revokeInvitation/rollback'
+              )
+
+              throw error
+            }
+          })
         },
 
         // ================================================================
@@ -965,42 +984,45 @@ export const useOrganizationStore = create<OrganizationStore>()(
         // ================================================================
 
         fetchAuditLogs: async (orgId, params = {}) => {
-          try {
-            const queryParams = new URLSearchParams()
+          const cacheKey = `fetchAuditLogs-${orgId}-${JSON.stringify(params)}`
+          return dedupedRequest(cacheKey, async () => {
+            try {
+              const queryParams = new URLSearchParams()
 
-            if (params.action) queryParams.append('action', params.action)
-            if (params.resource_type)
-              queryParams.append('resource_type', params.resource_type)
-            if (params.user_id) queryParams.append('user_id', params.user_id)
-            if (params.start_date)
-              queryParams.append(
-                'start_date',
-                params.start_date.toISOString()
-              )
-            if (params.end_date)
-              queryParams.append('end_date', params.end_date.toISOString())
-            if (params.limit) queryParams.append('limit', params.limit.toString())
-            if (params.offset)
-              queryParams.append('offset', params.offset.toString())
+              if (params.action) queryParams.append('action', params.action)
+              if (params.resource_type)
+                queryParams.append('resource_type', params.resource_type)
+              if (params.user_id) queryParams.append('user_id', params.user_id)
+              if (params.start_date)
+                queryParams.append(
+                  'start_date',
+                  params.start_date.toISOString()
+                )
+              if (params.end_date)
+                queryParams.append('end_date', params.end_date.toISOString())
+              if (params.limit) queryParams.append('limit', params.limit.toString())
+              if (params.offset)
+                queryParams.append('offset', params.offset.toString())
 
-            const query = queryParams.toString()
-            const endpoint = `/api/organizations/${orgId}/audit-logs${
-              query ? `?${query}` : ''
-            }`
+              const query = queryParams.toString()
+              const endpoint = `/api/organizations/${orgId}/audit-logs${
+                query ? `?${query}` : ''
+              }`
 
-            const response = await authFetch<{ logs: AuditLog[] }>(endpoint)
+              const response = await authFetch<{ logs: AuditLog[] }>(endpoint)
 
-            return (response.logs ?? []).map(parseLogDates)
-          } catch (error) {
-            const errorMessage =
-              error instanceof AuthApiError
-                ? error.message
-                : 'Failed to fetch audit logs'
+              return (response.logs ?? []).map(parseLogDates)
+            } catch (error) {
+              const errorMessage =
+                error instanceof AuthApiError
+                  ? error.message
+                  : 'Failed to fetch audit logs'
 
-            set({ error: errorMessage }, false, 'fetchAuditLogs/error')
+              set({ error: errorMessage }, false, 'fetchAuditLogs/error')
 
-            throw error
-          }
+              throw error
+            }
+          })
         },
 
         // ================================================================

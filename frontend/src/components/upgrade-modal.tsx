@@ -31,6 +31,7 @@ import {
   Zap,
 } from "lucide-react";
 import React, { useCallback,useEffect, useState } from "react";
+import { useShallow } from "zustand/react/shallow";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -189,7 +190,11 @@ export function UpgradeModal({
   trigger = "manual",
   recommendedTier = "individual",
 }: UpgradeModalProps) {
-  const { startTrial, isTrialActive, getTrialDaysRemaining } = useTierStore();
+  const { startTrial, isTrialActive, getTrialDaysRemaining } = useTierStore(useShallow((state) => ({
+    startTrial: state.startTrial,
+    isTrialActive: state.isTrialActive,
+    getTrialDaysRemaining: state.getTrialDaysRemaining,
+  })));
   const { markShown, dismiss, recordUpgrade } = useUpgradePromptStore();
   const [selectedPlan, setSelectedPlan] = useState<"individual" | "team">(
     recommendedTier

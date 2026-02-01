@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { createJSONStorage,persist } from 'zustand/middleware'
 
 import type { SchemaNode } from '@/hooks/use-schema-introspection'
+import { dedupedRequest } from '@/lib/request-deduplication'
 import {
   buildFixSQLBackendRequest,
   buildGenerateSQLBackendRequest,
@@ -433,11 +434,12 @@ export const useAIStore = create<AIState & AIActions>()(
       },
 
       testConnection: async (provider: string): Promise<boolean> => {
-        const { config, setConnectionStatus } = get()
+        return dedupedRequest(`testConnection-${provider}`, async () => {
+          const { config, setConnectionStatus } = get()
 
-        setConnectionStatus(provider, 'testing')
+          setConnectionStatus(provider, 'testing')
 
-        try {
+          try {
           // Prepare parameters for the AI test
           const testParams = {
             provider,
@@ -529,31 +531,34 @@ export const useAIStore = create<AIState & AIActions>()(
 
           throw error // Re-throw so the frontend can handle it
         }
+        })
       },
 
       ensureProviderConfigured: async () => {
-        const { config, providerSynced } = get()
-        if (providerSynced || !config.enabled) {
-          return
-        }
+        return dedupedRequest('ensureProviderConfigured', async () => {
+          const { config, providerSynced } = get()
+          if (providerSynced || !config.enabled) {
+            return
+          }
 
-        const providerConfig = buildProviderConfig(config.provider, config)
+          const providerConfig = buildProviderConfig(config.provider, config)
 
-        // Skip if provider requires credentials that are missing
-        if ((config.provider === 'openai' && !providerConfig.apiKey) ||
-            (config.provider === 'anthropic' && !providerConfig.apiKey) ||
-            (config.provider === 'codex' && !providerConfig.apiKey)) {
-          return
-        }
+          // Skip if provider requires credentials that are missing
+          if ((config.provider === 'openai' && !providerConfig.apiKey) ||
+              (config.provider === 'anthropic' && !providerConfig.apiKey) ||
+              (config.provider === 'codex' && !providerConfig.apiKey)) {
+            return
+          }
 
-        try {
-          await ConfigureAIProvider(providerConfig)
-          set({ providerSynced: true })
-        } catch (error) {
-          console.error('Failed to configure AI provider', error)
-          set({ providerSynced: false })
-          throw error
-        }
+          try {
+            await ConfigureAIProvider(providerConfig)
+            set({ providerSynced: true })
+          } catch (error) {
+            console.error('Failed to configure AI provider', error)
+            set({ providerSynced: false })
+            throw error
+          }
+        })
       },
 
       /**
@@ -908,49 +913,55 @@ export const useAIStore = create<AIState & AIActions>()(
       },
 
       hydrateMemoriesFromBackend: async () => {
-        const { config, memoriesHydrated } = get()
-        if (!config.syncMemories) {
-          set({ memoriesHydrated: true })
-          return
-        }
-
-        if (memoriesHydrated) {
-          return
-        }
-
-        try {
-          const payload = await LoadAIMemorySessions()
-          if (Array.isArray(payload) && payload.length > 0) {
-            const sessions = deserializeMemorySessions(payload as WailsMemorySession[])
-            const memoryStore = useAIMemoryStore.getState()
-            memoryStore.importSessions(sessions, { merge: true })
+        return dedupedRequest('hydrateMemoriesFromBackend', async () => {
+          const { config, memoriesHydrated } = get()
+          if (!config.syncMemories) {
+            set({ memoriesHydrated: true })
+            return
           }
-        } catch (error) {
-          console.error('Failed to hydrate memories from backend:', error)
-        } finally {
-          set({ memoriesHydrated: true })
-        }
+
+          if (memoriesHydrated) {
+            return
+          }
+
+          try {
+            const payload = await LoadAIMemorySessions()
+            if (Array.isArray(payload) && payload.length > 0) {
+              const sessions = deserializeMemorySessions(payload as WailsMemorySession[])
+              const memoryStore = useAIMemoryStore.getState()
+              memoryStore.importSessions(sessions, { merge: true })
+            }
+          } catch (error) {
+            console.error('Failed to hydrate memories from backend:', error)
+          } finally {
+            set({ memoriesHydrated: true })
+          }
+        })
       },
 
       persistMemoriesIfEnabled: async () => {
-        const { config } = get()
-        if (!config.syncMemories) {
-          return
-        }
+        return dedupedRequest('persistMemoriesIfEnabled', async () => {
+          const { config } = get()
+          if (!config.syncMemories) {
+            return
+          }
 
-        const sessions = useAIMemoryStore.getState().exportSessions()
-        try {
-          await SaveAIMemorySessions(serializeMemorySessions(sessions))
-        } catch (error) {
-          console.error('Failed to persist AI memories:', error)
-        }
+          const sessions = useAIMemoryStore.getState().exportSessions()
+          try {
+            await SaveAIMemorySessions(serializeMemorySessions(sessions))
+          } catch (error) {
+            console.error('Failed to persist AI memories:', error)
+          }
+        })
       },
 
       deleteMemorySession: async (sessionId: string) => {
-        const memoryStore = useAIMemoryStore.getState()
-        memoryStore.deleteSession(sessionId)
-        await DeleteAIMemorySession(sessionId)
-        await get().persistMemoriesIfEnabled()
+        return dedupedRequest(`deleteMemorySession-${sessionId}`, async () => {
+          const memoryStore = useAIMemoryStore.getState()
+          memoryStore.deleteSession(sessionId)
+          await DeleteAIMemorySession(sessionId)
+          await get().persistMemoriesIfEnabled()
+        })
       },
     }),
     {

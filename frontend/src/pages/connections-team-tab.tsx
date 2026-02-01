@@ -42,7 +42,7 @@ export function TeamConnectionsTab({ hideHeader = false }: TeamConnectionsTabPro
     fetchSharedQueries,
     unshareQuery,
     deleteQuery,
-    loading: queriesLoading,
+    isLoading: queriesLoading,
     error: queriesError,
   } = useQueriesStore()
 

@@ -24,6 +24,7 @@
  */
 
 import { useCallback,useMemo } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 
 import { useTierStore } from '@/store/tier-store'
 import type { TierLevel,TierLimits } from '@/types/tiers'
@@ -90,7 +91,10 @@ export function useTierLimit(
   limitName: keyof TierLimits,
   currentUsage: number
 ): TierLimitResult {
-  const { currentTier, checkLimit } = useTierStore()
+  const { currentTier, checkLimit } = useTierStore(useShallow((state) => ({
+    currentTier: state.currentTier,
+    checkLimit: state.checkLimit,
+  })))
 
   const limitCheck = useMemo(
     () => checkLimit(limitName, currentUsage),
@@ -187,7 +191,10 @@ export function useCanExceedLimit(
   afterUsage: number
   showUpgrade: () => void
 } {
-  const { checkLimit, currentTier } = useTierStore()
+  const { checkLimit, currentTier } = useTierStore(useShallow((state) => ({
+    checkLimit: state.checkLimit,
+    currentTier: state.currentTier,
+  })))
 
   const afterUsage = currentUsage + increment
 
@@ -239,7 +246,9 @@ export function useCanExceedLimit(
  * ```
  */
 export function useCurrentLimits(): TierLimits {
-  const { getLimits } = useTierStore()
+  const { getLimits } = useTierStore(useShallow((state) => ({
+    getLimits: state.getLimits,
+  })))
   return useMemo(() => getLimits(), [getLimits])
 }
 
@@ -263,7 +272,10 @@ export function useCurrentLimits(): TierLimits {
 export function useMultiLimitCheck(
   limits: Partial<Record<keyof TierLimits, number>>
 ): Record<string, TierLimitResult> {
-  const { checkLimit, currentTier } = useTierStore()
+  const { checkLimit, currentTier } = useTierStore(useShallow((state) => ({
+    checkLimit: state.checkLimit,
+    currentTier: state.currentTier,
+  })))
 
   return useMemo(() => {
     const results: Record<string, TierLimitResult> = {}

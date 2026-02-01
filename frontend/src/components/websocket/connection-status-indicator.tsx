@@ -34,7 +34,7 @@ interface ConnectionStatusIndicatorProps {
   className?: string;
 }
 
-export function ConnectionStatusIndicator({
+export const ConnectionStatusIndicator = React.memo(function ConnectionStatusIndicator({
   showDetails = false,
   className = '',
 }: ConnectionStatusIndicatorProps) {
@@ -311,4 +311,4 @@ export function ConnectionStatusIndicator({
       </Popover>
     </TooltipProvider>
   );
-}
+})

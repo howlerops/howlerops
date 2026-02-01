@@ -149,6 +149,13 @@ export function RealtimeTableEditor({
   }, []);
 
   /**
+   * Handle editing cell input change
+   */
+  const handleEditingCellChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setEditingCell(prev => prev ? { ...prev, value: e.target.value } : null);
+  }, []);
+
+  /**
    * Save cell edit
    */
   const saveEdit = useCallback(async () => {
@@ -165,7 +172,9 @@ export function RealtimeTableEditor({
           throw new Error('Invalid number');
         }
       } else if (columnDef?.type === 'boolean') {
-        parsedValue = editingCell.value.toLowerCase() === 'true';
+        // Handle various boolean representations
+        const val = editingCell.value.toLowerCase().trim();
+        parsedValue = val === 'true' || val === '1' || val === 'yes' || val === 'on';
       } else if (columnDef?.type === 'json') {
         parsedValue = JSON.parse(editingCell.value);
       }
@@ -295,7 +304,7 @@ export function RealtimeTableEditor({
         <div className="flex items-center gap-2">
           <Input
             value={editingCell.value}
-            onChange={(e) => setEditingCell(prev => prev ? { ...prev, value: e.target.value } : null)}
+            onChange={handleEditingCellChange}
             onKeyDown={handleKeyPress}
             onBlur={saveEdit}
             autoFocus
@@ -348,6 +357,7 @@ export function RealtimeTableEditor({
     getCellStatus,
     getCellDisplayValue,
     handleKeyPress,
+    handleEditingCellChange,
     saveEdit,
     cancelEditing,
     startEditing,

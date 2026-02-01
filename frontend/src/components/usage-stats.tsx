@@ -16,6 +16,7 @@ import {
   TrendingUp,
 } from 'lucide-react'
 import React, { useEffect,useState } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -97,8 +98,13 @@ export function UsageStats({
   compact = false,
   className,
 }: UsageStatsProps) {
-  const { getLimits, currentTier } = useTierStore()
-  const { connections } = useConnectionStore()
+  const { getLimits, currentTier } = useTierStore(useShallow((state) => ({
+    getLimits: state.getLimits,
+    currentTier: state.currentTier,
+  })))
+  const { connections } = useConnectionStore(useShallow((state) => ({
+    connections: state.connections,
+  })))
   const { showUpgradeModal, UpgradeModalComponent } = useUpgradeModal()
   const { sessions } = useAIMemoryStore()
 

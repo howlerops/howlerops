@@ -7,6 +7,7 @@ import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
 
 import * as api from '@/lib/api/templates'
+import { dedupedRequest } from '@/lib/request-deduplication'
 import type {
   CreateScheduleInput,
   CreateTemplateInput,
@@ -84,35 +85,39 @@ export const useTemplatesStore = create<TemplatesStore>()(
       // ========================================================================
 
       fetchTemplates: async () => {
-        set({ loading: true, error: null })
-        try {
-          const templates = await api.listTemplates(get().filters)
-          set({ templates, loading: false })
-        } catch (error) {
-          set({
-            error: error instanceof Error ? error.message : 'Failed to fetch templates',
-            loading: false,
-          })
-        }
+        return dedupedRequest('fetchTemplates', async () => {
+          set({ loading: true, error: null })
+          try {
+            const templates = await api.listTemplates(get().filters)
+            set({ templates, loading: false })
+          } catch (error) {
+            set({
+              error: error instanceof Error ? error.message : 'Failed to fetch templates',
+              loading: false,
+            })
+          }
+        })
       },
 
       getTemplate: async (id: string) => {
-        set({ loading: true, error: null })
-        try {
-          const template = await api.getTemplate(id)
-          // Update in store if exists
-          set((state) => ({
-            templates: state.templates.map((t) => (t.id === id ? template : t)),
-            loading: false,
-          }))
-          return template
-        } catch (error) {
-          set({
-            error: error instanceof Error ? error.message : 'Failed to get template',
-            loading: false,
-          })
-          throw error
-        }
+        return dedupedRequest(`getTemplate-${id}`, async () => {
+          set({ loading: true, error: null })
+          try {
+            const template = await api.getTemplate(id)
+            // Update in store if exists
+            set((state) => ({
+              templates: state.templates.map((t) => (t.id === id ? template : t)),
+              loading: false,
+            }))
+            return template
+          } catch (error) {
+            set({
+              error: error instanceof Error ? error.message : 'Failed to get template',
+              loading: false,
+            })
+            throw error
+          }
+        })
       },
 
       createTemplate: async (input: CreateTemplateInput) => {
@@ -151,20 +156,22 @@ export const useTemplatesStore = create<TemplatesStore>()(
       },
 
       deleteTemplate: async (id: string) => {
-        set({ loading: true, error: null })
-        try {
-          await api.deleteTemplate(id)
-          set((state) => ({
-            templates: state.templates.filter((t) => t.id !== id),
-            loading: false,
-          }))
-        } catch (error) {
-          set({
-            error: error instanceof Error ? error.message : 'Failed to delete template',
-            loading: false,
-          })
-          throw error
-        }
+        return dedupedRequest(`deleteTemplate-${id}`, async () => {
+          set({ loading: true, error: null })
+          try {
+            await api.deleteTemplate(id)
+            set((state) => ({
+              templates: state.templates.filter((t) => t.id !== id),
+              loading: false,
+            }))
+          } catch (error) {
+            set({
+              error: error instanceof Error ? error.message : 'Failed to delete template',
+              loading: false,
+            })
+            throw error
+          }
+        })
       },
 
       duplicateTemplate: async (id: string) => {
@@ -186,24 +193,26 @@ export const useTemplatesStore = create<TemplatesStore>()(
       },
 
       executeTemplate: async (id: string, params: Record<string, unknown>) => {
-        set({ loading: true, error: null })
-        try {
-          const result = await api.executeTemplate(id, params)
-          // Increment usage count optimistically
-          set((state) => ({
-            templates: state.templates.map((t) =>
-              t.id === id ? { ...t, usage_count: t.usage_count + 1 } : t
-            ),
-            loading: false,
-          }))
-          return result
-        } catch (error) {
-          set({
-            error: error instanceof Error ? error.message : 'Failed to execute template',
-            loading: false,
-          })
-          throw error
-        }
+        return dedupedRequest(`executeTemplate-${id}`, async () => {
+          set({ loading: true, error: null })
+          try {
+            const result = await api.executeTemplate(id, params)
+            // Increment usage count optimistically
+            set((state) => ({
+              templates: state.templates.map((t) =>
+                t.id === id ? { ...t, usage_count: t.usage_count + 1 } : t
+              ),
+              loading: false,
+            }))
+            return result
+          } catch (error) {
+            set({
+              error: error instanceof Error ? error.message : 'Failed to execute template',
+              loading: false,
+            })
+            throw error
+          }
+        })
       },
 
       // ========================================================================
@@ -211,34 +220,38 @@ export const useTemplatesStore = create<TemplatesStore>()(
       // ========================================================================
 
       fetchSchedules: async () => {
-        set({ loading: true, error: null })
-        try {
-          const schedules = await api.listSchedules()
-          set({ schedules, loading: false })
-        } catch (error) {
-          set({
-            error: error instanceof Error ? error.message : 'Failed to fetch schedules',
-            loading: false,
-          })
-        }
+        return dedupedRequest('fetchSchedules', async () => {
+          set({ loading: true, error: null })
+          try {
+            const schedules = await api.listSchedules()
+            set({ schedules, loading: false })
+          } catch (error) {
+            set({
+              error: error instanceof Error ? error.message : 'Failed to fetch schedules',
+              loading: false,
+            })
+          }
+        })
       },
 
       getSchedule: async (id: string) => {
-        set({ loading: true, error: null })
-        try {
-          const schedule = await api.getSchedule(id)
-          set((state) => ({
-            schedules: state.schedules.map((s) => (s.id === id ? schedule : s)),
-            loading: false,
-          }))
-          return schedule
-        } catch (error) {
-          set({
-            error: error instanceof Error ? error.message : 'Failed to get schedule',
-            loading: false,
-          })
-          throw error
-        }
+        return dedupedRequest(`getSchedule-${id}`, async () => {
+          set({ loading: true, error: null })
+          try {
+            const schedule = await api.getSchedule(id)
+            set((state) => ({
+              schedules: state.schedules.map((s) => (s.id === id ? schedule : s)),
+              loading: false,
+            }))
+            return schedule
+          } catch (error) {
+            set({
+              error: error instanceof Error ? error.message : 'Failed to get schedule',
+              loading: false,
+            })
+            throw error
+          }
+        })
       },
 
       createSchedule: async (input: CreateScheduleInput) => {
@@ -277,70 +290,78 @@ export const useTemplatesStore = create<TemplatesStore>()(
       },
 
       deleteSchedule: async (id: string) => {
-        set({ loading: true, error: null })
-        try {
-          await api.deleteSchedule(id)
-          set((state) => ({
-            schedules: state.schedules.filter((s) => s.id !== id),
-            loading: false,
-          }))
-        } catch (error) {
-          set({
-            error: error instanceof Error ? error.message : 'Failed to delete schedule',
-            loading: false,
-          })
-          throw error
-        }
+        return dedupedRequest(`deleteSchedule-${id}`, async () => {
+          set({ loading: true, error: null })
+          try {
+            await api.deleteSchedule(id)
+            set((state) => ({
+              schedules: state.schedules.filter((s) => s.id !== id),
+              loading: false,
+            }))
+          } catch (error) {
+            set({
+              error: error instanceof Error ? error.message : 'Failed to delete schedule',
+              loading: false,
+            })
+            throw error
+          }
+        })
       },
 
       pauseSchedule: async (id: string) => {
-        try {
-          await api.pauseSchedule(id)
-          set((state) => ({
-            schedules: state.schedules.map((s) =>
-              s.id === id ? { ...s, status: 'paused' as const } : s
-            ),
-          }))
-        } catch (error) {
-          set({
-            error: error instanceof Error ? error.message : 'Failed to pause schedule',
-          })
-          throw error
-        }
+        return dedupedRequest(`pauseSchedule-${id}`, async () => {
+          try {
+            await api.pauseSchedule(id)
+            set((state) => ({
+              schedules: state.schedules.map((s) =>
+                s.id === id ? { ...s, status: 'paused' as const } : s
+              ),
+            }))
+          } catch (error) {
+            set({
+              error: error instanceof Error ? error.message : 'Failed to pause schedule',
+            })
+            throw error
+          }
+        })
       },
 
       resumeSchedule: async (id: string) => {
-        try {
-          await api.resumeSchedule(id)
-          set((state) => ({
-            schedules: state.schedules.map((s) =>
-              s.id === id ? { ...s, status: 'active' as const } : s
-            ),
-          }))
-        } catch (error) {
-          set({
-            error: error instanceof Error ? error.message : 'Failed to resume schedule',
-          })
-          throw error
-        }
+        return dedupedRequest(`resumeSchedule-${id}`, async () => {
+          try {
+            await api.resumeSchedule(id)
+            set((state) => ({
+              schedules: state.schedules.map((s) =>
+                s.id === id ? { ...s, status: 'active' as const } : s
+              ),
+            }))
+          } catch (error) {
+            set({
+              error: error instanceof Error ? error.message : 'Failed to resume schedule',
+            })
+            throw error
+          }
+        })
       },
 
       runScheduleNow: async (id: string) => {
-        try {
-          const execution = await api.runScheduleNow(id)
-          // Add to executions map
-          set((state) => {
-            const newExecutions = new Map(state.executions)
-            const scheduleExecs = newExecutions.get(id) || []
-            newExecutions.set(id, [execution, ...scheduleExecs])
-            return { executions: newExecutions }
-          })
-        } catch (error) {
-          set({
-            error: error instanceof Error ? error.message : 'Failed to run schedule',
-          })
-          throw error
-        }
+        return dedupedRequest(`runScheduleNow-${id}`, async () => {
+          try {
+            const execution = await api.runScheduleNow(id)
+            // Add to executions map
+            set((state) => {
+              const newExecutions = new Map(state.executions)
+              const scheduleExecs = newExecutions.get(id) || []
+              newExecutions.set(id, [execution, ...scheduleExecs])
+              return { executions: newExecutions }
+            })
+          } catch (error) {
+            set({
+              error: error instanceof Error ? error.message : 'Failed to run schedule',
+            })
+            throw error
+          }
+        })
       },
 
       // ========================================================================
@@ -348,35 +369,39 @@ export const useTemplatesStore = create<TemplatesStore>()(
       // ========================================================================
 
       fetchExecutions: async (scheduleId: string) => {
-        set({ loading: true, error: null })
-        try {
-          const executions = await api.getScheduleExecutions(scheduleId)
-          set((state) => {
-            const newExecutions = new Map(state.executions)
-            newExecutions.set(scheduleId, executions)
-            return { executions: newExecutions, loading: false }
-          })
-        } catch (error) {
-          set({
-            error: error instanceof Error ? error.message : 'Failed to fetch executions',
-            loading: false,
-          })
-        }
+        return dedupedRequest(`fetchExecutions-${scheduleId}`, async () => {
+          set({ loading: true, error: null })
+          try {
+            const executions = await api.getScheduleExecutions(scheduleId)
+            set((state) => {
+              const newExecutions = new Map(state.executions)
+              newExecutions.set(scheduleId, executions)
+              return { executions: newExecutions, loading: false }
+            })
+          } catch (error) {
+            set({
+              error: error instanceof Error ? error.message : 'Failed to fetch executions',
+              loading: false,
+            })
+          }
+        })
       },
 
       getExecution: async (scheduleId: string, executionId: string) => {
-        set({ loading: true, error: null })
-        try {
-          const execution = await api.getExecution(scheduleId, executionId)
-          set({ loading: false })
-          return execution
-        } catch (error) {
-          set({
-            error: error instanceof Error ? error.message : 'Failed to get execution',
-            loading: false,
-          })
-          throw error
-        }
+        return dedupedRequest(`getExecution-${scheduleId}-${executionId}`, async () => {
+          set({ loading: true, error: null })
+          try {
+            const execution = await api.getExecution(scheduleId, executionId)
+            set({ loading: false })
+            return execution
+          } catch (error) {
+            set({
+              error: error instanceof Error ? error.message : 'Failed to get execution',
+              loading: false,
+            })
+            throw error
+          }
+        })
       },
 
       // ========================================================================

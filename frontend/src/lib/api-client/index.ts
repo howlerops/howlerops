@@ -12,10 +12,10 @@
  *   const result = await api.queries.execute(connectionId, sql)
  */
 
-import { isWailsApp, getPlatformType } from '../platform'
-import { wailsApiClient } from './wails-client'
+import { getPlatformType,isWailsApp } from '../platform'
 import { restApiClient } from './rest-client'
 import type { ApiClient, PlatformType } from './types'
+import { wailsApiClient } from './wails-client'
 
 // Re-export types for convenience
 export * from './types'
@@ -66,5 +66,5 @@ export const api: ApiClient = getApiClient()
 /**
  * Force use of a specific client (for testing or special cases)
  */
-export { wailsApiClient } from './wails-client'
 export { restApiClient } from './rest-client'
+export { wailsApiClient } from './wails-client'

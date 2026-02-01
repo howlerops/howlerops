@@ -15,6 +15,7 @@
 import { AlertTriangle, CheckCircle2, Loader2,XCircle } from "lucide-react";
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useShallow } from "zustand/react/shallow";
 
 import { TierBadge, TierBadgeList } from "@/components/tier-badge";
 import { Alert } from "@/components/ui/alert";
@@ -63,9 +64,19 @@ export function TierSettingsPanel() {
     deactivateLicense,
     getFeatures,
     getLimits,
-  } = useTierStore();
+  } = useTierStore(useShallow((state) => ({
+    currentTier: state.currentTier,
+    licenseKey: state.licenseKey,
+    expiresAt: state.expiresAt,
+    activateLicense: state.activateLicense,
+    deactivateLicense: state.deactivateLicense,
+    getFeatures: state.getFeatures,
+    getLimits: state.getLimits,
+  })));
 
-  const { connections } = useConnectionStore();
+  const { connections } = useConnectionStore(useShallow((state) => ({
+    connections: state.connections,
+  })));
   const [queryHistoryCount, setQueryHistoryCount] = useState(0);
   const [licenseInput, setLicenseInput] = useState("");
   const [isActivating, setIsActivating] = useState(false);

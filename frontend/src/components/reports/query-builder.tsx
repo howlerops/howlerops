@@ -25,6 +25,7 @@ import { cn } from '@/lib/utils'
 import { wailsApiClient } from '@/lib/wails-api'
 import type {
   AggregationFunction,
+  ColumnMetadata,
   ColumnSelection,
   DatabaseSchema,
   FilterCombinator,
@@ -926,15 +927,15 @@ async function fetchDatabaseSchema(connectionId: string): Promise<DatabaseSchema
 
       const columns: ColumnMetadata[] = (columnsResponse.data || []).map((col, index) => ({
         name: col.name,
-        dataType: col.dataType || col.type || 'unknown',
+        dataType: col.dataType || 'unknown',
         nullable: col.nullable ?? true,
         defaultValue: col.defaultValue,
-        primaryKey: col.isPrimaryKey ?? false,
-        unique: col.isUnique ?? false,
-        indexed: col.isIndexed ?? false,
+        primaryKey: col.primaryKey ?? false,
+        unique: col.unique ?? false,
+        indexed: col.indexed ?? false,
         comment: col.comment,
         ordinalPosition: col.ordinalPosition ?? index + 1,
-        characterMaxLength: col.characterMaxLength,
+        characterMaxLength: col.characterMaximumLength,
         numericPrecision: col.numericPrecision,
         numericScale: col.numericScale,
       }))

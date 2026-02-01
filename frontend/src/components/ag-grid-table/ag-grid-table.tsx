@@ -50,38 +50,44 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
   data,
   columns: tableColumns,
   onDataChange,
-  _onCellEdit,
+  onCellEdit: _onCellEdit,
   onRowSelect,
   onRowClick,
   onRowInspect,
   onSort,
   onFilter,
-  _onExport,
+  onExport: _onExport,
   onSelectAllPages,
   loading = false,
   error = null,
-  _virtualScrolling = true,
+  virtualScrolling: _virtualScrolling = true,
   className,
   height = 600,
   enableMultiSelect = true,
   enableColumnResizing = true,
   enableColumnReordering = false,
   enableGlobalFilter = true,
-  _enableExport = true,
+  enableExport: _enableExport = true,
   toolbar,
   footer,
   onDirtyChange,
   customCellRenderers = {},
   isEditable = false,
   // Phase 2: Chunked data loading
-  _resultId,
-  _totalRows,
-  _isLargeResult = false,
-  _chunkingEnabled = false,
-  _displayMode,
+  resultId: _resultId,
+  totalRows: _totalRows,
+  isLargeResult: _isLargeResult = false,
+  chunkingEnabled: _chunkingEnabled = false,
+  displayMode: _displayMode,
 }) => {
   const gridRef = useRef<AgGridReact>(null);
   const [gridApi, setGridApi] = useState<GridApi | null>(null);
+
+  // Ref to track current data for efficient updates (avoids iterating all grid nodes)
+  const dataRef = useRef<TableRow[]>(data);
+  useEffect(() => {
+    dataRef.current = data;
+  }, [data]);
 
   // Track dirty rows (edited but not saved)
   const [dirtyRows, setDirtyRows] = useState<Set<string>>(new Set());
@@ -154,16 +160,42 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
         </button>
       ) : null;
 
-      // Boolean renderer
+      // Boolean renderer - uses native checkbox with proper accessibility
+      // Note: We use a custom renderer instead of agCheckboxCellRenderer to:
+      // 1. Include the eye icon for row inspection (consistent with other columns)
+      // 2. Have full control over styling and interaction
       if (column.type === 'boolean') {
+        const isDisabled = !column.editable || !isEditable;
+        const checkboxId = `bool-${rowData.__rowId}-${column.accessorKey || column.id}`;
+
+        const handleBooleanChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+          e.stopPropagation();
+          if (isDisabled) return;
+
+          const newValue = e.target.checked;
+          // Get the grid API from the ref and update the cell value directly
+          const api = gridRef.current?.api;
+          if (api && rowData.__rowId) {
+            const rowNode = api.getRowNode(rowData.__rowId);
+            if (rowNode) {
+              const field = column.accessorKey || column.id || column.header;
+              rowNode.setDataValue(field, newValue);
+            }
+          }
+        };
+
         return (
           <div className="group flex items-center justify-between h-full w-full">
             <div className="flex items-center justify-center flex-1">
               <input
+                id={checkboxId}
                 type="checkbox"
                 checked={Boolean(value)}
-                readOnly={!column.editable}
-                className="w-4 h-4 cursor-pointer rounded"
+                onChange={handleBooleanChange}
+                disabled={isDisabled}
+                aria-label={`${column.header}: ${value ? 'checked' : 'unchecked'}`}
+                aria-disabled={isDisabled}
+                className="w-4 h-4 cursor-pointer rounded border-gray-400 text-primary focus:ring-2 focus:ring-primary focus:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50"
               />
             </div>
             {eyeIcon}
@@ -477,9 +509,27 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
 
   /**
    * Get row ID for AG Grid
+   * IMPORTANT: Rows MUST have __rowId or id for stable identification
+   * Content-based fallback is safer than Math.random() which changes every render
    */
   const getRowId = useCallback((params: GetRowIdParams<TableRow>): string => {
-    return params.data.__rowId || String(params.data.id) || `row-${Math.random()}`;
+    // Prefer __rowId (our internal ID) or id (database primary key)
+    if (params.data.__rowId) return params.data.__rowId;
+    if (params.data.id) return String(params.data.id);
+
+    // Fallback: create stable ID from first few column values
+    // This ensures same data produces same ID across renders
+    const keys = Object.keys(params.data).filter(k => !k.startsWith('__')).slice(0, 3);
+    const fallbackId = keys.map(k => String(params.data[k] ?? '')).join('-');
+    if (fallbackId) {
+      console.warn('Row missing __rowId and id, using content-based fallback:', fallbackId);
+      return `fallback-${fallbackId}`;
+    }
+
+    // Last resort: use stringified data hash (still better than random)
+    const dataHash = JSON.stringify(params.data).substring(0, 50);
+    console.warn('Row missing __rowId, id, and has no key columns, using data hash');
+    return `hash-${btoa(dataHash).substring(0, 20)}`;
   }, []);
 
   /**
@@ -493,6 +543,7 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
    * Handle cell value changed (editing)
    * NOTE: This now ONLY updates local state and marks rows dirty
    * Actual save happens when user clicks "Save Changes" button
+   * OPTIMIZED: Uses dataRef to update specific row instead of iterating all nodes
    */
   const onCellValueChanged = useCallback((event: CellValueChangedEvent<TableRow>) => {
     const rowId = event.data.__rowId;
@@ -503,13 +554,23 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
     // Mark row as dirty (but don't save yet)
     setDirtyRows(prev => new Set(prev).add(rowId));
 
-    // Call onDataChange to update local state
-    if (onDataChange && gridApi) {
-      const allData: TableRow[] = [];
-      gridApi.forEachNode(node => {
-        if (node.data) allData.push(node.data);
+    // Refresh the cell to update custom renderers (especially important for boolean checkboxes)
+    if (gridApi && event.node) {
+      gridApi.refreshCells({
+        rowNodes: [event.node],
+        columns: [columnId],
+        force: true,
       });
-      onDataChange(allData);
+    }
+
+    // Call onDataChange with updated data array
+    // OPTIMIZATION: Update specific row in dataRef instead of iterating all grid nodes
+    if (onDataChange) {
+      const updatedData = dataRef.current.map(row =>
+        row.__rowId === rowId ? { ...row, ...event.data } : row
+      );
+      dataRef.current = updatedData;
+      onDataChange(updatedData);
     }
   }, [onDataChange, gridApi]);
 

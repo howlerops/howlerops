@@ -1,9 +1,10 @@
 import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
 
+import { dedupedRequest } from '@/lib/request-deduplication'
 import { SSHAuthMethod } from '@/generated/database'
-import { getSecureStorage, migratePasswordsFromLocalStorage } from '@/lib/secure-storage'
 import { api } from '@/lib/api-client'
+import { getSecureStorage, migratePasswordsFromLocalStorage } from '@/lib/secure-storage'
 
 import { useTierStore } from './tier-store'
 
@@ -240,15 +241,16 @@ export const useConnectionStore = create<ConnectionState>()(
         },
 
         connectToDatabase: async (connectionId) => {
-          const state = get()
-          const connection = state.connections.find((conn) => conn.id === connectionId)
-          if (!connection) {
-            console.error(`Connection ${connectionId} not found`)
-            return
-          }
+          return dedupedRequest(`connectToDatabase-${connectionId}`, async () => {
+            const state = get()
+            const connection = state.connections.find((conn) => conn.id === connectionId)
+            if (!connection) {
+              console.error(`Connection ${connectionId} not found`)
+              return
+            }
 
-          set({ isConnecting: true })
-          try {
+            set({ isConnecting: true })
+            try {
             // Retrieve password from secure storage
             const secureStorage = getSecureStorage()
             const credentials = await secureStorage.getCredentials(connectionId)
@@ -283,7 +285,8 @@ export const useConnectionStore = create<ConnectionState>()(
               parameters: aliasParameters,
             })
 
-            if (!response.success || !response.data?.id) {
+            const responseData = response.data as { id?: string } | null
+            if (!response.success || !responseData?.id) {
               throw new Error(response.message || 'Failed to create connection')
             }
 
@@ -308,7 +311,7 @@ export const useConnectionStore = create<ConnectionState>()(
 
             const updatedConnection: DatabaseConnection = {
               ...connection,
-              sessionId: response.data.id,
+              sessionId: responseData.id,
               isConnected: true,
               lastUsed: new Date(),
             }
@@ -320,94 +323,101 @@ export const useConnectionStore = create<ConnectionState>()(
               activeConnection: updatedConnection,
               lastActiveConnectionId: connectionId,
             }))
-          } catch (error) {
-            console.error('Failed to connect to database:', error)
-            throw error
-          } finally {
-            set({ isConnecting: false })
-          }
+            } catch (error) {
+              console.error('Failed to connect to database:', error)
+              throw error
+            } finally {
+              set({ isConnecting: false })
+            }
+          })
         },
 
         disconnectFromDatabase: async (connectionId) => {
-          const state = get()
-          const connection = state.connections.find((conn) => conn.id === connectionId)
-          if (!connection) {
-            return
-          }
-
-          if (connection.sessionId) {
-            const response = await api.connections.remove(connection.sessionId)
-            if (!response.success) {
-              console.error('Failed to remove connection:', response.message)
+          return dedupedRequest(`disconnectFromDatabase-${connectionId}`, async () => {
+            const state = get()
+            const connection = state.connections.find((conn) => conn.id === connectionId)
+            if (!connection) {
+              return
             }
-          }
 
-          const updatedConnection: DatabaseConnection = {
-            ...connection,
-            sessionId: undefined,
-            isConnected: false,
-          }
+            if (connection.sessionId) {
+              const response = await api.connections.remove(connection.sessionId)
+              if (!response.success) {
+                console.error('Failed to remove connection:', response.message)
+              }
+            }
 
-          set((currentState) => ({
-            connections: currentState.connections.map((conn) =>
-              conn.id === connectionId ? updatedConnection : conn
-            ),
-            activeConnection:
-              currentState.activeConnection?.id === connectionId ? null : currentState.activeConnection,
-          }))
+            const updatedConnection: DatabaseConnection = {
+              ...connection,
+              sessionId: undefined,
+              isConnected: false,
+            }
+
+            set((currentState) => ({
+              connections: currentState.connections.map((conn) =>
+                conn.id === connectionId ? updatedConnection : conn
+              ),
+              activeConnection:
+                currentState.activeConnection?.id === connectionId ? null : currentState.activeConnection,
+            }))
+          })
         },
 
         fetchDatabases: async (connectionId) => {
-          const state = get()
-          const connection = state.connections.find((conn) => conn.id === connectionId || conn.sessionId === connectionId)
+          return dedupedRequest(`fetchDatabases-${connectionId}`, async () => {
+            const state = get()
+            const connection = state.connections.find((conn) => conn.id === connectionId || conn.sessionId === connectionId)
 
-          if (!connection) {
-            // If we don't know about this connection but it might be a live session ID, try once.
-            const response = await api.connections.listDatabases(connectionId)
+            if (!connection) {
+              // If we don't know about this connection but it might be a live session ID, try once.
+              const response = await api.connections.listDatabases(connectionId)
+              if (!response.success) {
+                throw new Error(response.message || 'Unable to fetch databases for this connection.')
+              }
+              return response.databases ?? []
+            }
+
+            if (!connection.sessionId) {
+              // Not connected yet; nothing to return.
+              return []
+            }
+
+            const response = await api.connections.listDatabases(connection.sessionId)
             if (!response.success) {
               throw new Error(response.message || 'Unable to fetch databases for this connection.')
             }
             return response.databases ?? []
-          }
-
-          if (!connection.sessionId) {
-            // Not connected yet; nothing to return.
-            return []
-          }
-
-          const response = await api.connections.listDatabases(connection.sessionId)
-          if (!response.success) {
-            throw new Error(response.message || 'Unable to fetch databases for this connection.')
-          }
-          return response.databases ?? []
+          })
         },
 
         switchDatabase: async (connectionId, database) => {
-          const state = get()
-          const connection = state.connections.find((conn) => conn.id === connectionId || conn.sessionId === connectionId)
-          if (!connection) {
-            throw new Error('Connection not found')
-          }
+          return dedupedRequest(`switchDatabase-${connectionId}-${database}`, async () => {
+            const state = get()
+            const connection = state.connections.find((conn) => conn.id === connectionId || conn.sessionId === connectionId)
+            if (!connection) {
+              throw new Error('Connection not found')
+            }
 
-          const managerId = connection.sessionId
-          if (!managerId) {
-            throw new Error('Connection is not active')
-          }
+            const managerId = connection.sessionId
+            if (!managerId) {
+              throw new Error('Connection is not active')
+            }
 
-          const response = await api.connections.switchDatabase(managerId, database)
-          if (!response.success) {
-            throw new Error(response.message || 'Failed to switch database.')
-          }
+            const response = await api.connections.switchDatabase(managerId, database)
+            if (!response.success) {
+              throw new Error(response.message || 'Failed to switch database.')
+            }
 
-          set((currentState) => ({
-            connections: currentState.connections.map((conn) =>
-              conn.id === connection.id ? { ...conn, database } : conn
-            ),
-            activeConnection:
-              currentState.activeConnection?.id === connection.id
-                ? { ...currentState.activeConnection, database }
-                : currentState.activeConnection,
-          }))
+            set((currentState) => ({
+              connections: currentState.connections.map((conn) =>
+                conn.id === connection.id ? { ...conn, database } : conn
+              ),
+              activeConnection:
+                currentState.activeConnection?.id === connection.id
+                  ? { ...currentState.activeConnection, database }
+                  : currentState.activeConnection,
+            }))
+          })
         },
 
         setEnvironmentFilter: async (env) => {

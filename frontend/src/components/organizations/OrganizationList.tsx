@@ -7,6 +7,7 @@
 
 import { Building2, ChevronRight, Loader2,Plus, Users } from 'lucide-react'
 import * as React from 'react'
+import { useCallback, useMemo } from 'react'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
@@ -33,6 +34,15 @@ export function OrganizationList({
   onOrganizationClick,
   className,
 }: OrganizationListProps) {
+  // Memoize click handlers for each organization to avoid inline functions in loops
+  const orgClickHandlers = useMemo(() => {
+    const handlers = new Map<string, () => void>()
+    organizations.forEach(org => {
+      handlers.set(org.id, () => onOrganizationClick(org))
+    })
+    return handlers
+  }, [organizations, onOrganizationClick])
+
   if (loading) {
     return (
       <div className={cn('flex items-center justify-center py-12', className)}>
@@ -98,7 +108,7 @@ export function OrganizationList({
           <OrganizationCard
             key={org.id}
             organization={org}
-            onClick={() => onOrganizationClick(org)}
+            onClick={orgClickHandlers.get(org.id)!}
           />
         ))}
       </div>
@@ -111,10 +121,17 @@ interface OrganizationCardProps {
   onClick: () => void
 }
 
-function OrganizationCard({ organization, onClick }: OrganizationCardProps) {
+const OrganizationCard = React.memo(function OrganizationCard({ organization, onClick }: OrganizationCardProps) {
   const memberCountText = organization.member_count === 1
     ? '1 member'
     : `${organization.member_count || 0} members`
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      onClick()
+    }
+  }, [onClick])
 
   return (
     <Card
@@ -122,12 +139,7 @@ function OrganizationCard({ organization, onClick }: OrganizationCardProps) {
       onClick={onClick}
       role="button"
       tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault()
-          onClick()
-        }
-      }}
+      onKeyDown={handleKeyDown}
       aria-label={`Open ${organization.name} organization`}
     >
       <CardHeader>
@@ -162,7 +174,7 @@ function OrganizationCard({ organization, onClick }: OrganizationCardProps) {
       </CardContent>
     </Card>
   )
-}
+})
 
 // Mobile-friendly list view variant
 export function OrganizationListMobile({
@@ -173,6 +185,15 @@ export function OrganizationListMobile({
   onOrganizationClick,
   className,
 }: OrganizationListProps) {
+  // Memoize click handlers for each organization to avoid inline functions in loops
+  const orgClickHandlers = useMemo(() => {
+    const handlers = new Map<string, () => void>()
+    organizations.forEach(org => {
+      handlers.set(org.id, () => onOrganizationClick(org))
+    })
+    return handlers
+  }, [organizations, onOrganizationClick])
+
   if (loading) {
     return (
       <div className={cn('flex items-center justify-center py-8', className)}>
@@ -221,7 +242,7 @@ export function OrganizationListMobile({
         {organizations.map((org) => (
           <button
             key={org.id}
-            onClick={() => onOrganizationClick(org)}
+            onClick={orgClickHandlers.get(org.id)}
             className="w-full text-left p-3 rounded-lg border bg-card hover:bg-accent transition-colors"
           >
             <div className="flex items-center gap-3">

@@ -23,6 +23,7 @@ import {
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { Link, useLocation, useNavigate } from "react-router-dom"
+import { useShallow } from "zustand/react/shallow"
 
 import { ConnectionSchemaViewer } from "@/components/connection-schema-viewer"
 import { EnvironmentManager } from "@/components/environment-manager"
@@ -162,8 +163,24 @@ export function Sidebar({ onToggle, isCollapsed = false }: SidebarProps) {
     getFilteredConnections,
     fetchDatabases,
     switchDatabase,
-  } = useConnectionStore()
-  const { tabs, activeTabId, updateTab } = useQueryStore()
+  } = useConnectionStore(useShallow((state) => ({
+    connections: state.connections,
+    activeConnection: state.activeConnection,
+    setActiveConnection: state.setActiveConnection,
+    connectToDatabase: state.connectToDatabase,
+    isConnecting: state.isConnecting,
+    activeEnvironmentFilter: state.activeEnvironmentFilter,
+    availableEnvironments: state.availableEnvironments,
+    setEnvironmentFilter: state.setEnvironmentFilter,
+    getFilteredConnections: state.getFilteredConnections,
+    fetchDatabases: state.fetchDatabases,
+    switchDatabase: state.switchDatabase,
+  })))
+  const { tabs, activeTabId, updateTab } = useQueryStore(useShallow((state) => ({
+    tabs: state.tabs,
+    activeTabId: state.activeTabId,
+    updateTab: state.updateTab,
+  })))
   const [connectingId, setConnectingId] = useState<string | null>(null)
   const [showEnvironmentManager, setShowEnvironmentManager] = useState(false)
   const [connectionDbState, setConnectionDbState] = useState<Record<string, {

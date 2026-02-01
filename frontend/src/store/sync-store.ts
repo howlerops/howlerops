@@ -10,6 +10,7 @@
 import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
 
+import { dedupedRequest } from '@/lib/request-deduplication'
 import { SyncService } from '@/lib/sync/sync-service'
 import type {
   Conflict,
@@ -174,28 +175,30 @@ export const useSyncStore = create<SyncStore>()(
         ...DEFAULT_STATE,
 
         enableSync: async () => {
-          const service = getSyncService()
+          return dedupedRequest('enableSync', async () => {
+            const service = getSyncService()
 
-          // Update device info
-          const deviceInfo = service.getDeviceInfo()
-          set({ deviceInfo }, false, 'enableSync/deviceInfo')
+            // Update device info
+            const deviceInfo = service.getDeviceInfo()
+            set({ deviceInfo }, false, 'enableSync/deviceInfo')
 
-          // Register progress callback
-          service.onProgress((progress) => {
-            set({ progress }, false, 'enableSync/progress')
+            // Register progress callback
+            service.onProgress((progress) => {
+              set({ progress }, false, 'enableSync/progress')
+            })
+
+            // Start automatic sync
+            service.startSync()
+
+            set({ syncEnabled: true, status: 'idle' }, false, 'enableSync')
+
+            // Perform initial sync
+            try {
+              await get().syncNow()
+            } catch (error) {
+              console.error('Initial sync failed:', error)
+            }
           })
-
-          // Start automatic sync
-          service.startSync()
-
-          set({ syncEnabled: true, status: 'idle' }, false, 'enableSync')
-
-          // Perform initial sync
-          try {
-            await get().syncNow()
-          } catch (error) {
-            console.error('Initial sync failed:', error)
-          }
         },
 
         disableSync: () => {
@@ -209,87 +212,91 @@ export const useSyncStore = create<SyncStore>()(
         },
 
         syncNow: async () => {
-          const state = get()
+          return dedupedRequest('syncNow', async () => {
+            const state = get()
 
-          if (state.isSyncing) {
-            throw new Error('Sync already in progress')
-          }
-
-          set(
-            { isSyncing: true, status: 'syncing', lastError: undefined },
-            false,
-            'syncNow/start'
-          )
-
-          try {
-            const service = getSyncService()
-            const result = await service.syncNow()
-
-            // Update state with results
-            const updates: Partial<SyncState> = {
-              isSyncing: false,
-              status: result.conflicts.length > 0 ? 'conflict' : 'idle',
-              lastSyncAt: new Date(),
-              lastSyncResult: result,
-              pendingConflicts: result.conflicts,
-              progress: undefined,
+            if (state.isSyncing) {
+              throw new Error('Sync already in progress')
             }
-
-            if (!result.success) {
-              updates.status = 'error'
-              updates.lastError = result.error
-            }
-
-            set(updates, false, 'syncNow/complete')
-
-            return result
-          } catch (error) {
-            const errorMessage =
-              error instanceof Error ? error.message : 'Unknown sync error'
 
             set(
-              {
-                isSyncing: false,
-                status: 'error',
-                lastError: errorMessage,
-                progress: undefined,
-              },
+              { isSyncing: true, status: 'syncing', lastError: undefined },
               false,
-              'syncNow/error'
+              'syncNow/start'
             )
 
-            throw error
-          }
+            try {
+              const service = getSyncService()
+              const result = await service.syncNow()
+
+              // Update state with results
+              const updates: Partial<SyncState> = {
+                isSyncing: false,
+                status: result.conflicts.length > 0 ? 'conflict' : 'idle',
+                lastSyncAt: new Date(),
+                lastSyncResult: result,
+                pendingConflicts: result.conflicts,
+                progress: undefined,
+              }
+
+              if (!result.success) {
+                updates.status = 'error'
+                updates.lastError = result.error
+              }
+
+              set(updates, false, 'syncNow/complete')
+
+              return result
+            } catch (error) {
+              const errorMessage =
+                error instanceof Error ? error.message : 'Unknown sync error'
+
+              set(
+                {
+                  isSyncing: false,
+                  status: 'error',
+                  lastError: errorMessage,
+                  progress: undefined,
+                },
+                false,
+                'syncNow/error'
+              )
+
+              throw error
+            }
+          })
         },
 
         resolveConflict: async (conflictId, resolution) => {
-          const state = get()
-          const conflict = state.pendingConflicts.find((c) => c.id === conflictId)
+          return dedupedRequest(`resolveConflict-${conflictId}`, async () => {
+            const state = get()
+            const conflict = state.pendingConflicts.find((c) => c.id === conflictId)
 
-          if (!conflict) {
-            throw new Error(`Conflict ${conflictId} not found`)
-          }
+            if (!conflict) {
+              throw new Error(`Conflict ${conflictId} not found`)
+            }
 
-          try {
-            const service = getSyncService()
-            await service.resolveConflict(conflictId, resolution, conflict)
+            try {
+              const service = getSyncService()
+              await service.resolveConflict(conflictId, resolution, conflict)
 
-            // Remove resolved conflict from pending
-            set(
-              {
-                pendingConflicts: state.pendingConflicts.filter(
-                  (c) => c.id !== conflictId
-                ),
-                status:
-                  state.pendingConflicts.length === 1 ? 'idle' : 'conflict',
-              },
-              false,
-              'resolveConflict'
-            )
-          } catch (error) {
-            console.error('Failed to resolve conflict:', error)
-            throw error
-          }
+              // Remove resolved conflict from pending
+              set(
+                {
+                  pendingConflicts: state.pendingConflicts.filter(
+                    (c) => c.id !== conflictId
+                  ),
+                  status:
+                    state.pendingConflicts.length === 1 ? 'idle' : 'conflict',
+                },
+                false,
+                'resolveConflict'
+              )
+            } catch (error) {
+              console.error('Failed to resolve conflict:', error)
+              throw error
+            }
+          })
         },
 
         clearConflicts: () => {
@@ -329,23 +336,25 @@ export const useSyncStore = create<SyncStore>()(
         },
 
         resetSync: async () => {
-          // Stop sync first
-          get().disableSync()
+          return dedupedRequest('resetSync', async () => {
+            // Stop sync first
+            get().disableSync()
 
-          // Clear all local state
-          set(
-            {
-              ...DEFAULT_STATE,
-              config: get().config, // Keep config
-            },
-            false,
-            'resetSync'
-          )
+            // Clear all local state
+            set(
+              {
+                ...DEFAULT_STATE,
+                config: get().config, // Keep config
+              },
+              false,
+              'resetSync'
+            )
 
-          // Clear stored timestamps
-          localStorage.removeItem('sync-last-timestamp')
+            // Clear stored timestamps
+            localStorage.removeItem('sync-last-timestamp')
 
-          // Note: We don't reset device info to avoid creating multiple devices
+            // Note: We don't reset device info to avoid creating multiple devices
+          })
         },
 
         getSyncStats: () => {

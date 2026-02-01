@@ -3,8 +3,8 @@
  * Handles parallel execution across multiple database connections
  */
 
-import { generateSQL,QueryIR } from './query-ir'
 import { api } from './api-client'
+import { generateSQL,QueryIR } from './query-ir'
 
 export interface MultiConnectionResult {
   connectionId: string

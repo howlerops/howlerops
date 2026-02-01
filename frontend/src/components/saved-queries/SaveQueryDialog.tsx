@@ -37,7 +37,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { useSavedQueriesStore } from '@/store/saved-queries-store'
+import { useSavedQueriesStore } from '@/store/queries-store'
 import type { SavedQueryRecord } from '@/types/storage'
 
 interface SaveQueryDialogProps {

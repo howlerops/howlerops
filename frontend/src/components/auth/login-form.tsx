@@ -7,6 +7,7 @@
 
 import { Loader2 } from 'lucide-react'
 import { useState } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -21,7 +22,12 @@ interface LoginFormProps {
 export function LoginForm({ onSuccess }: LoginFormProps) {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  const { signIn, isLoading, error, clearError } = useAuthStore()
+  const { signIn, isLoading, error, clearError } = useAuthStore(useShallow((state) => ({
+    signIn: state.signIn,
+    isLoading: state.isLoading,
+    error: state.error,
+    clearError: state.clearError,
+  })))
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

@@ -1,5 +1,6 @@
 import { Plus, Tag,X } from "lucide-react"
 import { useState } from "react"
+import { useShallow } from "zustand/react/shallow"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -29,7 +30,13 @@ export function EnvironmentManager({ open, onClose, connectionId }: EnvironmentM
     addEnvironmentToConnection,
     removeEnvironmentFromConnection,
     refreshAvailableEnvironments,
-  } = useConnectionStore()
+  } = useConnectionStore(useShallow((state) => ({
+    connections: state.connections,
+    availableEnvironments: state.availableEnvironments,
+    addEnvironmentToConnection: state.addEnvironmentToConnection,
+    removeEnvironmentFromConnection: state.removeEnvironmentFromConnection,
+    refreshAvailableEnvironments: state.refreshAvailableEnvironments,
+  })))
 
   const [newEnvName, setNewEnvName] = useState("")
   

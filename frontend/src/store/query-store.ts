@@ -1,116 +1,78 @@
+/**
+ * Query Store - Backwards Compatibility Layer
+ *
+ * This file re-exports from the split stores for backwards compatibility.
+ * The query store has been split into three separate stores:
+ * - query-editor-store.ts: Tabs, active query, editor state
+ * - query-execution-store.ts: Query execution, running queries, errors
+ * - query-history-store.ts: Query results and history
+ *
+ * New code should import directly from the specific stores.
+ */
+
 import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
 
-import {
-  CHUNK_CONFIG,
-  deleteTabResults,
-  determineDisplayMode,
-  FEATURE_FLAGS,
-  isLargeResult,
-  type ResultDisplayMode,
-  type StoredQueryResult,
-  storeQueryResult,
-} from '@/lib/query-result-storage'
-import { api } from '@/lib/api-client'
+import { deleteTabResults } from '@/lib/query-result-storage'
 
-import { EventsOn } from '../../wailsjs/runtime/runtime'
-import { type DatabaseConnection,useConnectionStore } from './connection-store'
-// Note: Batch processing removed - Go backend now handles normalization efficiently
+import { useQueryEditorStore } from './query-editor-store'
+import { useQueryExecutionStore } from './query-execution-store'
+import { useQueryHistoryStore } from './query-history-store'
+import type {
+  QueryEditableColumn,
+  QueryEditableMetadata,
+  QueryResult,
+  QueryResultRow,
+  QueryTab,
+  QueryTabType,
+} from './query-types'
 
-export type QueryTabType = 'sql' | 'ai'
-
-export interface QueryTab {
-  id: string
-  title: string
-  type: QueryTabType
-  content: string
-  isDirty: boolean
-  isExecuting: boolean
-  executionStartTime?: Date
-  lastExecuted?: Date
-  connectionId?: string // Per-tab connection support (single-DB mode)
-  selectedConnectionIds?: string[] // Multi-select connections (multi-DB mode)
-  environmentSnapshot?: string | null // Capture environment filter at creation
-  aiSessionId?: string
+// Re-export types
+export type {
+  QueryEditableColumn,
+  QueryEditableMetadata,
+  QueryResult,
+  QueryResultRow,
+  QueryTab,
+  QueryTabType,
 }
 
-export interface QueryEditableColumn {
-  name: string
-  resultName: string
-  dataType: string
-  editable: boolean
-  primaryKey: boolean
-  foreignKey?: {
-    table: string
-    column: string
-    schema?: string
-  }
-  hasDefault?: boolean
-  defaultValue?: unknown
-  defaultExpression?: string
-  autoNumber?: boolean
-  timeZone?: boolean
-  precision?: number
-}
+// Re-export stores for direct use
+export { useQueryEditorStore } from './query-editor-store'
+export { useQueryExecutionStore } from './query-execution-store'
+export { useQueryHistoryStore } from './query-history-store'
 
-export interface QueryEditableMetadata {
-  enabled: boolean
-  reason?: string
-  schema?: string
-  table?: string
-  primaryKeys: string[]
-  columns: QueryEditableColumn[]
-  pending?: boolean
-  jobId?: string
-  job_id?: string
-  capabilities?: {
-    canInsert: boolean
-    canUpdate: boolean
-    canDelete: boolean
-    reason?: string
-  }
-}
+// Re-export selectors
+export {
+  useActiveTab,
+  useActiveTabId,
+  useQueryEditorActions,
+  useQueryEditorTabs,
+} from './query-editor-store'
+export {
+  useExecutingQueries,
+  useIsExecuting,
+  useQueryExecutionActions,
+} from './query-execution-store'
+export {
+  useLatestTabResult,
+  useQueryHistoryActions,
+  useQueryResults,
+  useTabResults,
+} from './query-history-store'
 
-export interface QueryResultRow extends Record<string, unknown> {
-  __rowId: string
-  __isNewRow?: boolean
-}
+// Re-export utilities for external consumers
+export {
+  generateRowId,
+  normaliseRows,
+  parseDurationMs,
+  transformEditableColumn,
+  transformEditableMetadata,
+} from './query-utils'
 
-export interface QueryResult {
-  id: string
-  tabId: string
-  columns: string[]
-  rows: QueryResultRow[]
-  originalRows: Record<string, QueryResultRow>
-  rowCount: number
-  affectedRows: number
-  executionTime: number
-  error?: string
-  timestamp: Date
-  editable?: QueryEditableMetadata | null
-  query: string
-  connectionId?: string
-  isLarge?: boolean // true if stored in IndexedDB
-  rowsLoaded?: number // number of rows loaded in memory (for large results)
-  // Phase 2: Chunking support
-  chunkingEnabled?: boolean
-  loadedChunks?: Set<number>
-  totalChunks?: number
-  displayMode?: ResultDisplayMode
-  // Data processing state (for large datasets)
-  isProcessing?: boolean
-  processingProgress?: number // 0-100
-  // Pagination metadata (from backend)
-  totalRows?: number // Total unpaginated rows
-  pagedRows?: number // Rows in current page
-  hasMore?: boolean // More data available
-  offset?: number // Current offset
-  limit?: number // Page size
-  // Multi-database query metadata
-  connectionsUsed?: string[] // Connection aliases used in federated query
-  federationStrategy?: string // Query execution strategy (federated, union, etc.)
-}
-
+/**
+ * Combined query state interface for backwards compatibility
+ */
 interface QueryState {
   tabs: QueryTab[]
   activeTabId: string | null
@@ -130,1071 +92,110 @@ interface QueryState {
   loadMoreRows: (resultId: string) => Promise<void>
 }
 
-interface NormalisedRowsResult {
-  rows: QueryResultRow[]
-  originalRows: Record<string, QueryResultRow>
-}
-
-const MAX_EDITABLE_METADATA_ATTEMPTS = 20
-const editableMetadataTimers = new Map<string, number>()
-const editableMetadataTargets = new Map<string, string>()
-
-function cleanupEditableMetadataJob(jobId: string) {
-  const timer = editableMetadataTimers.get(jobId)
-  if (timer) {
-    clearTimeout(timer)
-    editableMetadataTimers.delete(jobId)
-  }
-  editableMetadataTargets.delete(jobId)
-}
-
-function transformEditableColumn(raw: unknown): QueryEditableColumn {
-  if (!raw || typeof raw !== 'object') {
-    return {
-      name: '',
-      resultName: '',
-      dataType: '',
-      editable: false,
-      primaryKey: false,
-    }
-  }
-
-  const column = raw as Record<string, unknown>
-  const name = typeof column.name === 'string'
-    ? column.name
-    : typeof column.Name === 'string'
-      ? column.Name
-      : ''
-
-  const resultName = typeof column.resultName === 'string'
-    ? column.resultName
-    : typeof column.result_name === 'string'
-      ? column.result_name
-      : name
-
-  return {
-    name,
-    resultName,
-    dataType: typeof column.dataType === 'string'
-      ? column.dataType
-      : typeof column.data_type === 'string'
-        ? column.data_type
-        : '',
-    editable: Boolean(column.editable),
-    primaryKey: Boolean(column.primaryKey ?? column.primary_key),
-    hasDefault: Boolean(column.hasDefault ?? column.has_default),
-    defaultValue: column.defaultValue ?? column.default_value,
-    defaultExpression: typeof column.defaultExpression === 'string'
-      ? column.defaultExpression
-      : typeof column.default_expression === 'string'
-        ? column.default_expression
-        : undefined,
-    autoNumber: Boolean(column.autoNumber ?? column.auto_number),
-    timeZone: Boolean(column.timeZone ?? column.time_zone),
-    precision: typeof column.precision === 'number' ? column.precision : undefined,
-  }
-}
-
-function transformEditableMetadata(raw: unknown): QueryEditableMetadata | null {
-  if (!raw || typeof raw !== 'object') {
-    return null
-  }
-
-  const metadataRaw = raw as Record<string, unknown>
-
-  const primaryKeys = Array.isArray(metadataRaw.primaryKeys)
-    ? metadataRaw.primaryKeys.filter((value): value is string => typeof value === 'string')
-    : Array.isArray(metadataRaw.primary_keys)
-      ? metadataRaw.primary_keys.filter((value): value is string => typeof value === 'string')
-      : []
-
-  const metadata: QueryEditableMetadata = {
-    enabled: Boolean(metadataRaw.enabled),
-    reason: typeof metadataRaw.reason === 'string' ? metadataRaw.reason : undefined,
-    schema: typeof metadataRaw.schema === 'string' ? metadataRaw.schema : undefined,
-    table: typeof metadataRaw.table === 'string' ? metadataRaw.table : undefined,
-    primaryKeys,
-    columns: Array.isArray(metadataRaw.columns) ? metadataRaw.columns.map(transformEditableColumn) : [],
-    pending: Boolean(metadataRaw.pending),
-    jobId: (metadataRaw.jobId as string | undefined) ?? (metadataRaw.job_id as string | undefined),
-    job_id: (metadataRaw.job_id as string | undefined) ?? (metadataRaw.jobId as string | undefined),
-  }
-
-  if (!metadata.primaryKeys.length && Array.isArray(metadataRaw.primary_keys)) {
-    metadata.primaryKeys = metadataRaw.primary_keys.filter((value): value is string => typeof value === 'string')
-  }
-
-  if (!metadata.jobId && metadata.job_id) {
-    metadata.jobId = metadata.job_id
-  }
-  if (!metadata.job_id && metadata.jobId) {
-    metadata.job_id = metadata.jobId
-  }
-
-  const rawCapabilities = metadataRaw.capabilities as Record<string, unknown> | undefined
-  const capabilitySource = typeof rawCapabilities === 'object' && rawCapabilities !== null ? rawCapabilities : undefined
-  if (capabilitySource) {
-    const canInsertValue = (capabilitySource as Record<string, unknown>).canInsert ?? (capabilitySource as Record<string, unknown>).can_insert
-    const canUpdateValue = (capabilitySource as Record<string, unknown>).canUpdate ?? (capabilitySource as Record<string, unknown>).can_update
-    const canDeleteValue = (capabilitySource as Record<string, unknown>).canDelete ?? (capabilitySource as Record<string, unknown>).can_delete
-    metadata.capabilities = {
-      canInsert: Boolean(canInsertValue),
-      canUpdate: Boolean(canUpdateValue),
-      canDelete: Boolean(canDeleteValue),
-      reason: typeof capabilitySource.reason === 'string' ? capabilitySource.reason : undefined,
-    }
-  }
-
-  return metadata
-}
-
-function generateRowId(): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID()
-  }
-  return `${Date.now()}-${Math.random().toString(16).slice(2)}`
-}
-
-function normaliseRows(
-  columns: string[],
-  rows: unknown[],
-  metadata?: QueryEditableMetadata | null
-): NormalisedRowsResult {
-  if (!Array.isArray(rows)) {
-    return {
-      rows: [],
-      originalRows: {},
-    }
-  }
-
-  const processedRows: QueryResultRow[] = []
-  const originalRows: Record<string, QueryResultRow> = {}
-
-  const columnLookup: Record<string, string> = {}
-  columns.forEach((name) => {
-    columnLookup[name.toLowerCase()] = name
-  })
-
-  const primaryKeyColumns = (metadata?.primaryKeys || []).map((pk) => {
-    return columnLookup[pk.toLowerCase()] ?? pk
-  })
-
-  const assignValue = (target: Record<string, unknown>, columnName: string, value: unknown) => {
-    if (value && typeof value === 'object' && 'String' in value && 'Valid' in value) {
-      const sqlValue = value as { String: unknown; Valid: boolean }
-      target[columnName] = sqlValue.Valid ? sqlValue.String : null
-    } else {
-      target[columnName] = value
-    }
-  }
-
-  rows.forEach((row, rowIndex) => {
-    const record: Record<string, unknown> = {}
-
-    if (Array.isArray(row)) {
-      row.forEach((value, index) => {
-        const columnName = columns[index] ?? `col_${index}`
-        assignValue(record, columnName, value)
-      })
-    } else if (row && typeof row === 'object') {
-      const rowObject = row as Record<string | number, unknown>
-      columns.forEach((columnName, index) => {
-        if (columnName in rowObject) {
-          assignValue(record, columnName, rowObject[columnName])
-        } else if (index in rowObject) {
-          assignValue(record, columnName, rowObject[index])
-        } else if (String(index) in rowObject) {
-          assignValue(record, columnName, rowObject[String(index)])
-        } else {
-          assignValue(record, columnName, undefined)
-        }
-      })
-    } else {
-      columns.forEach((columnName) => assignValue(record, columnName, undefined))
-    }
-
-    let rowId = ''
-    if (primaryKeyColumns.length > 0) {
-      const parts: string[] = []
-      let allPresent = true
-      primaryKeyColumns.forEach((pkColumn) => {
-        const value = record[pkColumn]
-        if (value === undefined) {
-          allPresent = false
-        } else {
-          const serialised =
-            value === null || value === undefined ? 'NULL' : String(value)
-          parts.push(`${pkColumn}:${serialised}`)
-        }
-      })
-      if (allPresent && parts.length > 0) {
-        rowId = parts.join('|')
-      }
-    }
-
-    if (!rowId) {
-      rowId = `${generateRowId()}-${rowIndex}`
-    }
-
-    const completeRow: QueryResultRow = {
-      ...record,
-      __rowId: rowId,
-    }
-
-    processedRows.push(completeRow)
-    originalRows[rowId] = { ...completeRow }
-  })
-
-  return {
-    rows: processedRows,
-    originalRows,
-  }
-}
-
-function parseDurationMs(duration?: string): number {
-  if (!duration) return 0
-  const value = duration.toLowerCase()
-
-  if (value.endsWith('ms')) {
-    return parseFloat(value.replace('ms', ''))
-  }
-  if (value.endsWith('s')) {
-    return parseFloat(value.replace('s', '')) * 1000
-  }
-  if (value.endsWith('µs') || value.endsWith('us')) {
-    return parseFloat(value.replace('µs', '').replace('us', '')) / 1000
-  }
-  if (value.endsWith('ns')) {
-    return parseFloat(value.replace('ns', '')) / 1e6
-  }
-
-  const parsed = parseFloat(value)
-  return Number.isNaN(parsed) ? 0 : parsed
-}
-
+/**
+ * Unified query store for backwards compatibility
+ *
+ * This store combines state from the three split stores and delegates
+ * actions to the appropriate store. New code should use the individual
+ * stores directly (useQueryEditorStore, useQueryExecutionStore, useQueryHistoryStore).
+ */
 export const useQueryStore = create<QueryState>()(
   devtools(
     persist(
-      (set, get) => {
-    const scheduleEditablePoll = (jobId: string, resultId: string, attempt = 0) => {
-      const resultExists = get().results.some(result => result.id === resultId)
-      if (!resultExists) {
-        cleanupEditableMetadataJob(jobId)
-        return
+      (set, get) => ({
+        // State is derived from individual stores via subscriptions
+        tabs: [],
+        activeTabId: null,
+        results: [],
+
+        createTab: (title, options) => {
+          return useQueryEditorStore.getState().createTab(title, options)
+        },
+
+        closeTab: (id) => {
+          // Clean up IndexedDB results for this tab
+          deleteTabResults(id).catch((error) => {
+            console.error('Failed to delete tab results from IndexedDB:', error)
+          })
+
+          // Clear results for this tab
+          useQueryHistoryStore.getState().clearResults(id)
+
+          // Close the tab
+          useQueryEditorStore.getState().closeTab(id)
+        },
+
+        updateTab: (id, updates) => {
+          useQueryEditorStore.getState().updateTab(id, updates)
+        },
+
+        setActiveTab: (id) => {
+          useQueryEditorStore.getState().setActiveTab(id)
+        },
+
+        executeQuery: async (tabId, query, connectionId, limit, offset) => {
+          await useQueryExecutionStore.getState().executeQuery(tabId, query, connectionId, limit, offset)
+        },
+
+        addResult: (result) => {
+          return useQueryHistoryStore.getState().addResult(result)
+        },
+
+        clearResults: (tabId) => {
+          useQueryHistoryStore.getState().clearResults(tabId)
+        },
+
+        updateResultRows: (resultId, rows, newOriginalRows) => {
+          useQueryHistoryStore.getState().updateResultRows(resultId, rows, newOriginalRows)
+        },
+
+        updateResultEditable: (resultId, metadata) => {
+          useQueryHistoryStore.getState().updateResultEditable(resultId, metadata)
+        },
+
+        updateResultProcessing: (resultId, isProcessing, progress) => {
+          useQueryHistoryStore.getState().updateResultProcessing(resultId, isProcessing, progress)
+        },
+
+        loadMoreRows: async (resultId) => {
+          await useQueryExecutionStore.getState().loadMoreRows(resultId)
+        },
+      }),
+      {
+        name: 'query-store',
+        partialize: (state) => ({
+          tabs: state.tabs,
+          activeTabId: state.activeTabId,
+        }),
       }
-
-      const delay = Math.min(1000, 250 * Math.max(1, attempt + 1))
-
-      const timer = window.setTimeout(async () => {
-        try {
-          const response = await api.queries.getEditableMetadata(jobId)
-
-          if (!response.success || !response.data) {
-            if (attempt + 1 >= MAX_EDITABLE_METADATA_ATTEMPTS) {
-              cleanupEditableMetadataJob(jobId)
-              get().updateResultEditable(resultId, {
-                enabled: false,
-                reason: response.message || 'Editable metadata unavailable',
-                schema: undefined,
-                table: undefined,
-                primaryKeys: [],
-                columns: [],
-                pending: false,
-                jobId,
-                job_id: jobId,
-              })
-              return
-            }
-
-            scheduleEditablePoll(jobId, resultId, attempt + 1)
-            return
-          }
-
-          const jobData = response.data as { status?: string; metadata?: unknown; error?: string; id?: string }
-          const status = (jobData.status || '').toLowerCase()
-
-          if (status === 'completed' && jobData.metadata) {
-            const metadata = transformEditableMetadata(jobData.metadata)
-            if (metadata) {
-              metadata.pending = false
-              metadata.jobId = metadata.jobId || jobData.id || jobId
-              metadata.job_id = metadata.jobId
-            }
-
-            cleanupEditableMetadataJob(jobId)
-            get().updateResultEditable(resultId, metadata)
-            return
-          }
-
-          if (status === 'failed') {
-            const metadata = transformEditableMetadata(jobData.metadata) || {
-              enabled: false,
-              reason: jobData.error || 'Editable metadata unavailable',
-              schema: undefined,
-              table: undefined,
-              primaryKeys: [],
-              columns: [],
-              pending: false,
-              jobId: jobData.id || jobId,
-              job_id: jobData.id || jobId,
-            }
-
-            metadata.pending = false
-            metadata.reason = jobData.error || metadata.reason
-            metadata.jobId = metadata.jobId || jobData.id || jobId
-            metadata.job_id = metadata.jobId
-
-            cleanupEditableMetadataJob(jobId)
-            get().updateResultEditable(resultId, metadata)
-            return
-          }
-
-          if (attempt + 1 >= MAX_EDITABLE_METADATA_ATTEMPTS) {
-            const fallback = transformEditableMetadata(jobData.metadata) || {
-              enabled: false,
-              primaryKeys: [],
-              columns: [],
-            } as QueryEditableMetadata
-
-            fallback.pending = false
-            fallback.reason = jobData.error || fallback.reason || 'Editable metadata timed out'
-            fallback.jobId = fallback.jobId || jobData.id || jobId
-            fallback.job_id = fallback.jobId
-
-            cleanupEditableMetadataJob(jobId)
-            get().updateResultEditable(resultId, fallback)
-            return
-          }
-
-          scheduleEditablePoll(jobId, resultId, attempt + 1)
-        } catch (pollError) {
-          if (attempt + 1 >= MAX_EDITABLE_METADATA_ATTEMPTS) {
-            cleanupEditableMetadataJob(jobId)
-            get().updateResultEditable(resultId, {
-              enabled: false,
-              reason: pollError instanceof Error ? pollError.message : 'Editable metadata unavailable',
-              schema: undefined,
-              table: undefined,
-              primaryKeys: [],
-              columns: [],
-              pending: false,
-              jobId,
-              job_id: jobId,
-            })
-            return
-          }
-
-          scheduleEditablePoll(jobId, resultId, attempt + 1)
-        }
-      }, delay)
-
-      const existingTimer = editableMetadataTimers.get(jobId)
-      if (existingTimer) {
-        clearTimeout(existingTimer)
-      }
-
-      editableMetadataTimers.set(jobId, timer)
-      editableMetadataTargets.set(jobId, resultId)
+    ),
+    {
+      name: 'query-store',
     }
-
-    return {
-      tabs: [],
-      activeTabId: null,
-      results: [],
-
-      createTab: (title = 'New Query', options?: { connectionId?: string; type?: QueryTabType; aiSessionId?: string }) => {
-        const desiredType = options?.type ?? 'sql'
-        let initialConnectionId = options?.connectionId
-        let environmentSnapshot: string | null = null
-
-        // Get connection state for both connectionId and selectedConnectionIds
-        const connectionState = window.__connectionStore?.getState?.()
-        
-        if (!initialConnectionId) {
-          if (connectionState) {
-            const { connections, activeConnection, activeEnvironmentFilter } = connectionState
-            environmentSnapshot = activeEnvironmentFilter
-
-            if (activeConnection) {
-              initialConnectionId = activeConnection.id
-            } else if (connections.length > 0) {
-              const firstConnected = connections.find((c: DatabaseConnection) => c.isConnected)
-              if (firstConnected) {
-                initialConnectionId = firstConnected.id
-              }
-            }
-          }
-        }
-
-        const newTab: QueryTab = {
-          id: crypto.randomUUID(),
-          title,
-          type: desiredType,
-          content: '',
-          isDirty: false,
-          isExecuting: false,
-          connectionId: initialConnectionId,
-          selectedConnectionIds: initialConnectionId ? [initialConnectionId] : [],
-          environmentSnapshot,
-          aiSessionId: options?.aiSessionId,
-        }
-
-        set((state) => ({
-          tabs: [...state.tabs, newTab],
-          activeTabId: newTab.id,
-        }))
-
-        return newTab.id
-      },
-
-      closeTab: (id) => {
-        // Clean up IndexedDB results for this tab
-        deleteTabResults(id).catch((error) => {
-          console.error('Failed to delete tab results from IndexedDB:', error)
-        })
-
-        set((state) => {
-          const newTabs = state.tabs.filter((tab) => tab.id !== id)
-          const wasActive = state.activeTabId === id
-
-          return {
-            tabs: newTabs,
-            activeTabId: wasActive
-              ? newTabs.length > 0
-                ? newTabs[newTabs.length - 1].id
-                : null
-              : state.activeTabId,
-            results: state.results.filter((result) => result.tabId !== id),
-          }
-        })
-      },
-
-      updateTab: (id, updates) => {
-        set((state) => ({
-          tabs: state.tabs.map((tab) => {
-            if (tab.id !== id) {
-              return tab
-            }
-
-            return {
-              ...tab,
-              ...updates,
-              type: tab.type,
-              aiSessionId: tab.aiSessionId,
-            }
-          }),
-        }))
-      },
-
-      setActiveTab: (id) => {
-        set({ activeTabId: id })
-      },
-
-      executeQuery: async (tabId, query, connectionId, limit = 5000, offset = 0) => {
-        const tab = get().tabs.find(t => t.id === tabId)
-        if (!tab || tab.type !== 'sql') {
-          return
-        }
-
-        get().updateTab(tabId, { isExecuting: true, executionStartTime: new Date() })
-
-        // Use tab's connection if no connectionId provided
-        const effectiveConnectionId = connectionId || tab.connectionId
-
-        if (!effectiveConnectionId) {
-          get().addResult({
-            tabId,
-            columns: [],
-            rows: [],
-            originalRows: {},
-            rowCount: 0,
-            affectedRows: 0,
-            executionTime: 0,
-            error: 'No connection selected for this tab',
-            editable: null,
-            query,
-          })
-          get().updateTab(tabId, { isExecuting: false })
-          return
-        }
-
-        // Get the actual session ID from the connection store
-        const { connections } = useConnectionStore.getState()
-        const connection = connections.find(conn => conn.id === effectiveConnectionId)
-
-        if (!connection?.sessionId) {
-          get().addResult({
-            tabId,
-            columns: [],
-            rows: [],
-            originalRows: {},
-            rowCount: 0,
-            affectedRows: 0,
-            executionTime: 0,
-            error: 'Connection not established. Please connect to the database first.',
-            editable: null,
-            query,
-          })
-          get().updateTab(tabId, { isExecuting: false })
-          return
-        }
-
-        try {
-          const response = await api.queries.execute(connection.sessionId, query, limit, offset)
-
-          if (!response.success || !response.data) {
-            const message = response.message || 'Query execution failed'
-            get().addResult({
-              tabId,
-              columns: [],
-              rows: [],
-              originalRows: {},
-              rowCount: 0,
-              affectedRows: 0,
-              executionTime: 0,
-              error: message,
-              editable: null,
-              query,
-              connectionId: effectiveConnectionId, // Use the actual connection that executed the query
-            })
-            return
-          }
-
-          const {
-            columns: rawColumns = [],
-            rows = [],
-            rowCount = 0,
-            stats = {},
-            editable: rawEditable = null,
-          } = response.data
-
-          // Convert QueryColumn[] to string[] for column names
-          // The API returns QueryColumn objects but internal store expects string[]
-          const columns = rawColumns.map((col: unknown) =>
-            typeof col === 'string' ? col : (col as { name: string }).name
-          )
-
-          // Extract pagination metadata with optional chaining (may not exist in all responses)
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Backend response.data may contain optional pagination fields
-          const backendTotalRows = (response.data as any).totalRows
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Backend response.data may contain optional pagination fields
-          const backendPagedRows = (response.data as any).pagedRows
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Backend response.data may contain optional pagination fields
-          const backendHasMore = (response.data as any).hasMore
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Backend response.data may contain optional pagination fields
-          const backendOffset = (response.data as any).offset
-
-          // Extract multi-database query metadata (only present for federated queries)
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Backend response.data may contain optional federation fields
-          const connectionsUsed = (response.data as any).connectionsUsed as string[] | undefined
-
-          const statsRecord = (stats ?? {}) as Record<string, unknown>
-          const affectedRows =
-            typeof statsRecord.affectedRows === 'number'
-              ? statsRecord.affectedRows
-              : typeof statsRecord.affected_rows === 'number'
-                ? statsRecord.affected_rows
-                : 0
-          const durationValue =
-            typeof statsRecord.duration === 'string'
-              ? statsRecord.duration
-              : undefined
-
-          const editableMetadata = transformEditableMetadata(rawEditable)
-
-          // Process rows synchronously (Go backend already normalized data, so this is fast)
-          const { rows: normalisedRows, originalRows } = normaliseRows(columns, rows, editableMetadata)
-
-          const savedResult = get().addResult({
-            tabId,
-            columns,
-            rows: normalisedRows,
-            originalRows,
-            rowCount: rowCount || normalisedRows.length,
-            affectedRows,
-            executionTime: parseDurationMs(durationValue),
-            error: undefined,
-            editable: editableMetadata,
-            query,
-            connectionId: effectiveConnectionId,
-            // Pagination metadata
-            totalRows: typeof backendTotalRows === 'number' ? backendTotalRows : undefined,
-            pagedRows: typeof backendPagedRows === 'number' ? backendPagedRows : undefined,
-            hasMore: typeof backendHasMore === 'boolean' ? backendHasMore : undefined,
-            offset: typeof backendOffset === 'number' ? backendOffset : offset,
-            limit,
-            // Multi-database query metadata
-            connectionsUsed,
-          })
-
-          const jobId = editableMetadata?.jobId || editableMetadata?.job_id
-          if (editableMetadata?.pending && jobId) {
-            scheduleEditablePoll(jobId, savedResult.id)
-          }
-
-          get().updateTab(tabId, {
-            lastExecuted: new Date(),
-            isDirty: false,
-          })
-        } catch (error) {
-          get().addResult({
-            tabId,
-            columns: [],
-            rows: [],
-            originalRows: {},
-            rowCount: 0,
-            affectedRows: 0,
-            executionTime: 0,
-            error: error instanceof Error ? error.message : 'Unknown error occurred',
-            editable: null,
-            query,
-            connectionId: effectiveConnectionId, // Use the actual connection that executed the query
-          })
-        } finally {
-          get().updateTab(tabId, { isExecuting: false, executionStartTime: undefined })
-        }
-      },
-
-      addResult: (resultData) => {
-        const newResult: QueryResult = {
-          ...resultData,
-          id: crypto.randomUUID(),
-          timestamp: new Date(),
-        }
-
-        const rowCount = newResult.rows.length
-        const displayMode = determineDisplayMode(rowCount, false)
-        const isLarge = isLargeResult(rowCount)
-        const enableChunking = FEATURE_FLAGS.ENABLE_CHUNKING && rowCount >= FEATURE_FLAGS.CHUNKING_THRESHOLD
-
-        // Store large results in IndexedDB with optional chunking
-        // Only use IndexedDB if chunking is enabled OR result is truly massive (> 50K rows)
-        if (isLarge && (enableChunking || rowCount > 50000)) {
-          const storedResult: StoredQueryResult = {
-            id: newResult.id,
-            tabId: newResult.tabId,
-            columns: newResult.columns,
-            rows: newResult.rows,
-            originalRows: newResult.originalRows,
-            rowCount: newResult.rowCount,
-            affectedRows: newResult.affectedRows,
-            executionTime: newResult.executionTime,
-            error: newResult.error,
-            timestamp: newResult.timestamp,
-            editable: newResult.editable,
-            query: newResult.query,
-            connectionId: newResult.connectionId,
-          }
-
-          // Store in IndexedDB asynchronously
-          storeQueryResult(storedResult).catch((error) => {
-            console.error('Failed to store large result in IndexedDB:', error)
-          })
-
-          // If chunking is enabled, keep only first chunk in memory
-          if (enableChunking) {
-            const firstChunk = newResult.rows.slice(0, CHUNK_CONFIG.CHUNK_SIZE)
-            const firstChunkOriginalRows: Record<string, QueryResultRow> = {}
-            firstChunk.forEach((row) => {
-              firstChunkOriginalRows[row.__rowId] = newResult.originalRows[row.__rowId]
-            })
-
-            const resultWithMetadata: QueryResult = {
-              ...newResult,
-              isLarge: true,
-              chunkingEnabled: true,
-              loadedChunks: new Set([0]),
-              totalChunks: Math.ceil(rowCount / CHUNK_CONFIG.CHUNK_SIZE),
-              rowsLoaded: firstChunk.length,
-              rows: firstChunk,
-              originalRows: firstChunkOriginalRows,
-              displayMode,
-            }
-
-            set((state) => ({
-              results: [...state.results, resultWithMetadata].slice(-20),
-            }))
-
-            return resultWithMetadata
-          }
-
-          // Phase 1 behavior: Keep first 100 rows for preview (no chunking)
-          const previewRows = newResult.rows.slice(0, 100)
-          const previewOriginalRows: Record<string, QueryResultRow> = {}
-          previewRows.forEach((row) => {
-            previewOriginalRows[row.__rowId] = newResult.originalRows[row.__rowId]
-          })
-
-          const resultWithMetadata: QueryResult = {
-            ...newResult,
-            isLarge: true,
-            chunkingEnabled: false,
-            rowsLoaded: previewRows.length,
-            rows: previewRows,
-            originalRows: previewOriginalRows,
-            displayMode,
-          }
-
-          set((state) => ({
-            results: [...state.results, resultWithMetadata].slice(-20),
-          }))
-
-          return resultWithMetadata
-        }
-
-        // Small results: store normally in memory
-        newResult.displayMode = displayMode
-        newResult.chunkingEnabled = false
-
-        set((state) => ({
-          results: [...state.results, newResult].slice(-20),
-        }))
-
-        return newResult
-      },
-
-      clearResults: (tabId) => {
-        // Clean up IndexedDB results for this tab
-        deleteTabResults(tabId).catch((error) => {
-          console.error('Failed to clear tab results from IndexedDB:', error)
-        })
-
-        set((state) => ({
-          results: state.results.filter((result) => result.tabId !== tabId),
-        }))
-      },
-
-      updateResultRows: (resultId, rows, newOriginalRows) => {
-        set((state) => ({
-          results: state.results.map((result) => {
-            if (result.id !== resultId) {
-              return result
-            }
-
-            return {
-              ...result,
-              rows,
-              originalRows: newOriginalRows ?? result.originalRows,
-            }
-          }),
-        }))
-      },
-
-      updateResultEditable: (resultId, metadata) => {
-        set((state) => ({
-          results: state.results.map((result) => {
-            if (result.id !== resultId) {
-              return result
-            }
-
-            const normalizedMetadata = metadata
-              ? {
-                  ...metadata,
-                  primaryKeys: [...(metadata.primaryKeys || [])],
-                  columns: (metadata.columns || []).map((column) => ({ ...column })),
-                  jobId: metadata.jobId || metadata.job_id,
-                  job_id: metadata.jobId || metadata.job_id,
-                }
-              : null
-
-            let updatedRows = result.rows
-            let updatedOriginalRows = result.originalRows
-
-            if (normalizedMetadata && !normalizedMetadata.pending && normalizedMetadata.primaryKeys.length > 0) {
-              const columnLookup: Record<string, string> = {}
-              result.columns.forEach((name) => {
-                columnLookup[name.toLowerCase()] = name
-              })
-
-              const pkColumns = normalizedMetadata.primaryKeys.map((pk) => columnLookup[pk.toLowerCase()] ?? pk)
-
-              const recomputedRows: QueryResultRow[] = []
-              const recomputedOriginal: Record<string, QueryResultRow> = {}
-
-              result.rows.forEach((row, index) => {
-                const existingOriginal = result.originalRows[row.__rowId] ?? row
-                const nextRow: QueryResultRow = { ...row }
-
-                let rowId = ''
-                if (pkColumns.length > 0) {
-                  const parts: string[] = []
-                  let allPresent = true
-                  pkColumns.forEach((pkColumn) => {
-                    const value = nextRow[pkColumn]
-                    if (value === undefined) {
-                      allPresent = false
-                    } else {
-                      const serialised = value === null || value === undefined ? 'NULL' : String(value)
-                      parts.push(`${pkColumn}:${serialised}`)
-                    }
-                  })
-                  if (allPresent && parts.length > 0) {
-                    rowId = parts.join('|')
-                  }
-                }
-
-                if (!rowId) {
-                  rowId = `${generateRowId()}-${index}`
-                }
-
-                nextRow.__rowId = rowId
-                recomputedRows.push(nextRow)
-                recomputedOriginal[rowId] = { ...(existingOriginal as QueryResultRow), __rowId: rowId }
-              })
-
-              updatedRows = recomputedRows
-              updatedOriginalRows = recomputedOriginal
-            }
-
-            return {
-              ...result,
-              editable: normalizedMetadata,
-              rows: updatedRows,
-              originalRows: updatedOriginalRows,
-            }
-          }),
-        }))
-      },
-
-      updateResultProcessing: (resultId, isProcessing, progress) => {
-        set((state) => ({
-          results: state.results.map((result) => {
-            if (result.id !== resultId) {
-              return result
-            }
-
-            return {
-              ...result,
-              isProcessing,
-              processingProgress: progress,
-            }
-          }),
-        }))
-      },
-
-      loadMoreRows: async (resultId) => {
-        const result = get().results.find((r) => r.id === resultId)
-        if (!result || !result.hasMore || !result.connectionId) {
-          return
-        }
-
-        const currentOffset = result.offset ?? 0
-        const pageSize = result.limit ?? 5000
-        const nextOffset = currentOffset + pageSize
-
-        // Get the connection session ID
-        const { connections } = useConnectionStore.getState()
-        const connection = connections.find((conn) => conn.id === result.connectionId)
-
-        if (!connection?.sessionId) {
-          console.error('Connection not found for loadMoreRows')
-          return
-        }
-
-        try {
-          // Set loading state
-          get().updateResultProcessing(resultId, true, 0)
-
-          const response = await api.queries.execute(
-            connection.sessionId,
-            result.query,
-            pageSize,
-            nextOffset
-          )
-
-          if (!response.success || !response.data) {
-            console.error('Failed to load more rows:', response.message)
-            get().updateResultProcessing(resultId, false, 0)
-            return
-          }
-
-          const {
-            rows = [],
-          } = response.data
-
-          // Extract pagination metadata with optional chaining
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Backend response.data may contain optional pagination fields
-          const backendTotalRows = (response.data as any).totalRows
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Backend response.data may contain optional pagination fields
-          const backendPagedRows = (response.data as any).pagedRows
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Backend response.data may contain optional pagination fields
-          const backendHasMore = (response.data as any).hasMore
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Backend response.data may contain optional pagination fields
-          const backendOffset = (response.data as any).offset
-
-          // Process new rows
-          const { rows: normalisedRows, originalRows: newOriginalRows } = normaliseRows(
-            result.columns,
-            rows,
-            result.editable
-          )
-
-          // Append new rows to existing rows
-          const updatedRows = [...result.rows, ...normalisedRows]
-          const updatedOriginalRows = { ...result.originalRows, ...newOriginalRows }
-
-          // Update result with new data
-          set((state) => ({
-            results: state.results.map((r) => {
-              if (r.id !== resultId) {
-                return r
-              }
-
-              return {
-                ...r,
-                rows: updatedRows,
-                originalRows: updatedOriginalRows,
-                offset: typeof backendOffset === 'number' ? backendOffset : nextOffset,
-                hasMore: typeof backendHasMore === 'boolean' ? backendHasMore : false,
-                pagedRows: typeof backendPagedRows === 'number' ? backendPagedRows : rows.length,
-                totalRows: typeof backendTotalRows === 'number' ? backendTotalRows : r.totalRows,
-                isProcessing: false,
-                processingProgress: 0,
-              }
-            }),
-          }))
-        } catch (error) {
-          console.error('Error loading more rows:', error)
-          get().updateResultProcessing(resultId, false, 0)
-        }
-      },
-    }
-  },
-  {
-    name: 'query-store',
-    partialize: (state) => ({
-      tabs: state.tabs,
-      activeTabId: state.activeTabId,
-    }),
-  }
-),
-{
-  name: 'query-store',
-})
+  )
 )
 
-const hasWailsRuntime =
-  typeof window !== 'undefined' &&
-  typeof (window as { runtime?: { EventsOnMultiple?: unknown } }).runtime?.EventsOnMultiple === 'function'
-
-if (hasWailsRuntime) {
-  EventsOn('query:editableMetadata', (payload: unknown) => {
-    try {
-      const data = (payload ?? {}) as Record<string, unknown>
-      const jobId = (data.jobId as string) ?? (data.job_id as string)
-      if (!jobId) {
-        return
-      }
-
-      const resultId = editableMetadataTargets.get(jobId)
-      if (!resultId) {
-        // Nothing to update; ensure we clear any timers
-        cleanupEditableMetadataJob(jobId)
-        return
-      }
-
-      const status = String(data.status ?? '').toLowerCase()
-      const metadataPayload = data.metadata
-      const errorMessage = (data.error as string) || ''
-
-      const store = useQueryStore.getState()
-      const resultExists = store.results.some(result => result.id === resultId)
-      if (!resultExists) {
-        cleanupEditableMetadataJob(jobId)
-        return
-      }
-
-      const applyMetadata = (metadata: QueryEditableMetadata | null) => {
-        cleanupEditableMetadataJob(jobId)
-        store.updateResultEditable(resultId, metadata)
-      }
-
-      if (status === 'completed') {
-        const metadata = transformEditableMetadata(metadataPayload)
-        if (metadata) {
-          metadata.pending = false
-          metadata.jobId = metadata.jobId || jobId
-          metadata.job_id = metadata.jobId
-        }
-        applyMetadata(metadata ?? {
-          enabled: false,
-          reason: 'Editable metadata unavailable',
-          schema: undefined,
-          table: undefined,
-          primaryKeys: [],
-          columns: [],
-          pending: false,
-          jobId,
-          job_id: jobId,
-        })
-        return
-      }
-
-      if (status === 'failed') {
-        const metadata = transformEditableMetadata(metadataPayload) ?? {
-          enabled: false,
-          reason: errorMessage || 'Editable metadata unavailable',
-          schema: undefined,
-          table: undefined,
-          primaryKeys: [],
-          columns: [],
-          pending: false,
-          jobId,
-          job_id: jobId,
-        }
-
-        metadata.pending = false
-        metadata.reason = errorMessage || metadata.reason
-        metadata.jobId = metadata.jobId || jobId
-        metadata.job_id = metadata.jobId
-
-        applyMetadata(metadata)
-        return
-      }
-
-      if (status === 'pending') {
-        // Update the UI to reflect pending status but keep polling as fallback
-        const metadata = transformEditableMetadata(metadataPayload) ?? {
-          enabled: false,
-          reason: errorMessage || 'Loading editable metadata',
-          schema: undefined,
-          table: undefined,
-          primaryKeys: [],
-          columns: [],
-          pending: true,
-          jobId,
-          job_id: jobId,
-        }
-
-        metadata.pending = true
-        metadata.reason = errorMessage || metadata.reason || 'Loading editable metadata'
-        metadata.jobId = metadata.jobId || jobId
-        metadata.job_id = metadata.jobId
-
-        store.updateResultEditable(resultId, metadata)
-        editableMetadataTargets.set(jobId, resultId)
-        return
-      }
-
-      // Unknown status, treat as failure but keep fallback polling just in case
-      const metadata = transformEditableMetadata(metadataPayload) ?? {
-        enabled: false,
-        reason: errorMessage || 'Editable metadata unavailable',
-        schema: undefined,
-        table: undefined,
-        primaryKeys: [],
-        columns: [],
-        pending: false,
-        jobId,
-        job_id: jobId,
-      }
-      metadata.pending = false
-      metadata.jobId = metadata.jobId || jobId
-      metadata.job_id = metadata.jobId
-
-      applyMetadata(metadata)
-    } catch (eventError) {
-      console.error('Failed to process editable metadata event:', eventError)
-    }
+// Synchronize state from individual stores to the unified store
+// This ensures backwards compatibility for consumers that read from useQueryStore
+const syncFromEditorStore = () => {
+  const editorState = useQueryEditorStore.getState()
+  useQueryStore.setState({
+    tabs: editorState.tabs,
+    activeTabId: editorState.activeTabId,
   })
 }
+
+const syncFromHistoryStore = () => {
+  const historyState = useQueryHistoryStore.getState()
+  useQueryStore.setState({
+    results: historyState.results,
+  })
+}
+
+// Subscribe to changes in individual stores
+useQueryEditorStore.subscribe(syncFromEditorStore)
+useQueryHistoryStore.subscribe(syncFromHistoryStore)
+
+// Initial sync
+syncFromEditorStore()
+syncFromHistoryStore()

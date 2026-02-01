@@ -52,7 +52,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { cn } from '@/lib/utils'
-import { useSavedQueriesStore } from '@/store/saved-queries-store'
+import { useSavedQueriesStore } from '@/store/queries-store'
 import { useTierStore } from '@/store/tier-store'
 import type { SavedQueryRecord } from '@/types/storage'
 

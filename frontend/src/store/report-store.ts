@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
 
+import { dedupedRequest } from '@/lib/request-deduplication'
 import { reportService } from '@/services/reports-service'
 import type { ReportRunOverrides, ReportRunResult, ReportSummary } from '@/types/reports'
 import type { ReportRecord } from '@/types/storage'
@@ -57,32 +58,37 @@ export const useReportStore = create<ReportStoreState>()(
     ...initialState,
 
     fetchReports: async () => {
-      set({ loading: true, error: undefined })
-      try {
-        const summaries = await reportService.listSummaries()
-        set({ summaries, loading: false })
-      } catch (error) {
-        set({
-          error: error instanceof Error ? error.message : 'Failed to load reports',
-          loading: false,
-        })
-      }
+      return dedupedRequest('fetchReports', async () => {
+        set({ loading: true, error: undefined })
+        try {
+          const summaries = await reportService.listSummaries()
+          set({ summaries, loading: false })
+        } catch (error) {
+          set({
+            error: error instanceof Error ? error.message : 'Failed to load reports',
+            loading: false,
+          })
+        }
+      })
     },
 
     selectReport: async (id: string) => {
-      set({ loading: true, error: undefined })
-      try {
-        const report = await reportService.getReport(id)
-        set({ activeReport: report, loading: false })
-      } catch (error) {
-        set({
-          error: error instanceof Error ? error.message : 'Failed to load report',
-          loading: false,
-        })
-      }
+      return dedupedRequest(`selectReport-${id}`, async () => {
+        set({ loading: true, error: undefined })
+        try {
+          const report = await reportService.getReport(id)
+          set({ activeReport: report, loading: false })
+        } catch (error) {
+          set({
+            error: error instanceof Error ? error.message : 'Failed to load report',
+            loading: false,
+          })
+        }
+      })
     },
 
     createReport: async (name?: string) => {
+      // Note: createReport doesn't use dedupedRequest because each call should create a new report
       set({ loading: true, error: undefined })
       try {
         const draft = createBlankReport(name)
@@ -148,83 +154,89 @@ export const useReportStore = create<ReportStoreState>()(
     saveActive: async () => {
       const current = get().activeReport
       if (!current) return
-      set({ loading: true, error: undefined })
-      try {
-        const saved = await reportService.saveReport(current)
-        set((state) => ({
-          summaries: state.summaries.map((summary) =>
-            summary.id === saved.id
-              ? {
-                  ...summary,
-                  name: saved.name,
-                  description: saved.description,
-                  tags: saved.tags,
-                  folder: saved.folder,
-                  updatedAt: saved.updated_at,
-                  lastRunAt: saved.last_run_at,
-                  lastRunStatus: saved.last_run_status,
-                }
-              : summary
-          ),
-          activeReport: saved,
-          loading: false,
-        }))
-      } catch (error) {
-        set({
-          error: error instanceof Error ? error.message : 'Failed to save report',
-          loading: false,
-        })
-        throw error
-      }
+      return dedupedRequest(`saveActive-${current.id}`, async () => {
+        set({ loading: true, error: undefined })
+        try {
+          const saved = await reportService.saveReport(current)
+          set((state) => ({
+            summaries: state.summaries.map((summary) =>
+              summary.id === saved.id
+                ? {
+                    ...summary,
+                    name: saved.name,
+                    description: saved.description,
+                    tags: saved.tags,
+                    folder: saved.folder,
+                    updatedAt: saved.updated_at,
+                    lastRunAt: saved.last_run_at,
+                    lastRunStatus: saved.last_run_status,
+                  }
+                : summary
+            ),
+            activeReport: saved,
+            loading: false,
+          }))
+        } catch (error) {
+          set({
+            error: error instanceof Error ? error.message : 'Failed to save report',
+            loading: false,
+          })
+          throw error
+        }
+      })
     },
 
   runActive: async (overrides?: ReportRunOverrides) => {
       const current = get().activeReport
       if (!current) return
-      set({ loading: true, error: undefined })
-      try {
-        const result = await reportService.runReport(current.id, {
-          ...(overrides ?? {}),
-          filters: get().topLevelFilters,
-        })
-        set((state) => ({
-          lastRun: result,
-          loading: false,
-          summaries: state.summaries.map((summary) =>
-            summary.id === current.id
-              ? {
-                  ...summary,
-                  lastRunAt: result.completedAt,
-                  lastRunStatus: result.results.every((r) => !r.error) ? 'ok' : 'error',
-                }
-              : summary
-          ),
-        }))
-      } catch (error) {
-        set({
-          error: error instanceof Error ? error.message : 'Failed to run report',
-          loading: false,
-        })
-        throw error
-      }
+      return dedupedRequest(`runActive-${current.id}`, async () => {
+        set({ loading: true, error: undefined })
+        try {
+          const result = await reportService.runReport(current.id, {
+            ...(overrides ?? {}),
+            filters: get().topLevelFilters,
+          })
+          set((state) => ({
+            lastRun: result,
+            loading: false,
+            summaries: state.summaries.map((summary) =>
+              summary.id === current.id
+                ? {
+                    ...summary,
+                    lastRunAt: result.completedAt,
+                    lastRunStatus: result.results.every((r) => !r.error) ? 'ok' : 'error',
+                  }
+                : summary
+            ),
+          }))
+        } catch (error) {
+          set({
+            error: error instanceof Error ? error.message : 'Failed to run report',
+            loading: false,
+          })
+          throw error
+        }
+      })
     },
 
     deleteReport: async (id: string) => {
-      set({ loading: true, error: undefined })
-      try {
-        await reportService.deleteReport(id)
-        set((state) => ({
-          summaries: state.summaries.filter((summary) => summary.id !== id),
-          activeReport: state.activeReport?.id === id ? undefined : state.activeReport,
-          loading: false,
-        }))
-      } catch (error) {
-        set({
-          error: error instanceof Error ? error.message : 'Failed to delete report',
-          loading: false,
-        })
-        throw error
-      }
+      return dedupedRequest(`deleteReport-${id}`, async () => {
+        set({ loading: true, error: undefined })
+        try {
+          await reportService.deleteReport(id)
+          set((state) => ({
+            summaries: state.summaries.filter((summary) => summary.id !== id),
+            activeReport: state.activeReport?.id === id ? undefined : state.activeReport,
+            loading: false,
+          }))
+        } catch (error) {
+          set({
+            error: error instanceof Error ? error.message : 'Failed to delete report',
+            loading: false,
+          })
+          throw error
+        }
+      })
     },
 
     setFilterText: (value: string) => set({ filterText: value }),
