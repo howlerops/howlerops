@@ -158,6 +158,12 @@ dev-browser: check-node check-wails deps proto
 		$(WAILS) dev -browser -s -tags duckdb -skipbindings -frontenddevserverurl http://127.0.0.1:5173 || true; \
 		kill "$$FRONTEND_PID" 2>/dev/null || true'
 
+## dev-run: Build and run (workaround for Wails dev CGO issues on arm64)
+.PHONY: dev-run
+dev-run: build
+	@echo "$(COLOR_BLUE)Starting HowlerOps...$(COLOR_RESET)"
+	@open ./build/bin/howlerops.app
+
 ## proto: Generate protobuf files
 .PHONY: proto
 proto: proto-clean
