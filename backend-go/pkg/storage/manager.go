@@ -4,6 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 
 	internalrag "github.com/jbeck018/howlerops/backend-go/internal/rag"
@@ -56,11 +59,21 @@ func NewManager(ctx context.Context, config *Config, logger *logrus.Logger) (*Ma
 		return nil, fmt.Errorf("failed to create local storage: %w", err)
 	}
 
+	// Expand home directory for dataDir (same logic as NewLocalStorage)
+	dataDir := os.ExpandEnv(config.Local.DataDir)
+	if strings.HasPrefix(dataDir, "~/") {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get home directory: %w", err)
+		}
+		dataDir = filepath.Join(home, dataDir[2:])
+	}
+
 	manager := &Manager{
 		mode:       config.Mode,
 		localStore: localStore,
 		userID:     config.UserID,
-		dataDir:    config.Local.DataDir,
+		dataDir:    dataDir,
 		logger:     logger,
 	}
 

@@ -13,7 +13,7 @@
 
 import { exportMasterKeyToBase64 } from '@/lib/crypto/encryption'
 
-import * as App from '../../wailsjs/go/main/App'
+import * as App from '../../bindings/github.com/jbeck018/howlerops/app'
 
 export interface SecureCredential {
   connectionId: string

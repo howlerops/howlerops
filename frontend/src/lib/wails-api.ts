@@ -1,4 +1,4 @@
-import * as App from '../../wailsjs/go/main/App'
+import * as App from '../../bindings/github.com/jbeck018/howlerops/app'
 import { isWailsReady,waitForWails } from './wails-runtime'
 
 // Wails-based API client for desktop application

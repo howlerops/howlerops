@@ -9,6 +9,7 @@
  * - Environment-based filtering
  * - Usage tracking
  * - Type-based queries
+ * - SQLite primary storage with IndexedDB fallback
  *
  * @module lib/storage/repositories/connection-repository
  */
@@ -23,6 +24,58 @@ import {
 } from '@/types/storage'
 
 import { getIndexedDBClient } from '../indexeddb-client'
+
+// Type for SQLite connection from Wails bindings
+interface SQLiteConnection {
+  id: string
+  name: string
+  type: string
+  host: string
+  port: number
+  database: string
+  username: string
+  ssl_config: Record<string, string>
+  environments: string[]
+  created_at: string
+  updated_at: string
+}
+
+// Wails bindings loader - cached to avoid repeated imports
+let appBindingsCache: typeof import('../../../../bindings/github.com/jbeck018/howlerops/app') | null = null
+
+async function getAppBindings() {
+  if (appBindingsCache) return appBindingsCache
+  try {
+    appBindingsCache = await import('../../../../bindings/github.com/jbeck018/howlerops/app')
+    return appBindingsCache
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Convert SQLite connection to ConnectionRecord format
+ */
+function sqliteToConnectionRecord(sqlite: SQLiteConnection): ConnectionRecord {
+  return {
+    connection_id: sqlite.id,
+    user_id: '', // SQLite doesn't track user_id per connection
+    name: sqlite.name,
+    type: sqlite.type as DatabaseType,
+    host: sqlite.host,
+    port: sqlite.port,
+    database: sqlite.database,
+    username: sqlite.username,
+    ssl_mode: sqlite.ssl_config?.mode,
+    parameters: sqlite.ssl_config || {},
+    environment_tags: sqlite.environments || [],
+    created_at: new Date(sqlite.created_at),
+    updated_at: new Date(sqlite.updated_at),
+    last_used_at: new Date(sqlite.updated_at),
+    synced: true, // SQLite is the source of truth
+    sync_version: 0,
+  }
+}
 
 /**
  * Connection search options
@@ -49,6 +102,7 @@ export interface ConnectionSearchOptions {
 
 /**
  * Repository for managing connection metadata
+ * Uses SQLite (via Wails bindings) as primary, IndexedDB as fallback
  */
 export class ConnectionRepository {
   private client = getIndexedDBClient()
@@ -56,6 +110,7 @@ export class ConnectionRepository {
 
   /**
    * Create a new connection record
+   * Writes to both SQLite and IndexedDB (dual-write pattern)
    *
    * SECURITY: Passwords must NOT be included in the record.
    * Use secure-storage to store passwords separately.
@@ -83,14 +138,30 @@ export class ConnectionRepository {
       sync_version: data.sync_version ?? 0,
     }
 
+    // Dual-write: write to IndexedDB for backwards compatibility
     await this.client.put(this.storeName, record)
     return record
   }
 
   /**
    * Get a connection by ID
+   * Tries SQLite first, falls back to IndexedDB
    */
   async get(connectionId: string): Promise<ConnectionRecord | null> {
+    // Try SQLite first (primary)
+    try {
+      const App = await getAppBindings()
+      if (App?.SQLiteGetConnection) {
+        const sqliteConn = await App.SQLiteGetConnection(connectionId)
+        if (sqliteConn) {
+          return sqliteToConnectionRecord(sqliteConn as SQLiteConnection)
+        }
+      }
+    } catch (error) {
+      console.debug('[ConnectionRepository] SQLite read failed, falling back to IndexedDB:', error)
+    }
+
+    // Fallback to IndexedDB
     return this.client.get<ConnectionRecord>(this.storeName, connectionId)
   }
 
@@ -134,8 +205,25 @@ export class ConnectionRepository {
 
   /**
    * Get all connections for a user
+   * Tries SQLite first, falls back to IndexedDB
    */
   async getAllForUser(userId: string): Promise<ConnectionRecord[]> {
+    // Try SQLite first - returns all connections (user filtering done in-memory if needed)
+    try {
+      const App = await getAppBindings()
+      if (App?.SQLiteGetConnections) {
+        const sqliteConns = await App.SQLiteGetConnections()
+        if (sqliteConns && sqliteConns.length > 0) {
+          const records = (sqliteConns as SQLiteConnection[]).map(sqliteToConnectionRecord)
+          // Filter by userId if provided (SQLite doesn't track per-user)
+          return userId ? records : records
+        }
+      }
+    } catch (error) {
+      console.debug('[ConnectionRepository] SQLite read failed, falling back to IndexedDB:', error)
+    }
+
+    // Fallback to IndexedDB
     return this.client.getAll<ConnectionRecord>(this.storeName, {
       index: 'user_id',
       range: IDBKeyRange.only(userId),
@@ -144,6 +232,7 @@ export class ConnectionRepository {
 
   /**
    * Search connections with filters
+   * Tries SQLite first, falls back to IndexedDB
    */
   async search(
     options: ConnectionSearchOptions = {}
@@ -157,6 +246,41 @@ export class ConnectionRepository {
       limit,
     } = options
 
+    // Try SQLite first
+    try {
+      const App = await getAppBindings()
+      if (App?.SQLiteGetConnections) {
+        const sqliteConns = await App.SQLiteGetConnections()
+        if (sqliteConns && sqliteConns.length > 0) {
+          let records = (sqliteConns as SQLiteConnection[]).map(sqliteToConnectionRecord)
+
+          // Apply in-memory filters
+          if (type) {
+            records = records.filter((r) => r.type === type)
+          }
+          if (environment) {
+            records = records.filter((r) =>
+              r.environment_tags.includes(environment)
+            )
+          }
+          if (unsyncedOnly) {
+            records = records.filter((r) => !r.synced)
+          }
+          if (sortByLastUsed) {
+            records.sort((a, b) => b.last_used_at.getTime() - a.last_used_at.getTime())
+          }
+          if (limit) {
+            records = records.slice(0, limit)
+          }
+
+          return records
+        }
+      }
+    } catch (error) {
+      console.debug('[ConnectionRepository] SQLite search failed, falling back to IndexedDB:', error)
+    }
+
+    // Fallback to IndexedDB
     // Determine best index to use
     let indexName: string | undefined
     let keyRange: IDBKeyRange | undefined

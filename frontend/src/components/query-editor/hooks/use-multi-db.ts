@@ -147,7 +147,7 @@ export function useMultiDB({ mode, connections, activeConnection, schema }: UseM
 
       // Step 3: Load schemas
       try {
-        const { GetMultiConnectionSchema } = await import('../../../../wailsjs/go/main/App')
+        const { GetMultiConnectionSchema } = await import('../../../../bindings/github.com/jbeck018/howlerops/app')
         const combined = await GetMultiConnectionSchema(sessionIds)
 
         if (!combined || !combined.connections) {
@@ -239,7 +239,7 @@ export function useMultiDB({ mode, connections, activeConnection, schema }: UseM
         return []
       }
 
-      const { GetTableStructure } = await import('../../../../wailsjs/go/main/App')
+      const { GetTableStructure } = await import('../../../../bindings/github.com/jbeck018/howlerops/app')
       const structure = await GetTableStructure(sessionId, schema, tableName)
 
       if (!structure || !structure.columns || structure.columns.length === 0) {

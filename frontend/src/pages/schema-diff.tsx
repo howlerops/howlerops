@@ -32,8 +32,8 @@ import {
   GenerateMigrationSQL,
   GenerateMigrationSQLFromSnapshot,
   ListSchemaSnapshots,
-} from '../../wailsjs/go/main/App'
-import { schemadiff } from '../../wailsjs/go/models'
+} from '../../bindings/github.com/jbeck018/howlerops/app'
+import { schemadiff } from '@/types/wails-compat'
 
 // Map Wails model status to our display change types
 type ChangeType = 'added' | 'modified' | 'deleted'

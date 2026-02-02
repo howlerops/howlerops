@@ -7,7 +7,7 @@
 
 import { useCallback,useEffect, useState } from 'react';
 
-import { GetMultiConnectionSchema, ListConnections } from '../../wailsjs/go/main/App';
+import { GetMultiConnectionSchema, ListConnections } from '../../bindings/github.com/jbeck018/howlerops/app';
 
 export interface Connection {
   id: string;

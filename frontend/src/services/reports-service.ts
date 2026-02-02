@@ -11,7 +11,7 @@ import {
   ListReports as listReportsRPC,
   RunReport as runReportRPC,
   SaveReport as saveReportRPC,
-} from '../../wailsjs/go/main/App'
+} from '../../bindings/github.com/jbeck018/howlerops/app'
 
 const DEFAULT_SYNC_OPTIONS = { enabled: false, cadence: '@every 1h', target: 'local' } as const
 

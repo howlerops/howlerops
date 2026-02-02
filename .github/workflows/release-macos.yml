@@ -77,8 +77,12 @@ jobs:
       # STEP 2: INSTALL DEPENDENCIES
       # ============================================================
 
-      - name: Install Wails CLI
-        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+      - name: Install Wails v3 CLI and Task
+        run: |
+          # Install Wails v3 CLI
+          go install github.com/wailsapp/wails/v3/cmd/wails3@latest
+          # Install Task runner (required for Wails v3 builds)
+          go install github.com/go-task/task/v3/cmd/task@latest
 
       - name: Install frontend dependencies
         working-directory: ./frontend
@@ -122,16 +126,17 @@ jobs:
 
       - name: Build Wails application (Universal Binary)
         run: |
-          wails build -platform darwin/universal -clean
+          # Use Wails v3 Taskfile-based build
+          wails3 task darwin:package:universal
 
-          # Verify the app was built
-          if [ ! -d "build/bin/$APP_NAME.app" ]; then
+          # Verify the app was built (Wails v3 outputs to bin/ not build/bin/)
+          if [ ! -d "bin/HowlerOps.app" ]; then
             echo "Error: Application not built successfully"
             exit 1
           fi
 
-          echo "Build successful: build/bin/$APP_NAME.app"
-          ls -lah build/bin/
+          echo "Build successful: bin/HowlerOps.app"
+          ls -lah bin/
 
       # ============================================================
       # STEP 5: CODE SIGNING (DISABLED)
@@ -158,12 +163,13 @@ jobs:
 
       - name: Create ZIP archive
         run: |
-          cd build/bin
+          # Wails v3 outputs to bin/ directory with app name "HowlerOps"
+          cd bin
 
           # Create ZIP (Homebrew friendly)
-          zip -r "../../${APP_NAME}-darwin-universal.zip" "$APP_NAME.app"
+          zip -r "../${APP_NAME}-darwin-universal.zip" "HowlerOps.app"
 
-          cd ../..
+          cd ..
 
           # Verify ZIP was created
           ls -lah "${APP_NAME}-darwin-universal.zip"
@@ -174,23 +180,24 @@ jobs:
         continue-on-error: true  # Don't fail workflow if DMG creation fails (disk space issues)
         run: |
           # Create a nicely formatted DMG
+          # Wails v3 outputs to bin/ directory with app name "HowlerOps"
           create-dmg \
             --volname "HowlerOps" \
             --window-pos 200 120 \
             --window-size 658 498 \
             --icon-size 128 \
-            --icon "$APP_NAME.app" 180 170 \
-            --hide-extension "$APP_NAME.app" \
+            --icon "HowlerOps.app" 180 170 \
+            --hide-extension "HowlerOps.app" \
             --app-drop-link 480 170 \
             "${APP_NAME}-darwin-universal.dmg" \
-            "build/bin/$APP_NAME.app" \
+            "bin/HowlerOps.app" \
             || true  # create-dmg may return non-zero even on success
 
           # If create-dmg failed, fall back to hdiutil
           if [ ! -f "${APP_NAME}-darwin-universal.dmg" ]; then
             echo "create-dmg failed, using hdiutil instead"
             hdiutil create -volname "HowlerOps" \
-              -srcfolder "build/bin/$APP_NAME.app" \
+              -srcfolder "bin/HowlerOps.app" \
               -ov -format UDZO \
               "${APP_NAME}-darwin-universal.dmg" \
               || echo "⚠️  DMG creation failed - continuing with ZIP-only release"

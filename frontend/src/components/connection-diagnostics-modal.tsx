@@ -19,7 +19,7 @@ import {
   GetConnectionHealth,
   GetConnectionStats,
   GetDatabaseVersion,
-} from '../../wailsjs/go/main/App'
+} from '../../bindings/github.com/jbeck018/howlerops/app'
 
 interface PoolStats {
   open_connections: number

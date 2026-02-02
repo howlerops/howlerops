@@ -138,11 +138,11 @@ func (s *DatabaseService) SetContext(ctx context.Context) {
 }
 
 func (s *DatabaseService) emitEvent(event string, payload interface{}) {
-	if s.emitter == nil || s.ctx == nil {
+	if s.emitter == nil {
 		return
 	}
 
-	if err := s.emitter.Emit(s.ctx, event, payload); err != nil && s.logger != nil {
+	if err := s.emitter.Emit(event, payload); err != nil && s.logger != nil {
 		s.logger.WithError(err).WithField("event", event).Warn("Failed to emit event")
 	}
 }

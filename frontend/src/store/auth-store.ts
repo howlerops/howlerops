@@ -511,7 +511,7 @@ export const initializeAuthStore = () => {
   const { isAuthenticated, refreshToken, checkStoredAuth } = useAuthStore.getState()
 
   // Set up event listeners for OAuth authentication (desktop mode only)
-  if (isWailsApp() && typeof window !== 'undefined' && window.runtime) {
+  if (isWailsApp()) {
     try {
       // Listen for successful OAuth authentication
       subscribeToWailsEvent('auth:success', (data: AuthSuccessEvent) => {

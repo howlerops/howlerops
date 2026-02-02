@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -9,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 const (
@@ -48,7 +47,8 @@ type GitHubRelease struct {
 
 // UpdateChecker handles checking for application updates
 type UpdateChecker struct {
-	ctx           interface{}
+	app           *application.App // v3 application reference
+	ctx           interface{}      // deprecated: kept for compatibility
 	lastCheckTime time.Time
 	latestRelease *GitHubRelease
 	httpClient    *http.Client
@@ -99,14 +99,19 @@ func (u *UpdateChecker) GetCurrentVersion() string {
 	return CurrentVersion
 }
 
+// SetApp sets the v3 application reference
+func (u *UpdateChecker) SetApp(app *application.App) {
+	u.app = app
+}
+
 // OpenDownloadPage opens the download page in the default browser
 func (u *UpdateChecker) OpenDownloadPage() error {
 	if u.latestRelease == nil {
 		return fmt.Errorf("no release information available")
 	}
 
-	if u.ctx != nil {
-		wailsRuntime.BrowserOpenURL(u.ctx.(context.Context), u.latestRelease.HTMLURL)
+	if u.app != nil {
+		u.app.Browser.OpenURL(u.latestRelease.HTMLURL)
 	}
 	return nil
 }

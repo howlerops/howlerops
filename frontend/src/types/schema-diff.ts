@@ -6,7 +6,7 @@
  * without the Wails class boilerplate.
  */
 
-import type { database } from '../../wailsjs/go/models'
+import type { database } from './wails-compat'
 
 /**
  * Branded type for snapshot identifiers

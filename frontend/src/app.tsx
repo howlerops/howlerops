@@ -13,6 +13,7 @@ import { Toaster } from './components/ui/toaster'
 import { UpdateNotification } from './components/update-notification'
 import { queryClient } from './lib/api'
 import { shouldEnforceHostedAuth } from './lib/environment'
+import { useMigrateToSQLite } from './lib/storage/migrate-to-sqlite'
 import { initializeAuthStore } from './store/auth-store'
 import { initializeConnectionStore } from './store/connection-store'
 import { initializeOrganizationStore } from './store/organization-store'
@@ -42,6 +43,9 @@ function LoadingSpinner() {
 
 function App() {
   const enforceAuth = useMemo(() => shouldEnforceHostedAuth(), [])
+
+  // Run IndexedDB to SQLite migration on startup (non-blocking)
+  useMigrateToSQLite()
 
   // Initialize stores and migrate credentials on app startup
   useEffect(() => {

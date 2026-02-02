@@ -28,8 +28,8 @@ import { type AIMemorySession as MemorySession,estimateTokens as estimateMemoryT
 import type { DatabaseConnection } from '@/store/connection-store'
 import type { AISessionId } from '@/types/ai'
 
-import { ConfigureAIProvider,DeleteAIMemorySession, LoadAIMemorySessions, SaveAIMemorySessions } from '../../wailsjs/go/main/App'
-import { main as wailsModels } from '../../wailsjs/go/models'
+import { ConfigureAIProvider, DeleteAIMemorySession, LoadAIMemorySessions, SaveAIMemorySessions } from '../../bindings/github.com/jbeck018/howlerops/app'
+import * as wailsModels from '../../bindings/github.com/jbeck018/howlerops/models'
 
 // Normalize endpoint URL
 function normalizeEndpoint(endpoint: string | undefined): string {
@@ -650,7 +650,7 @@ export const useAIStore = create<AIState & AIActions>()(
           }
 
           // Import and execute Wails binding
-          const { GenerateSQLFromNaturalLanguage } = await import('../../wailsjs/go/main/App')
+          const { GenerateSQLFromNaturalLanguage } = await import('../../bindings/github.com/jbeck018/howlerops/app')
           const rawResult = await GenerateSQLFromNaturalLanguage(request)
 
           // Parse and validate response
@@ -755,7 +755,7 @@ export const useAIStore = create<AIState & AIActions>()(
           )
 
           // Import and execute Wails binding
-          const { FixSQLErrorWithOptions } = await import('../../wailsjs/go/main/App')
+          const { FixSQLErrorWithOptions } = await import('../../bindings/github.com/jbeck018/howlerops/app')
           const rawResult = await FixSQLErrorWithOptions(request)
 
           // Parse and validate response
@@ -864,7 +864,7 @@ export const useAIStore = create<AIState & AIActions>()(
           )
 
           // Import and execute Wails binding
-          const { GenericChat } = await import('../../wailsjs/go/main/App')
+          const { GenericChat } = await import('../../bindings/github.com/jbeck018/howlerops/app')
           const rawResponse = await GenericChat(request)
 
           // Parse and validate response

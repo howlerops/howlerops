@@ -53,8 +53,8 @@ import {
   SyncCatalogFromConnection,
   UpdateColumnCatalogEntry,
   UpdateTableCatalogEntry,
-} from '../../wailsjs/go/main/App'
-import { catalog, main } from '../../wailsjs/go/models'
+} from '../../bindings/github.com/jbeck018/howlerops/app'
+import { catalog, main } from '@/types/wails-compat'
 
 type ViewMode = 'tree' | 'table'
 

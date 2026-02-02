@@ -8,7 +8,7 @@ import {
   generateMasterKey,
 } from '@/lib/crypto/encryption'
 
-import * as App from '../../wailsjs/go/main/App'
+import * as App from '../../bindings/github.com/jbeck018/howlerops/app'
 
 // Service name for keychain storage
 const KEYCHAIN_SERVICE = 'sql-studio-keystore'

@@ -1,17 +1,19 @@
 /**
  * Platform Detection Utilities
  *
- * Detects whether the app is running in Wails desktop mode or web deployment mode.
+ * Detects whether the app is running in Wails v3 desktop mode or web deployment mode.
  * This determines which authentication flow to use:
- * - Wails mode: Direct Go backend calls via window.go.main.App
+ * - Wails mode: Direct Go backend calls via generated bindings
  * - Web mode: HTTP API endpoints via fetch
  */
 
+import { isWailsReady } from './wails-runtime'
+
 /**
- * Check if app is running in Wails desktop environment
+ * Check if app is running in Wails v3 desktop environment
  */
 export function isWailsApp(): boolean {
-  return typeof window !== 'undefined' && !!window.go?.main?.App
+  return isWailsReady()
 }
 
 /**
@@ -30,7 +32,7 @@ export function getPlatformType(): 'wails' | 'web' {
 
 /**
  * Get API base URL based on platform
- * - Wails: Not used (direct Go calls)
+ * - Wails: Not used (direct Go calls via bindings)
  * - Web: From VITE_API_URL env var or default to localhost:8080
  */
 export function getApiBaseUrl(): string {

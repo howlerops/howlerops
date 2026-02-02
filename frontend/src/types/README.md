@@ -107,11 +107,11 @@ const preview: MigrationPreview = {
 
 ### Wails Integration
 
-These types align with the Wails bindings in `wailsjs/go/models.ts`:
+These types align with the Wails bindings in `bindings/github.com/jbeck018/howlerops/models.ts`:
 
 ```typescript
 // Wails class-based type
-import { schemadiff } from '../wailsjs/go/models'
+import { schemadiff } from '../bindings/github.com/jbeck018/howlerops/models'
 const wailsSnapshot = new schemadiff.SchemaSnapshot(data)
 
 // Clean TypeScript interface
@@ -231,7 +231,7 @@ console.log(`Stewarded: ${stats.stewardedTables}/${stats.totalTables}`)
 
 ```typescript
 // Wails class-based type
-import { catalog } from '../wailsjs/go/models'
+import { catalog } from '../bindings/github.com/jbeck018/howlerops/models'
 const wailsEntry = new catalog.TableCatalogEntry(data)
 
 // Clean TypeScript interface
@@ -360,7 +360,7 @@ If migrating existing code from Wails class-based types:
 
 ```typescript
 // Before (Wails classes)
-import { schemadiff, catalog } from '../wailsjs/go/models'
+import { schemadiff, catalog } from '../bindings/github.com/jbeck018/howlerops/models'
 
 const snapshot = new schemadiff.SchemaSnapshot(data)
 const entry = new catalog.TableCatalogEntry(data)

@@ -19,6 +19,9 @@
 
 import { useEffect } from 'react'
 
+// Wails v3 bindings - import dynamically to avoid build issues during SSR
+let AppBindings: typeof import('../../bindings/github.com/jbeck018/howlerops/app') | null = null
+
 // Storage keys
 const STORAGE_KEY = 'sql-studio-secure-credentials'
 const MIGRATION_FLAG = 'credentials-migrated'
@@ -51,48 +54,52 @@ export interface MigrationResult {
 }
 
 /**
- * Wails API interface
+ * Load Wails v3 bindings dynamically
  */
-interface WailsWindow extends Window {
-  go?: {
-    main?: {
-      App?: {
-        StorePassword?: (service: string, account: string, password: string) => Promise<void>
-        GetPassword?: (service: string, account: string) => Promise<string>
-      }
-    }
+async function loadAppBindings(): Promise<typeof import('../../bindings/github.com/jbeck018/howlerops/app') | null> {
+  if (AppBindings) return AppBindings
+  try {
+    AppBindings = await import('../../bindings/github.com/jbeck018/howlerops/app')
+    return AppBindings
+  } catch (error) {
+    console.debug('[CredentialMigration] Failed to load Wails bindings:', error)
+    return null
   }
 }
 
 /**
- * Check if keychain API is available
- * This will be true once the Wails backend exposes keychain functions
+ * Check if keychain API is available (v3 pattern)
+ * Uses ES module imports from Wails v3 bindings
  */
-function isKeychainAvailable(): boolean {
-  const wailsWindow = window as WailsWindow
-  return typeof window !== 'undefined' &&
-         typeof wailsWindow.go !== 'undefined' &&
-         typeof wailsWindow.go?.main?.App?.StorePassword === 'function' &&
-         typeof wailsWindow.go?.main?.App?.GetPassword === 'function'
+async function isKeychainAvailable(): Promise<boolean> {
+  if (typeof window === 'undefined') return false
+
+  const App = await loadAppBindings()
+  if (!App) return false
+
+  // Check if the v3 binding functions exist
+  return typeof App.StorePassword === 'function' &&
+         typeof App.GetPassword === 'function'
 }
 
 /**
- * Store password in OS keychain via Wails backend
- * This is a placeholder for the actual Wails function once implemented
+ * Store password in OS keychain via Wails v3 backend
+ * v3 API: StorePassword(connectionID, password, masterKeyBase64)
  */
 async function storePasswordInKeychain(
   connectionId: string,
   credentialType: 'password' | 'ssh_password' | 'ssh_private_key',
   value: string
 ): Promise<void> {
-  const wailsWindow = window as WailsWindow
-  if (wailsWindow.go?.main?.App?.StorePassword) {
-    const service = 'sql-studio'
-    const account = `${connectionId}-${credentialType}`
-    await wailsWindow.go.main.App.StorePassword(service, account, value)
-  } else {
+  const App = await loadAppBindings()
+  if (!App || typeof App.StorePassword !== 'function') {
     throw new Error('Keychain API not available')
   }
+
+  // Create a unique key combining connectionId and credential type
+  const key = `${connectionId}-${credentialType}`
+  // Empty string for masterKeyBase64 uses keychain-only storage
+  await App.StorePassword(key, value, '')
 }
 
 /**
@@ -115,8 +122,9 @@ export async function migrateCredentialsToKeychain(): Promise<MigrationResult> {
       return result
     }
 
-    // Check if keychain API is available
-    if (!isKeychainAvailable()) {
+    // Check if keychain API is available (async in v3)
+    const keychainAvailable = await isKeychainAvailable()
+    if (!keychainAvailable) {
       result.skipped = true
       result.reason = 'Keychain API not yet available - keeping localStorage credentials'
       console.log('[CredentialMigration] Keychain API not available, skipping migration')
@@ -254,12 +262,12 @@ export async function retryMigration(): Promise<MigrationResult> {
 /**
  * Check migration status without performing migration
  */
-export function getMigrationStatus(): {
+export async function getMigrationStatus(): Promise<{
   migrated: boolean
   version: string | null
   hasCredentials: boolean
   keychainAvailable: boolean
-} {
+}> {
   if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
     return {
       migrated: false,
@@ -273,7 +281,7 @@ export function getMigrationStatus(): {
     migrated: localStorage.getItem(MIGRATION_FLAG) === 'true',
     version: localStorage.getItem(MIGRATION_VERSION),
     hasCredentials: localStorage.getItem(STORAGE_KEY) !== null,
-    keychainAvailable: isKeychainAvailable(),
+    keychainAvailable: await isKeychainAvailable(),
   }
 }
 

@@ -30,7 +30,7 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["src", "wailsjs"],
+  "include": ["src", "bindings"],
   "exclude": [
     "node_modules",
     "src/**/*INTEGRATION_EXAMPLE*.tsx",

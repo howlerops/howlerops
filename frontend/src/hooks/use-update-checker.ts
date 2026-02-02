@@ -2,7 +2,7 @@ import { useCallback,useEffect, useState } from 'react';
 
 import { isWailsEnvironment } from '@/lib/wails-runtime';
 
-import { CheckForUpdates, GetCurrentVersion,OpenDownloadPage } from '../../wailsjs/go/main/App';
+import { CheckForUpdates, GetCurrentVersion, OpenDownloadPage } from '../../bindings/github.com/jbeck018/howlerops/app';
 
 export interface UpdateInfo {
   available: boolean;

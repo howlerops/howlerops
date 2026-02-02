@@ -7,6 +7,7 @@
  * - Connection-based filtering
  * - Pagination support
  * - Privacy mode filtering
+ * - SQLite primary storage with IndexedDB fallback
  *
  * @module lib/storage/repositories/query-history-repository
  */
@@ -23,6 +24,50 @@ import {
 } from '@/types/storage'
 
 import { getIndexedDBClient } from '../indexeddb-client'
+
+// Type for SQLite query history from Wails bindings
+interface SQLiteQueryHistory {
+  id: string
+  connection_id: string
+  query: string
+  duration_ms: number
+  row_count: number
+  success: boolean
+  error: string
+  executed_at: string
+}
+
+// Wails bindings loader - cached to avoid repeated imports
+let appBindingsCache: typeof import('../../../../bindings/github.com/jbeck018/howlerops/app') | null = null
+
+async function getAppBindings() {
+  if (appBindingsCache) return appBindingsCache
+  try {
+    appBindingsCache = await import('../../../../bindings/github.com/jbeck018/howlerops/app')
+    return appBindingsCache
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Convert SQLite query history to QueryHistoryRecord format
+ */
+function sqliteToQueryHistoryRecord(sqlite: SQLiteQueryHistory, userId: string = ''): QueryHistoryRecord {
+  return {
+    id: sqlite.id,
+    user_id: userId,
+    query_text: sqlite.query,
+    connection_id: sqlite.connection_id,
+    execution_time_ms: sqlite.duration_ms,
+    row_count: sqlite.row_count,
+    error: sqlite.success ? undefined : sqlite.error,
+    privacy_mode: 'normal' as PrivacyMode,
+    executed_at: new Date(sqlite.executed_at),
+    synced: true, // SQLite is the source of truth
+    sync_version: 0,
+  }
+}
 
 /**
  * Search options for query history
@@ -96,6 +141,7 @@ export interface QueryStatistics {
 
 /**
  * Repository for managing query history
+ * Uses SQLite (via Wails bindings) as primary, IndexedDB as fallback
  */
 export class QueryHistoryRepository {
   private client = getIndexedDBClient()
@@ -155,6 +201,7 @@ export class QueryHistoryRepository {
 
   /**
    * Get a query history record by ID
+   * Note: SQLite API doesn't support get by ID, so we use IndexedDB for this
    */
   async get(id: string): Promise<QueryHistoryRecord | null> {
     return this.client.get<QueryHistoryRecord>(this.storeName, id)
@@ -305,11 +352,13 @@ export class QueryHistoryRepository {
 
   /**
    * Get recent queries for a user
+   * Tries SQLite first, falls back to IndexedDB
    */
   async getRecent(
     userId: string,
     limit = 20
   ): Promise<QueryHistoryRecord[]> {
+    // SQLite API requires connectionID, so fall back to search for user-level queries
     const result = await this.search({
       userId,
       limit,
@@ -320,11 +369,26 @@ export class QueryHistoryRepository {
 
   /**
    * Get recent queries for a connection
+   * Tries SQLite first, falls back to IndexedDB
    */
   async getRecentForConnection(
     connectionId: string,
     limit = 20
   ): Promise<QueryHistoryRecord[]> {
+    // Try SQLite first (primary)
+    try {
+      const App = await getAppBindings()
+      if (App?.SQLiteGetQueryHistory) {
+        const sqliteHistory = await App.SQLiteGetQueryHistory(connectionId, limit)
+        if (sqliteHistory && sqliteHistory.length > 0) {
+          return (sqliteHistory as SQLiteQueryHistory[]).map(h => sqliteToQueryHistoryRecord(h))
+        }
+      }
+    } catch (error) {
+      console.debug('[QueryHistoryRepository] SQLite read failed, falling back to IndexedDB:', error)
+    }
+
+    // Fallback to IndexedDB
     const result = await this.search({
       connectionId,
       limit,

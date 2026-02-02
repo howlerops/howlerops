@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "(test -d ./src/generated || npm run proto:build) && (tsc -b || true) && vite build",
+    "build:dev": "vite build --mode development",
     "analyze": "vite build --mode analyze && npx vite-bundle-visualizer",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -69,6 +70,7 @@
     "@tanstack/react-virtual": "^3.13.12",
     "@types/react-grid-layout": "^1.3.6",
     "@types/uuid": "^10.0.0",
+    "@wailsio/runtime": "^3.0.0-alpha.79",
     "ag-grid-community": "^34.3.1",
     "ag-grid-react": "^34.3.1",
     "axios": "^1.12.2",

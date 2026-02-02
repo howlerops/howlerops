@@ -1,82 +1,52 @@
 /**
- * Type definitions for OS Keychain integration via Wails
+ * Type definitions for OS Keychain integration via Wails v3
  *
- * These functions will be added to the Wails backend to support
- * secure credential storage in the OS keychain.
- *
- * Implementation: github.com/zalando/go-keyring
+ * In Wails v3, we import bindings directly from generated files.
+ * This file provides additional type hints for the keychain functions.
  */
 
-declare module '../../wailsjs/go/main/App' {
-  /**
-   * Store a password securely in the OS keychain
-   *
-   * @param service - Service name (e.g., "sql-studio")
-   * @param account - Account/key name (e.g., "conn-123-password")
-   * @param password - Password or sensitive value to store
-   * @returns Promise that resolves when stored successfully
-   * @throws Error if keychain is locked or unavailable
-   *
-   * @example
-   * await StorePassword("sql-studio", "conn-123-password", "secret123")
-   */
-  export function StorePassword(
-    service: string,
-    account: string,
-    password: string
-  ): Promise<void>
-
-  /**
-   * Retrieve a password from the OS keychain
-   *
-   * @param service - Service name (e.g., "sql-studio")
-   * @param account - Account/key name (e.g., "conn-123-password")
-   * @returns Promise that resolves with the password
-   * @throws Error with "not found" if password doesn't exist
-   * @throws Error if keychain is locked or unavailable
-   *
-   * @example
-   * const password = await GetPassword("sql-studio", "conn-123-password")
-   */
-  export function GetPassword(
-    service: string,
-    account: string
-  ): Promise<string>
-
-  /**
-   * Delete a password from the OS keychain
-   *
-   * @param service - Service name (e.g., "sql-studio")
-   * @param account - Account/key name (e.g., "conn-123-password")
-   * @returns Promise that resolves when deleted successfully
-   * @throws Error with "not found" if password doesn't exist
-   * @throws Error if keychain is locked or unavailable
-   *
-   * @example
-   * await DeletePassword("sql-studio", "conn-123-password")
-   */
-  export function DeletePassword(
-    service: string,
-    account: string
-  ): Promise<void>
-}
+// Re-export types from generated bindings
+export type { CancellablePromise } from '@wailsio/runtime'
 
 /**
- * Global type augmentation for window.go runtime
- * This allows TypeScript to recognize the Wails runtime at development time
+ * Store a password securely in the OS keychain
+ *
+ * @param connectionID - Connection identifier
+ * @param password - Password or sensitive value to store
+ * @param masterKeyBase64 - Optional master key for encryption
+ * @returns Promise that resolves when stored successfully
+ * @throws Error if keychain is locked or unavailable
+ *
+ * @example
+ * import { StorePassword } from '../../bindings/github.com/jbeck018/howlerops/app'
+ * await StorePassword("conn-123", "secret123", "")
  */
-declare global {
-  interface Window {
-    go?: {
-      main?: {
-        App?: {
-          StorePassword?: (service: string, account: string, password: string) => Promise<void>
-          GetPassword?: (service: string, account: string) => Promise<string>
-          DeletePassword?: (service: string, account: string) => Promise<void>
-        }
-      }
-    }
-  }
-}
+
+/**
+ * Retrieve a password from the OS keychain
+ *
+ * @param connectionID - Connection identifier
+ * @param masterKeyBase64 - Optional master key for decryption
+ * @returns Promise that resolves with the password
+ * @throws Error with "not found" if password doesn't exist
+ * @throws Error if keychain is locked or unavailable
+ *
+ * @example
+ * import { GetPassword } from '../../bindings/github.com/jbeck018/howlerops/app'
+ * const password = await GetPassword("conn-123", "")
+ */
+
+/**
+ * Delete a password from the OS keychain
+ *
+ * @param connectionID - Connection identifier
+ * @returns Promise that resolves when deleted successfully
+ * @throws Error with "not found" if password doesn't exist
+ * @throws Error if keychain is locked or unavailable
+ *
+ * @example
+ * import { DeletePassword } from '../../bindings/github.com/jbeck018/howlerops/app'
+ * await DeletePassword("conn-123")
+ */
 
 export {}

@@ -2,14 +2,16 @@
  * Dual-Mode Authentication API
  *
  * Provides a unified interface for authentication that works in both:
- * 1. Wails desktop mode - Uses direct Go backend calls via window.go.main.App
+ * 1. Wails v3 desktop mode - Uses direct Go backend calls via generated bindings
  * 2. Web deployment mode - Uses HTTP API endpoints via fetch
  *
  * The caller doesn't need to know which mode is active - this module handles it transparently.
  */
 
-import { getApiBaseUrl,isWailsApp } from './platform'
+import { getApiBaseUrl, isWailsApp } from './platform'
 import { callWails } from './wails-guard'
+// Import v3 bindings directly
+import * as App from '../../bindings/github.com/jbeck018/howlerops/app'
 
 // ============================================================================
 // Types
@@ -43,8 +45,12 @@ export interface BiometricAvailability {
  */
 export async function getOAuthURL(provider: 'google' | 'github'): Promise<OAuthInitiateResponse> {
   if (isWailsApp()) {
-    // Desktop mode: Use Wails direct call
-    return callWails((app) => app.GetOAuthURL!(provider))
+    // Desktop mode: Use Wails v3 direct bindings
+    const result = await callWails(() => App.GetOAuthURL(provider))
+    return {
+      authUrl: result?.authUrl || result?.auth_url || '',
+      state: result?.state
+    }
   } else {
     // Web mode: Use HTTP API
     const apiBaseUrl = getApiBaseUrl()
@@ -101,8 +107,8 @@ export async function exchangeOAuthCode(
  */
 export async function checkStoredToken(provider: 'google' | 'github'): Promise<boolean> {
   if (isWailsApp()) {
-    // Desktop mode: Check keychain for stored token
-    return callWails((app) => app.CheckStoredToken!(provider))
+    // Desktop mode: Check keychain for stored token via v3 bindings
+    return callWails(() => App.CheckStoredToken(provider))
   } else {
     // Web mode: Not applicable (uses session cookies)
     return false
@@ -123,8 +129,12 @@ export async function checkBiometricAvailability(): Promise<BiometricAvailabilit
   }
 
   if (isWailsApp()) {
-    // Desktop mode: Check via Wails
-    return callWails((app) => app.CheckBiometricAvailability!())
+    // Desktop mode: Check via Wails v3 bindings
+    const result = await callWails(() => App.CheckBiometricAvailability())
+    return {
+      available: result?.available ?? false,
+      type: result?.type
+    }
   } else {
     // Web mode: Check via HTTP API
     const apiBaseUrl = getApiBaseUrl()
@@ -146,10 +156,10 @@ export async function checkBiometricAvailability(): Promise<BiometricAvailabilit
 /**
  * Start WebAuthn authentication flow (get challenge)
  */
-export async function startWebAuthnAuthentication(): Promise<string> {
+export async function startWebAuthnAuthentication(userId: string): Promise<string> {
   if (isWailsApp()) {
-    // Desktop mode: Use Wails
-    return callWails((app) => app.StartWebAuthnAuthentication!())
+    // Desktop mode: Use Wails v3 bindings
+    return callWails(() => App.StartWebAuthnAuthentication(userId))
   } else {
     // Web mode: Use HTTP API
     const apiBaseUrl = getApiBaseUrl()
@@ -171,10 +181,10 @@ export async function startWebAuthnAuthentication(): Promise<string> {
 /**
  * Finish WebAuthn authentication (verify assertion)
  */
-export async function finishWebAuthnAuthentication(assertionJSON: string): Promise<string> {
+export async function finishWebAuthnAuthentication(userId: string, assertionJSON: string): Promise<string> {
   if (isWailsApp()) {
-    // Desktop mode: Use Wails
-    return callWails((app) => app.FinishWebAuthnAuthentication!(assertionJSON))
+    // Desktop mode: Use Wails v3 bindings
+    return callWails(() => App.FinishWebAuthnAuthentication(userId, assertionJSON))
   } else {
     // Web mode: Use HTTP API
     const apiBaseUrl = getApiBaseUrl()
@@ -199,8 +209,8 @@ export async function finishWebAuthnAuthentication(assertionJSON: string): Promi
  */
 export async function startWebAuthnRegistration(userId: string, username: string): Promise<string> {
   if (isWailsApp()) {
-    // Desktop mode: Use Wails
-    return callWails((app) => app.StartWebAuthnRegistration!(userId, username))
+    // Desktop mode: Use Wails v3 bindings
+    return callWails(() => App.StartWebAuthnRegistration(userId, username))
   } else {
     // Web mode: Use HTTP API
     const apiBaseUrl = getApiBaseUrl()
@@ -225,8 +235,8 @@ export async function startWebAuthnRegistration(userId: string, username: string
  */
 export async function finishWebAuthnRegistration(userId: string, credentialJSON: string): Promise<boolean> {
   if (isWailsApp()) {
-    // Desktop mode: Use Wails
-    return callWails((app) => app.FinishWebAuthnRegistration!(userId, credentialJSON))
+    // Desktop mode: Use Wails v3 bindings
+    return callWails(() => App.FinishWebAuthnRegistration(userId, credentialJSON))
   } else {
     // Web mode: Use HTTP API
     const apiBaseUrl = getApiBaseUrl()

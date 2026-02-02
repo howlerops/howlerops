@@ -4,9 +4,9 @@ import { persist } from 'zustand/middleware'
 import { showHybridNotification } from '@/lib/wails-ai-api'
 import { useAIMemoryStore } from '@/store/ai-memory-store'
 
-import { StreamAIQueryAgent } from '../../wailsjs/go/main/App'
-import { main } from '../../wailsjs/go/models'
-import { EventsOn } from '../../wailsjs/runtime/runtime'
+import { StreamAIQueryAgent } from '../../bindings/github.com/jbeck018/howlerops/app'
+import * as models from '../../bindings/github.com/jbeck018/howlerops/models'
+import { Events } from '@wailsio/runtime'
 
 export type AgentAttachmentType = 'sql' | 'result' | 'chart' | 'report' | 'insight' | string
 
@@ -498,7 +498,7 @@ export const useAIQueryAgentStore = create<AIQueryAgentState>()(
     try {
       // Create and send request to AI agent
       const response = await StreamAIQueryAgent(
-        main.AIQueryAgentRequest.createFrom({
+        models.AIQueryAgentRequest.createFrom({
           sessionId: options.sessionId,
           message: options.message,
           provider: options.provider,
@@ -635,13 +635,14 @@ export const useAIQueryAgentStore = create<AIQueryAgentState>()(
  */
 let eventListenerCleanup: (() => void) | null = null
 
+// In v3, Events is always available from @wailsio/runtime when in Wails context
 const hasWailsRuntime =
   typeof window !== 'undefined' &&
-  typeof (window as { runtime?: { EventsOnMultiple?: unknown } }).runtime?.EventsOnMultiple === 'function'
+  typeof Events !== 'undefined'
 
 if (hasWailsRuntime) {
-  // Register event listener
-  EventsOn('ai:query-agent:stream', (payload: unknown) => {
+  // Register event listener using v3 Events API
+  Events.On('ai:query-agent:stream', (payload: unknown) => {
     useAIQueryAgentStore.getState().receiveEvent((payload ?? {}) as StreamPayload)
   })
 

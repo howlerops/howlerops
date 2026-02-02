@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"github.com/jbeck018/howlerops/backend-go/pkg/ai"
 	"github.com/jbeck018/howlerops/backend-go/pkg/database"
@@ -693,10 +692,7 @@ func (a *App) generateExplanationMessage(req AIQueryAgentRequest, sql string) (A
 }
 
 func (a *App) emitQueryAgentEvent(event queryAgentEvent) {
-	if a.ctx == nil {
-		return
-	}
-	runtime.EventsEmit(a.ctx, "ai:query-agent:stream", event)
+	a.emitEvent("ai:query-agent:stream", event)
 }
 
 func selectPrimaryConnection(primary string, list []string) string {
