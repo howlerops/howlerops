@@ -185,12 +185,33 @@ export class SavedQueryRepository {
         sync_version: data.sync_version ?? 0,
       }
 
-      // Insert within transaction
+      // Insert within transaction (IndexedDB)
       const putRequest = store.put(record)
       await new Promise<void>((resolve, reject) => {
         putRequest.onsuccess = () => resolve()
         putRequest.onerror = () => reject(putRequest.error)
       })
+
+      // Dual-write: also save to SQLite (primary storage)
+      try {
+        const App = await getAppBindings()
+        if (App?.SQLiteSaveQuery) {
+          const sqliteRecord = {
+            id: record.id,
+            title: record.title,
+            description: record.description || '',
+            query: record.query_text,
+            connection_id: '', // Not tracked in frontend
+            folder: record.folder || '',
+            tags: record.tags,
+            created_at: record.created_at.toISOString(),
+            updated_at: record.updated_at.toISOString(),
+          }
+          await App.SQLiteSaveQuery(JSON.stringify(sqliteRecord))
+        }
+      } catch (sqliteError) {
+        console.warn('[SavedQueryRepository] SQLite write failed, IndexedDB write succeeded:', sqliteError)
+      }
 
       return record
     }).catch(async (error) => {
@@ -271,14 +292,46 @@ export class SavedQueryRepository {
       updated.folder = updates.folder?.trim()
     }
 
+    // Dual-write: save to SQLite (primary) and IndexedDB (fallback)
+    try {
+      const App = await getAppBindings()
+      if (App?.SQLiteSaveQuery) {
+        const sqliteRecord = {
+          id: updated.id,
+          title: updated.title,
+          description: updated.description || '',
+          query: updated.query_text,
+          connection_id: '',
+          folder: updated.folder || '',
+          tags: updated.tags,
+          created_at: updated.created_at.toISOString(),
+          updated_at: updated.updated_at.toISOString(),
+        }
+        await App.SQLiteSaveQuery(JSON.stringify(sqliteRecord))
+      }
+    } catch (error) {
+      console.warn('[SavedQueryRepository] SQLite update failed, continuing with IndexedDB:', error)
+    }
+
     await this.client.put(this.storeName, updated)
     return updated
   }
 
   /**
    * Delete a saved query
+   * Deletes from both SQLite and IndexedDB (dual-write pattern)
    */
   async delete(id: string): Promise<void> {
+    // Dual-delete: delete from SQLite (primary) and IndexedDB (fallback)
+    try {
+      const App = await getAppBindings()
+      if (App?.SQLiteDeleteQuery) {
+        await App.SQLiteDeleteQuery(id)
+      }
+    } catch (error) {
+      console.warn('[SavedQueryRepository] SQLite delete failed, continuing with IndexedDB:', error)
+    }
+
     await this.client.delete(this.storeName, id)
   }
 

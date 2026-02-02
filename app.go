@@ -5438,3 +5438,83 @@ func (a *App) SQLiteSetSetting(key, value string) error {
 	}
 	return a.storageMigration.SetSetting(a.ctx, key, value)
 }
+
+// SQLiteSaveConnection saves or updates a connection in SQLite
+// Accepts JSON string and parses it into storage.Connection
+func (a *App) SQLiteSaveConnection(connectionJSON string) error {
+	if a.storageMigration == nil {
+		return fmt.Errorf("storage migration service not initialized")
+	}
+
+	var conn storage.Connection
+	if err := json.Unmarshal([]byte(connectionJSON), &conn); err != nil {
+		return fmt.Errorf("invalid connection JSON: %w", err)
+	}
+
+	// Set timestamps if not provided
+	now := time.Now()
+	if conn.CreatedAt.IsZero() {
+		conn.CreatedAt = now
+	}
+	conn.UpdatedAt = now
+
+	return a.storageMigration.SaveConnection(a.ctx, &conn)
+}
+
+// SQLiteDeleteConnection removes a connection from SQLite by ID
+func (a *App) SQLiteDeleteConnection(id string) error {
+	if a.storageMigration == nil {
+		return fmt.Errorf("storage migration service not initialized")
+	}
+	return a.storageMigration.DeleteConnection(a.ctx, id)
+}
+
+// SQLiteSaveQuery saves or updates a query in SQLite
+// Accepts JSON string and parses it into storage.SavedQuery
+func (a *App) SQLiteSaveQuery(queryJSON string) error {
+	if a.storageMigration == nil {
+		return fmt.Errorf("storage migration service not initialized")
+	}
+
+	var query storage.SavedQuery
+	if err := json.Unmarshal([]byte(queryJSON), &query); err != nil {
+		return fmt.Errorf("invalid query JSON: %w", err)
+	}
+
+	// Set timestamps if not provided
+	now := time.Now()
+	if query.CreatedAt.IsZero() {
+		query.CreatedAt = now
+	}
+	query.UpdatedAt = now
+
+	return a.storageMigration.SaveQuery(a.ctx, &query)
+}
+
+// SQLiteDeleteQuery removes a saved query from SQLite by ID
+func (a *App) SQLiteDeleteQuery(id string) error {
+	if a.storageMigration == nil {
+		return fmt.Errorf("storage migration service not initialized")
+	}
+	return a.storageMigration.DeleteQuery(a.ctx, id)
+}
+
+// SQLiteSaveQueryHistory saves a query history entry to SQLite
+// Accepts JSON string and parses it into storage.QueryHistory
+func (a *App) SQLiteSaveQueryHistory(historyJSON string) error {
+	if a.storageMigration == nil {
+		return fmt.Errorf("storage migration service not initialized")
+	}
+
+	var history storage.QueryHistory
+	if err := json.Unmarshal([]byte(historyJSON), &history); err != nil {
+		return fmt.Errorf("invalid history JSON: %w", err)
+	}
+
+	// Set executed timestamp if not provided
+	if history.ExecutedAt.IsZero() {
+		history.ExecutedAt = time.Now()
+	}
+
+	return a.storageMigration.SaveQueryHistory(a.ctx, &history)
+}

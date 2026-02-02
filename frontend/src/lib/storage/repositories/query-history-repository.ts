@@ -195,6 +195,26 @@ export class QueryHistoryRepository {
       sync_version: data.sync_version ?? 0,
     }
 
+    // Dual-write: save to SQLite (primary) and IndexedDB (fallback)
+    try {
+      const App = await getAppBindings()
+      if (App?.SQLiteSaveQueryHistory) {
+        const sqliteRecord = {
+          id: record.id,
+          connection_id: record.connection_id,
+          query: record.query_text,
+          duration_ms: record.execution_time_ms,
+          rows_affected: record.row_count,
+          success: !record.error,
+          error: record.error || '',
+          executed_at: record.executed_at.toISOString(),
+        }
+        await App.SQLiteSaveQueryHistory(JSON.stringify(sqliteRecord))
+      }
+    } catch (error) {
+      console.warn('[QueryHistoryRepository] SQLite write failed, continuing with IndexedDB:', error)
+    }
+
     await this.client.put(this.storeName, record)
     return record
   }

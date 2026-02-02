@@ -138,7 +138,31 @@ export class ConnectionRepository {
       sync_version: data.sync_version ?? 0,
     }
 
-    // Dual-write: write to IndexedDB for backwards compatibility
+    // Dual-write: write to SQLite (primary) and IndexedDB (fallback)
+    try {
+      const App = await getAppBindings()
+      if (App?.SQLiteSaveConnection) {
+        // Convert to SQLite format
+        const sqliteRecord = {
+          id: record.connection_id,
+          name: record.name,
+          type: record.type,
+          host: record.host,
+          port: record.port,
+          database: record.database,
+          username: record.username,
+          environments: record.environment_tags,
+          ssl_config: record.parameters || {},
+          created_at: record.created_at.toISOString(),
+          updated_at: record.updated_at.toISOString(),
+        }
+        await App.SQLiteSaveConnection(JSON.stringify(sqliteRecord))
+      }
+    } catch (error) {
+      console.warn('[ConnectionRepository] SQLite write failed, continuing with IndexedDB:', error)
+    }
+
+    // Always write to IndexedDB for backwards compatibility
     await this.client.put(this.storeName, record)
     return record
   }
@@ -178,6 +202,7 @@ export class ConnectionRepository {
 
   /**
    * Update a connection
+   * Writes to both SQLite and IndexedDB (dual-write pattern)
    */
   async update(
     connectionId: string,
@@ -192,14 +217,48 @@ export class ConnectionRepository {
       updated_at: new Date(),
     }
 
+    // Dual-write: write to SQLite (primary) and IndexedDB (fallback)
+    try {
+      const App = await getAppBindings()
+      if (App?.SQLiteSaveConnection) {
+        const sqliteRecord = {
+          id: updated.connection_id,
+          name: updated.name,
+          type: updated.type,
+          host: updated.host,
+          port: updated.port,
+          database: updated.database,
+          username: updated.username,
+          environments: updated.environment_tags,
+          ssl_config: updated.parameters || {},
+          created_at: updated.created_at.toISOString(),
+          updated_at: updated.updated_at.toISOString(),
+        }
+        await App.SQLiteSaveConnection(JSON.stringify(sqliteRecord))
+      }
+    } catch (error) {
+      console.warn('[ConnectionRepository] SQLite update failed, continuing with IndexedDB:', error)
+    }
+
     await this.client.put(this.storeName, updated)
     return updated
   }
 
   /**
    * Delete a connection
+   * Deletes from both SQLite and IndexedDB (dual-write pattern)
    */
   async delete(connectionId: string): Promise<void> {
+    // Dual-delete: delete from SQLite (primary) and IndexedDB (fallback)
+    try {
+      const App = await getAppBindings()
+      if (App?.SQLiteDeleteConnection) {
+        await App.SQLiteDeleteConnection(connectionId)
+      }
+    } catch (error) {
+      console.warn('[ConnectionRepository] SQLite delete failed, continuing with IndexedDB:', error)
+    }
+
     await this.client.delete(this.storeName, connectionId)
   }
 
