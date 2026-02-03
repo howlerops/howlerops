@@ -8,6 +8,8 @@
  * the namespaced pattern. This module provides those namespaces.
  */
 
+/* eslint-disable @typescript-eslint/no-namespace */
+
 // =============================================================================
 // CATALOG NAMESPACE
 // =============================================================================
@@ -241,6 +243,13 @@ export namespace schemadiff {
     ref_columns: string[]
     on_delete?: string
     on_update?: string
+  }
+
+  /** Generated migration script */
+  export interface MigrationScript {
+    sql: string
+    statements?: string[]
+    warnings?: string[]
   }
 }
 

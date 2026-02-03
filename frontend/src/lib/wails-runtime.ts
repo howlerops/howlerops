@@ -3,7 +3,7 @@
  * Provides utilities for checking and waiting for Wails v3 runtime availability
  */
 
-import { Call, Events, System, Flags } from '@wailsio/runtime'
+import { Call, Events, Flags,System } from '@wailsio/runtime'
 
 // Check if Wails v3 runtime is ready
 export function isWailsReady(): boolean {

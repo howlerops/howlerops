@@ -19,6 +19,7 @@ import {
   type CreateInput,
   type DatabaseType,
   NotFoundError,
+  type SSLMode,
   STORE_NAMES,
   type UpdateInput,
 } from '@/types/storage'
@@ -66,7 +67,7 @@ function sqliteToConnectionRecord(sqlite: SQLiteConnection): ConnectionRecord {
     port: sqlite.port,
     database: sqlite.database,
     username: sqlite.username,
-    ssl_mode: sqlite.ssl_config?.mode,
+    ssl_mode: (sqlite.ssl_config?.mode || 'disable') as SSLMode,
     parameters: sqlite.ssl_config || {},
     environment_tags: sqlite.environments || [],
     created_at: new Date(sqlite.created_at),

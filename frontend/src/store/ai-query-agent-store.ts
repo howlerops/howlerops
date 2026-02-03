@@ -1,3 +1,4 @@
+import { Events } from '@wailsio/runtime'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
@@ -6,7 +7,6 @@ import { useAIMemoryStore } from '@/store/ai-memory-store'
 
 import { StreamAIQueryAgent } from '../../bindings/github.com/jbeck018/howlerops/app'
 import * as models from '../../bindings/github.com/jbeck018/howlerops/models'
-import { Events } from '@wailsio/runtime'
 
 export type AgentAttachmentType = 'sql' | 'result' | 'chart' | 'report' | 'insight' | string
 

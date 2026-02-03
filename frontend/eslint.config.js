@@ -8,7 +8,7 @@ import simpleImportSort from 'eslint-plugin-simple-import-sort'
 
 export default tseslint.config(
   {
-    ignores: ['dist', 'bindings', 'src/lib/sync/INTEGRATION_EXAMPLE.tsx']
+    ignores: ['dist', 'bindings', 'wailsjs', 'src/lib/sync/INTEGRATION_EXAMPLE.tsx']
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

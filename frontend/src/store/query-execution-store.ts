@@ -3,13 +3,13 @@
  * Manages query execution state: running queries, results processing, errors
  */
 
+import { Events } from '@wailsio/runtime'
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
 import { useShallow } from 'zustand/react/shallow'
 
 import { api } from '@/lib/api-client'
 
-import { Events } from '@wailsio/runtime'
 import { useConnectionStore } from './connection-store'
 import { useQueryEditorStore } from './query-editor-store'
 import { useQueryHistoryStore } from './query-history-store'

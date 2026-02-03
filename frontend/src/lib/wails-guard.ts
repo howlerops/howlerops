@@ -6,6 +6,7 @@
  */
 
 import { Events } from '@wailsio/runtime'
+
 import { isWailsReady } from './wails-runtime'
 
 // Ensure Wails v3 runtime is available

@@ -1,9 +1,9 @@
 import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
 
-import { dedupedRequest } from '@/lib/request-deduplication'
 import { SSHAuthMethod } from '@/generated/database'
 import { api } from '@/lib/api-client'
+import { dedupedRequest } from '@/lib/request-deduplication'
 import { getSecureStorage, migratePasswordsFromLocalStorage } from '@/lib/secure-storage'
 
 import { useTierStore } from './tier-store'

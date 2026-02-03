@@ -2,7 +2,6 @@ import { create } from 'zustand'
 import { createJSONStorage,persist } from 'zustand/middleware'
 
 import type { SchemaNode } from '@/hooks/use-schema-introspection'
-import { dedupedRequest } from '@/lib/request-deduplication'
 import {
   buildFixSQLBackendRequest,
   buildGenerateSQLBackendRequest,
@@ -23,6 +22,7 @@ import {
 } from '@/lib/ai'
 import { handleVoidPromise } from '@/lib/ai-error-handling'
 import { detectsMultiDB } from '@/lib/ai-schema-context-builder'
+import { dedupedRequest } from '@/lib/request-deduplication'
 import { showHybridNotification,testAIProviderConnection } from '@/lib/wails-ai-api'
 import { type AIMemorySession as MemorySession,estimateTokens as estimateMemoryTokens, useAIMemoryStore } from '@/store/ai-memory-store'
 import type { DatabaseConnection } from '@/store/connection-store'
@@ -196,42 +196,46 @@ const defaultState: AIState = {
 }
 
 type WailsMemorySession = InstanceType<typeof wailsModels.AIMemorySessionPayload>
-type WailsMemoryMessage = InstanceType<typeof wailsModels.AIMemoryMessagePayload>
 
 const serializeMemorySessions = (sessions: MemorySession[]): WailsMemorySession[] => {
   return sessions.map(session => wailsModels.AIMemorySessionPayload.createFrom({
     id: session.id,
     title: session.title,
-    createdAt: session.createdAt,
-    updatedAt: session.updatedAt,
+    createdAt: new Date(session.createdAt).toISOString(),
+    updatedAt: new Date(session.updatedAt).toISOString(),
     summary: session.summary ?? '',
     summaryTokens: session.summaryTokens ?? 0,
     metadata: session.metadata ?? {},
     messages: session.messages.map(message => wailsModels.AIMemoryMessagePayload.createFrom({
       role: message.role,
       content: message.content,
-      timestamp: message.timestamp,
+      timestamp: new Date(message.timestamp).toISOString(),
       metadata: message.metadata ?? {},
     })),
   }))
+}
+
+// Type guard to check if message has timestamp property
+function hasTimestamp(message: unknown): message is { timestamp: string; role: string; content: string; metadata?: Record<string, unknown> } {
+  return typeof message === 'object' && message !== null && 'timestamp' in message;
 }
 
 const deserializeMemorySessions = (payload: WailsMemorySession[]): MemorySession[] => {
   return payload.map(session => ({
     id: session.id,
     title: session.title,
-    createdAt: session.createdAt,
-    updatedAt: session.updatedAt,
+    createdAt: new Date(session.createdAt).getTime(),
+    updatedAt: new Date(session.updatedAt).getTime(),
     summary: session.summary || undefined,
     summaryTokens: session.summaryTokens || undefined,
     metadata: session.metadata && Object.keys(session.metadata).length ? session.metadata : undefined,
-    messages: (session.messages || []).map((message: WailsMemoryMessage) => ({
+    messages: (session.messages || []).map((message) => ({
       id: crypto.randomUUID(),
-      role: (message.role as 'system' | 'user' | 'assistant') ?? 'user',
+      role: ((message.role as 'system' | 'user' | 'assistant') ?? 'user'),
       content: message.content,
       tokens: estimateMemoryTokens(message.content),
-      timestamp: message.timestamp,
-      metadata: message.metadata && Object.keys(message.metadata).length ? message.metadata : undefined,
+      timestamp: hasTimestamp(message) ? new Date(message.timestamp).getTime() : Date.now(),
+      metadata: ('metadata' in message && message.metadata && Object.keys(message.metadata).length) ? message.metadata : undefined,
     })),
   }))
 }

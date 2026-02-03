@@ -18,13 +18,13 @@ import { useEffect } from 'react'
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
 
-import { dedupedRequest } from '@/lib/request-deduplication'
 import {
   getOrganizationQueries,
   type SavedQuery as ServerSavedQuery,
   shareQuery as apiShareQuery,
   unshareQuery as apiUnshareQuery,
 } from '@/lib/api/queries'
+import { dedupedRequest } from '@/lib/request-deduplication'
 import {
   getSavedQueryRepository,
   type SavedQuerySearchOptions,

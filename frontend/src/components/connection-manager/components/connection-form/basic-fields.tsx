@@ -1,5 +1,6 @@
 import { Plus, X } from "lucide-react"
 
+import { SecretInput } from "@/components/secret-input"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,10 +12,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { SecretInput } from "@/components/secret-input"
+
 import type { ConnectionFormData, DatabaseTypeString } from "../../types"
 import { DATABASE_TYPE_OPTIONS } from "../../types"
-import { requiresHostPort, supportsSSL, getDatabaseLabel, isDatabaseRequired, isUsernameRequired } from "../../utils"
+import { getDatabaseLabel, isDatabaseRequired, isUsernameRequired,requiresHostPort, supportsSSL } from "../../utils"
 
 interface BasicFieldsProps {
   formData: ConnectionFormData

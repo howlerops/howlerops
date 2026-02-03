@@ -8,10 +8,10 @@
  * The caller doesn't need to know which mode is active - this module handles it transparently.
  */
 
-import { getApiBaseUrl, isWailsApp } from './platform'
-import { callWails } from './wails-guard'
 // Import v3 bindings directly
 import * as App from '../../bindings/github.com/jbeck018/howlerops/app'
+import { getApiBaseUrl, isWailsApp } from './platform'
+import { callWails } from './wails-guard'
 
 // ============================================================================
 // Types
@@ -155,11 +155,12 @@ export async function checkBiometricAvailability(): Promise<BiometricAvailabilit
 
 /**
  * Start WebAuthn authentication flow (get challenge)
+ * @param userId - Optional user ID. If not provided, uses empty string for discoverable credential flow
  */
-export async function startWebAuthnAuthentication(userId: string): Promise<string> {
+export async function startWebAuthnAuthentication(userId?: string): Promise<string> {
   if (isWailsApp()) {
     // Desktop mode: Use Wails v3 bindings
-    return callWails(() => App.StartWebAuthnAuthentication(userId))
+    return callWails(() => App.StartWebAuthnAuthentication(userId ?? ''))
   } else {
     // Web mode: Use HTTP API
     const apiBaseUrl = getApiBaseUrl()
@@ -180,11 +181,13 @@ export async function startWebAuthnAuthentication(userId: string): Promise<strin
 
 /**
  * Finish WebAuthn authentication (verify assertion)
+ * @param assertionJSON - The serialized credential assertion
+ * @param userId - Optional user ID. If not provided, uses empty string for discoverable credential flow
  */
-export async function finishWebAuthnAuthentication(userId: string, assertionJSON: string): Promise<string> {
+export async function finishWebAuthnAuthentication(assertionJSON: string, userId?: string): Promise<string> {
   if (isWailsApp()) {
     // Desktop mode: Use Wails v3 bindings
-    return callWails(() => App.FinishWebAuthnAuthentication(userId, assertionJSON))
+    return callWails(() => App.FinishWebAuthnAuthentication(userId ?? '', assertionJSON))
   } else {
     // Web mode: Use HTTP API
     const apiBaseUrl = getApiBaseUrl()

@@ -929,15 +929,15 @@ async function fetchDatabaseSchema(connectionId: string): Promise<DatabaseSchema
         name: col.name,
         dataType: col.dataType || 'unknown',
         nullable: col.nullable ?? true,
-        defaultValue: col.defaultValue,
+        defaultValue: col.defaultValue ?? undefined,
         primaryKey: col.primaryKey ?? false,
         unique: col.unique ?? false,
         indexed: col.indexed ?? false,
         comment: col.comment,
         ordinalPosition: col.ordinalPosition ?? index + 1,
-        characterMaxLength: col.characterMaximumLength,
-        numericPrecision: col.numericPrecision,
-        numericScale: col.numericScale,
+        characterMaxLength: col.characterMaximumLength ?? undefined,
+        numericPrecision: col.numericPrecision ?? undefined,
+        numericScale: col.numericScale ?? undefined,
       }))
 
       tables.push({

@@ -19,9 +19,9 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
 import * as authApi from '@/lib/auth-api'
-import { dedupedRequest } from '@/lib/request-deduplication'
 import { importMasterKeyFromBase64 } from '@/lib/crypto/encryption'
 import { isWailsApp } from '@/lib/platform'
+import { dedupedRequest } from '@/lib/request-deduplication'
 import { subscribeToWailsEvent } from '@/lib/wails-guard'
 import type { AuthRestoredEvent,AuthSuccessEvent } from '@/types/wails-auth'
 

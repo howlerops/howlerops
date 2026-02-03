@@ -3,7 +3,7 @@
 
 import { toast } from '@/hooks/use-toast'
 
-import { ShowNotification, StartClaudeCodeLogin, StartCodexLogin, TestAnthropicConnection, TestClaudeCodeConnection, TestCodexConnection, TestHuggingFaceConnection, TestOllamaConnection, TestOpenAIConnection, GenericChat } from '../../bindings/github.com/jbeck018/howlerops/app'
+import { GenericChat,ShowNotification, StartClaudeCodeLogin, StartCodexLogin, TestAnthropicConnection, TestClaudeCodeConnection, TestCodexConnection, TestHuggingFaceConnection, TestOllamaConnection, TestOpenAIConnection } from '../../bindings/github.com/jbeck018/howlerops/app'
 import * as models from '../../bindings/github.com/jbeck018/howlerops/models'
 
 export type AITestResponse = models.AITestResponse

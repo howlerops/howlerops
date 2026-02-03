@@ -21,10 +21,10 @@ export interface Connection {
 export interface TableInfo {
   schema: string;
   name: string;
-  type: string;
-  comment: string;
-  rowCount: number;
-  sizeBytes: number;
+  type?: string;
+  comment?: string;
+  rowCount?: number;
+  sizeBytes?: number;
 }
 
 export interface ConnectionSchema {
@@ -32,7 +32,7 @@ export interface ConnectionSchema {
   name: string;
   type: string;
   schemas: string[];
-  tables: TableInfo[];
+  tables: Record<string, TableInfo[]> | TableInfo[];
 }
 
 export interface SchemaConflict {
@@ -133,7 +133,16 @@ export function useMultiConnectionSchema(): UseMultiConnectionSchemaReturn {
         return [];
       }
 
-      return schemas.connections[connectionId].tables || [];
+      const tables = schemas.connections[connectionId].tables;
+      if (!tables) {
+        return [];
+      }
+      // Handle both Record<string, TableInfo[]> and TableInfo[] formats
+      if (Array.isArray(tables)) {
+        return tables;
+      }
+      // Flatten all tables from the Record
+      return Object.values(tables).flat();
     },
     [schemas]
   );

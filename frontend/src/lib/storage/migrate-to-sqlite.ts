@@ -15,8 +15,10 @@
  */
 
 import { useEffect, useState } from 'react'
-import { getIndexedDBClient } from './indexeddb-client'
+
 import { STORE_NAMES } from '@/types/storage'
+
+import { getIndexedDBClient } from './indexeddb-client'
 
 // Wails v3 bindings - import dynamically to avoid build issues during SSR
 let AppBindings: typeof import('../../../bindings/github.com/jbeck018/howlerops/app') | null = null

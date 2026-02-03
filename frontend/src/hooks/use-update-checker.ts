@@ -52,7 +52,7 @@ export function useUpdateChecker(): UseUpdateCheckerReturn {
       const info = await CheckForUpdates();
 
       // Don't show notification if this version was already dismissed
-      if (info.available && isDismissed(info.latestVersion)) {
+      if (info && info.available && isDismissed(info.latestVersion)) {
         setUpdateInfo(null);
       } else {
         setUpdateInfo(info);
