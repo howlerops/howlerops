@@ -38,7 +38,7 @@ help:
 
 ## build: Build the Wails v3 desktop application
 .PHONY: build
-build: deps proto
+build: deps proto generate-assets
 	@echo "$(COLOR_BLUE)Building Wails v3 desktop application...$(COLOR_RESET)"
 	@$(WAILS) task build
 	@echo "$(COLOR_GREEN)✓ Desktop application built$(COLOR_RESET)"
@@ -123,9 +123,16 @@ if (!valid) { \
 }' || (echo "$(COLOR_YELLOW)Please install a supported Node.js version (>=20.19 or >=22.12).$(COLOR_RESET)" && exit 1)
 	@echo "$(COLOR_GREEN)✓ Node.js version compatible$(COLOR_RESET)"
 
+## generate-assets: Regenerate platform build assets from build/config.yml
+.PHONY: generate-assets
+generate-assets: check-wails
+	@echo "$(COLOR_BLUE)Generating platform build assets from config.yml...$(COLOR_RESET)"
+	@$(WAILS) task common:update:build-assets
+	@echo "$(COLOR_GREEN)✓ Build assets generated$(COLOR_RESET)"
+
 ## dev: Start Wails v3 development mode with hot reload
 .PHONY: dev
-dev: check-node check-wails deps proto init-local-db
+dev: check-node check-wails deps proto init-local-db generate-assets
 	@echo "$(COLOR_BLUE)Starting Wails v3 dev mode (hot reload)...$(COLOR_RESET)"
 	@echo "$(COLOR_YELLOW)The application will open automatically$(COLOR_RESET)"
 	@$(WAILS) dev -config ./build/config.yml
@@ -281,7 +288,7 @@ release: validate build
 
 ## setup: Complete development environment setup
 .PHONY: setup
-setup: install setup-tools
+setup: install setup-tools generate-assets
 	@echo "$(COLOR_GREEN)✓ Development environment ready$(COLOR_RESET)"
 	@echo "$(COLOR_YELLOW)Run 'make dev' to start development mode$(COLOR_RESET)"
 
