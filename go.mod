@@ -9,7 +9,7 @@ require (
 	github.com/jbeck018/howlerops/backend-go v0.0.0
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/sirupsen/logrus v1.9.4
-	github.com/wailsapp/wails/v2 v2.11.0
+	github.com/wailsapp/wails/v2 v2.10.2
 	github.com/zalando/go-keyring v0.2.6
 	golang.org/x/oauth2 v0.34.0
 	golang.org/x/text v0.33.0
