@@ -32,9 +32,9 @@ vendor/
 app.syso
 wails.json.bak
 .wails/
-# Wails bindings - track .d.ts for Vercel, ignore .js runtime files
-bindings/**/*.js
-!bindings/**/*.d.ts
+# Wails bindings - track all bindings for Vercel web builds
+# The frontend uses a mock @wailsio/runtime for web builds
+# frontend/bindings/ is tracked in git
 
 # Node/Vite build artifacts
 node_modules/
