@@ -25,7 +25,7 @@ func newRecordingEmitter() *recordingEmitter {
 	}
 }
 
-func (e *recordingEmitter) Emit(_ context.Context, event string, data interface{}) error {
+func (e *recordingEmitter) Emit(event string, data interface{}) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.events = append(e.events, eventRecord{name: event, payload: data})
