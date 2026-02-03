@@ -264,12 +264,25 @@ docker-compose-down:
 	@echo "$(COLOR_BLUE)Stopping docker-compose services...$(COLOR_RESET)"
 	@docker-compose down
 
-## install: Install Wails and project dependencies
+## install: Clean stale data and install all dependencies fresh
 .PHONY: install
-install: deps
+install: clean-stale deps generate-assets
 	@echo "$(COLOR_BLUE)Running Wails doctor...$(COLOR_RESET)"
-	@$(shell go env GOPATH)/bin/wails doctor
+	@$(WAILS) doctor
 	@echo "$(COLOR_GREEN)✓ Installation complete$(COLOR_RESET)"
+
+## clean-stale: Remove stale build artifacts, caches, and lock files (preserves databases)
+.PHONY: clean-stale
+clean-stale:
+	@echo "$(COLOR_BLUE)Cleaning stale data...$(COLOR_RESET)"
+	@rm -rf build/bin
+	@rm -rf $(FRONTEND_DIR)/dist
+	@rm -rf $(FRONTEND_DIR)/src/generated
+	@rm -rf .gocache
+	@rm -f coverage.out coverage.html
+	@find . -name "*.log" -delete 2>/dev/null || true
+	@rm -f ~/.howlerops/*.db-shm ~/.howlerops/*.db-wal 2>/dev/null || true
+	@echo "$(COLOR_GREEN)✓ Stale data cleaned (databases preserved)$(COLOR_RESET)"
 
 ## uninstall: Uninstall the binary from system
 .PHONY: uninstall
