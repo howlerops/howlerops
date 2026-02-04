@@ -135,7 +135,7 @@ generate-assets: check-wails
 dev: check-node check-wails deps proto init-local-db generate-assets
 	@echo "$(COLOR_BLUE)Starting Wails v3 dev mode (hot reload)...$(COLOR_RESET)"
 	@echo "$(COLOR_YELLOW)The application will open automatically$(COLOR_RESET)"
-	@$(WAILS) dev -config ./build/config.yml
+	@$(WAILS) dev -config ./build/config.yml -port 5173
 
 ## dev-browser: Start development mode in browser (server mode)
 .PHONY: dev-browser

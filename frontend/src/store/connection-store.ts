@@ -96,6 +96,46 @@ interface ConnectionState {
   refreshAvailableEnvironments: () => void
 }
 
+/**
+ * Sync a connection to SQLite for cross-origin persistence.
+ * Fire-and-forget — does not block the main operation.
+ */
+async function syncConnectionToSQLite(connection: {
+  id: string; name: string; type: string; host?: string; port?: number;
+  database: string; username?: string; sslMode?: string; environments?: string[];
+}): Promise<void> {
+  try {
+    const App = await import('../../bindings/github.com/jbeck018/howlerops/app')
+    if (typeof App.SQLiteSaveConnection !== 'function') return
+    await App.SQLiteSaveConnection(JSON.stringify({
+      id: connection.id,
+      name: connection.name,
+      type: connection.type,
+      host: connection.host || '',
+      port: connection.port || 0,
+      database: connection.database,
+      username: connection.username || '',
+      ssl_config: connection.sslMode ? { mode: connection.sslMode } : {},
+      environments: connection.environments || [],
+    }))
+  } catch {
+    // SQLite sync is best-effort; don't fail the main operation
+  }
+}
+
+/**
+ * Remove a connection from SQLite.
+ */
+async function removeConnectionFromSQLite(id: string): Promise<void> {
+  try {
+    const App = await import('../../bindings/github.com/jbeck018/howlerops/app')
+    if (typeof App.SQLiteDeleteConnection !== 'function') return
+    await App.SQLiteDeleteConnection(id)
+  } catch {
+    // SQLite sync is best-effort
+  }
+}
+
 export const useConnectionStore = create<ConnectionState>()(
   devtools(
     persist(
@@ -161,6 +201,9 @@ export const useConnectionStore = create<ConnectionState>()(
             connections: [...state.connections, safeConnection],
           }))
 
+          // Persist to SQLite for cross-origin durability
+          syncConnectionToSQLite(newConnection)
+
           // Auto-connect if enabled
           if (get().autoConnectEnabled) {
             // Delay slightly to ensure state is updated
@@ -216,6 +259,10 @@ export const useConnectionStore = create<ConnectionState>()(
                   : state.activeConnection,
             }))
           }
+
+          // Persist update to SQLite
+          const updatedConn = get().connections.find(c => c.id === id)
+          if (updatedConn) syncConnectionToSQLite(updatedConn)
         },
 
         removeConnection: async (id) => {
@@ -227,6 +274,9 @@ export const useConnectionStore = create<ConnectionState>()(
             connections: state.connections.filter((conn) => conn.id !== id),
             activeConnection: state.activeConnection?.id === id ? null : state.activeConnection,
           }))
+
+          // Remove from SQLite
+          removeConnectionFromSQLite(id)
         },
 
         setActiveConnection: (connection) => {
@@ -566,6 +616,54 @@ if (typeof window !== 'undefined') {
  * Call this on app startup after store hydration
  */
 export async function initializeConnectionStore() {
+  // Restore connections from SQLite that may not be in localStorage.
+  // This handles v2→v3 migration and WebView origin changes where
+  // localStorage is empty but SQLite at ~/.howlerops/local.db persists.
+  try {
+    const App = await import('../../bindings/github.com/jbeck018/howlerops/app')
+    if (typeof App.SQLiteGetConnections === 'function') {
+      const sqliteConnections = await App.SQLiteGetConnections()
+      if (sqliteConnections && sqliteConnections.length > 0) {
+        const currentState = useConnectionStore.getState()
+        const existingIds = new Set(currentState.connections.map(c => c.id))
+        const newConnections: DatabaseConnection[] = sqliteConnections
+          .filter(sc => !existingIds.has(sc.id))
+          .map(sc => ({
+            id: sc.id,
+            name: sc.name,
+            type: (sc.type as DatabaseTypeString) || 'postgresql',
+            host: sc.host,
+            port: sc.port,
+            database: sc.database,
+            username: sc.username,
+            sslMode: sc.ssl_config?.mode || 'prefer',
+            environments: sc.environments || [],
+            isConnected: false,
+          }))
+
+        if (newConnections.length > 0) {
+          useConnectionStore.setState(prev => ({
+            connections: [...prev.connections, ...newConnections],
+          }))
+          console.debug(`Restored ${newConnections.length} connections from SQLite`)
+        }
+
+        // Persist any localStorage-only connections back to SQLite
+        const sqliteIds = new Set(sqliteConnections.map(sc => sc.id))
+        for (const conn of useConnectionStore.getState().connections) {
+          if (!sqliteIds.has(conn.id)) syncConnectionToSQLite(conn)
+        }
+      } else {
+        // SQLite is empty — seed it from localStorage connections
+        for (const conn of useConnectionStore.getState().connections) {
+          syncConnectionToSQLite(conn)
+        }
+      }
+    }
+  } catch {
+    console.debug('SQLite connection sync not available (web-only mode)')
+  }
+
   const state = useConnectionStore.getState()
 
   // Check if auto-connect is enabled

@@ -2,10 +2,10 @@
 set -e
 
 # Build configuration
-APP_NAME="howlerops"
+APP_NAME="HowlerOps"
 BUNDLE_ID="com.howlerops.desktop"
-VERSION="0.3.2"
-BUILD_NUMBER="0.3.2"
+VERSION="0.0.1"
+BUILD_NUMBER="0.0.1"
 BUILD_DIR="build/ios"
 TARGET="simulator"
 

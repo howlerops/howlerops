@@ -3,26 +3,26 @@
 #
 # The lines below are called `modelines`. See `:help modeline`
 
-name: "howlerops"
+name: "HowlerOps"
 arch: ${GOARCH}
 platform: "linux"
-version: "0.3.2"
+version: "0.0.1"
 section: "default"
 priority: "extra"
-maintainer: HowlerOps Team <team@howlerops.com>
+maintainer: ${GIT_COMMITTER_NAME} <${GIT_COMMITTER_EMAIL}>
 description: "A powerful desktop SQL client"
 vendor: "HowlerOps"
-homepage: "https://howlerops.com"
+homepage: "https://wails.io"
 license: "MIT"
 release: "1"
 
 contents:
-  - src: "./bin/howlerops"
-    dst: "/usr/local/bin/howlerops"
+  - src: "./bin/HowlerOps"
+    dst: "/usr/local/bin/HowlerOps"
   - src: "./build/appicon.png"
-    dst: "/usr/share/icons/hicolor/128x128/apps/howlerops.png"
-  - src: "./build/linux/howlerops.desktop"
-    dst: "/usr/share/applications/howlerops.desktop"
+    dst: "/usr/share/icons/hicolor/128x128/apps/HowlerOps.png"
+  - src: "./build/linux/HowlerOps.desktop"
+    dst: "/usr/share/applications/HowlerOps.desktop"
 
 # Default dependencies for Debian 12/Ubuntu 22.04+ with WebKit 4.1
 depends:
@@ -36,8 +36,8 @@ overrides:
     depends:
       - gtk3
       - webkit2gtk4.1
-
-  # Arch Linux packages (WebKit 4.1)
+  
+  # Arch Linux packages (WebKit 4.1)  
   archlinux:
     depends:
       - gtk3
@@ -49,3 +49,19 @@ scripts:
   # You can also add preremove, postremove if needed
   # preremove: "./build/linux/nfpm/scripts/preremove.sh"
   # postremove: "./build/linux/nfpm/scripts/postremove.sh"
+
+# replaces:
+#   - foobar
+# provides:
+#   - bar
+# depends:
+#   - gtk3
+#   - libwebkit2gtk
+# recommends:
+#   - whatever
+# suggests:
+#   - something-else
+# conflicts:
+#   - not-foo
+#   - not-bar
+# changelog: "changelog.yaml"

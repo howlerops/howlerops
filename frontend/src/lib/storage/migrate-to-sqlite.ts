@@ -158,6 +158,26 @@ async function readIndexedDBPreferences(): Promise<Record<string, unknown>> {
 }
 
 /**
+ * Read connections from localStorage (Zustand persist format).
+ * Handles the v2→v3 migration where connections live in localStorage
+ * but WebView IndexedDB may be empty after origin changes.
+ */
+function readLocalStorageConnections(): unknown[] {
+  try {
+    if (typeof localStorage === 'undefined') return []
+    const stored = localStorage.getItem('connection-store')
+    if (!stored) return []
+
+    const data = JSON.parse(stored)
+    const connections = data?.state?.connections || []
+    return connections
+  } catch (error) {
+    console.warn('[StorageMigration] Failed to read connections from localStorage:', error)
+    return []
+  }
+}
+
+/**
  * Main migration function
  */
 export async function migrateIndexedDBToSQLite(): Promise<MigrationResult> {
@@ -212,12 +232,31 @@ export async function migrateIndexedDBToSQLite(): Promise<MigrationResult> {
     console.log('[StorageMigration] Starting migration from IndexedDB to SQLite...')
 
     // Read all data from IndexedDB
-    const [connections, queries, history, preferences] = await Promise.all([
+    const [indexedDBConnections, queries, history, preferences] = await Promise.all([
       readIndexedDBConnections(),
       readIndexedDBQueries(),
       readIndexedDBHistory(),
       readIndexedDBPreferences(),
     ])
+
+    // Also read connections from localStorage (Zustand persist from v2/v3).
+    // This covers the common case where connections exist in localStorage
+    // but never made it into IndexedDB.
+    const localStorageConnections = readLocalStorageConnections()
+
+    // Merge connections — deduplicate by ID, IndexedDB takes precedence
+    const connectionMap = new Map<string, unknown>()
+    for (const conn of localStorageConnections) {
+      if (conn && typeof conn === 'object' && 'id' in conn) {
+        connectionMap.set((conn as { id: string }).id, conn)
+      }
+    }
+    for (const conn of indexedDBConnections) {
+      if (conn && typeof conn === 'object' && 'id' in conn) {
+        connectionMap.set((conn as { id: string }).id, conn)
+      }
+    }
+    const connections = Array.from(connectionMap.values())
 
     // Check if there's any data to migrate
     const hasData = connections.length > 0 || queries.length > 0 ||

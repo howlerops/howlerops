@@ -45,14 +45,78 @@ export const Call = {
   },
 };
 
-// Create mock - for creating model instances
+// Create mock - matches @wailsio/runtime/dist/create.js API exactly.
+// These are used at module-load time by auto-generated bindings (models.ts).
+function _Any(source: any): any {
+  return source;
+}
+
+function _ByteSlice(source: any): string {
+  return source == null ? "" : source;
+}
+
+function _Array(element: (source: any) => any): (source: any) => any[] {
+  if (element === _Any) {
+    return (source: any) => (source === null ? [] : source);
+  }
+  return (source: any) => {
+    if (source === null) return [];
+    for (let i = 0; i < source.length; i++) {
+      source[i] = element(source[i]);
+    }
+    return source;
+  };
+}
+
+function _Map(
+  _key: (source: any) => string,
+  value: (source: any) => any,
+): (source: any) => Record<string, any> {
+  if (value === _Any) {
+    return (source: any) => (source === null ? {} : source);
+  }
+  return (source: any) => {
+    if (source === null) return {};
+    for (const k in source) {
+      source[k] = value(source[k]);
+    }
+    return source;
+  };
+}
+
+function _Nullable(element: (source: any) => any): (source: any) => any | null {
+  if (element === _Any) return _Any;
+  return (source: any) => (source === null ? null : element(source));
+}
+
+function _Struct(
+  createField: Record<string, (source: any) => any>,
+): (source: any) => any {
+  let allAny = true;
+  for (const name in createField) {
+    if (createField[name] !== _Any) {
+      allAny = false;
+      break;
+    }
+  }
+  if (allAny) return _Any;
+  return (source: any) => {
+    for (const name in createField) {
+      if (name in source) {
+        source[name] = createField[name](source[name]);
+      }
+    }
+    return source;
+  };
+}
+
 export const Create = {
-  Any: <T>(source: unknown): T => {
-    return source as T;
-  },
-  Struct: <T>(source: unknown): T => {
-    return source as T;
-  },
+  Any: _Any,
+  ByteSlice: _ByteSlice,
+  Array: _Array,
+  Map: _Map,
+  Nullable: _Nullable,
+  Struct: _Struct,
 };
 
 // Events mock
