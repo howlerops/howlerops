@@ -7,20 +7,19 @@ import { defineConfig, loadEnv } from 'vite'
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
 
-  // Only mock @wailsio/runtime for web-only builds (Vercel, CI).
-  // wails3 dev does NOT set any env vars Vite can detect, so we invert the
-  // logic: use the REAL runtime by default, only alias to mock when we KNOW
-  // we're building for the web (Vercel sets VERCEL=1 automatically).
-  const isWebOnlyBuild = process.env.VERCEL === '1'
-    || (mode === 'production' && env.VITE_PLATFORM === 'web')
+  // Mock @wailsio/runtime for all production builds and web-only builds.
+  // The real Wails runtime is only injected during `wails3 dev` which sets
+  // up the module dynamically. For standalone builds (npm run build, Vercel),
+  // we need the mock.
+  const needsMockRuntime = mode === 'production' || process.env.VERCEL === '1'
 
   return {
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),
-        // Use mock runtime only for web-only builds (Vercel); real runtime for Wails desktop
-        ...(isWebOnlyBuild && {
+        // Use mock runtime for production builds; real runtime only during wails3 dev
+        ...(needsMockRuntime && {
           "@wailsio/runtime": path.resolve(__dirname, "./src/lib/wails-runtime-mock.ts"),
         }),
       },
