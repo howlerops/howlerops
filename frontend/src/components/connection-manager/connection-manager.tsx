@@ -1,11 +1,11 @@
-import { Plus } from "lucide-react"
+import { Download, Plus, Upload } from "lucide-react"
 import { useEffect, useState } from "react"
 
 import { ConnectionDiagnosticsModal } from "@/components/connection-diagnostics-modal"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogTrigger } from "@/components/ui/dialog"
 
-import { ConnectionForm, ConnectionList, EnvironmentFilter } from "./components"
+import { ConnectionForm, ConnectionList, EnvironmentFilter, ExportDialog, ImportDialog } from "./components"
 import { useConnectionActions, useConnectionForm, useConnectionList } from "./hooks"
 import type { ConnectionFormData, DatabaseConnection } from "./types"
 
@@ -73,6 +73,10 @@ export function ConnectionManager({ hideHeader = false }: ConnectionManagerProps
   // Diagnostics modal state
   const [diagnosticsConnection, setDiagnosticsConnection] = useState<DatabaseConnection | null>(null)
 
+  // Export/Import dialog state
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false)
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
+
   // Refresh environments on mount
   useEffect(() => {
     refreshAvailableEnvironments()
@@ -113,25 +117,26 @@ export function ConnectionManager({ hideHeader = false }: ConnectionManagerProps
           </div>
         )}
 
-        {/* Add Connection Dialog */}
+        {/* Add Connection Dialog + Export/Import */}
         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-          <Dialog
-            open={isDialogOpen}
-            onOpenChange={(open) => {
-              if (open) {
-                setIsDialogOpen(true)
-              } else {
-                handleCloseDialog()
-              }
-            }}
-          >
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Connection
-              </Button>
-            </DialogTrigger>
-            <ConnectionForm
+          <div className="flex items-center gap-2">
+            <Dialog
+              open={isDialogOpen}
+              onOpenChange={(open) => {
+                if (open) {
+                  setIsDialogOpen(true)
+                } else {
+                  handleCloseDialog()
+                }
+              }}
+            >
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Connection
+                </Button>
+              </DialogTrigger>
+              <ConnectionForm
               formData={formData}
               editingConnectionId={editingConnectionId}
               environmentOptions={environmentOptions}
@@ -152,8 +157,32 @@ export function ConnectionManager({ hideHeader = false }: ConnectionManagerProps
               onVpcSectionOpenChange={setIsVpcSectionOpen}
               onAdvancedSshOpenChange={setIsAdvancedSshOpen}
             />
-          </Dialog>
+            </Dialog>
+
+            {/* Export/Import buttons */}
+            <Button variant="outline" onClick={() => setIsExportDialogOpen(true)}>
+              <Download className="h-4 w-4 mr-2" />
+              Export
+            </Button>
+            <Button variant="outline" onClick={() => setIsImportDialogOpen(true)}>
+              <Upload className="h-4 w-4 mr-2" />
+              Import
+            </Button>
+          </div>
         </div>
+
+        {/* Export Dialog */}
+        <ExportDialog
+          open={isExportDialogOpen}
+          onOpenChange={setIsExportDialogOpen}
+        />
+
+        {/* Import Dialog */}
+        <ImportDialog
+          open={isImportDialogOpen}
+          onOpenChange={setIsImportDialogOpen}
+          onImportComplete={refreshAvailableEnvironments}
+        />
 
         {/* Environment Filter */}
         <EnvironmentFilter
