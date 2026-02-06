@@ -1,3 +1,13 @@
+# Claude Flow / swarm artifacts
+.swarm/
+.hive-mind/
+.taskmaster/
+memory/
+
+# Wails v3 generated bindings (regenerated on build)
+frontend/wailsjs/
+frontend/frontend/
+
 # Executables and binaries
 *.exe
 *.exe~

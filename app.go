@@ -37,7 +37,7 @@ import (
 	"github.com/jbeck018/howlerops/services/auth"
 )
 
-//go:embed howlerops-light.png howlerops-dark.png howlerops-transparent.png
+//go:embed assets/howlerops-light.png assets/howlerops-dark.png assets/howlerops-transparent.png
 var iconFS embed.FS
 
 // App struct
@@ -1774,17 +1774,17 @@ func (a *App) ImportKeyboardBindings(bindings map[string]services.KeyboardAction
 
 // GetAppIcon returns the main application icon
 func (a *App) GetAppIcon() ([]byte, error) {
-	return iconFS.ReadFile("howlerops-transparent.png")
+	return iconFS.ReadFile("assets/howlerops-transparent.png")
 }
 
 // GetLightIcon returns the light theme icon
 func (a *App) GetLightIcon() ([]byte, error) {
-	return iconFS.ReadFile("howlerops-light.png")
+	return iconFS.ReadFile("assets/howlerops-light.png")
 }
 
 // GetDarkIcon returns the dark theme icon
 func (a *App) GetDarkIcon() ([]byte, error) {
-	return iconFS.ReadFile("howlerops-dark.png")
+	return iconFS.ReadFile("assets/howlerops-dark.png")
 }
 
 // ===============================

@@ -102,7 +102,9 @@
       "Bash(git clone:*)",
       "Bash(git -C /Users/jacob_1/projects/howlerops branch:*)",
       "Bash(echo:*)",
-      "Bash(npx vite build:*)"
+      "Bash(npx vite build:*)",
+      "Bash(npx @claude-flow/cli@latest swarm init:*)",
+      "Bash(wails3 generate:*)"
     ],
     "deny": [],
     "ask": []
