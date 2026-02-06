@@ -23,19 +23,19 @@ import (
 
 // ReportService coordinates report persistence and execution.
 type ReportService struct {
-	storage        *storage.ReportStorage
-	db             *DatabaseService
-	ai             *ai.Service
-	exporter       *export.Exporter
-	alertEngine    *alerts.AlertEngine
-	materializer   *materialization.Materializer
-	logger         *logrus.Logger
-	ctx            context.Context
-	mu             sync.RWMutex
-	cron           *cron.Cron
-	entries        map[string]cron.EntryID
-	cache          *queryCache
-	workerLimit    int // max concurrent component executions
+	storage      *storage.ReportStorage
+	db           *DatabaseService
+	ai           *ai.Service
+	exporter     *export.Exporter
+	alertEngine  *alerts.AlertEngine
+	materializer *materialization.Materializer
+	logger       *logrus.Logger
+	ctx          context.Context
+	mu           sync.RWMutex
+	cron         *cron.Cron
+	entries      map[string]cron.EntryID
+	cache        *queryCache
+	workerLimit  int // max concurrent component executions
 }
 
 // ReportRunRequest represents a run invocation from the UI.
@@ -86,7 +86,7 @@ func NewReportService(logger *logrus.Logger, db *DatabaseService) *ReportService
 		cron:        cronScheduler,
 		entries:     make(map[string]cron.EntryID),
 		cache:       newQueryCache(100 * 1024 * 1024), // 100MB cache
-		workerLimit: 5,                                 // max 5 concurrent components
+		workerLimit: 5,                                // max 5 concurrent components
 	}
 }
 
@@ -372,12 +372,12 @@ func (s *ReportService) RunReport(req *ReportRunRequest) (*ReportRunResponse, er
 	if s.cache != nil {
 		stats := s.cache.stats()
 		s.logger.WithFields(logrus.Fields{
-			"report_id":        report.ID,
-			"cache_entries":    stats["entries"],
-			"cache_hits":       stats["totalHits"],
-			"cache_util_pct":   fmt.Sprintf("%.1f%%", stats["utilization"].(float64)*100),
-			"total_duration":   time.Since(started),
-			"component_count":  len(results),
+			"report_id":       report.ID,
+			"cache_entries":   stats["entries"],
+			"cache_hits":      stats["totalHits"],
+			"cache_util_pct":  fmt.Sprintf("%.1f%%", stats["utilization"].(float64)*100),
+			"total_duration":  time.Since(started),
+			"component_count": len(results),
 		}).Debug("Report execution completed")
 	}
 
