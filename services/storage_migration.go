@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jbeck018/howlerops/backend-go/pkg/storage"
+	"github.com/jbeck018/howlerops/pkg/storage"
 	"github.com/sirupsen/logrus"
 )
 

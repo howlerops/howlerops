@@ -13,12 +13,12 @@ import (
 	cron "github.com/robfig/cron/v3"
 	"github.com/sirupsen/logrus"
 
-	"github.com/jbeck018/howlerops/backend-go/pkg/ai"
-	"github.com/jbeck018/howlerops/backend-go/pkg/alerts"
-	"github.com/jbeck018/howlerops/backend-go/pkg/database"
-	"github.com/jbeck018/howlerops/backend-go/pkg/export"
-	"github.com/jbeck018/howlerops/backend-go/pkg/materialization"
-	"github.com/jbeck018/howlerops/backend-go/pkg/storage"
+	"github.com/jbeck018/howlerops/pkg/ai"
+	"github.com/jbeck018/howlerops/pkg/alerts"
+	"github.com/jbeck018/howlerops/pkg/database"
+	"github.com/jbeck018/howlerops/pkg/export"
+	"github.com/jbeck018/howlerops/pkg/materialization"
+	"github.com/jbeck018/howlerops/pkg/storage"
 )
 
 // ReportService coordinates report persistence and execution.

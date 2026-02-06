@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/jbeck018/howlerops/backend-go/pkg/schemadiff"
+	"github.com/jbeck018/howlerops/pkg/schemadiff"
 )
 
 // SchemaDiff Service Wails Bindings

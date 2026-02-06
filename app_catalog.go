@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/jbeck018/howlerops/backend-go/pkg/catalog"
+	"github.com/jbeck018/howlerops/pkg/catalog"
 )
 
 // Data Catalog Service Wails Bindings

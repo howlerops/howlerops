@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/jbeck018/howlerops/backend-go/pkg/storage"
+	"github.com/jbeck018/howlerops/pkg/storage"
 	"github.com/jbeck018/howlerops/services"
 )
 

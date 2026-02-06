@@ -10,9 +10,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/jbeck018/howlerops/backend-go/pkg/ai"
-	"github.com/jbeck018/howlerops/backend-go/pkg/database"
-	"github.com/jbeck018/howlerops/backend-go/pkg/database/multiquery"
+	"github.com/jbeck018/howlerops/pkg/ai"
+	"github.com/jbeck018/howlerops/pkg/database"
+	"github.com/jbeck018/howlerops/pkg/database/multiquery"
 )
 
 // AIQueryAgentRequest represents a request to the AI query agent workflow.
