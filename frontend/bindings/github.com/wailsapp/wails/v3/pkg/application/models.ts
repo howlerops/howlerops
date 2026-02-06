@@ -322,8 +322,6 @@ export class SystemTrayManager {
     }
 }
 
-export type Window = any;
-
 /**
  * WindowManager manages all window-related operations
  */

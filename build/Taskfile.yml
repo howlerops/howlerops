@@ -35,6 +35,7 @@ tasks:
         vars:
           BUILD_FLAGS:
             ref: .BUILD_FLAGS
+      - task: generate:bindings:shim
     cmds:
       - npm run {{.BUILD_COMMAND}} -q
     env:
@@ -95,6 +96,30 @@ tasks:
       - frontend/bindings/**/*
     cmds:
       - wails3 generate bindings -f '{{.BUILD_FLAGS}}' -clean=true -ts
+      - task: generate:bindings:shim
+
+  generate:bindings:shim:
+    summary: Recreates app.js compatibility shim after binding generation
+    internal: true
+    dir: frontend/bindings/github.com/jbeck018/howlerops
+    cmds:
+      - |
+        printf '%s\n' \
+          '// Compatibility shim: re-exports all service methods under the old "app" namespace.' \
+          '// Existing frontend code imports from ".../app"; this shim maps to per-service modules.' \
+          '' \
+          'export * from "./catalogservice.js";' \
+          'export * from "./connectionservice.js";' \
+          'export * from "./queryservice.js";' \
+          'export * from "./schemadiffservice.js";' \
+          'export * from "./storageservice.js";' \
+          'export * from "./updateservice.js";' \
+          'export * from "./wailsaiservice.js";' \
+          'export * from "./wailsauthservice.js";' \
+          'export * from "./wailsfileservice.js";' \
+          'export * from "./wailskeyboardservice.js";' \
+          'export * from "./wailsreportservice.js";' \
+          > app.js
 
   generate:icons:
     summary: Generates Windows `.ico` and Mac `.icns` from the appicon.png input image.

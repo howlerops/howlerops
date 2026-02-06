@@ -15,7 +15,3 @@ export {
     SystemTrayManager,
     WindowManager
 } from "./models.js";
-
-export type {
-    Window
-} from "./models.js";

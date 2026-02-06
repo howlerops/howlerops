@@ -7,24 +7,36 @@ import (
 	"github.com/jbeck018/howlerops/pkg/schemadiff"
 )
 
+// SchemaDiffService handles schema comparison operations
+type SchemaDiffService struct {
+	deps *SharedDeps
+}
+
+// NewSchemaDiffService creates a new schema diff service
+func NewSchemaDiffService(deps *SharedDeps) *SchemaDiffService {
+	return &SchemaDiffService{
+		deps: deps,
+	}
+}
+
 // SchemaDiff Service Wails Bindings
 // These methods expose schema diff functionality to the frontend
 
 // CompareConnectionSchemas compares schemas between two database connections
-func (a *App) CompareConnectionSchemas(sourceConnID, targetConnID string) (*schemadiff.SchemaDiff, error) {
-	if a.databaseService == nil {
+func (s *SchemaDiffService) CompareConnectionSchemas(sourceConnID, targetConnID string) (*schemadiff.SchemaDiff, error) {
+	if s.deps.DatabaseService == nil {
 		return nil, fmt.Errorf("database service not initialized")
 	}
 
 	ctx := context.Background()
 
 	// Get source and target database connections
-	sourceDB, err := a.databaseService.GetConnection(sourceConnID)
+	sourceDB, err := s.deps.DatabaseService.GetConnection(sourceConnID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get source connection: %w", err)
 	}
 
-	targetDB, err := a.databaseService.GetConnection(targetConnID)
+	targetDB, err := s.deps.DatabaseService.GetConnection(targetConnID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get target connection: %w", err)
 	}
@@ -40,24 +52,24 @@ func (a *App) CompareConnectionSchemas(sourceConnID, targetConnID string) (*sche
 }
 
 // CreateSchemaSnapshot creates a point-in-time snapshot of a database schema
-func (a *App) CreateSchemaSnapshot(connectionID, name string) (*schemadiff.SnapshotMetadata, error) {
-	if a.databaseService == nil {
+func (s *SchemaDiffService) CreateSchemaSnapshot(connectionID, name string) (*schemadiff.SnapshotMetadata, error) {
+	if s.deps.DatabaseService == nil {
 		return nil, fmt.Errorf("database service not initialized")
 	}
-	if a.storageManager == nil {
+	if s.deps.StorageManager == nil {
 		return nil, fmt.Errorf("storage manager not initialized")
 	}
 
 	ctx := context.Background()
 
 	// Get database connection
-	db, err := a.databaseService.GetConnection(connectionID)
+	db, err := s.deps.DatabaseService.GetConnection(connectionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get connection: %w", err)
 	}
 
 	// Create snapshot storage
-	snapshotStore, err := schemadiff.NewSnapshotStoreWithDir(a.storageManager.GetDataDir())
+	snapshotStore, err := schemadiff.NewSnapshotStoreWithDir(s.deps.StorageManager.GetDataDir())
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize snapshot store: %w", err)
 	}
@@ -80,12 +92,12 @@ func (a *App) CreateSchemaSnapshot(connectionID, name string) (*schemadiff.Snaps
 }
 
 // ListSchemaSnapshots lists all saved schema snapshots
-func (a *App) ListSchemaSnapshots() ([]*schemadiff.SnapshotMetadata, error) {
-	if a.storageManager == nil {
+func (s *SchemaDiffService) ListSchemaSnapshots() ([]*schemadiff.SnapshotMetadata, error) {
+	if s.deps.StorageManager == nil {
 		return nil, fmt.Errorf("storage manager not initialized")
 	}
 
-	snapshotStore, err := schemadiff.NewSnapshotStoreWithDir(a.storageManager.GetDataDir())
+	snapshotStore, err := schemadiff.NewSnapshotStoreWithDir(s.deps.StorageManager.GetDataDir())
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize snapshot store: %w", err)
 	}
@@ -94,12 +106,12 @@ func (a *App) ListSchemaSnapshots() ([]*schemadiff.SnapshotMetadata, error) {
 }
 
 // GetSchemaSnapshot retrieves a specific snapshot
-func (a *App) GetSchemaSnapshot(snapshotID string) (*schemadiff.SchemaSnapshot, error) {
-	if a.storageManager == nil {
+func (s *SchemaDiffService) GetSchemaSnapshot(snapshotID string) (*schemadiff.SchemaSnapshot, error) {
+	if s.deps.StorageManager == nil {
 		return nil, fmt.Errorf("storage manager not initialized")
 	}
 
-	snapshotStore, err := schemadiff.NewSnapshotStoreWithDir(a.storageManager.GetDataDir())
+	snapshotStore, err := schemadiff.NewSnapshotStoreWithDir(s.deps.StorageManager.GetDataDir())
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize snapshot store: %w", err)
 	}
@@ -108,12 +120,12 @@ func (a *App) GetSchemaSnapshot(snapshotID string) (*schemadiff.SchemaSnapshot, 
 }
 
 // DeleteSchemaSnapshot deletes a saved snapshot
-func (a *App) DeleteSchemaSnapshot(snapshotID string) error {
-	if a.storageManager == nil {
+func (s *SchemaDiffService) DeleteSchemaSnapshot(snapshotID string) error {
+	if s.deps.StorageManager == nil {
 		return fmt.Errorf("storage manager not initialized")
 	}
 
-	snapshotStore, err := schemadiff.NewSnapshotStoreWithDir(a.storageManager.GetDataDir())
+	snapshotStore, err := schemadiff.NewSnapshotStoreWithDir(s.deps.StorageManager.GetDataDir())
 	if err != nil {
 		return fmt.Errorf("failed to initialize snapshot store: %w", err)
 	}
@@ -122,24 +134,24 @@ func (a *App) DeleteSchemaSnapshot(snapshotID string) error {
 }
 
 // CompareWithSnapshot compares a live connection against a saved snapshot
-func (a *App) CompareWithSnapshot(connectionID, snapshotID string) (*schemadiff.SchemaDiff, error) {
-	if a.databaseService == nil {
+func (s *SchemaDiffService) CompareWithSnapshot(connectionID, snapshotID string) (*schemadiff.SchemaDiff, error) {
+	if s.deps.DatabaseService == nil {
 		return nil, fmt.Errorf("database service not initialized")
 	}
-	if a.storageManager == nil {
+	if s.deps.StorageManager == nil {
 		return nil, fmt.Errorf("storage manager not initialized")
 	}
 
 	ctx := context.Background()
 
 	// Get live database connection
-	db, err := a.databaseService.GetConnection(connectionID)
+	db, err := s.deps.DatabaseService.GetConnection(connectionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get connection: %w", err)
 	}
 
 	// Get snapshot
-	snapshotStore, err := schemadiff.NewSnapshotStoreWithDir(a.storageManager.GetDataDir())
+	snapshotStore, err := schemadiff.NewSnapshotStoreWithDir(s.deps.StorageManager.GetDataDir())
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize snapshot store: %w", err)
 	}
@@ -160,20 +172,20 @@ func (a *App) CompareWithSnapshot(connectionID, snapshotID string) (*schemadiff.
 }
 
 // GenerateMigrationSQL generates SQL statements to migrate from source to target schema
-func (a *App) GenerateMigrationSQL(sourceConnID, targetConnID string, reverse bool) (*schemadiff.MigrationScript, error) {
-	if a.databaseService == nil {
+func (s *SchemaDiffService) GenerateMigrationSQL(sourceConnID, targetConnID string, reverse bool) (*schemadiff.MigrationScript, error) {
+	if s.deps.DatabaseService == nil {
 		return nil, fmt.Errorf("database service not initialized")
 	}
 
 	ctx := context.Background()
 
 	// Get database connections
-	sourceDB, err := a.databaseService.GetConnection(sourceConnID)
+	sourceDB, err := s.deps.DatabaseService.GetConnection(sourceConnID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get source connection: %w", err)
 	}
 
-	targetDB, err := a.databaseService.GetConnection(targetConnID)
+	targetDB, err := s.deps.DatabaseService.GetConnection(targetConnID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get target connection: %w", err)
 	}
@@ -195,24 +207,24 @@ func (a *App) GenerateMigrationSQL(sourceConnID, targetConnID string, reverse bo
 }
 
 // GenerateMigrationSQLFromSnapshot generates SQL to migrate from snapshot to live
-func (a *App) GenerateMigrationSQLFromSnapshot(connectionID, snapshotID string, reverse bool) (*schemadiff.MigrationScript, error) {
-	if a.databaseService == nil {
+func (s *SchemaDiffService) GenerateMigrationSQLFromSnapshot(connectionID, snapshotID string, reverse bool) (*schemadiff.MigrationScript, error) {
+	if s.deps.DatabaseService == nil {
 		return nil, fmt.Errorf("database service not initialized")
 	}
-	if a.storageManager == nil {
+	if s.deps.StorageManager == nil {
 		return nil, fmt.Errorf("storage manager not initialized")
 	}
 
 	ctx := context.Background()
 
 	// Get live database
-	db, err := a.databaseService.GetConnection(connectionID)
+	db, err := s.deps.DatabaseService.GetConnection(connectionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get connection: %w", err)
 	}
 
 	// Get snapshot
-	snapshotStore, err := schemadiff.NewSnapshotStoreWithDir(a.storageManager.GetDataDir())
+	snapshotStore, err := schemadiff.NewSnapshotStoreWithDir(s.deps.StorageManager.GetDataDir())
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize snapshot store: %w", err)
 	}

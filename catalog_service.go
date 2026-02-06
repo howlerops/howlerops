@@ -7,17 +7,29 @@ import (
 	"github.com/jbeck018/howlerops/pkg/catalog"
 )
 
+// CatalogService handles data catalog operations
+type CatalogService struct {
+	deps *SharedDeps
+}
+
+// NewCatalogService creates a new catalog service
+func NewCatalogService(deps *SharedDeps) *CatalogService {
+	return &CatalogService{
+		deps: deps,
+	}
+}
+
 // Data Catalog Service Wails Bindings
 // These methods expose data catalog functionality to the frontend
 
-// catalogService is lazily initialized when first needed
-func (a *App) getCatalogService() (*catalog.Service, error) {
-	if a.storageManager == nil {
+// getCatalogService is lazily initialized when first needed
+func (s *CatalogService) getCatalogService() (*catalog.Service, error) {
+	if s.deps.StorageManager == nil {
 		return nil, fmt.Errorf("storage manager not initialized")
 	}
 
 	// Create SQLite store using storage manager's data directory
-	store, err := catalog.NewSQLiteStore(a.storageManager.GetDataDir())
+	store, err := catalog.NewSQLiteStore(s.deps.StorageManager.GetDataDir())
 	if err != nil {
 		return nil, fmt.Errorf("failed to create catalog store: %w", err)
 	}
@@ -31,8 +43,8 @@ func (a *App) getCatalogService() (*catalog.Service, error) {
 }
 
 // CreateTableCatalogEntry creates a new table entry in the catalog
-func (a *App) CreateTableCatalogEntry(entry *catalog.TableCatalogEntry) error {
-	service, err := a.getCatalogService()
+func (s *CatalogService) CreateTableCatalogEntry(entry *catalog.TableCatalogEntry) error {
+	service, err := s.getCatalogService()
 	if err != nil {
 		return err
 	}
@@ -41,8 +53,8 @@ func (a *App) CreateTableCatalogEntry(entry *catalog.TableCatalogEntry) error {
 }
 
 // GetTableCatalogEntry retrieves a table catalog entry
-func (a *App) GetTableCatalogEntry(connectionID, schema, table string) (*catalog.TableCatalogEntry, error) {
-	service, err := a.getCatalogService()
+func (s *CatalogService) GetTableCatalogEntry(connectionID, schema, table string) (*catalog.TableCatalogEntry, error) {
+	service, err := s.getCatalogService()
 	if err != nil {
 		return nil, err
 	}
@@ -51,8 +63,8 @@ func (a *App) GetTableCatalogEntry(connectionID, schema, table string) (*catalog
 }
 
 // UpdateTableCatalogEntry updates a table catalog entry
-func (a *App) UpdateTableCatalogEntry(entry *catalog.TableCatalogEntry) error {
-	service, err := a.getCatalogService()
+func (s *CatalogService) UpdateTableCatalogEntry(entry *catalog.TableCatalogEntry) error {
+	service, err := s.getCatalogService()
 	if err != nil {
 		return err
 	}
@@ -61,8 +73,8 @@ func (a *App) UpdateTableCatalogEntry(entry *catalog.TableCatalogEntry) error {
 }
 
 // DeleteTableCatalogEntry deletes a table catalog entry
-func (a *App) DeleteTableCatalogEntry(id string) error {
-	service, err := a.getCatalogService()
+func (s *CatalogService) DeleteTableCatalogEntry(id string) error {
+	service, err := s.getCatalogService()
 	if err != nil {
 		return err
 	}
@@ -71,8 +83,8 @@ func (a *App) DeleteTableCatalogEntry(id string) error {
 }
 
 // ListTableCatalogEntries lists all table entries for a connection
-func (a *App) ListTableCatalogEntries(connectionID string) ([]*catalog.TableCatalogEntry, error) {
-	service, err := a.getCatalogService()
+func (s *CatalogService) ListTableCatalogEntries(connectionID string) ([]*catalog.TableCatalogEntry, error) {
+	service, err := s.getCatalogService()
 	if err != nil {
 		return nil, err
 	}
@@ -81,8 +93,8 @@ func (a *App) ListTableCatalogEntries(connectionID string) ([]*catalog.TableCata
 }
 
 // CreateColumnCatalogEntry creates a new column catalog entry
-func (a *App) CreateColumnCatalogEntry(entry *catalog.ColumnCatalogEntry) error {
-	service, err := a.getCatalogService()
+func (s *CatalogService) CreateColumnCatalogEntry(entry *catalog.ColumnCatalogEntry) error {
+	service, err := s.getCatalogService()
 	if err != nil {
 		return err
 	}
@@ -91,8 +103,8 @@ func (a *App) CreateColumnCatalogEntry(entry *catalog.ColumnCatalogEntry) error 
 }
 
 // GetColumnCatalogEntry retrieves a column catalog entry
-func (a *App) GetColumnCatalogEntry(tableID, column string) (*catalog.ColumnCatalogEntry, error) {
-	service, err := a.getCatalogService()
+func (s *CatalogService) GetColumnCatalogEntry(tableID, column string) (*catalog.ColumnCatalogEntry, error) {
+	service, err := s.getCatalogService()
 	if err != nil {
 		return nil, err
 	}
@@ -101,8 +113,8 @@ func (a *App) GetColumnCatalogEntry(tableID, column string) (*catalog.ColumnCata
 }
 
 // UpdateColumnCatalogEntry updates a column catalog entry
-func (a *App) UpdateColumnCatalogEntry(entry *catalog.ColumnCatalogEntry) error {
-	service, err := a.getCatalogService()
+func (s *CatalogService) UpdateColumnCatalogEntry(entry *catalog.ColumnCatalogEntry) error {
+	service, err := s.getCatalogService()
 	if err != nil {
 		return err
 	}
@@ -111,8 +123,8 @@ func (a *App) UpdateColumnCatalogEntry(entry *catalog.ColumnCatalogEntry) error 
 }
 
 // ListColumnCatalogEntries lists all column entries for a table
-func (a *App) ListColumnCatalogEntries(tableID string) ([]*catalog.ColumnCatalogEntry, error) {
-	service, err := a.getCatalogService()
+func (s *CatalogService) ListColumnCatalogEntries(tableID string) ([]*catalog.ColumnCatalogEntry, error) {
+	service, err := s.getCatalogService()
 	if err != nil {
 		return nil, err
 	}
@@ -121,8 +133,8 @@ func (a *App) ListColumnCatalogEntries(tableID string) ([]*catalog.ColumnCatalog
 }
 
 // CreateCatalogTag creates a new custom tag
-func (a *App) CreateCatalogTag(tag *catalog.CatalogTag) error {
-	service, err := a.getCatalogService()
+func (s *CatalogService) CreateCatalogTag(tag *catalog.CatalogTag) error {
+	service, err := s.getCatalogService()
 	if err != nil {
 		return err
 	}
@@ -131,8 +143,8 @@ func (a *App) CreateCatalogTag(tag *catalog.CatalogTag) error {
 }
 
 // ListCatalogTags lists all tags for an organization
-func (a *App) ListCatalogTags(orgID *string) ([]*catalog.CatalogTag, error) {
-	service, err := a.getCatalogService()
+func (s *CatalogService) ListCatalogTags(orgID *string) ([]*catalog.CatalogTag, error) {
+	service, err := s.getCatalogService()
 	if err != nil {
 		return nil, err
 	}
@@ -141,8 +153,8 @@ func (a *App) ListCatalogTags(orgID *string) ([]*catalog.CatalogTag, error) {
 }
 
 // DeleteCatalogTag deletes a custom tag
-func (a *App) DeleteCatalogTag(id string) error {
-	service, err := a.getCatalogService()
+func (s *CatalogService) DeleteCatalogTag(id string) error {
+	service, err := s.getCatalogService()
 	if err != nil {
 		return err
 	}
@@ -151,8 +163,8 @@ func (a *App) DeleteCatalogTag(id string) error {
 }
 
 // SearchCatalog searches the catalog for tables and columns
-func (a *App) SearchCatalog(query string, filters *catalog.SearchFilters) (*catalog.SearchResults, error) {
-	service, err := a.getCatalogService()
+func (s *CatalogService) SearchCatalog(query string, filters *catalog.SearchFilters) (*catalog.SearchResults, error) {
+	service, err := s.getCatalogService()
 	if err != nil {
 		return nil, err
 	}
@@ -161,8 +173,8 @@ func (a *App) SearchCatalog(query string, filters *catalog.SearchFilters) (*cata
 }
 
 // AssignTableSteward assigns a steward to a table
-func (a *App) AssignTableSteward(tableID, userID string) error {
-	service, err := a.getCatalogService()
+func (s *CatalogService) AssignTableSteward(tableID, userID string) error {
+	service, err := s.getCatalogService()
 	if err != nil {
 		return err
 	}
@@ -171,8 +183,8 @@ func (a *App) AssignTableSteward(tableID, userID string) error {
 }
 
 // MarkColumnAsPII marks a column as containing PII
-func (a *App) MarkColumnAsPII(tableID, columnName, piiType string, confidence float64) error {
-	service, err := a.getCatalogService()
+func (s *CatalogService) MarkColumnAsPII(tableID, columnName, piiType string, confidence float64) error {
+	service, err := s.getCatalogService()
 	if err != nil {
 		return err
 	}
@@ -181,8 +193,8 @@ func (a *App) MarkColumnAsPII(tableID, columnName, piiType string, confidence fl
 }
 
 // GetCatalogStats returns statistics about the catalog
-func (a *App) GetCatalogStats(connectionID string) (*CatalogStats, error) {
-	service, err := a.getCatalogService()
+func (s *CatalogService) GetCatalogStats(connectionID string) (*CatalogStats, error) {
+	service, err := s.getCatalogService()
 	if err != nil {
 		return nil, err
 	}
@@ -233,12 +245,12 @@ type CatalogStats struct {
 }
 
 // SyncCatalogFromConnection syncs the catalog with the actual database schema
-func (a *App) SyncCatalogFromConnection(connectionID string) (*CatalogSyncResult, error) {
-	if a.databaseService == nil {
+func (s *CatalogService) SyncCatalogFromConnection(connectionID string) (*CatalogSyncResult, error) {
+	if s.deps.DatabaseService == nil {
 		return nil, fmt.Errorf("database service not initialized")
 	}
 
-	service, err := a.getCatalogService()
+	service, err := s.getCatalogService()
 	if err != nil {
 		return nil, err
 	}
@@ -246,7 +258,7 @@ func (a *App) SyncCatalogFromConnection(connectionID string) (*CatalogSyncResult
 	ctx := context.Background()
 
 	// Get database connection
-	db, err := a.databaseService.GetConnection(connectionID)
+	db, err := s.deps.DatabaseService.GetConnection(connectionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get connection: %w", err)
 	}

@@ -24,16 +24,14 @@ func init() {
 }
 
 func main() {
-	// Create an instance of the app structure
-	howlerApp := NewApp()
+	// Create the lifecycle coordinator that manages all 11 services
+	lifecycle := NewAppLifecycle()
 
-	// Create a new Wails v3 application
+	// Create a new Wails v3 application with all services registered
 	app := application.New(application.Options{
 		Name:        "HowlerOps",
 		Description: "A powerful desktop SQL client",
-		Services: []application.Service{
-			application.NewService(howlerApp),
-		},
+		Services:    lifecycle.GetServices(),
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
 		},
@@ -42,8 +40,8 @@ func main() {
 		},
 	})
 
-	// Store the application reference in our app for event emission
-	howlerApp.SetApplication(app)
+	// Store the application reference for event emission across services
+	lifecycle.SetApplication(app)
 
 	// Create the main window
 	mainWindow := app.Window.NewWithOptions(application.WebviewWindowOptions{
@@ -61,27 +59,27 @@ func main() {
 		URL:              "/",
 	})
 
-	// Store the main window reference for dialogs
-	howlerApp.SetMainWindow(mainWindow)
+	// Store the main window reference for dialogs across services
+	lifecycle.SetMainWindow(mainWindow)
 
 	// Set up menus (v3 menu API)
 	setupMenu(app, mainWindow)
 
 	// Handle application lifecycle via v3 Event manager
 	app.Event.OnApplicationEvent(events.Common.ApplicationStarted, func(event *application.ApplicationEvent) {
-		howlerApp.OnStartup()
+		lifecycle.OnStartup()
 	})
 
-	// Use app.OnShutdown for cleanup
+	// Use app.OnShutdown for cleanup across all services
 	app.OnShutdown(func() {
-		howlerApp.OnShutdown()
+		lifecycle.OnShutdown()
 	})
 
 	// Handle URL open events (for OAuth callbacks on macOS)
 	if runtime.GOOS == "darwin" {
 		app.Event.OnApplicationEvent(events.Common.ApplicationLaunchedWithUrl, func(event *application.ApplicationEvent) {
 			if url := event.Context().URL(); url != "" {
-				howlerApp.OnUrlOpen(url)
+				lifecycle.OnUrlOpen(url)
 			}
 		})
 	}

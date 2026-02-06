@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -14,134 +15,6 @@ import (
 	"github.com/jbeck018/howlerops/pkg/database"
 	"github.com/jbeck018/howlerops/pkg/database/multiquery"
 )
-
-// AIQueryAgentRequest represents a request to the AI query agent workflow.
-type AIQueryAgentRequest struct {
-	SessionID     string                   `json:"sessionId"`
-	Message       string                   `json:"message"`
-	Provider      string                   `json:"provider"`
-	Model         string                   `json:"model"`
-	ConnectionID  string                   `json:"connectionId,omitempty"`
-	ConnectionIDs []string                 `json:"connectionIds,omitempty"`
-	SchemaContext string                   `json:"schemaContext,omitempty"`
-	Context       string                   `json:"context,omitempty"`
-	History       []AIMemoryMessagePayload `json:"history,omitempty"`
-	SystemPrompt  string                   `json:"systemPrompt,omitempty"`
-	Temperature   float64                  `json:"temperature,omitempty"`
-	MaxTokens     int                      `json:"maxTokens,omitempty"`
-	MaxRows       int                      `json:"maxRows,omitempty"`
-	Page          int                      `json:"page,omitempty"`     // NEW: Current page number (1-indexed)
-	PageSize      int                      `json:"pageSize,omitempty"` // NEW: Rows per page
-}
-
-// AIQueryAgentResponse aggregates the generated artefacts for a single turn.
-type AIQueryAgentResponse struct {
-	SessionID   string                 `json:"sessionId"`
-	TurnID      string                 `json:"turnId"`
-	Provider    string                 `json:"provider"`
-	Model       string                 `json:"model"`
-	Messages    []AIQueryAgentMessage  `json:"messages"`
-	Error       string                 `json:"error,omitempty"`
-	DurationMs  int64                  `json:"durationMs"`
-	Metadata    map[string]interface{} `json:"metadata,omitempty"`
-	ExecutedSQL string                 `json:"executedSql,omitempty"`
-}
-
-// AIQueryAgentMessage represents a single agent response (orchestrator, sql generator, etc).
-type AIQueryAgentMessage struct {
-	ID          string                     `json:"id"`
-	Agent       string                     `json:"agent"`
-	Role        string                     `json:"role"`
-	Title       string                     `json:"title,omitempty"`
-	Content     string                     `json:"content"`
-	CreatedAt   int64                      `json:"createdAt"`
-	Attachments []AIQueryAgentAttachment   `json:"attachments,omitempty"`
-	Metadata    map[string]interface{}     `json:"metadata,omitempty"`
-	Warnings    []string                   `json:"warnings,omitempty"`
-	Error       string                     `json:"error,omitempty"`
-	Provider    string                     `json:"provider,omitempty"`
-	Model       string                     `json:"model,omitempty"`
-	TokensUsed  int                        `json:"tokensUsed,omitempty"`
-	ElapsedMs   int64                      `json:"elapsedMs,omitempty"`
-	Context     map[string]json.RawMessage `json:"context,omitempty"`
-}
-
-// AIQueryAgentAttachment represents rich content associated with a message.
-type AIQueryAgentAttachment struct {
-	Type       string                         `json:"type"`
-	SQL        *AIQueryAgentSQLAttachment     `json:"sql,omitempty"`
-	Result     *AIQueryAgentResultAttachment  `json:"result,omitempty"`
-	Chart      *AIQueryAgentChartAttachment   `json:"chart,omitempty"`
-	Report     *AIQueryAgentReportAttachment  `json:"report,omitempty"`
-	Insight    *AIQueryAgentInsightAttachment `json:"insight,omitempty"`
-	RawPayload map[string]interface{}         `json:"rawPayload,omitempty"`
-}
-
-// AIQueryAgentSQLAttachment contains generated SQL information.
-type AIQueryAgentSQLAttachment struct {
-	Query        string   `json:"query"`
-	Explanation  string   `json:"explanation,omitempty"`
-	Confidence   float64  `json:"confidence,omitempty"`
-	ConnectionID string   `json:"connectionId,omitempty"`
-	Warnings     []string `json:"warnings,omitempty"`
-}
-
-// AIQueryAgentResultAttachment contains a lightweight data preview.
-type AIQueryAgentResultAttachment struct {
-	Columns         []string                 `json:"columns"`
-	Rows            []map[string]interface{} `json:"rows"`
-	RowCount        int64                    `json:"rowCount"`
-	ExecutionTimeMs int64                    `json:"executionTimeMs"`
-	Limited         bool                     `json:"limited"`
-	ConnectionID    string                   `json:"connectionId,omitempty"`
-	// Pagination metadata
-	TotalRows  int64 `json:"totalRows,omitempty"`  // NEW: Total rows available
-	Page       int   `json:"page,omitempty"`       // NEW: Current page
-	PageSize   int   `json:"pageSize,omitempty"`   // NEW: Page size
-	TotalPages int   `json:"totalPages,omitempty"` // NEW: Total pages
-	HasMore    bool  `json:"hasMore,omitempty"`    // NEW: More pages available
-}
-
-// AIQueryAgentChartAttachment represents a chart suggestion produced by the agent.
-type AIQueryAgentChartAttachment struct {
-	Type          string           `json:"type"`
-	XField        string           `json:"xField"`
-	YFields       []string         `json:"yFields"`
-	SeriesField   string           `json:"seriesField,omitempty"`
-	Title         string           `json:"title,omitempty"`
-	Description   string           `json:"description,omitempty"`
-	Recommended   bool             `json:"recommended"`
-	PreviewValues []map[string]any `json:"previewValues,omitempty"`
-}
-
-// AIQueryAgentReportAttachment is a formatted report.
-type AIQueryAgentReportAttachment struct {
-	Format string `json:"format"`
-	Body   string `json:"body"`
-	Title  string `json:"title,omitempty"`
-}
-
-// AIQueryAgentInsightAttachment holds structured insights.
-type AIQueryAgentInsightAttachment struct {
-	Highlights []string `json:"highlights"`
-}
-
-// ReadOnlyQueryResult represents a guarded SELECT output.
-type ReadOnlyQueryResult struct {
-	Columns         []string                 `json:"columns"`
-	Rows            []map[string]interface{} `json:"rows"`
-	RowCount        int64                    `json:"rowCount"`
-	ExecutionTimeMs int64                    `json:"executionTimeMs"`
-	Limited         bool                     `json:"limited"`
-	ConnectionID    string                   `json:"connectionId"`
-	// Pagination metadata
-	TotalRows  int64 `json:"totalRows,omitempty"`  // Total rows available (unpaged)
-	Page       int   `json:"page,omitempty"`       // Current page number
-	PageSize   int   `json:"pageSize,omitempty"`   // Rows per page
-	TotalPages int   `json:"totalPages,omitempty"` // Total pages available
-	HasMore    bool  `json:"hasMore,omitempty"`    // More pages available
-	Offset     int   `json:"offset,omitempty"`     // Current offset
-}
 
 type queryAgentEvent struct {
 	SessionID string               `json:"sessionId"`
@@ -158,10 +31,10 @@ type orchestratorPlan struct {
 }
 
 // StreamAIQueryAgent coordinates a multi-agent workflow to satisfy a user query.
-func (a *App) StreamAIQueryAgent(req AIQueryAgentRequest) (*AIQueryAgentResponse, error) {
+func (s *WailsAIService) StreamAIQueryAgent(req AIQueryAgentRequest) (*AIQueryAgentResponse, error) {
 	start := time.Now()
 
-	if a.aiService == nil {
+	if s.aiService == nil {
 		return nil, fmt.Errorf("AI service not configured")
 	}
 
@@ -208,7 +81,7 @@ func (a *App) StreamAIQueryAgent(req AIQueryAgentRequest) (*AIQueryAgentResponse
 		ExecutedSQL: "",
 	}
 
-	a.emitQueryAgentEvent(queryAgentEvent{
+	s.emitQueryAgentEvent(queryAgentEvent{
 		SessionID: req.SessionID,
 		TurnID:    turnID,
 		Status:    "started",
@@ -222,19 +95,19 @@ func (a *App) StreamAIQueryAgent(req AIQueryAgentRequest) (*AIQueryAgentResponse
 		CreatedAt: time.Now().UnixMilli(),
 	}
 	response.Messages = append(response.Messages, userMessage)
-	a.emitQueryAgentEvent(queryAgentEvent{
+	s.emitQueryAgentEvent(queryAgentEvent{
 		SessionID: req.SessionID,
 		TurnID:    turnID,
 		Status:    "message",
 		Message:   &userMessage,
 	})
-	plan, planMsg, planErr := a.buildOrchestratorPlan(req, message, fullContext)
+	plan, planMsg, planErr := s.buildOrchestratorPlan(req, message, fullContext)
 	if planErr != nil {
-		a.logger.WithError(planErr).Debug("orchestrator plan unavailable, proceeding with default SQL workflow")
+		s.deps.Logger.WithError(planErr).Debug("orchestrator plan unavailable, proceeding with default SQL workflow")
 	}
 	if planMsg != nil {
 		response.Messages = append(response.Messages, *planMsg)
-		a.emitQueryAgentEvent(queryAgentEvent{
+		s.emitQueryAgentEvent(queryAgentEvent{
 			SessionID: req.SessionID,
 			TurnID:    turnID,
 			Status:    "message",
@@ -258,7 +131,7 @@ func (a *App) StreamAIQueryAgent(req AIQueryAgentRequest) (*AIQueryAgentResponse
 				CreatedAt: time.Now().UnixMilli(),
 			}
 			response.Messages = append(response.Messages, info)
-			a.emitQueryAgentEvent(queryAgentEvent{
+			s.emitQueryAgentEvent(queryAgentEvent{
 				SessionID: req.SessionID,
 				TurnID:    turnID,
 				Status:    "message",
@@ -267,7 +140,7 @@ func (a *App) StreamAIQueryAgent(req AIQueryAgentRequest) (*AIQueryAgentResponse
 		}
 
 		response.DurationMs = time.Since(start).Milliseconds()
-		a.emitQueryAgentEvent(queryAgentEvent{
+		s.emitQueryAgentEvent(queryAgentEvent{
 			SessionID: req.SessionID,
 			TurnID:    turnID,
 			Status:    "completed",
@@ -276,7 +149,7 @@ func (a *App) StreamAIQueryAgent(req AIQueryAgentRequest) (*AIQueryAgentResponse
 	}
 
 	sqlStart := time.Now()
-	sqlResp, err := a.GenerateSQLFromNaturalLanguage(NLQueryRequest{
+	sqlResp, err := s.GenerateSQLFromNaturalLanguage(NLQueryRequest{
 		Prompt:       message,
 		ConnectionID: connectionID,
 		Context:      fullContext,
@@ -286,11 +159,11 @@ func (a *App) StreamAIQueryAgent(req AIQueryAgentRequest) (*AIQueryAgentResponse
 		Temperature:  req.Temperature,
 	})
 	if err != nil {
-		return a.failQueryAgent(response, req, turnID, fmt.Errorf("sql generation failed: %w", err))
+		return s.failQueryAgent(response, req, turnID, fmt.Errorf("sql generation failed: %w", err))
 	}
 
 	if sqlResp == nil || strings.TrimSpace(sqlResp.SQL) == "" {
-		return a.failQueryAgent(response, req, turnID, fmt.Errorf("ai provider did not return SQL"))
+		return s.failQueryAgent(response, req, turnID, fmt.Errorf("ai provider did not return SQL"))
 	}
 
 	sqlText := strings.TrimSpace(sqlResp.SQL)
@@ -309,7 +182,7 @@ func (a *App) StreamAIQueryAgent(req AIQueryAgentRequest) (*AIQueryAgentResponse
 		}
 
 		response.Messages = append(response.Messages, errorMessage)
-		a.emitQueryAgentEvent(queryAgentEvent{
+		s.emitQueryAgentEvent(queryAgentEvent{
 			SessionID: req.SessionID,
 			TurnID:    turnID,
 			Status:    "message",
@@ -317,7 +190,7 @@ func (a *App) StreamAIQueryAgent(req AIQueryAgentRequest) (*AIQueryAgentResponse
 		})
 
 		response.DurationMs = time.Since(start).Milliseconds()
-		a.emitQueryAgentEvent(queryAgentEvent{
+		s.emitQueryAgentEvent(queryAgentEvent{
 			SessionID: req.SessionID,
 			TurnID:    turnID,
 			Status:    "completed",
@@ -347,7 +220,7 @@ func (a *App) StreamAIQueryAgent(req AIQueryAgentRequest) (*AIQueryAgentResponse
 	}
 	response.Messages = append(response.Messages, sqlMessage)
 	response.ExecutedSQL = sqlResp.SQL
-	a.emitQueryAgentEvent(queryAgentEvent{
+	s.emitQueryAgentEvent(queryAgentEvent{
 		SessionID: req.SessionID,
 		TurnID:    turnID,
 		Status:    "message",
@@ -364,7 +237,7 @@ func (a *App) StreamAIQueryAgent(req AIQueryAgentRequest) (*AIQueryAgentResponse
 			pageSize = req.PageSize
 			offset = (req.Page - 1) * pageSize
 		}
-		preview, err = a.ExecuteReadOnlyQueryWithPagination(connectionID, sqlResp.SQL, pageSize, offset, 30*time.Second)
+		preview, err = s.ExecuteReadOnlyQueryWithPagination(connectionID, sqlResp.SQL, pageSize, offset, 30*time.Second)
 		if err != nil {
 			warning := fmt.Sprintf("Query execution failed: %v", err)
 			errorMessage := AIQueryAgentMessage{
@@ -377,7 +250,7 @@ func (a *App) StreamAIQueryAgent(req AIQueryAgentRequest) (*AIQueryAgentResponse
 				Error:     warning,
 			}
 			response.Messages = append(response.Messages, errorMessage)
-			a.emitQueryAgentEvent(queryAgentEvent{
+			s.emitQueryAgentEvent(queryAgentEvent{
 				SessionID: req.SessionID,
 				TurnID:    turnID,
 				Status:    "message",
@@ -401,7 +274,7 @@ func (a *App) StreamAIQueryAgent(req AIQueryAgentRequest) (*AIQueryAgentResponse
 				},
 			}
 			response.Messages = append(response.Messages, resultMessage)
-			a.emitQueryAgentEvent(queryAgentEvent{
+			s.emitQueryAgentEvent(queryAgentEvent{
 				SessionID: req.SessionID,
 				TurnID:    turnID,
 				Status:    "message",
@@ -411,58 +284,58 @@ func (a *App) StreamAIQueryAgent(req AIQueryAgentRequest) (*AIQueryAgentResponse
 	}
 
 	if preview != nil && preview.RowCount > 0 {
-		if analysisMessage, analysisErr := a.generateAnalystMessage(req, sqlResp.SQL, preview); analysisErr == nil {
+		if analysisMessage, analysisErr := s.generateAnalystMessage(req, sqlResp.SQL, preview); analysisErr == nil {
 			response.Messages = append(response.Messages, analysisMessage)
-			a.emitQueryAgentEvent(queryAgentEvent{
+			s.emitQueryAgentEvent(queryAgentEvent{
 				SessionID: req.SessionID,
 				TurnID:    turnID,
 				Status:    "message",
 				Message:   &analysisMessage,
 			})
 		} else {
-			a.logger.WithError(analysisErr).Warn("data analyst agent failed")
+			s.deps.Logger.WithError(analysisErr).Warn("data analyst agent failed")
 		}
 
-		if chartMessage, chartErr := a.generateChartMessage(req, sqlResp.SQL, preview); chartErr == nil && len(chartMessage.Attachments) > 0 {
+		if chartMessage, chartErr := s.generateChartMessage(req, sqlResp.SQL, preview); chartErr == nil && len(chartMessage.Attachments) > 0 {
 			response.Messages = append(response.Messages, chartMessage)
-			a.emitQueryAgentEvent(queryAgentEvent{
+			s.emitQueryAgentEvent(queryAgentEvent{
 				SessionID: req.SessionID,
 				TurnID:    turnID,
 				Status:    "message",
 				Message:   &chartMessage,
 			})
 		} else if chartErr != nil {
-			a.logger.WithError(chartErr).Debug("chart agent skipped")
+			s.deps.Logger.WithError(chartErr).Debug("chart agent skipped")
 		}
 
-		if reportMessage, reportErr := a.generateReportMessage(req, sqlResp.SQL, preview); reportErr == nil {
+		if reportMessage, reportErr := s.generateReportMessage(req, sqlResp.SQL, preview); reportErr == nil {
 			response.Messages = append(response.Messages, reportMessage)
-			a.emitQueryAgentEvent(queryAgentEvent{
+			s.emitQueryAgentEvent(queryAgentEvent{
 				SessionID: req.SessionID,
 				TurnID:    turnID,
 				Status:    "message",
 				Message:   &reportMessage,
 			})
 		} else if reportErr != nil {
-			a.logger.WithError(reportErr).Debug("report agent skipped")
+			s.deps.Logger.WithError(reportErr).Debug("report agent skipped")
 		}
 	}
 
-	if explainMessage, explainErr := a.generateExplanationMessage(req, sqlResp.SQL); explainErr == nil {
+	if explainMessage, explainErr := s.generateExplanationMessage(req, sqlResp.SQL); explainErr == nil {
 		response.Messages = append(response.Messages, explainMessage)
-		a.emitQueryAgentEvent(queryAgentEvent{
+		s.emitQueryAgentEvent(queryAgentEvent{
 			SessionID: req.SessionID,
 			TurnID:    turnID,
 			Status:    "message",
 			Message:   &explainMessage,
 		})
 	} else if explainErr != nil {
-		a.logger.WithError(explainErr).Warn("query explainer agent failed")
+		s.deps.Logger.WithError(explainErr).Warn("query explainer agent failed")
 	}
 
 	response.DurationMs = time.Since(start).Milliseconds()
 
-	a.emitQueryAgentEvent(queryAgentEvent{
+	s.emitQueryAgentEvent(queryAgentEvent{
 		SessionID: req.SessionID,
 		TurnID:    turnID,
 		Status:    "completed",
@@ -471,9 +344,9 @@ func (a *App) StreamAIQueryAgent(req AIQueryAgentRequest) (*AIQueryAgentResponse
 	return response, nil
 }
 
-func (a *App) failQueryAgent(resp *AIQueryAgentResponse, req AIQueryAgentRequest, turnID string, err error) (*AIQueryAgentResponse, error) {
+func (s *WailsAIService) failQueryAgent(resp *AIQueryAgentResponse, req AIQueryAgentRequest, turnID string, err error) (*AIQueryAgentResponse, error) {
 	resp.Error = err.Error()
-	a.emitQueryAgentEvent(queryAgentEvent{
+	s.emitQueryAgentEvent(queryAgentEvent{
 		SessionID: req.SessionID,
 		TurnID:    turnID,
 		Status:    "error",
@@ -482,7 +355,7 @@ func (a *App) failQueryAgent(resp *AIQueryAgentResponse, req AIQueryAgentRequest
 	return resp, err
 }
 
-func (a *App) generateAnalystMessage(req AIQueryAgentRequest, sql string, preview *ReadOnlyQueryResult) (AIQueryAgentMessage, error) {
+func (s *WailsAIService) generateAnalystMessage(req AIQueryAgentRequest, sql string, preview *ReadOnlyQueryResult) (AIQueryAgentMessage, error) {
 	promptRows := formatRowsForPrompt(preview.Rows, preview.Columns, 15, 150)
 	system := "You are a data analyst agent for Howlerops. Provide concise, actionable insights in bullet points (max 5) without restating obvious facts. Highlight anomalies, trends, or correlations."
 	user := fmt.Sprintf(`User question: %s
@@ -495,7 +368,7 @@ Previewed rows:
 
 Summarize key findings in under 120 words.`, req.Message, sql, promptRows)
 
-	resp, err := a.aiService.Chat(a.ctx, &ai.ChatRequest{
+	resp, err := s.aiService.Chat(context.Background(), &ai.ChatRequest{
 		Prompt:      user,
 		System:      system,
 		Provider:    req.Provider,
@@ -533,7 +406,7 @@ Summarize key findings in under 120 words.`, req.Message, sql, promptRows)
 	return msg, nil
 }
 
-func (a *App) generateChartMessage(req AIQueryAgentRequest, sql string, preview *ReadOnlyQueryResult) (AIQueryAgentMessage, error) {
+func (s *WailsAIService) generateChartMessage(req AIQueryAgentRequest, sql string, preview *ReadOnlyQueryResult) (AIQueryAgentMessage, error) {
 	if len(preview.Columns) == 0 || len(preview.Rows) == 0 {
 		return AIQueryAgentMessage{}, fmt.Errorf("no data for chart suggestion")
 	}
@@ -558,7 +431,7 @@ Respond with JSON like:
   "description": "Brief caption"
 }`, req.Message, sql, promptRows)
 
-	resp, err := a.aiService.Chat(a.ctx, &ai.ChatRequest{
+	resp, err := s.aiService.Chat(context.Background(), &ai.ChatRequest{
 		Prompt:      user,
 		System:      system,
 		Provider:    req.Provider,
@@ -606,7 +479,7 @@ Respond with JSON like:
 	return msg, nil
 }
 
-func (a *App) generateReportMessage(req AIQueryAgentRequest, sql string, preview *ReadOnlyQueryResult) (AIQueryAgentMessage, error) {
+func (s *WailsAIService) generateReportMessage(req AIQueryAgentRequest, sql string, preview *ReadOnlyQueryResult) (AIQueryAgentMessage, error) {
 	promptRows := formatRowsForPrompt(preview.Rows, preview.Columns, 25, 140)
 	system := "You are a report generator. Produce a concise Markdown report summarizing the data. Include sections: Objective, Key Metrics, Observations, Recommendations. Keep it under 200 words."
 	user := fmt.Sprintf(`User request: %s
@@ -617,7 +490,7 @@ SQL:
 Previewed rows:
 %s`, req.Message, sql, promptRows)
 
-	resp, err := a.aiService.Chat(a.ctx, &ai.ChatRequest{
+	resp, err := s.aiService.Chat(context.Background(), &ai.ChatRequest{
 		Prompt:      user,
 		System:      system,
 		Provider:    req.Provider,
@@ -656,13 +529,13 @@ Previewed rows:
 	return msg, nil
 }
 
-func (a *App) generateExplanationMessage(req AIQueryAgentRequest, sql string) (AIQueryAgentMessage, error) {
+func (s *WailsAIService) generateExplanationMessage(req AIQueryAgentRequest, sql string) (AIQueryAgentMessage, error) {
 	system := "You are a SQL explainer agent. Explain what the query does in plain language, focusing on intent, filters, joins, and outputs. Avoid repeating the SQL verbatim."
 	user := fmt.Sprintf(`Explain the following SQL query for a technical user:
 
 %s`, sql)
 
-	resp, err := a.aiService.Chat(a.ctx, &ai.ChatRequest{
+	resp, err := s.aiService.Chat(context.Background(), &ai.ChatRequest{
 		Prompt:      user,
 		System:      system,
 		Provider:    req.Provider,
@@ -691,8 +564,8 @@ func (a *App) generateExplanationMessage(req AIQueryAgentRequest, sql string) (A
 	return msg, nil
 }
 
-func (a *App) emitQueryAgentEvent(event queryAgentEvent) {
-	a.emitEvent("ai:query-agent:stream", event)
+func (s *WailsAIService) emitQueryAgentEvent(event queryAgentEvent) {
+	s.deps.emitEvent("ai:query-agent:stream", event)
 }
 
 func selectPrimaryConnection(primary string, list []string) string {
@@ -740,8 +613,8 @@ func filterNonEmpty(values []string) []string {
 }
 
 // ExecuteReadOnlyQuery validates and executes a SELECT-only query with safety controls.
-func (a *App) ExecuteReadOnlyQuery(connectionID string, query string, maxRows int, timeout time.Duration) (*ReadOnlyQueryResult, error) {
-	if a.databaseService == nil {
+func (s *WailsAIService) ExecuteReadOnlyQuery(connectionID string, query string, maxRows int, timeout time.Duration) (*ReadOnlyQueryResult, error) {
+	if s.deps.DatabaseService == nil {
 		return nil, fmt.Errorf("database service not available")
 	}
 	isMulti := isMultiDatabaseSQL(query)
@@ -755,7 +628,7 @@ func (a *App) ExecuteReadOnlyQuery(connectionID string, query string, maxRows in
 	}
 
 	if isMultiDatabaseSQL(clean) {
-		return a.executeMultiReadOnlyQuery(clean, maxRows, timeout)
+		return s.executeMultiReadOnlyQuery(clean, maxRows, timeout)
 	}
 
 	if !isSelectOnly(clean) {
@@ -770,7 +643,7 @@ func (a *App) ExecuteReadOnlyQuery(connectionID string, query string, maxRows in
 		Limit:    maxRows,
 	}
 
-	result, err := a.databaseService.ExecuteQuery(connectionID, enforced, options)
+	result, err := s.deps.DatabaseService.ExecuteQuery(connectionID, enforced, options)
 	if err != nil {
 		return nil, err
 	}
@@ -788,8 +661,8 @@ func (a *App) ExecuteReadOnlyQuery(connectionID string, query string, maxRows in
 }
 
 // ExecuteReadOnlyQueryWithPagination executes a SELECT query with pagination support.
-func (a *App) ExecuteReadOnlyQueryWithPagination(connectionID string, query string, pageSize int, offset int, timeout time.Duration) (*ReadOnlyQueryResult, error) {
-	if a.databaseService == nil {
+func (s *WailsAIService) ExecuteReadOnlyQueryWithPagination(connectionID string, query string, pageSize int, offset int, timeout time.Duration) (*ReadOnlyQueryResult, error) {
+	if s.deps.DatabaseService == nil {
 		return nil, fmt.Errorf("database service not available")
 	}
 	isMulti := isMultiDatabaseSQL(query)
@@ -803,7 +676,7 @@ func (a *App) ExecuteReadOnlyQueryWithPagination(connectionID string, query stri
 	}
 
 	if isMultiDatabaseSQL(clean) {
-		return a.executeMultiReadOnlyQueryWithPagination(clean, pageSize, offset, timeout)
+		return s.executeMultiReadOnlyQueryWithPagination(clean, pageSize, offset, timeout)
 	}
 
 	if !isSelectOnly(clean) {
@@ -818,7 +691,7 @@ func (a *App) ExecuteReadOnlyQueryWithPagination(connectionID string, query stri
 		Offset:   offset,
 	}
 
-	result, err := a.databaseService.ExecuteQuery(connectionID, clean, options)
+	result, err := s.deps.DatabaseService.ExecuteQuery(connectionID, clean, options)
 	if err != nil {
 		return nil, err
 	}
@@ -859,7 +732,7 @@ func (a *App) ExecuteReadOnlyQueryWithPagination(connectionID string, query stri
 	}, nil
 }
 
-func (a *App) executeMultiReadOnlyQueryWithPagination(query string, pageSize int, offset int, timeout time.Duration) (*ReadOnlyQueryResult, error) {
+func (s *WailsAIService) executeMultiReadOnlyQueryWithPagination(query string, pageSize int, offset int, timeout time.Duration) (*ReadOnlyQueryResult, error) {
 	options := &multiquery.Options{
 		Timeout:  timeout,
 		Strategy: multiquery.StrategyAuto,
@@ -867,7 +740,7 @@ func (a *App) executeMultiReadOnlyQueryWithPagination(query string, pageSize int
 		Offset:   offset,
 	}
 
-	resp, err := a.databaseService.ExecuteMultiDatabaseQuery(query, options)
+	resp, err := s.deps.DatabaseService.ExecuteMultiDatabaseQuery(query, options)
 	if err != nil {
 		return nil, err
 	}
@@ -910,14 +783,14 @@ func (a *App) executeMultiReadOnlyQueryWithPagination(query string, pageSize int
 	}, nil
 }
 
-func (a *App) executeMultiReadOnlyQuery(query string, maxRows int, timeout time.Duration) (*ReadOnlyQueryResult, error) {
+func (s *WailsAIService) executeMultiReadOnlyQuery(query string, maxRows int, timeout time.Duration) (*ReadOnlyQueryResult, error) {
 	options := &multiquery.Options{
 		Timeout:  timeout,
 		Strategy: multiquery.StrategyAuto,
 		Limit:    maxRows,
 	}
 
-	resp, err := a.databaseService.ExecuteMultiDatabaseQuery(query, options)
+	resp, err := s.deps.DatabaseService.ExecuteMultiDatabaseQuery(query, options)
 	if err != nil {
 		return nil, err
 	}
@@ -1207,14 +1080,14 @@ func isLikelySQLStatement(sql string) bool {
 	return false
 }
 
-func (a *App) buildOrchestratorPlan(req AIQueryAgentRequest, message, context string) (*orchestratorPlan, *AIQueryAgentMessage, error) {
-	if a.aiService == nil {
+func (s *WailsAIService) buildOrchestratorPlan(req AIQueryAgentRequest, message, ctxStr string) (*orchestratorPlan, *AIQueryAgentMessage, error) {
+	if s.aiService == nil {
 		return nil, nil, fmt.Errorf("ai service unavailable")
 	}
 
 	systemPrompt := "You orchestrate database assistants for Howlerops. Reply ONLY with compact JSON: {\"reply\": string, \"requires_sql\": boolean}. Use reply for a helpful natural-language response. Set requires_sql to true only if running database SQL is necessary and a connection is available. Never add extra text or markdown."
-	resp, err := a.aiService.Chat(a.ctx, &ai.ChatRequest{
-		Prompt:      fmt.Sprintf("User message:\n%s\n\nContext:\n%s", message, context),
+	resp, err := s.aiService.Chat(context.Background(), &ai.ChatRequest{
+		Prompt:      fmt.Sprintf("User message:\n%s\n\nContext:\n%s", message, ctxStr),
 		System:      systemPrompt,
 		Provider:    req.Provider,
 		Model:       req.Model,
