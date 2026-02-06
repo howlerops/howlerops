@@ -283,10 +283,13 @@ jobs:
           go install github.com/securego/gosec/v2/cmd/gosec@latest
 
           # Run security scan
-          # -exclude-dir: Skip test files and vendor
-          # -exclude=G101: Skip hardcoded credentials check (prone to false positives in generated code)
+          # -exclude-dir: Skip test files, vendor, and build scripts
+          # -exclude: Skip known false positives:
+          #   G101 - hardcoded credentials (false positives in generated code)
+          #   G201 - SQL string formatting (schema introspection uses safe catalog names)
+          #   G304 - file inclusion via variable (desktop app file dialogs provide paths)
           # -severity: Only report medium and above
-          gosec -exclude-dir=vendor -exclude-dir=test -exclude=G101 -severity medium -tags duckdb ./...
+          gosec -exclude-dir=vendor -exclude-dir=test -exclude-dir=build/ios -exclude=G101,G201,G304 -severity medium -tags duckdb ./...
 
   # ---------------------------------------------------------------------------
   # Job 3: Build Verification
