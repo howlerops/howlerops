@@ -106,7 +106,14 @@ jobs:
             gcc \
             musl-dev \
             sqlite3 \
-            libsqlite3-dev
+            libsqlite3-dev \
+            libgtk-3-dev \
+            libwebkit2gtk-4.1-dev \
+            libsoup-3.0-dev \
+            pkg-config
+
+      - name: Create frontend dist stub for embed
+        run: mkdir -p frontend/dist && touch frontend/dist/index.html
 
       - name: Download Go modules
         run: |
@@ -232,7 +239,12 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq gcc musl-dev sqlite3 libsqlite3-dev
+          sudo apt-get install -y -qq \
+            gcc musl-dev sqlite3 libsqlite3-dev \
+            libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev pkg-config
+
+      - name: Create frontend dist stub for embed
+        run: mkdir -p frontend/dist && touch frontend/dist/index.html
 
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v7
@@ -318,6 +330,9 @@ jobs:
       - name: Download Go modules
         run: go mod download
 
+      - name: Create frontend dist stub for embed
+        run: mkdir -p frontend/dist && touch frontend/dist/index.html
+
       - name: Build binary
         env:
           GOOS: ${{ matrix.goos }}
@@ -333,11 +348,17 @@ jobs:
             OUTPUT_NAME="${OUTPUT_NAME}.exe"
           fi
 
+          # Only use duckdb tag with CGO (requires native bindings)
+          BUILD_TAGS=""
+          if [ "$CGO_ENABLED" = "1" ]; then
+            BUILD_TAGS="duckdb"
+          fi
+
           # Build command
           go build \
             -v \
             -trimpath \
-            -tags duckdb \
+            -tags "$BUILD_TAGS" \
             -ldflags="-s -w \
               -X 'main.Version=dev' \
               -X 'main.BuildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ)' \
@@ -371,6 +392,16 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            gcc musl-dev sqlite3 libsqlite3-dev \
+            libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev pkg-config
+
+      - name: Create frontend dist stub for embed
+        run: mkdir -p frontend/dist && touch frontend/dist/index.html
 
       - name: Run govulncheck
         continue-on-error: true

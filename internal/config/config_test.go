@@ -19,7 +19,7 @@ func resetViper() {
 func TestLoadReadsConfigFileDefaults(t *testing.T) {
 	t.Setenv("SQL_STUDIO_CONFIG_PATH", "")
 	resetViper()
-	t.Setenv("SQL_STUDIO_CONFIG_FILE", filepath.Join("..", "..", "configs", "config.yaml"))
+	t.Setenv("SQL_STUDIO_CONFIG_FILE", filepath.Join("..", "..", "deploy", "server", "configs", "config.yaml"))
 
 	cfg, err := config.Load()
 	if err != nil {
@@ -39,7 +39,7 @@ func TestLoadReadsConfigFileDefaults(t *testing.T) {
 
 func TestLoadAppliesEnvironmentOverrides(t *testing.T) {
 	resetViper()
-	t.Setenv("SQL_STUDIO_CONFIG_FILE", filepath.Join("..", "..", "configs", "config.yaml"))
+	t.Setenv("SQL_STUDIO_CONFIG_FILE", filepath.Join("..", "..", "deploy", "server", "configs", "config.yaml"))
 	t.Setenv("SQL_STUDIO_SERVER_PORT", "9100")
 	t.Setenv("SQL_STUDIO_DATABASE_STREAMING_BATCH_SIZE", "2048")
 

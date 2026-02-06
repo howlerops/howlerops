@@ -36,6 +36,16 @@ jobs:
           cache: true
           cache-dependency-path: go.sum
 
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            gcc musl-dev sqlite3 libsqlite3-dev \
+            libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev pkg-config
+
+      - name: Create frontend dist stub for embed
+        run: mkdir -p frontend/dist && touch frontend/dist/index.html
+
       - name: Install dependencies
         run: go mod download
 
@@ -76,7 +86,12 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq gcc musl-dev sqlite3 libsqlite3-dev jq bc
+          sudo apt-get install -y -qq \
+            gcc musl-dev sqlite3 libsqlite3-dev jq bc \
+            libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev pkg-config
+
+      - name: Create frontend dist stub for embed
+        run: mkdir -p frontend/dist && touch frontend/dist/index.html
 
       - name: Install dependencies
         run: go mod download
@@ -136,11 +151,21 @@ jobs:
         with:
           go-version: '1.25.5'
 
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            gcc musl-dev sqlite3 libsqlite3-dev \
+            libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev pkg-config
+
+      - name: Create frontend dist stub for embed
+        run: mkdir -p frontend/dist && touch frontend/dist/index.html
+
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v7
         with:
           version: v2.7.2
-          args: --timeout=5m
+          args: --timeout=5m --build-tags=duckdb
           skip-cache: true  # Temporarily skip cache to force re-lint with updated config
 
   security:
@@ -150,6 +175,16 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            gcc musl-dev sqlite3 libsqlite3-dev \
+            libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev pkg-config
+
+      - name: Create frontend dist stub for embed
+        run: mkdir -p frontend/dist && touch frontend/dist/index.html
 
       - name: Run Gosec Security Scanner
         uses: securego/gosec@master
