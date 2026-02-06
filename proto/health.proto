@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package sqlstudio.health;
 
-option go_package = "github.com/sql-studio/backend-go/api/health";
+option go_package = "github.com/jbeck018/howlerops/pkg/pb/health";
 
 import "google/protobuf/timestamp.proto";
 

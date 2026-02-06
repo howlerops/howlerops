@@ -38,17 +38,12 @@ WORKDIR /app
 # This enables dependencies requiring Go 1.24+ to work with Go 1.23 base image
 ENV GOTOOLCHAIN=auto
 
-# Copy root module files needed for replace directive
+# Copy module files for dependency download
 COPY ./go.mod ./go.sum ./
-COPY ./services/ ./services/
-
-# Copy backend-go module files for dependency download
-COPY ./backend-go/go.mod ./backend-go/go.sum ./backend-go/
-WORKDIR /app/backend-go
 RUN go mod download && go mod verify
 
-# Copy backend-go source code
-COPY ./backend-go/ .
+# Copy source code
+COPY . .
 
 # Build the application with production optimizations
 # CGO_ENABLED=1: Required for SQLite driver and DuckDB
@@ -73,7 +68,7 @@ RUN CGO_ENABLED=1 go build \
     -X 'main.GitCommit=${GIT_COMMIT}'" \
     -trimpath \
     -o sql-studio-backend \
-    cmd/server/main.go
+    ./cmd/server/
 
 # Compress binary with UPX for smaller size (optional, can be removed if needed)
 # RUN upx --best --lzma sql-studio-backend
@@ -122,7 +117,7 @@ RUN addgroup -g 1001 -S appgroup && \
 WORKDIR /app
 
 # Copy binary from builder stage with explicit ownership
-COPY --from=builder --chown=appuser:appgroup /app/backend-go/sql-studio-backend .
+COPY --from=builder --chown=appuser:appgroup /app/sql-studio-backend .
 
 # Note: Configuration comes from environment variables (GCP Secret Manager) in production
 # No need to copy config files - they will be provided via environment

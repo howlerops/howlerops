@@ -36,9 +36,8 @@ jobs:
             gcc \
             pkg-config
 
-      - name: Go unit tests (root module)
-        run: go test ./services
+      - name: Go unit tests (services)
+        run: go test -tags duckdb ./services
 
-      - name: Go unit tests (backend module)
-        working-directory: backend-go
-        run: go test ./internal/config ./internal/services ./internal/middleware ./internal/server ./internal/rag ./internal/ai ./cmd/migrate-vector-db
+      - name: Go unit tests (internal packages)
+        run: go test -tags duckdb ./internal/config ./internal/services ./internal/middleware ./internal/server ./internal/rag ./internal/ai ./cmd/migrate-vector-db

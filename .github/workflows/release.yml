@@ -230,7 +230,7 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
-          cache-dependency-path: backend-go/go.sum
+          cache-dependency-path: go.sum
 
       # Install platform-specific build dependencies
       - name: Install dependencies (macOS)
@@ -251,13 +251,11 @@ jobs:
           fi
 
       - name: Download Go modules
-        working-directory: ./backend-go
         run: |
           go mod download
           go mod verify
 
       - name: Build binary
-        working-directory: ./backend-go
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
@@ -281,6 +279,7 @@ jobs:
             -v \
             -a \
             -trimpath \
+            -tags duckdb \
             -ldflags="-s -w \
               -X 'main.Version=${VERSION}' \
               -X 'main.Commit=${COMMIT}' \
@@ -292,7 +291,6 @@ jobs:
           ls -lh "${{ matrix.asset_name }}"
 
       - name: Test binary
-        working-directory: ./backend-go
         # Only test on native platforms
         if: (matrix.goos == 'linux' && matrix.goarch == 'amd64') || (matrix.goos == 'darwin' && (matrix.goarch == 'amd64' || matrix.goarch == 'arm64'))
         run: |
@@ -300,7 +298,6 @@ jobs:
           ./"${{ matrix.asset_name }}" --version || echo "Version check completed"
 
       - name: Create archive
-        working-directory: ./backend-go
         run: |
           # Create release package compatible with install.sh
           # Archive name should match: sql-studio-${OS}-${ARCH}.tar.gz
@@ -321,7 +318,7 @@ jobs:
           tar czf "${ARCHIVE_NAME}.tar.gz" \
             "$BINARY_IN_ARCHIVE" \
             README.md \
-            ../LICENSE
+            LICENSE
 
           FINAL_ASSET="${ARCHIVE_NAME}.tar.gz"
           echo "FINAL_ASSET=$FINAL_ASSET" >> $GITHUB_ENV
@@ -332,7 +329,6 @@ jobs:
           ls -lh "$FINAL_ASSET"
 
       - name: Generate checksum
-        working-directory: ./backend-go
         run: |
           # Generate checksum for the archive
           if command -v shasum >/dev/null 2>&1; then
@@ -355,7 +351,6 @@ jobs:
       - name: Upload assets to release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        working-directory: ./backend-go
         run: |
           # Upload all 4 assets for this platform
           gh release upload "v${{ needs.create-release.outputs.version }}" \

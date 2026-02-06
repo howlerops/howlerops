@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package sqlstudio.auth;
 
-option go_package = "github.com/sql-studio/backend-go/api/auth";
+option go_package = "github.com/jbeck018/howlerops/pkg/pb/auth";
 
 import "google/protobuf/timestamp.proto";
 

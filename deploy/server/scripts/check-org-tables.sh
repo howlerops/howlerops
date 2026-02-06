@@ -39,8 +39,6 @@ if [ -z "$TURSO_URL" ] || [ -z "$TURSO_AUTH_TOKEN" ]; then
 
     if [ -f ".env" ]; then
         export $(cat .env | grep -v '^#' | xargs)
-    elif [ -f "backend-go/.env" ]; then
-        export $(cat backend-go/.env | grep -v '^#' | xargs)
     else
         error "No .env file found and environment variables not set"
         error "Please set TURSO_URL and TURSO_AUTH_TOKEN or create a .env file"

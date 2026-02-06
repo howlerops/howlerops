@@ -32,7 +32,12 @@ on:
     branches:
       - main
     paths:
-      - "backend-go/**"
+      - "pkg/**"
+      - "internal/**"
+      - "cmd/**"
+      - "services/**"
+      - "go.mod"
+      - "go.sum"
       - ".github/workflows/ci.yml"
 
   # Run on pushes to main (after merge)
@@ -40,7 +45,12 @@ on:
     branches:
       - main
     paths:
-      - "backend-go/**"
+      - "pkg/**"
+      - "internal/**"
+      - "cmd/**"
+      - "services/**"
+      - "go.mod"
+      - "go.sum"
       - ".github/workflows/ci.yml"
 
   # Allow manual triggering
@@ -85,7 +95,7 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
           # Cache Go modules and build cache for faster subsequent runs
           cache: true
-          cache-dependency-path: backend-go/go.sum
+          cache-dependency-path: go.sum
 
       - name: Install system dependencies
         run: |
@@ -99,21 +109,18 @@ jobs:
             libsqlite3-dev
 
       - name: Download Go modules
-        working-directory: ./backend-go
         run: |
           # Download dependencies with retries for transient failures
           go mod download
           go mod verify
 
       - name: Run go vet
-        working-directory: ./backend-go
         run: |
           # Static analysis to find suspicious constructs
           # Exit on first error for fast feedback
-          go vet ./...
+          go vet -tags duckdb ./...
 
       - name: Run tests with race detection
-        working-directory: ./backend-go
         run: |
           # Run tests with:
           # -v: Verbose output for debugging failures
@@ -125,10 +132,12 @@ jobs:
           # -short: Skip integration tests (test/integration/*) that expect server at localhost:8500
           #         Integration tests check testing.Short() and skip themselves in CI
           #         Run integration tests locally: `go test ./test/integration/... -v`
+          # -tags duckdb: Required build tag for DuckDB support
           go test \
             -v \
             -race \
             -short \
+            -tags duckdb \
             -coverprofile=coverage.out \
             -covermode=atomic \
             -timeout=10m \
@@ -136,7 +145,6 @@ jobs:
             ./...
 
       - name: Generate coverage report
-        working-directory: ./backend-go
         run: |
           # Calculate total coverage percentage
           COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}')
@@ -144,7 +152,6 @@ jobs:
           echo "COVERAGE=$COVERAGE" >> $GITHUB_ENV
 
       - name: Check coverage threshold
-        working-directory: ./backend-go
         run: |
           # Report coverage but don't block on threshold
           # Target: 60% as we add tests for backend DB operations
@@ -164,8 +171,8 @@ jobs:
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
-          file: ./backend-go/coverage.out
-          flags: backend-go
+          file: ./coverage.out
+          flags: backend
           fail_ci_if_error: false
           # Codecov token (optional for public repos)
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -174,7 +181,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
-          path: backend-go/coverage.out
+          path: coverage.out
           retention-days: 30
 
       - name: Comment PR with coverage
@@ -220,7 +227,7 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
-          cache-dependency-path: backend-go/go.sum
+          cache-dependency-path: go.sum
 
       - name: Install system dependencies
         run: |
@@ -233,23 +240,19 @@ jobs:
           # Version of golangci-lint to use
           version: ${{ env.GOLANGCI_LINT_VERSION }}
 
-          # Path to golangci-lint config file
-          # Create .golangci.yml in backend-go/ for custom rules
-          working-directory: backend-go
-
           # Arguments to pass to golangci-lint
           args: >-
             --timeout=10m
             --verbose
             --max-issues-per-linter=0
             --max-same-issues=0
+            --build-tags=duckdb
 
           # Cache golangci-lint analysis results for faster runs
           only-new-issues: false
           skip-cache: true  # Temporarily skip cache to force re-lint with updated config
 
       - name: Check code formatting
-        working-directory: ./backend-go
         run: |
           # Verify code is formatted with gofmt
           # This is redundant with golangci-lint but provides clear error messages
@@ -263,7 +266,6 @@ jobs:
           fi
 
       - name: Check for common security issues
-        working-directory: ./backend-go
         run: |
           # Install gosec for security scanning
           go install github.com/securego/gosec/v2/cmd/gosec@latest
@@ -272,7 +274,7 @@ jobs:
           # -exclude-dir: Skip test files and vendor
           # -exclude=G101: Skip hardcoded credentials check (prone to false positives in generated code)
           # -severity: Only report medium and above
-          gosec -exclude-dir=vendor -exclude-dir=test -exclude=G101 -severity medium ./...
+          gosec -exclude-dir=vendor -exclude-dir=test -exclude=G101 -severity medium -tags duckdb ./...
 
   # ---------------------------------------------------------------------------
   # Job 3: Build Verification
@@ -305,7 +307,7 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
-          cache-dependency-path: backend-go/go.sum
+          cache-dependency-path: go.sum
 
       - name: Install system dependencies (Linux only)
         if: matrix.goos == 'linux'
@@ -314,11 +316,9 @@ jobs:
           sudo apt-get install -y -qq gcc musl-dev sqlite3 libsqlite3-dev
 
       - name: Download Go modules
-        working-directory: ./backend-go
         run: go mod download
 
       - name: Build binary
-        working-directory: ./backend-go
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
@@ -337,6 +337,7 @@ jobs:
           go build \
             -v \
             -trimpath \
+            -tags duckdb \
             -ldflags="-s -w \
               -X 'main.Version=dev' \
               -X 'main.BuildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ)' \
@@ -348,7 +349,6 @@ jobs:
           ls -lh "$OUTPUT_NAME"
 
       - name: Test binary runs
-        working-directory: ./backend-go
         # Only test on Linux (SQLite support)
         if: matrix.goos == 'linux'
         run: |
@@ -373,7 +373,6 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
 
       - name: Run govulncheck
-        working-directory: ./backend-go
         continue-on-error: true
         run: |
           # Install Go's official vulnerability scanner
@@ -382,17 +381,16 @@ jobs:
           # Scan for known vulnerabilities in dependencies
           # Note: Standard library vulnerabilities require Go version upgrades
           # Using continue-on-error to prevent blocking on stdlib CVEs
-          govulncheck ./... || echo "::warning::Vulnerabilities found. Check output for details."
+          govulncheck -tags duckdb ./... || echo "::warning::Vulnerabilities found. Check output for details."
 
       - name: Run Nancy (Sonatype dependency check)
-        working-directory: ./backend-go
         continue-on-error: true
         run: |
           # Install Nancy for additional vulnerability scanning
           go install github.com/sonatype-nexus-community/nancy@latest
 
           # Generate dependency list and scan
-          go list -json -deps ./... | nancy sleuth
+          go list -json -tags duckdb -deps ./... | nancy sleuth
 
 # =============================================================================
 # Workflow Summary
@@ -425,6 +423,6 @@ jobs:
 # To customize:
 # - Adjust coverage threshold in test job (currently 60%)
 # - Add/remove platforms in build matrix
-# - Configure linters in backend-go/.golangci.yml
+# - Configure linters in .golangci.yml
 # - Set CODECOV_TOKEN secret for private repos
 # =============================================================================

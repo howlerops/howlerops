@@ -11,8 +11,8 @@ services:
   # Backend API Service
   backend:
     build:
-      context: ../../backend-go
-      dockerfile: ../infrastructure/docker/backend.Dockerfile
+      context: ../..
+      dockerfile: deploy/server/Dockerfile
       args:
         VERSION: ${VERSION:-dev}
         BUILD_TIME: ${BUILD_TIME:-now}

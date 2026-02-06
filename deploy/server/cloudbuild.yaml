@@ -18,7 +18,7 @@ steps:
     args:
       - "build"
       - "-f"
-      - "backend-go/Dockerfile"
+      - "deploy/server/Dockerfile"
       - "-t"
       - "gcr.io/$PROJECT_ID/howlerops-backend:$SHORT_SHA"
       - "-t"

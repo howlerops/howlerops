@@ -4,8 +4,8 @@ services:
   # Go Backend with gRPC/Protobuf
   backend-go:
     build:
-      context: ./backend-go
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: deploy/server/Dockerfile
     ports:
       - "9500:9500"  # gRPC port
       - "8500:8500"  # HTTP Gateway port
