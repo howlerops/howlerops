@@ -116,7 +116,7 @@ func (e *Engine) CreateView(ctx context.Context, viewName, compiledSQL string) e
 
 	// Drop existing view if it exists
 	dropQuery := fmt.Sprintf("DROP VIEW IF EXISTS %s", viewName)
-	e.db.ExecContext(ctx, dropQuery) // Ignore error if view doesn't exist
+	e.db.ExecContext(ctx, dropQuery) //nolint:errcheck // ignore error if view doesn't exist
 
 	// Create the view
 	createQuery := fmt.Sprintf("CREATE TEMP VIEW %s AS %s", viewName, compiledSQL)

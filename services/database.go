@@ -962,14 +962,14 @@ func (s *DatabaseService) ExecuteMultiDatabaseQuery(query string, options *multi
 func (s *DatabaseService) ValidateMultiQuery(query string) (*MultiQueryValidation, error) {
 	parsed, err := s.manager.ParseMultiQuery(query)
 	if err != nil {
-		return &MultiQueryValidation{
+		return &MultiQueryValidation{ //nolint:nilerr // error embedded in response
 			Valid:  false,
 			Errors: []string{err.Error()},
 		}, nil
 	}
 
 	if err := s.manager.ValidateMultiQuery(parsed); err != nil {
-		return &MultiQueryValidation{
+		return &MultiQueryValidation{ //nolint:nilerr // error embedded in response
 			Valid:  false,
 			Errors: []string{err.Error()},
 		}, nil

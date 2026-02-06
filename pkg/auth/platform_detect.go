@@ -41,7 +41,7 @@ func detectMacOSBiometric() (*BiometricCapability, error) {
 
 	if err != nil {
 		// bioutil not found or no biometric hardware
-		return &BiometricCapability{
+		return &BiometricCapability{ //nolint:nilerr // no hardware is not an error
 			Available: false,
 			Type:      "none",
 			Platform:  "darwin",
@@ -110,7 +110,7 @@ func detectWindowsBiometricAlternative() (*BiometricCapability, error) {
 	output, err := cmd.CombinedOutput()
 
 	if err != nil || len(output) == 0 {
-		return &BiometricCapability{
+		return &BiometricCapability{ //nolint:nilerr // no hardware is not an error
 			Available: false,
 			Type:      "none",
 			Platform:  "windows",
@@ -132,7 +132,7 @@ func detectLinuxBiometric() (*BiometricCapability, error) {
 
 	if err != nil {
 		// fprintd not found
-		return &BiometricCapability{
+		return &BiometricCapability{ //nolint:nilerr // no hardware is not an error
 			Available: false,
 			Type:      "none",
 			Platform:  "linux",
@@ -144,7 +144,7 @@ func detectLinuxBiometric() (*BiometricCapability, error) {
 	output, err := cmd.CombinedOutput()
 
 	if err != nil || len(output) == 0 {
-		return &BiometricCapability{
+		return &BiometricCapability{ //nolint:nilerr // no hardware is not an error
 			Available: false,
 			Type:      "none",
 			Platform:  "linux",

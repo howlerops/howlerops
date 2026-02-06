@@ -201,7 +201,7 @@ func (s *ConnectionService) RemoveConnection(connectionID string) error {
 func (s *ConnectionService) ListConnectionDatabases(connectionID string) (*ListDatabasesResponse, error) {
 	databases, err := s.deps.DatabaseService.ListDatabases(connectionID)
 	if err != nil {
-		return &ListDatabasesResponse{
+		return &ListDatabasesResponse{ //nolint:nilerr // error embedded in response
 			Success: false,
 			Message: err.Error(),
 		}, nil
@@ -217,7 +217,7 @@ func (s *ConnectionService) ListConnectionDatabases(connectionID string) (*ListD
 func (s *ConnectionService) SwitchConnectionDatabase(req SwitchDatabaseRequest) (*SwitchDatabaseResponse, error) {
 	result, err := s.deps.DatabaseService.SwitchDatabase(req.ConnectionID, req.Database)
 	if err != nil {
-		return &SwitchDatabaseResponse{
+		return &SwitchDatabaseResponse{ //nolint:nilerr // error embedded in response
 			Success: false,
 			Message: err.Error(),
 		}, nil

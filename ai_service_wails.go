@@ -472,7 +472,7 @@ func (s *WailsAIService) GetAvailableModels(provider string) ([]ModelInfoRespons
 	if s.aiService == nil {
 		if err := s.applyAIConfiguration(); err != nil {
 			// Return empty list - frontend will use its static registry
-			return []ModelInfoResponse{}, nil
+			return []ModelInfoResponse{}, nil //nolint:nilerr // graceful fallback to static registry
 		}
 	}
 

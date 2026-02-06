@@ -211,7 +211,7 @@ func (f *FileService) WriteFile(filePath, content string) error {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 
-	err := os.WriteFile(filePath, []byte(content), 0644)
+	err := os.WriteFile(filePath, []byte(content), 0600)
 	if err != nil {
 		f.logger.WithFields(logrus.Fields{
 			"file_path": filePath,
@@ -444,7 +444,7 @@ func (f *FileService) CopyFile(srcPath, destPath string) error {
 		return fmt.Errorf("failed to create destination directory: %w", err)
 	}
 
-	err = os.WriteFile(destPath, content, 0644)
+	err = os.WriteFile(destPath, content, 0600)
 	if err != nil {
 		return fmt.Errorf("failed to write destination file: %w", err)
 	}
@@ -522,7 +522,7 @@ func (f *FileService) SaveToDownloads(filename, content string) (string, error) 
 	filePath := filepath.Join(downloadsPath, filename)
 
 	// Write the file
-	err = os.WriteFile(filePath, []byte(content), 0644)
+	err = os.WriteFile(filePath, []byte(content), 0600)
 	if err != nil {
 		f.logger.WithFields(logrus.Fields{
 			"file_path": filePath,

@@ -536,20 +536,12 @@ func (s *ReportService) runComponentWithTimeout(
 }
 
 func (s *ReportService) runComponent(report *storage.Report, component *storage.ReportComponent, filters map[string]interface{}, cache map[string]ReportComponentResult) ReportComponentResult {
-	res := ReportComponentResult{
-		ComponentID: component.ID,
-		Type:        component.Type,
-		Metadata:    map[string]any{},
-	}
-
 	switch component.Type {
 	case storage.ReportComponentLLM:
 		return s.runLLMComponent(report, component, filters, cache)
 	default:
 		return s.runQueryComponent(report, component, filters)
 	}
-
-	return res
 }
 
 func (s *ReportService) runQueryComponent(report *storage.Report, component *storage.ReportComponent, filters map[string]interface{}) ReportComponentResult {

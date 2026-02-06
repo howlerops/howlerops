@@ -59,6 +59,7 @@ linters:
     gosec:
       excludes:
         - G104  # Audit errors not checked (covered by errcheck)
+        - G201  # SQL string formatting (schema introspection uses fmt.Sprintf safely)
         - G304  # File path from user input (intentional for file operations)
       severity: medium
       confidence: medium
@@ -76,6 +77,7 @@ linters:
       - testdata
       - examples
       - ".github"
+      - "build/ios"
     rules:
       - linters:
           - errcheck

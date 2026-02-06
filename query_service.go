@@ -73,7 +73,7 @@ func (s *QueryService) ExecuteQuery(req QueryRequest) (*QueryResponse, error) {
 
 	result, err := s.deps.DatabaseService.ExecuteQuery(req.ConnectionID, req.Query, options)
 	if err != nil {
-		return &QueryResponse{
+		return &QueryResponse{ //nolint:nilerr // error embedded in response
 			Error: err.Error(),
 		}, nil
 	}
@@ -394,7 +394,7 @@ func (s *QueryService) ExecuteMultiDatabaseQuery(req MultiQueryRequest) (*MultiQ
 	// Execute via database service
 	result, err := s.deps.DatabaseService.ExecuteMultiDatabaseQuery(req.Query, options)
 	if err != nil {
-		return &MultiQueryResponse{
+		return &MultiQueryResponse{ //nolint:nilerr // error embedded in response
 			Error: err.Error(),
 		}, nil
 	}
@@ -418,7 +418,7 @@ func (s *QueryService) ValidateMultiQuery(query string) (*ValidationResult, erro
 
 	validation, err := s.deps.DatabaseService.ValidateMultiQuery(query)
 	if err != nil {
-		return &ValidationResult{
+		return &ValidationResult{ //nolint:nilerr // error embedded in response
 			Valid:  false,
 			Errors: []string{err.Error()},
 		}, nil
@@ -499,7 +499,7 @@ func (s *QueryService) ParseQueryConnections(query string) ([]string, error) {
 	// This is a simplified version - the full implementation would need access to the manager
 	validation, err := s.deps.DatabaseService.ValidateMultiQuery(query)
 	if err != nil {
-		return []string{}, nil // Return empty array instead of error for parsing
+		return []string{}, nil //nolint:nilerr // return empty array instead of error for parsing
 	}
 
 	return validation.RequiredConnections, nil

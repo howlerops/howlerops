@@ -133,7 +133,7 @@ func (wm *WebAuthnManager) FinishRegistration(userID, credentialJSON string) err
 	if err != nil {
 		return fmt.Errorf("failed to get session: %w", err)
 	}
-	defer wm.sessionStore.DeleteSession(sessionID)
+	defer wm.sessionStore.DeleteSession(sessionID) //nolint:errcheck // best-effort cleanup
 
 	// Create user (we need it for validation)
 	user := &WebAuthnUser{
@@ -208,7 +208,7 @@ func (wm *WebAuthnManager) FinishAuthentication(userID, assertionJSON string) (s
 	if err != nil {
 		return "", fmt.Errorf("failed to get session: %w", err)
 	}
-	defer wm.sessionStore.DeleteSession(sessionID)
+	defer wm.sessionStore.DeleteSession(sessionID) //nolint:errcheck // best-effort cleanup
 
 	// Create user with stored credentials
 	user := &WebAuthnUser{

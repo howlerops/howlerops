@@ -111,7 +111,7 @@ func (u *UpdateChecker) OpenDownloadPage() error {
 	}
 
 	if u.app != nil {
-		u.app.Browser.OpenURL(u.latestRelease.HTMLURL)
+		_ = u.app.Browser.OpenURL(u.latestRelease.HTMLURL)
 	}
 	return nil
 }
@@ -197,10 +197,10 @@ func compareVersions(v1, v2 string) int {
 		var p1, p2 int
 
 		if i < len(parts1) {
-			fmt.Sscanf(parts1[i], "%d", &p1)
+			fmt.Sscanf(parts1[i], "%d", &p1) //nolint:errcheck // p1 defaults to 0 on parse failure
 		}
 		if i < len(parts2) {
-			fmt.Sscanf(parts2[i], "%d", &p2)
+			fmt.Sscanf(parts2[i], "%d", &p2) //nolint:errcheck // p2 defaults to 0 on parse failure
 		}
 
 		if p1 > p2 {
