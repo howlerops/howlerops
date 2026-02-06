@@ -96,6 +96,11 @@ func setupMenu(app *application.App, window application.Window) {
 	// Create the main menu
 	menu := app.Menu.New()
 
+	// macOS requires the AppMenu (About, Services, Hide, Quit) as the first menu
+	if runtime.GOOS == "darwin" {
+		menu.AddRole(application.AppMenu)
+	}
+
 	// File menu
 	fileMenu := menu.AddSubmenu("File")
 	fileMenu.Add("New Query").SetAccelerator("CmdOrCtrl+N")
@@ -104,20 +109,29 @@ func setupMenu(app *application.App, window application.Window) {
 	fileMenu.Add("Save As...").SetAccelerator("CmdOrCtrl+Shift+S")
 	fileMenu.AddSeparator()
 	fileMenu.Add("Close Tab").SetAccelerator("CmdOrCtrl+W")
-	fileMenu.Add("Quit").SetAccelerator("CmdOrCtrl+Q").OnClick(func(ctx *application.Context) {
-		app.Quit()
-	})
-
-	// Edit menu
-	editMenu := menu.AddSubmenu("Edit")
-	editMenu.Add("Undo").SetAccelerator("CmdOrCtrl+Z")
-	editMenu.Add("Redo").SetAccelerator("CmdOrCtrl+Shift+Z")
-	editMenu.AddSeparator()
-	editMenu.Add("Cut").SetAccelerator("CmdOrCtrl+X")
-	editMenu.Add("Copy").SetAccelerator("CmdOrCtrl+C")
-	editMenu.Add("Paste").SetAccelerator("CmdOrCtrl+V")
-	editMenu.Add("Select All").SetAccelerator("CmdOrCtrl+A")
 	if runtime.GOOS != "darwin" {
+		// On macOS, Quit lives in the AppMenu; on other platforms add it to File
+		fileMenu.Add("Quit").SetAccelerator("CmdOrCtrl+Q").OnClick(func(ctx *application.Context) {
+			app.Quit()
+		})
+	}
+
+	// Edit menu — use role-based items so native macOS selectors (cut:, copy:, paste:, etc.) bind correctly
+	editMenu := menu.AddSubmenu("Edit")
+	editMenu.AddRole(application.Undo)
+	editMenu.AddRole(application.Redo)
+	editMenu.AddSeparator()
+	editMenu.AddRole(application.Cut)
+	editMenu.AddRole(application.Copy)
+	editMenu.AddRole(application.Paste)
+	if runtime.GOOS == "darwin" {
+		editMenu.AddRole(application.PasteAndMatchStyle)
+		editMenu.AddRole(application.Delete)
+		editMenu.AddRole(application.SelectAll)
+	} else {
+		editMenu.AddRole(application.Delete)
+		editMenu.AddSeparator()
+		editMenu.AddRole(application.SelectAll)
 		editMenu.AddSeparator()
 		editMenu.Add("Find").SetAccelerator("CmdOrCtrl+F")
 		editMenu.Add("Replace").SetAccelerator("CmdOrCtrl+H")

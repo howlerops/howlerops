@@ -412,7 +412,7 @@ export function Sidebar({ onToggle, isCollapsed = false }: SidebarProps) {
           </div>
 
           {/* Navigation Links */}
-          <nav className="px-2 space-y-1">
+          <nav className="px-3 space-y-1">
             {NAV_ITEMS.map((item) => {
               const Icon = item.icon
               const isActive = location.pathname === item.path

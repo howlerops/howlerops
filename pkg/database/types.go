@@ -85,6 +85,12 @@ type ConnectionConfig struct {
 	// VPC / Private Link configuration
 	UseVPC    bool       `json:"use_vpc"`
 	VPCConfig *VPCConfig `json:"vpc_config,omitempty"`
+
+	// PoolerCompatible enables compatibility with connection poolers
+	// (pgcat, PgBouncer) in transaction mode. For PostgreSQL, this adds
+	// binary_parameters=yes to the DSN and enables automatic retry on
+	// prepared statement errors caused by backend connection reassignment.
+	PoolerCompatible bool `json:"pooler_compatible"`
 }
 
 // Connection represents a database connection with metadata

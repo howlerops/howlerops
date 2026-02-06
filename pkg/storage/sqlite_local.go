@@ -409,6 +409,15 @@ func (s *LocalSQLiteStorage) SaveConnection(ctx context.Context, conn *Connectio
 		return fmt.Errorf("failed to marshal metadata: %w", err)
 	}
 
+	// Marshal SSLConfig to JSON string for SQLite storage
+	var sslConfigJSON []byte
+	if conn.SSLConfig != nil {
+		sslConfigJSON, err = json.Marshal(conn.SSLConfig)
+		if err != nil {
+			return fmt.Errorf("failed to marshal ssl_config: %w", err)
+		}
+	}
+
 	_, err = s.db.ExecContext(ctx, `
 		INSERT INTO connections (id, name, type, host, port, database_name, username, password_encrypted,
 		                        ssl_config, created_by, created_at, updated_at, team_id, is_shared, metadata)
@@ -425,7 +434,7 @@ func (s *LocalSQLiteStorage) SaveConnection(ctx context.Context, conn *Connectio
 			updated_at = excluded.updated_at,
 			metadata = excluded.metadata
 	`, conn.ID, conn.Name, conn.Type, conn.Host, conn.Port, conn.DatabaseName, conn.Username,
-		conn.PasswordEncrypted, conn.SSLConfig, conn.CreatedBy, conn.CreatedAt.Unix(),
+		conn.PasswordEncrypted, string(sslConfigJSON), conn.CreatedBy, conn.CreatedAt.Unix(),
 		conn.UpdatedAt.Unix(), conn.TeamID, conn.IsShared, string(metadataJSON))
 
 	return err

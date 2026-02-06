@@ -162,6 +162,14 @@ func (p *ConnectionPool) buildPostgresDSN() string {
 		dsn += fmt.Sprintf(" connect_timeout=%d", int(p.config.ConnectionTimeout.Seconds()))
 	}
 
+	// When behind a connection pooler (pgcat, PgBouncer) in transaction mode,
+	// binary_parameters=yes eliminates the Describe+Sync round-trip in lib/pq
+	// that causes "unnamed prepared statement does not exist" errors when the
+	// pooler reassigns the backend connection between protocol messages.
+	if p.config.PoolerCompatible {
+		dsn += " binary_parameters=yes"
+	}
+
 	// Add custom parameters
 	for key, value := range p.config.Parameters {
 		dsn += fmt.Sprintf(" %s=%s", key, value)

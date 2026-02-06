@@ -214,9 +214,10 @@ func (p *PostgresDatabase) executeSelect(ctx context.Context, db *sql.DB, query 
 			// No user LIMIT - get total count and apply pagination
 			// #nosec G201 - queryWithoutLimit is the user's SELECT query which will be executed with parameterized args
 			countQuery := fmt.Sprintf("SELECT COUNT(*) FROM (%s) AS count_subquery", queryWithoutLimit)
-			err := db.QueryRowContext(ctx, countQuery, args...).Scan(&totalRows)
-			if err != nil {
-				p.logger.WithError(err).Warn("Failed to get total count for pagination")
+			if countErr := retryQueryRow(ctx, db, p.logger, countQuery, args, func(row *sql.Row) error {
+				return row.Scan(&totalRows)
+			}); countErr != nil {
+				p.logger.WithError(countErr).Warn("Failed to get total count for pagination")
 				totalRows = 0
 			}
 
@@ -230,14 +231,15 @@ func (p *PostgresDatabase) executeSelect(ctx context.Context, db *sql.DB, query 
 		modifiedQuery = trimmedQuery
 	}
 
-	// Step 3: Execute modified query
-	rows, err := db.QueryContext(ctx, modifiedQuery, args...)
+	// Step 3: Execute modified query (with retry for connection pooler compatibility)
+	rows, connCleanup, err := retryQuery(ctx, db, p.logger, modifiedQuery, args...)
 	if err != nil {
 		return &QueryResult{
 			Error:    err,
 			Duration: time.Since(start),
 		}, err
 	}
+	defer connCleanup() // close pinned connection (if used) after rows are done
 	defer func() {
 		if err := rows.Close(); err != nil {
 			p.logger.WithError(err).Error("Failed to close rows")
@@ -587,7 +589,7 @@ func normalizeDriverValue(value interface{}) interface{} {
 func (p *PostgresDatabase) executeNonSelect(ctx context.Context, db *sql.DB, query string, args ...interface{}) (*QueryResult, error) {
 	start := time.Now()
 
-	sqlResult, err := db.ExecContext(ctx, query, args...)
+	sqlResult, err := retryExec(ctx, db, p.logger, query, args...)
 	if err != nil {
 		return &QueryResult{
 			Error:    err,
@@ -723,7 +725,7 @@ func (p *PostgresDatabase) UpdateRow(ctx context.Context, params UpdateRowParams
 		return err
 	}
 
-	result, err := db.ExecContext(ctx, updateSQL, args...)
+	result, err := retryExec(ctx, db, p.logger, updateSQL, args...)
 	if err != nil {
 		return err
 	}
@@ -852,14 +854,15 @@ func (p *PostgresDatabase) InsertRow(ctx context.Context, params InsertRowParams
 		return nil, err
 	}
 
-	row := db.QueryRowContext(ctx, insertSQL, args...)
 	resultValues := make([]interface{}, len(returningColumns))
 	scanArgs := make([]interface{}, len(returningColumns))
 	for i := range resultValues {
 		scanArgs[i] = &resultValues[i]
 	}
 
-	if err := row.Scan(scanArgs...); err != nil {
+	if err := retryQueryRow(ctx, db, p.logger, insertSQL, args, func(row *sql.Row) error {
+		return row.Scan(scanArgs...)
+	}); err != nil {
 		return nil, err
 	}
 
@@ -960,7 +963,7 @@ func (p *PostgresDatabase) DeleteRow(ctx context.Context, params DeleteRowParams
 		return err
 	}
 
-	result, err := db.ExecContext(ctx, deleteSQL, args...)
+	result, err := retryExec(ctx, db, p.logger, deleteSQL, args...)
 	if err != nil {
 		return err
 	}
@@ -979,10 +982,11 @@ func (p *PostgresDatabase) ExecuteStream(ctx context.Context, query string, batc
 		return err
 	}
 
-	rows, err := db.QueryContext(ctx, query, args...)
+	rows, connCleanup, err := retryQuery(ctx, db, p.logger, query, args...)
 	if err != nil {
 		return err
 	}
+	defer connCleanup() // close pinned connection (if used) after rows are done
 	defer func() {
 		if err := rows.Close(); err != nil {
 			p.logger.WithError(err).Error("Failed to close rows")
@@ -1044,7 +1048,9 @@ func (p *PostgresDatabase) ExplainQuery(ctx context.Context, query string, args 
 	explainQuery := "EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) " + query
 
 	var plan string
-	err = db.QueryRowContext(ctx, explainQuery, args...).Scan(&plan)
+	err = retryQueryRow(ctx, db, p.logger, explainQuery, args, func(row *sql.Row) error {
+		return row.Scan(&plan)
+	})
 	if err != nil {
 		return "", fmt.Errorf("failed to explain query: %w", err)
 	}
@@ -1142,7 +1148,10 @@ func (p *PostgresDatabase) GetTables(ctx context.Context, schema string) ([]Tabl
 		return nil, err
 	}
 
-	query := `
+	// Use QueryRowContext directly without prepared statements to avoid
+	// "unnamed prepared statement does not exist" errors in connection pools.
+	// Schema names come from pg_catalog, so string formatting is safe here.
+	query := fmt.Sprintf(`
 		SELECT
 			t.table_schema,
 			t.table_name,
@@ -1154,10 +1163,10 @@ func (p *PostgresDatabase) GetTables(ctx context.Context, schema string) ([]Tabl
 		LEFT JOIN pg_class c ON c.relname = t.table_name
 		LEFT JOIN pg_namespace n ON n.oid = c.relnamespace AND n.nspname = t.table_schema
 		LEFT JOIN pg_stat_user_tables s ON s.relname = t.table_name AND s.schemaname = t.table_schema
-		WHERE t.table_schema = $1
-		ORDER BY t.table_name`
+		WHERE t.table_schema = '%s'
+		ORDER BY t.table_name`, schema)
 
-	rows, err := db.QueryContext(ctx, query, schema)
+	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -1217,7 +1226,9 @@ func (p *PostgresDatabase) GetTableStructure(ctx context.Context, schema, table 
 
 // Helper methods for getting table structure details
 func (p *PostgresDatabase) getTableInfo(ctx context.Context, db *sql.DB, schema, table string) (*TableInfo, error) {
-	query := `
+	// Use direct query without prepared statements to avoid connection pool issues.
+	// Schema and table names come from pg_catalog, so string formatting is safe here.
+	query := fmt.Sprintf(`
 		SELECT
 			t.table_schema,
 			t.table_name,
@@ -1229,12 +1240,12 @@ func (p *PostgresDatabase) getTableInfo(ctx context.Context, db *sql.DB, schema,
 		LEFT JOIN pg_class c ON c.relname = t.table_name
 		LEFT JOIN pg_namespace n ON n.oid = c.relnamespace AND n.nspname = t.table_schema
 		LEFT JOIN pg_stat_user_tables s ON s.relname = t.table_name AND s.schemaname = t.table_schema
-		WHERE t.table_schema = $1 AND t.table_name = $2`
+		WHERE t.table_schema = '%s' AND t.table_name = '%s'`, schema, table)
 
 	var tableInfo TableInfo
 	var tableType string
 
-	err := db.QueryRowContext(ctx, query, schema, table).Scan(
+	err := db.QueryRowContext(ctx, query).Scan(
 		&tableInfo.Schema,
 		&tableInfo.Name,
 		&tableType,
@@ -1260,7 +1271,9 @@ func (p *PostgresDatabase) getTableInfo(ctx context.Context, db *sql.DB, schema,
 }
 
 func (p *PostgresDatabase) getTableColumns(ctx context.Context, db *sql.DB, schema, table string) ([]ColumnInfo, error) {
-	query := `
+	// Use direct query without prepared statements to avoid connection pool issues.
+	// Schema and table names come from pg_catalog, so string formatting is safe here.
+	query := fmt.Sprintf(`
 		SELECT
 			c.column_name,
 			c.data_type,
@@ -1280,12 +1293,12 @@ func (p *PostgresDatabase) getTableColumns(ctx context.Context, db *sql.DB, sche
 			FROM information_schema.key_column_usage ku
 			JOIN information_schema.table_constraints tc ON ku.constraint_name = tc.constraint_name
 			WHERE tc.constraint_type = 'PRIMARY KEY'
-			AND tc.table_schema = $1 AND tc.table_name = $2
+			AND tc.table_schema = '%s' AND tc.table_name = '%s'
 		) pk ON pk.column_name = c.column_name
-		WHERE c.table_schema = $1 AND c.table_name = $2
-		ORDER BY c.ordinal_position`
+		WHERE c.table_schema = '%s' AND c.table_name = '%s'
+		ORDER BY c.ordinal_position`, schema, table, schema, table)
 
-	rows, err := db.QueryContext(ctx, query, schema, table)
+	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -1340,7 +1353,9 @@ func (p *PostgresDatabase) getTableColumns(ctx context.Context, db *sql.DB, sche
 }
 
 func (p *PostgresDatabase) getTableIndexes(ctx context.Context, db *sql.DB, schema, table string) ([]IndexInfo, error) {
-	query := `
+	// Use direct query without prepared statements to avoid connection pool issues.
+	// Schema and table names come from pg_catalog, so string formatting is safe here.
+	query := fmt.Sprintf(`
 		SELECT
 			i.relname as index_name,
 			array_agg(a.attname ORDER BY c.ordinality) as columns,
@@ -1354,11 +1369,11 @@ func (p *PostgresDatabase) getTableIndexes(ctx context.Context, db *sql.DB, sche
 		JOIN pg_am am ON am.oid = i.relam
 		JOIN unnest(ix.indkey) WITH ORDINALITY AS c(attnum, ordinality) ON true
 		JOIN pg_attribute a ON a.attrelid = ix.indrelid AND a.attnum = c.attnum
-		WHERE n.nspname = $1 AND t.relname = $2
+		WHERE n.nspname = '%s' AND t.relname = '%s'
 		GROUP BY i.relname, ix.indisunique, ix.indisprimary, am.amname
-		ORDER BY i.relname`
+		ORDER BY i.relname`, schema, table)
 
-	rows, err := db.QueryContext(ctx, query, schema, table)
+	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -1397,7 +1412,9 @@ func (p *PostgresDatabase) getTableIndexes(ctx context.Context, db *sql.DB, sche
 }
 
 func (p *PostgresDatabase) getTableForeignKeys(ctx context.Context, db *sql.DB, schema, table string) ([]ForeignKeyInfo, error) {
-	query := `
+	// Use direct query without prepared statements to avoid connection pool issues.
+	// Schema and table names come from pg_catalog, so string formatting is safe here.
+	query := fmt.Sprintf(`
 		SELECT
 			tc.constraint_name,
 			array_agg(kcu.column_name ORDER BY kcu.ordinal_position) as columns,
@@ -1411,11 +1428,11 @@ func (p *PostgresDatabase) getTableForeignKeys(ctx context.Context, db *sql.DB, 
 		JOIN information_schema.constraint_column_usage ccu ON ccu.constraint_name = tc.constraint_name
 		JOIN information_schema.referential_constraints rc ON rc.constraint_name = tc.constraint_name
 		WHERE tc.constraint_type = 'FOREIGN KEY'
-		AND tc.table_schema = $1 AND tc.table_name = $2
+		AND tc.table_schema = '%s' AND tc.table_name = '%s'
 		GROUP BY tc.constraint_name, ccu.table_name, ccu.table_schema, rc.delete_rule, rc.update_rule
-		ORDER BY tc.constraint_name`
+		ORDER BY tc.constraint_name`, schema, table)
 
-	rows, err := db.QueryContext(ctx, query, schema, table)
+	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
 	}

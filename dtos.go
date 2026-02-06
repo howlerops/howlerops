@@ -28,6 +28,7 @@ type ConnectionRequest struct {
 	SSLMode           string            `json:"sslMode,omitempty"`
 	ConnectionTimeout int               `json:"connectionTimeout,omitempty"`
 	Parameters        map[string]string `json:"parameters,omitempty"`
+	PoolerCompatible  bool              `json:"poolerCompatible,omitempty"` // Enable for pgcat/PgBouncer in transaction mode
 }
 
 // ConnectionInfo represents connection information

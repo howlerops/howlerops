@@ -77,14 +77,15 @@ func (s *ConnectionService) CreateConnection(req ConnectionRequest) (*Connection
 
 	// Convert request to internal config
 	config := database.ConnectionConfig{
-		ID:       req.ID, // Pass stored connection ID for reconnecting
-		Type:     database.DatabaseType(req.Type),
-		Host:     req.Host,
-		Port:     req.Port,
-		Database: req.Database,
-		Username: req.Username,
-		Password: req.Password,
-		SSLMode:  req.SSLMode,
+		ID:               req.ID, // Pass stored connection ID for reconnecting
+		Type:             database.DatabaseType(req.Type),
+		Host:             req.Host,
+		Port:             req.Port,
+		Database:         req.Database,
+		Username:         req.Username,
+		Password:         req.Password,
+		SSLMode:          req.SSLMode,
+		PoolerCompatible: req.PoolerCompatible,
 	}
 
 	// Set default timeout if not provided
