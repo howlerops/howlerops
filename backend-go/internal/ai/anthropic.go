@@ -79,9 +79,9 @@ func NewAnthropicProvider(config *AnthropicConfig, logger *logrus.Logger) (AIPro
 
 	if len(config.Models) == 0 {
 		config.Models = []string{
-			"claude-3-5-sonnet-20241022",
-			"claude-3-5-haiku-20241022",
-			"claude-3-opus-20240229",
+			"claude-sonnet-4-5-20250929",
+			"claude-haiku-4-5-20251001",
+			"claude-sonnet-4-20250514",
 		}
 	}
 
@@ -201,40 +201,133 @@ func (p *anthropicProvider) HealthCheck(ctx context.Context) (*HealthStatus, err
 	}, nil
 }
 
-// GetModels returns available models from Anthropic
-func (p *anthropicProvider) GetModels(_ context.Context) ([]ModelInfo, error) {
-	// Anthropic doesn't have a models endpoint, so we return the configured models
+// anthropicModelsResponse represents the response from Anthropic's /v1/models API
+type anthropicModelsResponse struct {
+	Data []struct {
+		ID          string `json:"id"`
+		CreatedAt   string `json:"created_at"`
+		DisplayName string `json:"display_name"`
+		Type        string `json:"type"`
+	} `json:"data"`
+	HasMore bool   `json:"has_more"`
+	FirstID string `json:"first_id"`
+	LastID  string `json:"last_id"`
+}
+
+// GetModels returns available models from Anthropic, querying the API with fallback to config
+func (p *anthropicProvider) GetModels(ctx context.Context) ([]ModelInfo, error) {
+	// Try the live /v1/models API first
+	models, err := p.fetchModelsFromAPI(ctx)
+	if err == nil && len(models) > 0 {
+		return models, nil
+	}
+
+	if err != nil {
+		p.logger.WithError(err).Debug("Failed to fetch models from Anthropic API, using configured defaults")
+	}
+
+	// Fallback: return configured models with static metadata
+	return p.getConfiguredModels(), nil
+}
+
+// fetchModelsFromAPI calls Anthropic's /v1/models endpoint
+func (p *anthropicProvider) fetchModelsFromAPI(ctx context.Context) ([]ModelInfo, error) {
+	url := fmt.Sprintf("%s/v1/models?limit=100", strings.TrimRight(p.config.BaseURL, "/"))
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("x-api-key", p.config.APIKey)
+	req.Header.Set("anthropic-version", p.config.Version)
+
+	resp, err := p.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to call models API: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("models API returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var apiResp anthropicModelsResponse
+	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
+		return nil, fmt.Errorf("failed to decode models response: %w", err)
+	}
+
+	models := make([]ModelInfo, 0, len(apiResp.Data))
+	for _, m := range apiResp.Data {
+		if m.Type != "model" {
+			continue
+		}
+
+		displayName := m.DisplayName
+		if displayName == "" {
+			displayName = m.ID
+		}
+
+		models = append(models, ModelInfo{
+			ID:           m.ID,
+			Name:         displayName,
+			Provider:     ProviderAnthropic,
+			Description:  displayName,
+			MaxTokens:    200000,
+			Capabilities: []string{"text-to-sql", "sql-fixing", "explanation", "analysis"},
+			Metadata: map[string]string{
+				"created_at": m.CreatedAt,
+				"source":     "api",
+			},
+		})
+	}
+
+	return models, nil
+}
+
+// getConfiguredModels returns the statically configured models as fallback
+func (p *anthropicProvider) getConfiguredModels() []ModelInfo {
 	models := make([]ModelInfo, 0, len(p.config.Models))
 	for _, modelID := range p.config.Models {
-		var description string
-		var maxTokens int
-
-		switch {
-		case strings.Contains(modelID, "claude-3-5-sonnet"):
-			description = "Claude 3.5 Sonnet - Most intelligent model, best for complex analysis"
-			maxTokens = 200000
-		case strings.Contains(modelID, "claude-3-5-haiku"):
-			description = "Claude 3.5 Haiku - Fastest and most cost-effective model"
-			maxTokens = 200000
-		case strings.Contains(modelID, "claude-3-opus"):
-			description = "Claude 3 Opus - Most powerful model for highly complex tasks"
-			maxTokens = 200000
-		default:
-			description = fmt.Sprintf("Anthropic %s model", modelID)
-			maxTokens = 100000
-		}
+		description := descriptionForModel(modelID)
 
 		models = append(models, ModelInfo{
 			ID:           modelID,
 			Name:         modelID,
 			Provider:     ProviderAnthropic,
 			Description:  description,
-			MaxTokens:    maxTokens,
+			MaxTokens:    200000,
 			Capabilities: []string{"text-to-sql", "sql-fixing", "explanation", "analysis"},
+			Metadata: map[string]string{
+				"source": "config",
+			},
 		})
 	}
+	return models
+}
 
-	return models, nil
+func descriptionForModel(modelID string) string {
+	switch {
+	case strings.Contains(modelID, "opus-4-6"):
+		return "Claude Opus 4.6 - Most intelligent, best for complex reasoning"
+	case strings.Contains(modelID, "opus-4-5"):
+		return "Claude Opus 4.5 - Highly capable for complex tasks"
+	case strings.Contains(modelID, "sonnet-4-5"):
+		return "Claude Sonnet 4.5 - Best balance of speed and intelligence"
+	case strings.Contains(modelID, "haiku-4-5"):
+		return "Claude Haiku 4.5 - Fastest model, near-frontier intelligence"
+	case strings.Contains(modelID, "sonnet-4"):
+		return "Claude Sonnet 4 - Strong reasoning and coding"
+	case strings.Contains(modelID, "claude-3-5-sonnet"):
+		return "Claude 3.5 Sonnet (Legacy)"
+	case strings.Contains(modelID, "claude-3-5-haiku"):
+		return "Claude 3.5 Haiku (Legacy)"
+	case strings.Contains(modelID, "claude-3-opus"):
+		return "Claude 3 Opus (Legacy)"
+	default:
+		return fmt.Sprintf("Anthropic %s", modelID)
+	}
 }
 
 // GetProviderType returns the provider type

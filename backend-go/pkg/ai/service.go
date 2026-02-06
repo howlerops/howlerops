@@ -20,6 +20,9 @@ type RuntimeConfig = ai.Config
 // Provider re-exports the provider identifier type.
 type Provider = ai.Provider
 
+// ModelInfo re-exports the model info type.
+type ModelInfo = ai.ModelInfo
+
 const (
 	ProviderOpenAI      = ai.ProviderOpenAI
 	ProviderAnthropic   = ai.ProviderAnthropic
@@ -234,6 +237,16 @@ func (s *Service) GetProviders(ctx context.Context) ([]ProviderStatus, error) {
 	}
 
 	return statuses, nil
+}
+
+// GetAvailableModels returns available models for a specific provider
+func (s *Service) GetAvailableModels(ctx context.Context, provider Provider) ([]ModelInfo, error) {
+	return s.internal.GetAvailableModels(ctx, provider)
+}
+
+// GetAllAvailableModels returns available models for all configured providers
+func (s *Service) GetAllAvailableModels(ctx context.Context) (map[Provider][]ModelInfo, error) {
+	return s.internal.GetAllAvailableModels(ctx)
 }
 
 // Start starts the AI service

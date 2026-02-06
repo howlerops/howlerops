@@ -1386,6 +1386,36 @@ func (a *App) OpenFileDialog() (string, error) {
 	return a.fileService.OpenFile(nil)
 }
 
+// OpenEnvFileDialog opens a file dialog for .env files and returns the selected file path and content
+func (a *App) OpenEnvFileDialog() (map[string]string, error) {
+	// ShowHiddenFiles(true) is required on macOS to see dotfiles like .env
+	// NOTE: Do NOT use AddFilter() - .env files have no extension and macOS
+	// will grey them out as unselectable when any filter is applied
+	dialog := a.application.Dialog.OpenFile().
+		SetTitle("Open .env File").
+		ShowHiddenFiles(true)
+
+	filePath, err := dialog.PromptForSingleSelection()
+	if err != nil {
+		return nil, err
+	}
+
+	if filePath == "" {
+		return nil, nil // User cancelled
+	}
+
+	// Read the file content
+	content, err := a.fileService.ReadFile(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file: %w", err)
+	}
+
+	return map[string]string{
+		"path":    filePath,
+		"content": content,
+	}, nil
+}
+
 // SaveFileDialog opens a save file dialog and returns the selected file path
 func (a *App) SaveFileDialog() (string, error) {
 	return a.fileService.SaveFile("query.sql")
@@ -3973,6 +4003,59 @@ func (a *App) SuggestVisualization(resultData ResultData) (*VizSuggestion, error
 
 	// TODO: Integrate with backend-go AI service when properly exposed
 	return nil, fmt.Errorf("AI service not yet integrated")
+}
+
+// ModelInfoResponse represents model information returned to the frontend
+type ModelInfoResponse struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Provider    string `json:"provider"`
+	Description string `json:"description,omitempty"`
+	MaxTokens   int    `json:"maxTokens,omitempty"`
+	Source      string `json:"source,omitempty"`
+}
+
+// GetAvailableModels returns the available models for a specific AI provider.
+// It queries the provider's API dynamically when possible, falling back to configured defaults.
+func (a *App) GetAvailableModels(provider string) ([]ModelInfoResponse, error) {
+	a.logger.WithField("provider", provider).Debug("Getting available models")
+
+	if a.aiService == nil {
+		if err := a.applyAIConfiguration(); err != nil {
+			// Return empty list - frontend will use its static registry
+			return []ModelInfoResponse{}, nil
+		}
+	}
+
+	if a.aiService == nil {
+		return []ModelInfoResponse{}, nil
+	}
+
+	models, err := a.aiService.GetAvailableModels(a.ctx, ai.Provider(provider))
+	if err != nil {
+		a.logger.WithError(err).WithField("provider", provider).Debug("Failed to get models from provider")
+		return []ModelInfoResponse{}, nil
+	}
+
+	result := make([]ModelInfoResponse, 0, len(models))
+	for _, m := range models {
+		source := "api"
+		if m.Metadata != nil {
+			if s, ok := m.Metadata["source"]; ok {
+				source = s
+			}
+		}
+		result = append(result, ModelInfoResponse{
+			ID:          m.ID,
+			Name:        m.Name,
+			Provider:    string(m.Provider),
+			Description: m.Description,
+			MaxTokens:   m.MaxTokens,
+			Source:      source,
+		})
+	}
+
+	return result, nil
 }
 
 // GetAIProviderStatus returns the status of available AI providers

@@ -306,13 +306,63 @@ func (s *SQLiteVectorStore) parseSQLStatements(sql string) []string {
 	return statements
 }
 
+// cleanupFTS5IfUnavailable removes FTS5-related triggers and tables if FTS5 module is not available
+// This prevents errors when triggers try to update non-existent FTS5 tables
+func (s *SQLiteVectorStore) cleanupFTS5IfUnavailable(ctx context.Context) error {
+	// Check if FTS5 is available by trying to create a test table
+	_, err := s.db.ExecContext(ctx, "CREATE VIRTUAL TABLE IF NOT EXISTS _fts5_test USING fts5(test)")
+	if err != nil && strings.Contains(err.Error(), "no such module: fts5") {
+		s.logger.Info("FTS5 module not available, cleaning up FTS5 artifacts")
+
+		// Check if FTS5 triggers exist and drop them
+		triggers := []string{"documents_ai", "documents_au", "documents_ad"}
+		for _, trigger := range triggers {
+			var exists bool
+			err := s.db.QueryRowContext(ctx, `
+				SELECT COUNT(*) > 0 FROM sqlite_master
+				WHERE type='trigger' AND name=?
+			`, trigger).Scan(&exists)
+			if err == nil && exists {
+				if _, err := s.db.ExecContext(ctx, fmt.Sprintf("DROP TRIGGER IF EXISTS %s", trigger)); err != nil {
+					s.logger.WithError(err).Warnf("Failed to drop FTS5 trigger: %s", trigger)
+				} else {
+					s.logger.Debugf("Dropped FTS5 trigger: %s", trigger)
+				}
+			}
+		}
+
+		// Check if documents_fts table exists and drop it
+		var ftsExists bool
+		err = s.db.QueryRowContext(ctx, `
+			SELECT COUNT(*) > 0 FROM sqlite_master
+			WHERE type='table' AND name='documents_fts'
+		`).Scan(&ftsExists)
+		if err == nil && ftsExists {
+			if _, err := s.db.ExecContext(ctx, "DROP TABLE IF EXISTS documents_fts"); err != nil {
+				s.logger.WithError(err).Warn("Failed to drop documents_fts table")
+			} else {
+				s.logger.Info("Dropped documents_fts table (FTS5 unavailable)")
+			}
+		}
+
+		return nil
+	}
+
+	// FTS5 is available, clean up test table
+	if err == nil {
+		_, _ = s.db.ExecContext(ctx, "DROP TABLE IF EXISTS _fts5_test")
+	}
+
+	return nil
+}
+
 // Initialize initializes the vector store
 func (s *SQLiteVectorStore) Initialize(ctx context.Context) error {
 	// Check if collections table exists
 	var tableExists bool
 	err := s.db.QueryRowContext(ctx, `
-		SELECT COUNT(*) > 0 
-		FROM sqlite_master 
+		SELECT COUNT(*) > 0
+		FROM sqlite_master
 		WHERE type='table' AND name='collections'
 	`).Scan(&tableExists)
 
@@ -326,6 +376,11 @@ func (s *SQLiteVectorStore) Initialize(ctx context.Context) error {
 		if err := s.runMigrations(ctx); err != nil {
 			return fmt.Errorf("failed to run migrations: %w", err)
 		}
+	}
+
+	// Clean up FTS5 artifacts if FTS5 is not available (prevents trigger errors)
+	if err := s.cleanupFTS5IfUnavailable(ctx); err != nil {
+		s.logger.WithError(err).Warn("Failed to cleanup FTS5 artifacts")
 	}
 
 	// Load existing collections

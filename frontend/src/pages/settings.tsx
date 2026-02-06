@@ -2,6 +2,14 @@ import { AlertTriangle, ArrowLeft, Brain, CheckCircle, Download, Key, Play, Serv
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
 
+import {
+  fetchModelsForProvider,
+  getModelsForProvider,
+  getDefaultModelId,
+  invalidateModelCache,
+  type AIModel,
+  type AIProvider,
+} from "@/config/ai-models"
 import { PageErrorBoundary } from "@/components/page-error-boundary"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -84,6 +92,23 @@ export function Settings() {
   const { config: aiConfig, updateConfig, testConnection, connectionStatus } = useAIConfig()
   const ollamaDetection = useOllamaDetection(aiConfig.provider === 'ollama')
 
+  // Dynamic model list from provider APIs (with static fallback)
+  const [providerModels, setProviderModels] = useState<AIModel[]>(() =>
+    getModelsForProvider(aiConfig.provider as AIProvider)
+  )
+  const [modelsLoading, setModelsLoading] = useState(false)
+
+  useEffect(() => {
+    const provider = aiConfig.provider as AIProvider
+    // Show static models immediately
+    setProviderModels(getModelsForProvider(provider))
+    // Then fetch dynamic models in the background
+    setModelsLoading(true)
+    fetchModelsForProvider(provider)
+      .then(setProviderModels)
+      .finally(() => setModelsLoading(false))
+  }, [aiConfig.provider])
+
   // Track initial config to detect changes
   const initialConfigRef = useRef(aiConfig)
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
@@ -101,16 +126,8 @@ export function Settings() {
     updateConfig({ [key]: value })
 
     if (key === 'provider') {
-      const recommendedModelMap: Record<string, string> = {
-        openai: 'gpt-4o-mini',
-        anthropic: 'claude-3-5-sonnet-20241022',
-        ollama: 'sqlcoder:7b',
-        huggingface: 'sqlcoder:7b',
-        claudecode: 'opus',
-        codex: 'code-davinci-002',
-      }
-
-      const recommendedModel = recommendedModelMap[value as string]
+      invalidateModelCache(value as AIProvider)
+      const recommendedModel = getDefaultModelId(value as AIProvider)
       if (recommendedModel) {
         updateConfig({ selectedModel: recommendedModel })
       }
@@ -510,10 +527,20 @@ export function Settings() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="gpt-4o-mini">GPT-4o Mini (Recommended)</SelectItem>
-                          <SelectItem value="gpt-4o">GPT-4o</SelectItem>
-                          <SelectItem value="gpt-4-turbo">GPT-4 Turbo</SelectItem>
-                          <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo</SelectItem>
+                          {providerModels.map((model) => (
+                            <SelectItem
+                              key={model.id}
+                              value={model.id}
+                              className={model.isDeprecated ? 'text-amber-600' : ''}
+                            >
+                              {model.displayName}
+                              {model.isRecommended && ' (Recommended)'}
+                              {model.isDeprecated && ' (Deprecated)'}
+                            </SelectItem>
+                          ))}
+                          {modelsLoading && (
+                            <SelectItem value="__loading" disabled>Loading models...</SelectItem>
+                          )}
                         </SelectContent>
                       </Select>
                     </div>
@@ -566,9 +593,20 @@ export function Settings() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet (Recommended)</SelectItem>
-                          <SelectItem value="claude-3-5-haiku-20241022">Claude 3.5 Haiku</SelectItem>
-                          <SelectItem value="claude-3-opus-20240229">Claude 3 Opus</SelectItem>
+                          {providerModels.map((model) => (
+                            <SelectItem
+                              key={model.id}
+                              value={model.id}
+                              className={model.isDeprecated ? 'text-amber-600' : ''}
+                            >
+                              {model.displayName}
+                              {model.isRecommended && ' (Recommended)'}
+                              {model.isDeprecated && ' (Legacy)'}
+                            </SelectItem>
+                          ))}
+                          {modelsLoading && (
+                            <SelectItem value="__loading" disabled>Loading models...</SelectItem>
+                          )}
                         </SelectContent>
                       </Select>
                     </div>
@@ -737,10 +775,15 @@ You can also start it manually by running: ollama serve`)
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="sqlcoder:7b">SQLCoder 7B (Recommended)</SelectItem>
-                          <SelectItem value="codellama:7b">CodeLlama 7B</SelectItem>
-                          <SelectItem value="llama3.1:8b">Llama 3.1 8B</SelectItem>
-                          <SelectItem value="mistral:7b">Mistral 7B</SelectItem>
+                          {providerModels.map((model) => (
+                            <SelectItem key={model.id} value={model.id}>
+                              {model.displayName}
+                              {model.isRecommended && ' (Recommended)'}
+                            </SelectItem>
+                          ))}
+                          {modelsLoading && (
+                            <SelectItem value="__loading" disabled>Loading models...</SelectItem>
+                          )}
                         </SelectContent>
                       </Select>
                     </div>
@@ -832,7 +875,12 @@ You can also start it manually by running: ollama serve`)
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="opus">Claude Opus (Most Capable)</SelectItem>
+                          {providerModels.map((model) => (
+                            <SelectItem key={model.id} value={model.id}>
+                              {model.displayName}
+                              {model.isRecommended && ' (Recommended)'}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -925,8 +973,17 @@ You can also start it manually by running: ollama serve`)
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="code-davinci-002">Codex Davinci (Recommended)</SelectItem>
-                          <SelectItem value="code-cushman-001">Codex Cushman (Faster)</SelectItem>
+                          {providerModels.map((model) => (
+                            <SelectItem
+                              key={model.id}
+                              value={model.id}
+                              className={model.isDeprecated ? 'text-amber-600' : ''}
+                            >
+                              {model.displayName}
+                              {model.isRecommended && ' (Recommended)'}
+                              {model.isDeprecated && ' (Deprecated)'}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -1067,10 +1124,15 @@ You can also start it manually by running: ollama serve`)
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="sqlcoder:7b">SQLCoder 7B (Recommended)</SelectItem>
-                          <SelectItem value="codellama:7b">CodeLlama 7B</SelectItem>
-                          <SelectItem value="llama3.1:8b">Llama 3.1 8B</SelectItem>
-                          <SelectItem value="mistral:7b">Mistral 7B</SelectItem>
+                          {providerModels.map((model) => (
+                            <SelectItem key={model.id} value={model.id}>
+                              {model.displayName}
+                              {model.isRecommended && ' (Recommended)'}
+                            </SelectItem>
+                          ))}
+                          {modelsLoading && (
+                            <SelectItem value="__loading" disabled>Loading models...</SelectItem>
+                          )}
                         </SelectContent>
                       </Select>
                     </div>

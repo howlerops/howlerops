@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { createJSONStorage,persist } from 'zustand/middleware'
 
+import { getDefaultModelId } from '@/config/ai-models'
 import type { SchemaNode } from '@/hooks/use-schema-introspection'
 import {
   buildFixSQLBackendRequest,
@@ -170,7 +171,7 @@ const defaultConfig: AIConfig = {
   codexOrganization: '',
   ollamaEndpoint: 'http://localhost:11434',
   huggingfaceEndpoint: 'http://localhost:11434',
-  selectedModel: 'gpt-4o-mini',
+  selectedModel: getDefaultModelId('openai'),
   maxTokens: 2048,
   temperature: 0.1,
   autoFixEnabled: true,

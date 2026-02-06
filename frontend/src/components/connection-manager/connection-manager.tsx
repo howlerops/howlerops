@@ -1,11 +1,17 @@
-import { Download, Plus, Upload } from "lucide-react"
+import { ChevronDown, Download, File, Plus, Upload } from "lucide-react"
 import { useEffect, useState } from "react"
 
 import { ConnectionDiagnosticsModal } from "@/components/connection-diagnostics-modal"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogTrigger } from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
-import { ConnectionForm, ConnectionList, EnvironmentFilter, ExportDialog, ImportDialog } from "./components"
+import { ConnectionForm, ConnectionList, EnvironmentFilter, EnvImportDialog, ExportDialog, ImportDialog } from "./components"
 import { useConnectionActions, useConnectionForm, useConnectionList } from "./hooks"
 import type { ConnectionFormData, DatabaseConnection } from "./types"
 
@@ -76,6 +82,7 @@ export function ConnectionManager({ hideHeader = false }: ConnectionManagerProps
   // Export/Import dialog state
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false)
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
+  const [isEnvImportDialogOpen, setIsEnvImportDialogOpen] = useState(false)
 
   // Refresh environments on mount
   useEffect(() => {
@@ -164,10 +171,25 @@ export function ConnectionManager({ hideHeader = false }: ConnectionManagerProps
               <Download className="h-4 w-4 mr-2" />
               Export
             </Button>
-            <Button variant="outline" onClick={() => setIsImportDialogOpen(true)}>
-              <Upload className="h-4 w-4 mr-2" />
-              Import
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">
+                  <Upload className="h-4 w-4 mr-2" />
+                  Import
+                  <ChevronDown className="h-4 w-4 ml-2" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setIsImportDialogOpen(true)}>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Import from JSON
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setIsEnvImportDialogOpen(true)}>
+                  <File className="h-4 w-4 mr-2" />
+                  Import from .env
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
@@ -181,6 +203,13 @@ export function ConnectionManager({ hideHeader = false }: ConnectionManagerProps
         <ImportDialog
           open={isImportDialogOpen}
           onOpenChange={setIsImportDialogOpen}
+          onImportComplete={refreshAvailableEnvironments}
+        />
+
+        {/* Env Import Dialog */}
+        <EnvImportDialog
+          open={isEnvImportDialogOpen}
+          onOpenChange={setIsEnvImportDialogOpen}
           onImportComplete={refreshAvailableEnvironments}
         />
 

@@ -5,6 +5,7 @@
  * handling schema context, memory, and provider configuration.
  */
 
+import { getDefaultModelId, type AIProvider } from '@/config/ai-models'
 import type { SchemaNode } from '@/hooks/use-schema-introspection'
 import { addMemoryContext, addRecallContext,buildSchemaContext, enhancePromptForMode } from '@/lib/ai-schema-context-builder'
 import type { AIConfig } from '@/store/ai-store'
@@ -76,7 +77,7 @@ export function buildGenerateSQLBackendRequest(
 ): AIBackendRequest {
   const mode = request.mode || 'single'
   const provider = (request.provider || config.provider || 'openai').toLowerCase()
-  const model = request.model || config.selectedModel || 'gpt-4o-mini'
+  const model = request.model || config.selectedModel || getDefaultModelId(provider as AIProvider)
 
   // Enhance prompt for multi-DB mode
   const enhancedPrompt = enhancePromptForMode(
