@@ -207,7 +207,7 @@ func (f *FileService) WriteFile(filePath, content string) error {
 
 	// Ensure directory exists
 	dir := filepath.Dir(filePath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0750); err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 
@@ -386,7 +386,7 @@ func (f *FileService) CreateDirectory(dirPath string) error {
 		return fmt.Errorf("directory path cannot be empty")
 	}
 
-	err := os.MkdirAll(dirPath, 0755)
+	err := os.MkdirAll(dirPath, 0750)
 	if err != nil {
 		f.logger.WithFields(logrus.Fields{
 			"dir_path": dirPath,
@@ -440,7 +440,7 @@ func (f *FileService) CopyFile(srcPath, destPath string) error {
 
 	// Ensure destination directory exists
 	dir := filepath.Dir(destPath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0750); err != nil {
 		return fmt.Errorf("failed to create destination directory: %w", err)
 	}
 
@@ -514,7 +514,7 @@ func (f *FileService) SaveToDownloads(filename, content string) (string, error) 
 	}
 
 	// Ensure Downloads directory exists
-	if err := os.MkdirAll(downloadsPath, 0755); err != nil {
+	if err := os.MkdirAll(downloadsPath, 0750); err != nil {
 		return "", fmt.Errorf("failed to create Downloads directory: %w", err)
 	}
 
