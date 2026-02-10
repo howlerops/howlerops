@@ -36,6 +36,9 @@ import {
 } from '../../types/table';
 import { cn } from '../../utils/cn';
 
+// Stable reference to prevent columnDefs recomputation on every render
+const EMPTY_CELL_RENDERERS: Record<string, (value: CellValue, row: TableRow) => React.ReactNode> = {};
+
 /**
  * AG Grid-based Table Component
  *
@@ -46,7 +49,7 @@ import { cn } from '../../utils/cn';
  *
  * @component
  */
-export const AGGridTable: React.FC<EditableTableProps> = ({
+const AGGridTableInner: React.FC<EditableTableProps> = ({
   data,
   columns: tableColumns,
   onDataChange,
@@ -71,7 +74,7 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
   toolbar,
   footer,
   onDirtyChange,
-  customCellRenderers = {},
+  customCellRenderers = EMPTY_CELL_RENDERERS,
   isEditable = false,
   // Phase 2: Chunked data loading
   resultId: _resultId,
@@ -91,6 +94,10 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
 
   // Track dirty rows (edited but not saved)
   const [dirtyRows, setDirtyRows] = useState<Set<string>>(new Set());
+  // Ref mirror of dirtyRows — used by cellClassRules to avoid stale closures
+  // without requiring columnDefs to recompute on every dirty change
+  const dirtyRowsRef = useRef<Set<string>>(dirtyRows);
+  useEffect(() => { dirtyRowsRef.current = dirtyRows; }, [dirtyRows]);
 
   // Track selected rows
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
@@ -133,14 +140,40 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
    * Create cell renderer for custom types
    * Eye icon appears on hover at the end of each cell for row inspection
    */
+  /**
+   * Dirty indicator rendered inline inside cell renderers.
+   * CRITICAL: We render this INSIDE the React cell renderer instead of using
+   * AG Grid's cellClassRules because adding CSS classes (especially `position: relative`)
+   * to AG Grid cell elements during mid-refresh causes layout corruption and column shifting.
+   * Inline rendering is safe: it only changes React content inside the cell portal.
+   */
+  const DirtyTriangle = () => (
+    <span
+      className="absolute top-0 left-0 w-0 h-0 z-10 pointer-events-none"
+      style={{
+        borderStyle: 'solid',
+        borderWidth: '6px 6px 0 0',
+        borderColor: 'hsl(var(--primary)) transparent transparent transparent',
+      }}
+    />
+  );
+
   const createCellRenderer = (column: TableColumn) => {
     return (params: { value: CellValue; data: TableRow }) => {
       const { value, data: rowData } = params;
+      const isDirty = !!(rowData.__rowId && dirtyRowsRef.current.has(rowData.__rowId));
 
       // Use custom renderer if provided
       const customRenderer = customCellRenderers[column.id || column.accessorKey || ''];
       if (customRenderer) {
-        return customRenderer(value, rowData);
+        const content = customRenderer(value, rowData);
+        // Wrap custom renderer to include dirty indicator
+        return isDirty ? (
+          <div className="relative h-full w-full">
+            <DirtyTriangle />
+            {content}
+          </div>
+        ) : content;
       }
 
       // Eye icon component - appears on hover in every cell
@@ -185,7 +218,8 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
         };
 
         return (
-          <div className="group flex items-center justify-between h-full w-full">
+          <div className="group flex items-center justify-between h-full w-full relative">
+            {isDirty && <DirtyTriangle />}
             <div className="flex items-center justify-center flex-1">
               <input
                 id={checkboxId}
@@ -206,7 +240,8 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
       // Select renderer
       if (column.type === 'select' && column.options) {
         return (
-          <div className="group flex items-center h-full w-full">
+          <div className="group flex items-center h-full w-full relative">
+            {isDirty && <DirtyTriangle />}
             <select
               value={String(value || '')}
               disabled={!column.editable}
@@ -230,7 +265,8 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
       );
 
       return (
-        <div className="group flex items-center h-full w-full">
+        <div className="group flex items-center h-full w-full relative">
+          {isDirty && <DirtyTriangle />}
           <div className={textClasses} title={String(value ?? '')}>
             {value === null || value === undefined ? (
               <span className="cell-null">NULL</span>
@@ -405,12 +441,11 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
           : undefined,
         // Use static classes only - no dynamic state to prevent flickering
         cellClass: staticCellClasses.length > 0 ? staticCellClasses : undefined,
-        // Use cellClassRules for dynamic state instead - more efficient
+        // CRITICAL: Dirty indicator is rendered INLINE in the cell renderer (not via cellClassRules)
+        // because AG Grid applying CSS classes (like position:relative) to cell elements mid-refresh
+        // causes layout corruption and column shifting. Only ag-row-new remains as a class rule
+        // since it doesn't change during cell edits (only on row insertion).
         cellClassRules: {
-          'ag-cell-dirty': (params) => {
-            // Access dirtyRows from outer scope at render time, not definition time
-            return !!(params.data?.__rowId && dirtyRows.has(params.data.__rowId));
-          },
           'ag-row-new': (params) => {
             return !!params.data?.__isNewRow;
           },
@@ -552,16 +587,25 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
     if (!rowId || !columnId) return;
 
     // Mark row as dirty (but don't save yet)
-    setDirtyRows(prev => new Set(prev).add(rowId));
+    // CRITICAL: If row is already dirty, return same Set reference to avoid
+    // unnecessary state update → re-render cascade → column shift.
+    // The cascade: setDirtyRows → useEffect(onDirtyChange) → parent setDirtyRowIds
+    // → handleSave recreates → renderToolbar recreates → toolbar prop changes
+    // → React.memo fails → AGGridTable re-renders mid AG Grid update → column shift
+    setDirtyRows(prev => {
+      if (prev.has(rowId)) return prev;  // Already dirty — no state change needed
+      const next = new Set(prev).add(rowId);
+      dirtyRowsRef.current = next;
+      return next;
+    });
 
-    // Refresh the cell to update custom renderers (especially important for boolean checkboxes)
-    if (gridApi && event.node) {
-      gridApi.refreshCells({
-        rowNodes: [event.node],
-        columns: [columnId],
-        force: true,
-      });
-    }
+    // NOTE: Do NOT call gridApi.refreshCells() here!
+    // AG Grid already re-renders the edited cell after setDataValue/inline edit.
+    // Calling refreshCells({ force: true }) destroys and recreates cell DOM
+    // (including React renderers) which causes visual column shifting because
+    // the React unmount/remount cycle conflicts with AG Grid's own update.
+    // The dirty indicator (cellClassRules) is applied when AG Grid naturally
+    // re-evaluates cells (on edit, scroll, sort, etc.).
 
     // Call onDataChange with updated data array
     // OPTIMIZATION: Update specific row in dataRef instead of iterating all grid nodes
@@ -572,7 +616,7 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
       dataRef.current = updatedData;
       onDataChange(updatedData);
     }
-  }, [onDataChange, gridApi]);
+  }, [onDataChange]);
 
   /**
    * Handle row selection
@@ -715,14 +759,16 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
       columnVisibility,
       columnOrder,
       columnSizing,
-      dirtyRows,
+      // Use ref to avoid recreating context on every dirty change
+      // The toolbar gets dirty count from parent's onDirtyChange callback instead
+      dirtyRows: dirtyRowsRef.current,
       invalidCells: new Map(),
       undoStack: [],
       redoStack: [],
       hasUndoActions: false,
       hasRedoActions: false,
       hasSelection: selectedRows.length > 0,
-      hasDirtyRows: dirtyRows.size > 0,
+      hasDirtyRows: dirtyRowsRef.current.size > 0,
       hasInvalidCells: false,
       isEditing: false,
     },
@@ -783,12 +829,16 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
       },
       undo: () => {},
       redo: () => {},
-      clearDirtyRows: () => setDirtyRows(new Set()),
+      clearDirtyRows: () => {
+        dirtyRowsRef.current = new Set();
+        setDirtyRows(new Set());
+      },
       resetTable: () => {
         if (!gridApi) return;
         gridApi.deselectAll();
         gridApi.setFilterModel(null);
         gridApi.setGridOption('columnDefs', columnDefs); // Reset sort via column defs
+        dirtyRowsRef.current = new Set();
         setDirtyRows(new Set());
       },
       getInvalidCells: () => [],
@@ -807,7 +857,8 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
     columnOrder,
     columnVisibility,
     columnSizing,
-    dirtyRows,
+    // NOTE: dirtyRows deliberately excluded — accessed via dirtyRowsRef to prevent
+    // context recreation (and cascading toolbar re-render) on every cell edit
     gridApi,
     columnDefs,
     onSort,
@@ -895,73 +946,88 @@ export const AGGridTable: React.FC<EditableTableProps> = ({
     );
   }
 
+  // CRITICAL: Memoize the grid element separately from toolbar/footer.
+  // This prevents toolbar-driven re-renders (e.g., dirty count change) from
+  // causing AG Grid to reconcile. Only grid-relevant prop changes rebuild this.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const gridElement = useMemo(() => (
+    <div
+      className={cn(
+        'ag-theme-quartz-dark',
+        'border border-border',
+        'font-size-10',
+        'w-full'
+      )}
+      style={{ height: containerHeight }}
+    >
+      <AgGridReact
+        ref={gridRef}
+        rowData={memoizedRowData}
+        columnDefs={columnDefs}
+        defaultColDef={defaultColDef}
+        autoSizeStrategy={autoSizeStrategy}
+        getRowId={getRowId}
+        onGridReady={onGridReady}
+        onCellValueChanged={onCellValueChanged}
+        onSelectionChanged={onSelectionChanged}
+        onRowClicked={onRowClicked}
+        onSortChanged={onSortChanged}
+        onFilterChanged={onFilterChanged}
+        onColumnMoved={onColumnMoved}
+        onColumnVisible={onColumnVisible}
+        onColumnResized={onColumnResized}
+        rowSelection={rowSelectionConfig}
+        selectionColumnDef={selectionColumnDef}
+        // Performance: disable all animations to prevent flicker
+        animateRows={false}
+        enableCellTextSelection={false}
+        loading={loading}
+        suppressCellFocus={false}
+        suppressMenuHide={true}
+        domLayout="normal"
+        rowHeight={31}
+        headerHeight={36}
+        suppressScrollOnNewData={true}
+        // Performance: disable scrollbar debouncing for immediate scroll response
+        debounceVerticalScrollbar={false}
+        maintainColumnOrder={true}
+        singleClickEdit={false}
+        stopEditingWhenCellsLoseFocus={true}
+        enterNavigatesVertically={true}
+        enterNavigatesVerticallyAfterEdit={true}
+        // Performance: pre-render 20 rows above/below viewport (620px buffer zone)
+        // This creates a larger cushion to prevent white flash during fast scrolling
+        rowBuffer={20}
+        // Performance: reduce DOM overhead by removing row transform animations
+        suppressRowTransform={true}
+        // CRITICAL: Suppress layout recalculations that cause size changes/flicker
+        suppressColumnVirtualisation={false}
+        suppressRowVirtualisation={false}
+        // Prevent automatic column sizing that causes flicker
+        suppressAutoSize={true}
+        // Skip header on horizontal scroll to prevent layout shift
+        suppressHorizontalScroll={false}
+        className="w-full h-full font-size-10"
+      />
+    </div>
+  ), [
+    containerHeight, memoizedRowData, columnDefs, defaultColDef, autoSizeStrategy,
+    getRowId, onGridReady, onCellValueChanged, onSelectionChanged, onRowClicked,
+    onSortChanged, onFilterChanged, onColumnMoved, onColumnVisible, onColumnResized,
+    rowSelectionConfig, selectionColumnDef, loading,
+  ]);
+
   return (
     <div className={cn('flex flex-col', className)}>
       {renderToolbar()}
-
-      <div
-        className={cn(
-          'ag-theme-quartz-dark',
-          'border border-border',
-          'font-size-10',
-          'w-full'
-        )}
-        style={{ height: containerHeight }}
-      >
-        <AgGridReact
-          ref={gridRef}
-          rowData={memoizedRowData}
-          columnDefs={columnDefs}
-          defaultColDef={defaultColDef}
-          autoSizeStrategy={autoSizeStrategy}
-          getRowId={getRowId}
-          onGridReady={onGridReady}
-          onCellValueChanged={onCellValueChanged}
-          onSelectionChanged={onSelectionChanged}
-          onRowClicked={onRowClicked}
-          onSortChanged={onSortChanged}
-          onFilterChanged={onFilterChanged}
-          onColumnMoved={onColumnMoved}
-          onColumnVisible={onColumnVisible}
-          onColumnResized={onColumnResized}
-          rowSelection={rowSelectionConfig}
-          selectionColumnDef={selectionColumnDef}
-          // Performance: disable all animations to prevent flicker
-          animateRows={false}
-          enableCellTextSelection={false}
-          loading={loading}
-          suppressCellFocus={false}
-          suppressMenuHide={true}
-          domLayout="normal"
-          rowHeight={31}
-          headerHeight={36}
-          suppressScrollOnNewData={true}
-          // Performance: disable scrollbar debouncing for immediate scroll response
-          debounceVerticalScrollbar={false}
-          maintainColumnOrder={true}
-          singleClickEdit={false}
-          stopEditingWhenCellsLoseFocus={true}
-          enterNavigatesVertically={true}
-          enterNavigatesVerticallyAfterEdit={true}
-          // Performance: pre-render 20 rows above/below viewport (620px buffer zone)
-          // This creates a larger cushion to prevent white flash during fast scrolling
-          rowBuffer={20}
-          // Performance: reduce DOM overhead by removing row transform animations
-          suppressRowTransform={true}
-          // CRITICAL: Suppress layout recalculations that cause size changes/flicker
-          suppressColumnVirtualisation={false}
-          suppressRowVirtualisation={false}
-          // Prevent automatic column sizing that causes flicker
-          suppressAutoSize={true}
-          // Skip header on horizontal scroll to prevent layout shift
-          suppressHorizontalScroll={false}
-          className="w-full h-full font-size-10"
-        />
-      </div>
-
+      {gridElement}
       {renderFooter()}
     </div>
   );
 };
 
-AGGridTable.displayName = 'AGGridTable';
+AGGridTableInner.displayName = 'AGGridTable';
+
+// Wrap in React.memo to prevent re-renders when parent re-renders with same props
+// (e.g., when toolbar callback changes due to dirty count update in parent)
+export const AGGridTable = React.memo(AGGridTableInner);

@@ -244,23 +244,9 @@
    Custom Cell States
    ============================================================================ */
 
-/* Dirty cell indicator (top-left triangle) */
-.ag-cell-dirty {
-  position: relative;
-}
-
-.ag-cell-dirty::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 0;
-  height: 0;
-  border-style: solid;
-  border-width: 6px 6px 0 0;
-  border-color: var(--primary) transparent transparent transparent;
-  z-index: 1;
-}
+/* Dirty cell indicator is now rendered inline in the React cell renderer
+   (not via CSS cellClassRules) to prevent AG Grid layout corruption.
+   See DirtyTriangle component in ag-grid-table.tsx */
 
 /* New row indicator */
 .ag-row-new {
