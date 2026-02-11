@@ -1,7 +1,6 @@
 package services
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,13 +8,19 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/wailsapp/wails/v2/pkg/runtime"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
+
+// FileFilter represents a file filter for dialogs (v3 compatible)
+type FileFilter struct {
+	DisplayName string `json:"displayName"`
+	Pattern     string `json:"pattern"`
+}
 
 // FileService handles file operations for HowlerOps
 type FileService struct {
 	logger         *logrus.Logger
-	ctx            context.Context
+	app            *application.App
 	emitter        EventsEmitter
 	recentFiles    []string
 	maxRecentFiles int
@@ -59,25 +64,46 @@ func NewFileServiceWithEmitter(logger *logrus.Logger, emitter EventsEmitter) *Fi
 	}
 }
 
-// SetContext sets the Wails context
-func (f *FileService) SetContext(ctx context.Context) {
-	f.ctx = ctx
+// SetContext is deprecated but kept for compatibility - use SetApplication instead
+func (f *FileService) SetContext(ctx interface{}) {
+	// No-op in v3 - dialogs accessed via application
+}
+
+// SetApplication sets the v3 application reference for dialogs
+func (f *FileService) SetApplication(app *application.App) {
+	f.app = app
 }
 
 func (f *FileService) emit(event string, payload interface{}) {
-	if f.emitter == nil || f.ctx == nil {
+	if f.emitter == nil {
 		return
 	}
 
-	if err := f.emitter.Emit(f.ctx, event, payload); err != nil && f.logger != nil {
+	if err := f.emitter.Emit(event, payload); err != nil && f.logger != nil {
 		f.logger.WithError(err).WithField("event", event).Warn("Failed to emit file service event")
 	}
 }
 
+// convertToV3Filters converts FileFilter to v3 application.FileFilter
+func convertToV3Filters(filters []FileFilter) []application.FileFilter {
+	v3Filters := make([]application.FileFilter, len(filters))
+	for i, filter := range filters {
+		v3Filters[i] = application.FileFilter{
+			DisplayName: filter.DisplayName,
+			Pattern:     filter.Pattern,
+		}
+	}
+	return v3Filters
+}
+
 // OpenFile opens a file dialog and returns the selected file path
-func (f *FileService) OpenFile(filters []runtime.FileFilter) (string, error) {
+func (f *FileService) OpenFile(filters []FileFilter) (string, error) {
+	if f.app == nil {
+		return "", fmt.Errorf("application not initialized - call SetApplication first")
+	}
+
 	if filters == nil {
-		filters = []runtime.FileFilter{
+		filters = []FileFilter{
 			{
 				DisplayName: "SQL Files (*.sql)",
 				Pattern:     "*.sql",
@@ -93,12 +119,13 @@ func (f *FileService) OpenFile(filters []runtime.FileFilter) (string, error) {
 		}
 	}
 
-	options := runtime.OpenDialogOptions{
-		Title:   "Open SQL File",
-		Filters: filters,
+	// Use v3 builder pattern for dialogs
+	dialog := f.app.Dialog.OpenFile().SetTitle("Open SQL File")
+	for _, filter := range filters {
+		dialog.AddFilter(filter.DisplayName, filter.Pattern)
 	}
 
-	filePath, err := runtime.OpenFileDialog(f.ctx, options)
+	filePath, err := dialog.PromptForSingleSelection()
 	if err != nil {
 		return "", err
 	}
@@ -118,26 +145,20 @@ func (f *FileService) OpenFile(filters []runtime.FileFilter) (string, error) {
 
 // SaveFile opens a save file dialog and returns the selected file path
 func (f *FileService) SaveFile(defaultFilename string) (string, error) {
+	if f.app == nil {
+		return "", fmt.Errorf("application not initialized - call SetApplication first")
+	}
+
 	if defaultFilename == "" {
 		defaultFilename = "query.sql"
 	}
 
-	options := runtime.SaveDialogOptions{
-		Title: "Save SQL File",
-		Filters: []runtime.FileFilter{
-			{
-				DisplayName: "SQL Files (*.sql)",
-				Pattern:     "*.sql",
-			},
-			{
-				DisplayName: "Text Files (*.txt)",
-				Pattern:     "*.txt",
-			},
-		},
-		DefaultFilename: defaultFilename,
-	}
-
-	filePath, err := runtime.SaveFileDialog(f.ctx, options)
+	// Use v3 builder pattern for dialogs
+	filePath, err := f.app.Dialog.SaveFile().
+		SetFilename(defaultFilename).
+		AddFilter("SQL Files (*.sql)", "*.sql").
+		AddFilter("Text Files (*.txt)", "*.txt").
+		PromptForSingleSelection()
 	if err != nil {
 		return "", err
 	}
@@ -186,11 +207,11 @@ func (f *FileService) WriteFile(filePath, content string) error {
 
 	// Ensure directory exists
 	dir := filepath.Dir(filePath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0750); err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 
-	err := os.WriteFile(filePath, []byte(content), 0644)
+	err := os.WriteFile(filePath, []byte(content), 0600)
 	if err != nil {
 		f.logger.WithFields(logrus.Fields{
 			"file_path": filePath,
@@ -365,7 +386,7 @@ func (f *FileService) CreateDirectory(dirPath string) error {
 		return fmt.Errorf("directory path cannot be empty")
 	}
 
-	err := os.MkdirAll(dirPath, 0755)
+	err := os.MkdirAll(dirPath, 0750)
 	if err != nil {
 		f.logger.WithFields(logrus.Fields{
 			"dir_path": dirPath,
@@ -419,11 +440,11 @@ func (f *FileService) CopyFile(srcPath, destPath string) error {
 
 	// Ensure destination directory exists
 	dir := filepath.Dir(destPath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0750); err != nil {
 		return fmt.Errorf("failed to create destination directory: %w", err)
 	}
 
-	err = os.WriteFile(destPath, content, 0644)
+	err = os.WriteFile(destPath, content, 0600)
 	if err != nil {
 		return fmt.Errorf("failed to write destination file: %w", err)
 	}
@@ -493,7 +514,7 @@ func (f *FileService) SaveToDownloads(filename, content string) (string, error) 
 	}
 
 	// Ensure Downloads directory exists
-	if err := os.MkdirAll(downloadsPath, 0755); err != nil {
+	if err := os.MkdirAll(downloadsPath, 0750); err != nil {
 		return "", fmt.Errorf("failed to create Downloads directory: %w", err)
 	}
 
@@ -501,7 +522,7 @@ func (f *FileService) SaveToDownloads(filename, content string) (string, error) 
 	filePath := filepath.Join(downloadsPath, filename)
 
 	// Write the file
-	err = os.WriteFile(filePath, []byte(content), 0644)
+	err = os.WriteFile(filePath, []byte(content), 0600)
 	if err != nil {
 		f.logger.WithFields(logrus.Fields{
 			"file_path": filePath,

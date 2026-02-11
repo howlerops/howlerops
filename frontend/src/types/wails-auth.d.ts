@@ -1,8 +1,8 @@
 /**
- * TypeScript definitions for Wails authentication backend bindings
+ * TypeScript definitions for Wails v3 authentication backend bindings
  *
- * These types extend the window interface to include authentication-related
- * methods exposed by the Go backend via Wails runtime.
+ * In Wails v3, backend methods are imported directly from generated bindings.
+ * This file provides type definitions for authentication-related events and data.
  */
 
 export interface OAuthURLResponse {
@@ -29,39 +29,7 @@ export interface AuthRestoredEvent {
   token: string
 }
 
-declare global {
-  interface Window {
-    go?: {
-      main?: {
-        App?: {
-          // Existing methods
-          GetTableStructure?: () => Promise<unknown>
-
-          // OAuth methods
-          GetOAuthURL?: (provider: 'google' | 'github') => Promise<OAuthURLResponse>
-          CheckStoredToken?: (provider: 'google' | 'github') => Promise<boolean>
-          Logout?: (provider: 'google' | 'github') => Promise<void>
-
-          // WebAuthn/Biometric methods
-          CheckBiometricAvailability?: () => Promise<BiometricAvailability>
-          StartWebAuthnRegistration?: (userID: string, userName: string) => Promise<string>
-          FinishWebAuthnRegistration?: (userID: string, credentialJSON: string) => Promise<boolean>
-          StartWebAuthnAuthentication?: () => Promise<string>
-          FinishWebAuthnAuthentication?: (assertionJSON: string) => Promise<string>
-
-          [key: string]: unknown
-        }
-        [key: string]: unknown
-      }
-      version?: string
-      [key: string]: unknown
-    }
-    runtime?: {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Wails runtime events emit untyped data payloads
-      EventsOn?: (eventName: string, callback: (data: any) => void) => () => void
-      EventsOff?: (eventName: string) => void
-    }
-  }
-}
+// In v3, we use the Events module from @wailsio/runtime for events
+// No need for window.go or window.runtime declarations
 
 export {}

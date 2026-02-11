@@ -40,6 +40,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
 import { useConnectionStore } from '@/store/connection-store'
+import { catalog, main } from '@/types/wails-compat'
 
 import {
   AssignTableSteward,
@@ -53,8 +54,7 @@ import {
   SyncCatalogFromConnection,
   UpdateColumnCatalogEntry,
   UpdateTableCatalogEntry,
-} from '../../wailsjs/go/main/App'
-import { catalog, main } from '../../wailsjs/go/models'
+} from '../../bindings/github.com/jbeck018/howlerops/app'
 
 type ViewMode = 'tree' | 'table'
 

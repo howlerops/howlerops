@@ -52,7 +52,7 @@ export function ConnectionSchemaViewer({ connectionId, onClose }: ConnectionSche
 
     try {
       // Import the Wails API dynamically
-      const { GetSchemas, GetTables } = await import('../../wailsjs/go/main/App')
+      const { GetSchemas, GetTables } = await import('../../bindings/github.com/jbeck018/howlerops/app')
       const schemas = await GetSchemas(connection.sessionId)
 
       if (!schemas || !Array.isArray(schemas)) {

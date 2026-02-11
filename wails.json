@@ -42,7 +42,7 @@
     }
   },
   "assetdir": "./frontend/dist",
-  "reloaddirs": "./backend-go,./app.go,./main.go",
+  "reloaddirs": "./pkg,./internal,./cmd,./services",
   "wailsjsdir": "./frontend",
   "debounceMS": 500,
   "devServer": "localhost:5173",

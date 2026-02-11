@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package sqlstudio.table;
 
-option go_package = "github.com/sql-studio/backend-go/api/table";
+option go_package = "github.com/jbeck018/howlerops/pkg/pb/table";
 
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/any.proto";

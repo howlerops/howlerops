@@ -13,29 +13,29 @@ import (
 	cron "github.com/robfig/cron/v3"
 	"github.com/sirupsen/logrus"
 
-	"github.com/jbeck018/howlerops/backend-go/pkg/ai"
-	"github.com/jbeck018/howlerops/backend-go/pkg/alerts"
-	"github.com/jbeck018/howlerops/backend-go/pkg/database"
-	"github.com/jbeck018/howlerops/backend-go/pkg/export"
-	"github.com/jbeck018/howlerops/backend-go/pkg/materialization"
-	"github.com/jbeck018/howlerops/backend-go/pkg/storage"
+	"github.com/jbeck018/howlerops/pkg/ai"
+	"github.com/jbeck018/howlerops/pkg/alerts"
+	"github.com/jbeck018/howlerops/pkg/database"
+	"github.com/jbeck018/howlerops/pkg/export"
+	"github.com/jbeck018/howlerops/pkg/materialization"
+	"github.com/jbeck018/howlerops/pkg/storage"
 )
 
 // ReportService coordinates report persistence and execution.
 type ReportService struct {
-	storage        *storage.ReportStorage
-	db             *DatabaseService
-	ai             *ai.Service
-	exporter       *export.Exporter
-	alertEngine    *alerts.AlertEngine
-	materializer   *materialization.Materializer
-	logger         *logrus.Logger
-	ctx            context.Context
-	mu             sync.RWMutex
-	cron           *cron.Cron
-	entries        map[string]cron.EntryID
-	cache          *queryCache
-	workerLimit    int // max concurrent component executions
+	storage      *storage.ReportStorage
+	db           *DatabaseService
+	ai           *ai.Service
+	exporter     *export.Exporter
+	alertEngine  *alerts.AlertEngine
+	materializer *materialization.Materializer
+	logger       *logrus.Logger
+	ctx          context.Context
+	mu           sync.RWMutex
+	cron         *cron.Cron
+	entries      map[string]cron.EntryID
+	cache        *queryCache
+	workerLimit  int // max concurrent component executions
 }
 
 // ReportRunRequest represents a run invocation from the UI.
@@ -86,7 +86,7 @@ func NewReportService(logger *logrus.Logger, db *DatabaseService) *ReportService
 		cron:        cronScheduler,
 		entries:     make(map[string]cron.EntryID),
 		cache:       newQueryCache(100 * 1024 * 1024), // 100MB cache
-		workerLimit: 5,                                 // max 5 concurrent components
+		workerLimit: 5,                                // max 5 concurrent components
 	}
 }
 
@@ -372,12 +372,12 @@ func (s *ReportService) RunReport(req *ReportRunRequest) (*ReportRunResponse, er
 	if s.cache != nil {
 		stats := s.cache.stats()
 		s.logger.WithFields(logrus.Fields{
-			"report_id":        report.ID,
-			"cache_entries":    stats["entries"],
-			"cache_hits":       stats["totalHits"],
-			"cache_util_pct":   fmt.Sprintf("%.1f%%", stats["utilization"].(float64)*100),
-			"total_duration":   time.Since(started),
-			"component_count":  len(results),
+			"report_id":       report.ID,
+			"cache_entries":   stats["entries"],
+			"cache_hits":      stats["totalHits"],
+			"cache_util_pct":  fmt.Sprintf("%.1f%%", stats["utilization"].(float64)*100),
+			"total_duration":  time.Since(started),
+			"component_count": len(results),
 		}).Debug("Report execution completed")
 	}
 
@@ -536,20 +536,12 @@ func (s *ReportService) runComponentWithTimeout(
 }
 
 func (s *ReportService) runComponent(report *storage.Report, component *storage.ReportComponent, filters map[string]interface{}, cache map[string]ReportComponentResult) ReportComponentResult {
-	res := ReportComponentResult{
-		ComponentID: component.ID,
-		Type:        component.Type,
-		Metadata:    map[string]any{},
-	}
-
 	switch component.Type {
 	case storage.ReportComponentLLM:
 		return s.runLLMComponent(report, component, filters, cache)
 	default:
 		return s.runQueryComponent(report, component, filters)
 	}
-
-	return res
 }
 
 func (s *ReportService) runQueryComponent(report *storage.Report, component *storage.ReportComponent, filters map[string]interface{}) ReportComponentResult {

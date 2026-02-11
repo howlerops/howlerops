@@ -23,6 +23,7 @@ import { Switch } from '@/components/ui/switch'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useToast } from '@/hooks/use-toast'
 import { useConnectionStore } from '@/store/connection-store'
+import { schemadiff } from '@/types/wails-compat'
 
 import {
   CompareConnectionSchemas,
@@ -32,8 +33,7 @@ import {
   GenerateMigrationSQL,
   GenerateMigrationSQLFromSnapshot,
   ListSchemaSnapshots,
-} from '../../wailsjs/go/main/App'
-import { schemadiff } from '../../wailsjs/go/models'
+} from '../../bindings/github.com/jbeck018/howlerops/app'
 
 // Map Wails model status to our display change types
 type ChangeType = 'added' | 'modified' | 'deleted'

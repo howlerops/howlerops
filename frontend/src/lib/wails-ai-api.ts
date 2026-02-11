@@ -3,10 +3,10 @@
 
 import { toast } from '@/hooks/use-toast'
 
-import { ShowNotification, StartClaudeCodeLogin, StartCodexLogin,TestAnthropicConnection, TestClaudeCodeConnection, TestCodexConnection, TestHuggingFaceConnection, TestOllamaConnection, TestOpenAIConnection } from '../../wailsjs/go/main/App'
-import { main } from '../../wailsjs/go/models'
+import { GenericChat,ShowNotification, StartClaudeCodeLogin, StartCodexLogin, TestAnthropicConnection, TestClaudeCodeConnection, TestCodexConnection, TestHuggingFaceConnection, TestOllamaConnection, TestOpenAIConnection } from '../../bindings/github.com/jbeck018/howlerops/app'
+import * as models from '../../bindings/github.com/jbeck018/howlerops/models'
 
-export type AITestResponse = main.AITestResponse
+export type AITestResponse = models.AITestResponse
 
 export interface AITestParams {
   provider: string
@@ -144,7 +144,7 @@ export async function showHybridNotification(
 // Returns code-only suggestion text or empty string on failure.
 export async function aiSuggest(prefix: string, suffix: string, language: string = 'sql'): Promise<string> {
   try {
-    const { GenericChat } = await import('../../wailsjs/go/main/App')
+    // GenericChat is already imported at the top level
     const system = `You are an inline code completion engine. Continue the user's code strictly.
 Rules:
 - Output ONLY code with no commentary.

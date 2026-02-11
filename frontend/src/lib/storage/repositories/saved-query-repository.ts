@@ -7,6 +7,7 @@
  * - Tier-aware limit enforcement
  * - Auto-pruning for local tier
  * - Favorites protection
+ * - SQLite primary storage with IndexedDB fallback
  *
  * @module lib/storage/repositories/saved-query-repository
  */
@@ -22,6 +23,52 @@ import {
 } from '@/types/storage'
 
 import { getIndexedDBClient } from '../indexeddb-client'
+
+// Type for SQLite saved query from Wails bindings
+interface SQLiteSavedQuery {
+  id: string
+  title: string
+  description: string
+  query: string
+  connection_id: string
+  folder: string
+  tags: string[]
+  created_at: string
+  updated_at: string
+}
+
+// Wails bindings loader - cached to avoid repeated imports
+let appBindingsCache: typeof import('../../../../bindings/github.com/jbeck018/howlerops/app') | null = null
+
+async function getAppBindings() {
+  if (appBindingsCache) return appBindingsCache
+  try {
+    appBindingsCache = await import('../../../../bindings/github.com/jbeck018/howlerops/app')
+    return appBindingsCache
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Convert SQLite saved query to SavedQueryRecord format
+ */
+function sqliteToSavedQueryRecord(sqlite: SQLiteSavedQuery, userId: string = ''): SavedQueryRecord {
+  return {
+    id: sqlite.id,
+    user_id: userId,
+    title: sqlite.title,
+    description: sqlite.description,
+    query_text: sqlite.query,
+    tags: sqlite.tags || [],
+    folder: sqlite.folder,
+    is_favorite: false, // SQLite doesn't track favorites yet
+    created_at: new Date(sqlite.created_at),
+    updated_at: new Date(sqlite.updated_at),
+    synced: true, // SQLite is the source of truth
+    sync_version: 0,
+  }
+}
 
 /**
  * Search options for saved queries
@@ -66,6 +113,7 @@ export interface SavedQuerySearchOptions {
 
 /**
  * Repository for managing saved queries
+ * Uses SQLite (via Wails bindings) as primary, IndexedDB as fallback
  */
 export class SavedQueryRepository {
   private client = getIndexedDBClient()
@@ -137,12 +185,33 @@ export class SavedQueryRepository {
         sync_version: data.sync_version ?? 0,
       }
 
-      // Insert within transaction
+      // Insert within transaction (IndexedDB)
       const putRequest = store.put(record)
       await new Promise<void>((resolve, reject) => {
         putRequest.onsuccess = () => resolve()
         putRequest.onerror = () => reject(putRequest.error)
       })
+
+      // Dual-write: also save to SQLite (primary storage)
+      try {
+        const App = await getAppBindings()
+        if (App?.SQLiteSaveQuery) {
+          const sqliteRecord = {
+            id: record.id,
+            title: record.title,
+            description: record.description || '',
+            query: record.query_text,
+            connection_id: '', // Not tracked in frontend
+            folder: record.folder || '',
+            tags: record.tags,
+            created_at: record.created_at.toISOString(),
+            updated_at: record.updated_at.toISOString(),
+          }
+          await App.SQLiteSaveQuery(JSON.stringify(sqliteRecord))
+        }
+      } catch (sqliteError) {
+        console.warn('[SavedQueryRepository] SQLite write failed, IndexedDB write succeeded:', sqliteError)
+      }
 
       return record
     }).catch(async (error) => {
@@ -159,8 +228,23 @@ export class SavedQueryRepository {
 
   /**
    * Get a saved query by ID
+   * Tries SQLite first, falls back to IndexedDB
    */
   async get(id: string): Promise<SavedQueryRecord | null> {
+    // Try SQLite first (primary)
+    try {
+      const App = await getAppBindings()
+      if (App?.SQLiteGetQuery) {
+        const sqliteQuery = await App.SQLiteGetQuery(id)
+        if (sqliteQuery) {
+          return sqliteToSavedQueryRecord(sqliteQuery as SQLiteSavedQuery)
+        }
+      }
+    } catch (error) {
+      console.debug('[SavedQueryRepository] SQLite read failed, falling back to IndexedDB:', error)
+    }
+
+    // Fallback to IndexedDB
     return this.client.get<SavedQueryRecord>(this.storeName, id)
   }
 
@@ -208,19 +292,52 @@ export class SavedQueryRepository {
       updated.folder = updates.folder?.trim()
     }
 
+    // Dual-write: save to SQLite (primary) and IndexedDB (fallback)
+    try {
+      const App = await getAppBindings()
+      if (App?.SQLiteSaveQuery) {
+        const sqliteRecord = {
+          id: updated.id,
+          title: updated.title,
+          description: updated.description || '',
+          query: updated.query_text,
+          connection_id: '',
+          folder: updated.folder || '',
+          tags: updated.tags,
+          created_at: updated.created_at.toISOString(),
+          updated_at: updated.updated_at.toISOString(),
+        }
+        await App.SQLiteSaveQuery(JSON.stringify(sqliteRecord))
+      }
+    } catch (error) {
+      console.warn('[SavedQueryRepository] SQLite update failed, continuing with IndexedDB:', error)
+    }
+
     await this.client.put(this.storeName, updated)
     return updated
   }
 
   /**
    * Delete a saved query
+   * Deletes from both SQLite and IndexedDB (dual-write pattern)
    */
   async delete(id: string): Promise<void> {
+    // Dual-delete: delete from SQLite (primary) and IndexedDB (fallback)
+    try {
+      const App = await getAppBindings()
+      if (App?.SQLiteDeleteQuery) {
+        await App.SQLiteDeleteQuery(id)
+      }
+    } catch (error) {
+      console.warn('[SavedQueryRepository] SQLite delete failed, continuing with IndexedDB:', error)
+    }
+
     await this.client.delete(this.storeName, id)
   }
 
   /**
    * Search saved queries with filters
+   * Tries SQLite first, falls back to IndexedDB
    */
   async search(
     options: SavedQuerySearchOptions = {}
@@ -240,6 +357,90 @@ export class SavedQueryRepository {
       offset = 0,
     } = options
 
+    // Try SQLite first
+    try {
+      const App = await getAppBindings()
+      if (App?.SQLiteGetQueries) {
+        const sqliteQueries = await App.SQLiteGetQueries()
+        if (sqliteQueries && sqliteQueries.length > 0) {
+          let records = (sqliteQueries as SQLiteSavedQuery[]).map(q => sqliteToSavedQueryRecord(q, userId || ''))
+
+          // Apply in-memory filters
+          if (folder) {
+            records = records.filter((r) => r.folder === folder)
+          }
+          if (tags && tags.length > 0) {
+            records = records.filter((r) =>
+              tags.some((tag) => r.tags.includes(tag))
+            )
+          }
+          if (favoritesOnly) {
+            records = records.filter((r) => r.is_favorite)
+          }
+          if (unsyncedOnly) {
+            records = records.filter((r) => !r.synced)
+          }
+          if (startDate) {
+            records = records.filter((r) => r.created_at >= startDate)
+          }
+          if (endDate) {
+            records = records.filter((r) => r.created_at <= endDate)
+          }
+          if (searchText) {
+            const searchLower = searchText.toLowerCase()
+            records = records.filter(
+              (r) =>
+                r.title.toLowerCase().includes(searchLower) ||
+                r.description?.toLowerCase().includes(searchLower) ||
+                r.query_text.toLowerCase().includes(searchLower) ||
+                r.tags.some((tag) => tag.toLowerCase().includes(searchLower))
+            )
+          }
+
+          // Sort
+          records.sort((a, b) => {
+            let aVal: string | Date
+            let bVal: string | Date
+
+            switch (sortBy) {
+              case 'title':
+                aVal = a.title.toLowerCase()
+                bVal = b.title.toLowerCase()
+                break
+              case 'created_at':
+                aVal = a.created_at
+                bVal = b.created_at
+                break
+              case 'updated_at':
+              default:
+                aVal = a.updated_at
+                bVal = b.updated_at
+            }
+
+            if (sortDirection === 'asc') {
+              return aVal < bVal ? -1 : aVal > bVal ? 1 : 0
+            } else {
+              return aVal > bVal ? -1 : aVal < bVal ? 1 : 0
+            }
+          })
+
+          // Apply pagination
+          const total = records.length
+          const items = records.slice(offset, offset + limit)
+          const hasMore = offset + limit < total
+
+          return {
+            items,
+            total,
+            hasMore,
+          }
+        }
+      }
+    } catch (error) {
+      console.debug('[SavedQueryRepository] SQLite search failed, falling back to IndexedDB:', error)
+    }
+
+    // Fallback to IndexedDB
     // Determine best index to use
     let indexName: string | undefined
     let keyRange: IDBKeyRange | undefined
@@ -360,8 +561,23 @@ export class SavedQueryRepository {
 
   /**
    * Get all saved queries for a user
+   * Tries SQLite first, falls back to IndexedDB
    */
   async getAllForUser(userId: string): Promise<SavedQueryRecord[]> {
+    // Try SQLite first
+    try {
+      const App = await getAppBindings()
+      if (App?.SQLiteGetQueries) {
+        const sqliteQueries = await App.SQLiteGetQueries()
+        if (sqliteQueries && sqliteQueries.length > 0) {
+          return (sqliteQueries as SQLiteSavedQuery[]).map(q => sqliteToSavedQueryRecord(q, userId))
+        }
+      }
+    } catch (error) {
+      console.debug('[SavedQueryRepository] SQLite read failed, falling back to IndexedDB:', error)
+    }
+
+    // Fallback to IndexedDB
     return this.client.getAll<SavedQueryRecord>(this.storeName, {
       index: 'user_id',
       range: IDBKeyRange.only(userId),

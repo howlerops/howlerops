@@ -13,7 +13,7 @@ Updated `/Users/jacob_1/projects/sql-studio/frontend/src/lib/secure-storage.ts` 
 - Removed `STORAGE_KEY` constant
 
 ### 2. Added Wails Keychain Integration
-- Imports Wails App methods: `import * as App from '../../wailsjs/go/main/App'`
+- Imports Wails App methods: `import * as App from '../../bindings/github.com/jbeck018/howlerops/app'`
 - Uses `App.StorePassword()` to store credentials
 - Uses `App.GetPassword()` to retrieve credentials
 - Uses `App.DeletePassword()` to remove credentials

@@ -9,8 +9,8 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/jbeck018/howlerops/backend-go/pkg/database"
-	"github.com/jbeck018/howlerops/backend-go/pkg/database/multiquery"
+	"github.com/jbeck018/howlerops/pkg/database"
+	"github.com/jbeck018/howlerops/pkg/database/multiquery"
 )
 
 func newSilentLogger() *logrus.Logger {

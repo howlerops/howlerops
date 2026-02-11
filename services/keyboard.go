@@ -63,11 +63,11 @@ func (k *KeyboardService) SetContext(ctx context.Context) {
 }
 
 func (k *KeyboardService) emit(event string, payload interface{}) {
-	if k.emitter == nil || k.ctx == nil {
+	if k.emitter == nil {
 		return
 	}
 
-	if err := k.emitter.Emit(k.ctx, event, payload); err != nil && k.logger != nil {
+	if err := k.emitter.Emit(event, payload); err != nil && k.logger != nil {
 		k.logger.WithError(err).WithField("event", event).Warn("Failed to emit keyboard event")
 	}
 }

@@ -6,6 +6,7 @@
  * - Device-specific settings
  * - Category-based organization
  * - Type-safe get/set operations
+ * - SQLite primary storage with IndexedDB fallback
  *
  * @module lib/storage/repositories/preference-repository
  */
@@ -17,6 +18,19 @@ import {
 } from '@/types/storage'
 
 import { getIndexedDBClient } from '../indexeddb-client'
+
+// Wails bindings loader - cached to avoid repeated imports
+let appBindingsCache: typeof import('../../../../bindings/github.com/jbeck018/howlerops/app') | null = null
+
+async function getAppBindings() {
+  if (appBindingsCache) return appBindingsCache
+  try {
+    appBindingsCache = await import('../../../../bindings/github.com/jbeck018/howlerops/app')
+    return appBindingsCache
+  } catch {
+    return null
+  }
+}
 
 /**
  * Preference value types
@@ -41,6 +55,7 @@ export enum PreferenceCategory {
 
 /**
  * Repository for managing UI preferences
+ * Uses SQLite (via Wails bindings) as primary for simple key-value settings, IndexedDB as fallback
  */
 export class PreferenceRepository {
   private client = getIndexedDBClient()
@@ -99,6 +114,7 @@ export class PreferenceRepository {
 
   /**
    * Set a user preference
+   * Writes to both SQLite and IndexedDB (dual-write pattern)
    */
   async setUserPreference(
     userId: string,
@@ -106,7 +122,18 @@ export class PreferenceRepository {
     value: PreferenceValue,
     category: string = PreferenceCategory.CUSTOM
   ): Promise<UIPreferenceRecord> {
-    // Check if preference already exists
+    // Also write to SQLite for simple string values
+    try {
+      const App = await getAppBindings()
+      if (App?.SQLiteSetSetting) {
+        const stringValue = typeof value === 'string' ? value : JSON.stringify(value)
+        await App.SQLiteSetSetting(`user:${userId}:${key}`, stringValue)
+      }
+    } catch (error) {
+      console.debug('[PreferenceRepository] SQLite write failed:', error)
+    }
+
+    // Check if preference already exists in IndexedDB
     const existing = await this.getUserPreference(userId, key)
 
     if (existing) {
@@ -132,11 +159,42 @@ export class PreferenceRepository {
 
   /**
    * Get a user preference by key
+   * Tries SQLite first, falls back to IndexedDB
    */
   async getUserPreference(
     userId: string,
     key: string
   ): Promise<UIPreferenceRecord | null> {
+    // Try SQLite first (primary)
+    try {
+      const App = await getAppBindings()
+      if (App?.SQLiteGetSetting) {
+        const value = await App.SQLiteGetSetting(`user:${userId}:${key}`)
+        if (value) {
+          // Create a synthetic UIPreferenceRecord from SQLite value
+          let parsedValue: PreferenceValue = value
+          try {
+            parsedValue = JSON.parse(value)
+          } catch {
+            // Keep as string if not valid JSON
+          }
+          return {
+            id: `sqlite:user:${userId}:${key}`,
+            user_id: userId,
+            key,
+            value: parsedValue,
+            category: PreferenceCategory.CUSTOM,
+            updated_at: new Date(),
+            synced: true,
+            sync_version: 0,
+          }
+        }
+      }
+    } catch (error) {
+      console.debug('[PreferenceRepository] SQLite read failed, falling back to IndexedDB:', error)
+    }
+
+    // Fallback to IndexedDB
     const records = await this.client.getAll<UIPreferenceRecord>(
       this.storeName,
       {
@@ -151,6 +209,7 @@ export class PreferenceRepository {
 
   /**
    * Get user preference value (typed)
+   * Tries SQLite first, falls back to IndexedDB
    */
   async getUserPreferenceValue<T = PreferenceValue>(
     userId: string,
@@ -166,13 +225,25 @@ export class PreferenceRepository {
 
   /**
    * Set a device-specific preference
+   * Writes to both SQLite and IndexedDB (dual-write pattern)
    */
   async setDevicePreference(
     key: string,
     value: PreferenceValue,
     category: string = PreferenceCategory.CUSTOM
   ): Promise<UIPreferenceRecord> {
-    // Check if preference already exists
+    // Also write to SQLite for simple string values
+    try {
+      const App = await getAppBindings()
+      if (App?.SQLiteSetSetting) {
+        const stringValue = typeof value === 'string' ? value : JSON.stringify(value)
+        await App.SQLiteSetSetting(`device:${key}`, stringValue)
+      }
+    } catch (error) {
+      console.debug('[PreferenceRepository] SQLite write failed:', error)
+    }
+
+    // Check if preference already exists in IndexedDB
     const existing = await this.getDevicePreference(key)
 
     if (existing) {
@@ -199,8 +270,39 @@ export class PreferenceRepository {
 
   /**
    * Get a device-specific preference
+   * Tries SQLite first, falls back to IndexedDB
    */
   async getDevicePreference(key: string): Promise<UIPreferenceRecord | null> {
+    // Try SQLite first (primary)
+    try {
+      const App = await getAppBindings()
+      if (App?.SQLiteGetSetting) {
+        const value = await App.SQLiteGetSetting(`device:${key}`)
+        if (value) {
+          // Create a synthetic UIPreferenceRecord from SQLite value
+          let parsedValue: PreferenceValue = value
+          try {
+            parsedValue = JSON.parse(value)
+          } catch {
+            // Keep as string if not valid JSON
+          }
+          return {
+            id: `sqlite:device:${key}`,
+            device_id: this.deviceId,
+            key,
+            value: parsedValue,
+            category: PreferenceCategory.CUSTOM,
+            updated_at: new Date(),
+            synced: true,
+            sync_version: 0,
+          }
+        }
+      }
+    } catch (error) {
+      console.debug('[PreferenceRepository] SQLite read failed, falling back to IndexedDB:', error)
+    }
+
+    // Fallback to IndexedDB
     const records = await this.client.getAll<UIPreferenceRecord>(
       this.storeName,
       {
@@ -214,6 +316,7 @@ export class PreferenceRepository {
 
   /**
    * Get device preference value (typed)
+   * Tries SQLite first, falls back to IndexedDB
    */
   async getDevicePreferenceValue<T = PreferenceValue>(
     key: string,

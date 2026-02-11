@@ -107,6 +107,21 @@ export interface ExportedConnection {
    * SSH passwords and private keys are NEVER exported.
    */
   password?: string
+
+  // Import tracking metadata
+  /** Metadata about how this connection was imported (optional) */
+  metadata?: {
+    /** Source of import (env-file, manual, etc.) */
+    importedFrom?: string
+    /** AI extraction confidence level */
+    extractionConfidence?: string
+    /** Notes from AI extraction */
+    extractionNotes?: string
+    /** Detected environment from file */
+    detectedEnvironment?: string
+    /** How environment was detected */
+    environmentSource?: string
+  }
 }
 
 /**

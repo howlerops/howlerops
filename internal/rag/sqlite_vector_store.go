@@ -1,0 +1,1486 @@
+package rag
+
+import (
+	"context"
+	"database/sql"
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"runtime"
+	"sort"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/google/uuid"
+	_ "github.com/mattn/go-sqlite3"
+	"github.com/sirupsen/logrus"
+)
+
+// initSchema is the embedded migration SQL for creating vector store tables
+const initSchema = `
+-- SQLite Vector Store Schema
+-- Migration: 001 - Initialize SQLite vector store tables
+
+-- Documents table (core document storage)
+CREATE TABLE IF NOT EXISTS documents (
+    id TEXT PRIMARY KEY,
+    connection_id TEXT NOT NULL,
+    type TEXT NOT NULL,  -- 'schema', 'query', 'plan', 'result', 'business', 'performance'
+    content TEXT NOT NULL,
+    parent_id TEXT,  -- For hierarchical documents (e.g., columns under tables)
+    level TEXT DEFAULT 'table',  -- 'table', 'column', etc.
+    summary TEXT,  -- Condensed representation of hierarchical children
+    metadata TEXT,  -- JSON
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    access_count INTEGER DEFAULT 0,
+    last_accessed INTEGER
+);
+
+-- Vector embeddings table (stores document embeddings)
+-- Note: This will use sqlite-vec extension when available
+-- For now, we store as BLOB and implement search in Go
+CREATE TABLE IF NOT EXISTS embeddings (
+    document_id TEXT PRIMARY KEY,
+    embedding BLOB NOT NULL,  -- Serialized float32 array
+    dimension INTEGER NOT NULL,
+    FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE
+);
+
+-- Full-text search index
+CREATE VIRTUAL TABLE IF NOT EXISTS documents_fts USING fts5(
+    document_id UNINDEXED,
+    content,
+    tokenize = 'porter unicode61'
+);
+
+-- Trigger to keep FTS index in sync
+CREATE TRIGGER IF NOT EXISTS documents_ai AFTER INSERT ON documents BEGIN
+    INSERT INTO documents_fts(document_id, content) VALUES (new.id, new.content);
+END;
+
+CREATE TRIGGER IF NOT EXISTS documents_au AFTER UPDATE ON documents BEGIN
+    UPDATE documents_fts SET content = new.content WHERE document_id = old.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS documents_ad AFTER DELETE ON documents BEGIN
+    DELETE FROM documents_fts WHERE document_id = old.id;
+END;
+
+-- Collections metadata (tracks different document collections)
+CREATE TABLE IF NOT EXISTS collections (
+    name TEXT PRIMARY KEY,
+    vector_size INTEGER NOT NULL,
+    distance TEXT NOT NULL,  -- 'cosine', 'euclidean', 'dot'
+    document_count INTEGER DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_documents_connection ON documents(connection_id);
+CREATE INDEX IF NOT EXISTS idx_documents_type ON documents(type);
+CREATE INDEX IF NOT EXISTS idx_documents_created ON documents(created_at);
+CREATE INDEX IF NOT EXISTS idx_documents_accessed ON documents(last_accessed);
+CREATE INDEX IF NOT EXISTS idx_documents_parent ON documents(parent_id);
+CREATE INDEX IF NOT EXISTS idx_documents_level ON documents(level);
+CREATE INDEX IF NOT EXISTS idx_documents_conn_level_type ON documents(connection_id, level, type);
+CREATE INDEX IF NOT EXISTS idx_embeddings_dimension ON embeddings(dimension);
+
+-- Initialize default collections
+INSERT OR IGNORE INTO collections (name, vector_size, distance, document_count, created_at, updated_at) VALUES
+    ('schemas', 1536, 'cosine', 0, unixepoch(), unixepoch()),
+    ('queries', 1536, 'cosine', 0, unixepoch(), unixepoch()),
+    ('performance', 1536, 'euclidean', 0, unixepoch(), unixepoch()),
+    ('business', 1536, 'cosine', 0, unixepoch(), unixepoch()),
+    ('memory', 1536, 'cosine', 0, unixepoch(), unixepoch());
+`
+
+const (
+	// DefaultRRFConstant is the default RRF constant for hybrid search
+	// Higher values give more weight to top-ranked results
+	// Lower values create more uniform weighting across ranks
+	DefaultRRFConstant = 60
+)
+
+// SQLiteVectorConfig holds SQLite vector store configuration
+type SQLiteVectorConfig struct {
+	Path        string        `json:"path"`
+	Extension   string        `json:"extension"` // sqlite-vec or sqlite-vss
+	VectorSize  int           `json:"vector_size"`
+	CacheSizeMB int           `json:"cache_size_mb"`
+	MMapSizeMB  int           `json:"mmap_size_mb"`
+	WALEnabled  bool          `json:"wal_enabled"`
+	Timeout     time.Duration `json:"timeout"`
+
+	// Hybrid search configuration
+	RRFConstant  int     `json:"rrf_constant"`  // Default: 60
+	VectorWeight float64 `json:"vector_weight"` // Optional weight for vector results (default: 1.0)
+	TextWeight   float64 `json:"text_weight"`   // Optional weight for text results (default: 1.0)
+}
+
+// SQLiteVectorStore implements VectorStore using SQLite
+type SQLiteVectorStore struct {
+	db            *sql.DB
+	collections   map[string]*CollectionConfig
+	collectionsMu sync.RWMutex
+	logger        *logrus.Logger
+	config        *SQLiteVectorConfig
+
+	// Hybrid search configuration
+	rrfConstant  int
+	vectorWeight float64
+	textWeight   float64
+
+	// HNSW / sqlite-vec extension state
+	hnswAvailable bool
+	vecVersion    string
+}
+
+// NewSQLiteVectorStore creates a new SQLite vector store
+func NewSQLiteVectorStore(config *SQLiteVectorConfig, logger *logrus.Logger) (*SQLiteVectorStore, error) {
+	// Open SQLite database
+	db, err := sql.Open("sqlite3", fmt.Sprintf("%s?cache=shared&mode=rwc", config.Path))
+	if err != nil {
+		return nil, fmt.Errorf("failed to open SQLite database: %w", err)
+	}
+
+	// Configure SQLite performance settings
+	pragmas := []string{
+		fmt.Sprintf("PRAGMA cache_size = -%d", config.CacheSizeMB*1024), // Negative means KB
+		fmt.Sprintf("PRAGMA mmap_size = %d", config.MMapSizeMB*1024*1024),
+		fmt.Sprintf("PRAGMA busy_timeout = %d", config.Timeout.Milliseconds()),
+		"PRAGMA synchronous = NORMAL",
+		"PRAGMA temp_store = MEMORY",
+		"PRAGMA journal_size_limit = 67110000",
+	}
+
+	if config.WALEnabled {
+		pragmas = append(pragmas, "PRAGMA journal_mode = WAL")
+	}
+
+	for _, pragma := range pragmas {
+		if _, err := db.Exec(pragma); err != nil {
+			logger.WithError(err).Warnf("Failed to set pragma: %s", pragma)
+		}
+	}
+
+	// Initialize RRF configuration with defaults
+	rrfConstant := config.RRFConstant
+	if rrfConstant <= 0 {
+		rrfConstant = DefaultRRFConstant
+	}
+
+	vectorWeight := config.VectorWeight
+	textWeight := config.TextWeight
+	if vectorWeight == 0 && textWeight == 0 {
+		vectorWeight = 1.0
+		textWeight = 1.0
+	}
+
+	store := &SQLiteVectorStore{
+		db:           db,
+		collections:  make(map[string]*CollectionConfig),
+		logger:       logger,
+		config:       config,
+		rrfConstant:  rrfConstant,
+		vectorWeight: vectorWeight,
+		textWeight:   textWeight,
+	}
+
+	return store, nil
+}
+
+// runMigrations executes the initialization schema
+func (s *SQLiteVectorStore) runMigrations(ctx context.Context) error {
+	s.logger.Debug("Running vector store migrations")
+
+	// Parse SQL statements properly, handling triggers with nested semicolons
+	statements := s.parseSQLStatements(initSchema)
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }() // Best-effort rollback
+
+	fts5Available := true
+
+	for _, stmt := range statements {
+		stmt = strings.TrimSpace(stmt)
+		if stmt == "" {
+			continue
+		}
+
+		// Skip FTS5-related statements if FTS5 is not available
+		stmtUpper := strings.ToUpper(stmt)
+		isFTS5Related := strings.Contains(stmtUpper, "FTS5") ||
+			strings.Contains(stmtUpper, "DOCUMENTS_FTS")
+
+		if isFTS5Related && !fts5Available {
+			s.logger.Debug("Skipping FTS5 statement (not available)")
+			continue
+		}
+
+		if _, err := tx.ExecContext(ctx, stmt); err != nil {
+			// Check if FTS5 module is not available
+			if strings.Contains(err.Error(), "no such module: fts5") {
+				fts5Available = false
+				s.logger.WithError(err).Warn("FTS5 not available, skipping full-text search features")
+				continue
+			}
+			return fmt.Errorf("failed to execute migration statement: %w", err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit migrations: %w", err)
+	}
+
+	if !fts5Available {
+		s.logger.Info("Vector store migrations completed (FTS5 disabled)")
+	} else {
+		s.logger.Info("Vector store migrations completed successfully")
+	}
+
+	// Apply HNSW migration if sqlite-vec is available
+	if s.vecVersion != "" {
+		if err := s.applyHNSWMigration(ctx); err != nil {
+			s.logger.WithError(err).Warn("Failed to apply HNSW migration, continuing with brute force")
+		}
+	}
+
+	return nil
+}
+
+// parseSQLStatements parses SQL text into individual statements, handling triggers correctly
+func (s *SQLiteVectorStore) parseSQLStatements(sql string) []string {
+	var statements []string
+	var currentStmt strings.Builder
+	inTrigger := false
+
+	lines := strings.Split(sql, "\n")
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		// Skip empty lines and comments when not in a statement
+		if currentStmt.Len() == 0 && (trimmed == "" || strings.HasPrefix(trimmed, "--")) {
+			continue
+		}
+
+		// Check if we're starting a trigger
+		if strings.HasPrefix(strings.ToUpper(trimmed), "CREATE TRIGGER") {
+			inTrigger = true
+		}
+
+		// Add line to current statement
+		if currentStmt.Len() > 0 {
+			currentStmt.WriteString("\n")
+		}
+		currentStmt.WriteString(line)
+
+		// Check if statement is complete
+		if inTrigger {
+			// Triggers end with "END;"
+			if strings.HasSuffix(trimmed, "END;") {
+				statements = append(statements, currentStmt.String())
+				currentStmt.Reset()
+				inTrigger = false
+			}
+		} else {
+			// Regular statements end with semicolon
+			if strings.HasSuffix(trimmed, ";") {
+				statements = append(statements, currentStmt.String())
+				currentStmt.Reset()
+			}
+		}
+	}
+
+	// Add any remaining statement
+	if currentStmt.Len() > 0 {
+		statements = append(statements, currentStmt.String())
+	}
+
+	return statements
+}
+
+// cleanupFTS5IfUnavailable removes FTS5-related triggers and tables if FTS5 module is not available
+// This prevents errors when triggers try to update non-existent FTS5 tables
+func (s *SQLiteVectorStore) cleanupFTS5IfUnavailable(ctx context.Context) error {
+	// Check if FTS5 is available by trying to create a test table
+	_, err := s.db.ExecContext(ctx, "CREATE VIRTUAL TABLE IF NOT EXISTS _fts5_test USING fts5(test)")
+	if err != nil && strings.Contains(err.Error(), "no such module: fts5") {
+		s.logger.Info("FTS5 module not available, cleaning up FTS5 artifacts")
+
+		// Check if FTS5 triggers exist and drop them
+		triggers := []string{"documents_ai", "documents_au", "documents_ad"}
+		for _, trigger := range triggers {
+			var exists bool
+			err := s.db.QueryRowContext(ctx, `
+				SELECT COUNT(*) > 0 FROM sqlite_master
+				WHERE type='trigger' AND name=?
+			`, trigger).Scan(&exists)
+			if err == nil && exists {
+				if _, err := s.db.ExecContext(ctx, fmt.Sprintf("DROP TRIGGER IF EXISTS %s", trigger)); err != nil {
+					s.logger.WithError(err).Warnf("Failed to drop FTS5 trigger: %s", trigger)
+				} else {
+					s.logger.Debugf("Dropped FTS5 trigger: %s", trigger)
+				}
+			}
+		}
+
+		// Check if documents_fts table exists and drop it
+		var ftsExists bool
+		err = s.db.QueryRowContext(ctx, `
+			SELECT COUNT(*) > 0 FROM sqlite_master
+			WHERE type='table' AND name='documents_fts'
+		`).Scan(&ftsExists)
+		if err == nil && ftsExists {
+			if _, err := s.db.ExecContext(ctx, "DROP TABLE IF EXISTS documents_fts"); err != nil {
+				s.logger.WithError(err).Warn("Failed to drop documents_fts table")
+			} else {
+				s.logger.Info("Dropped documents_fts table (FTS5 unavailable)")
+			}
+		}
+
+		return nil
+	}
+
+	// FTS5 is available, clean up test table
+	if err == nil {
+		_, _ = s.db.ExecContext(ctx, "DROP TABLE IF EXISTS _fts5_test")
+	}
+
+	return nil
+}
+
+// Initialize initializes the vector store
+func (s *SQLiteVectorStore) Initialize(ctx context.Context) error {
+	// Check if collections table exists
+	var tableExists bool
+	err := s.db.QueryRowContext(ctx, `
+		SELECT COUNT(*) > 0
+		FROM sqlite_master
+		WHERE type='table' AND name='collections'
+	`).Scan(&tableExists)
+
+	if err != nil {
+		return fmt.Errorf("failed to check if tables exist: %w", err)
+	}
+
+	// If tables don't exist, run migrations
+	if !tableExists {
+		s.logger.Info("Vector store tables not found, running migrations")
+		if err := s.runMigrations(ctx); err != nil {
+			return fmt.Errorf("failed to run migrations: %w", err)
+		}
+	}
+
+	// Clean up FTS5 artifacts if FTS5 is not available (prevents trigger errors)
+	if err := s.cleanupFTS5IfUnavailable(ctx); err != nil {
+		s.logger.WithError(err).Warn("Failed to cleanup FTS5 artifacts")
+	}
+
+	// Load existing collections
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT name, vector_size, distance, document_count, created_at, updated_at
+		FROM collections
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to load collections: %w", err)
+	}
+	defer func() {
+		if err := rows.Close(); err != nil {
+			s.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
+
+	s.collectionsMu.Lock()
+	for rows.Next() {
+		var name, distance string
+		var vectorSize, docCount int
+		var createdAt, updatedAt int64
+
+		if err := rows.Scan(&name, &vectorSize, &distance, &docCount, &createdAt, &updatedAt); err != nil {
+			s.logger.WithError(err).Warn("Failed to scan collection")
+			continue
+		}
+
+		s.collections[name] = &CollectionConfig{
+			Name:       name,
+			VectorSize: vectorSize,
+			Distance:   distance,
+		}
+	}
+	s.collectionsMu.Unlock()
+
+	// Check if HNSW index is available (after migrations have run)
+	if s.vecVersion != "" {
+		s.hnswAvailable = s.checkHNSWAvailable()
+		if s.hnswAvailable {
+			s.logger.Info("HNSW vector index available and enabled")
+		} else {
+			s.logger.Info("HNSW index not created yet, using brute force search")
+		}
+	}
+
+	s.logger.WithField("collections", len(s.collections)).Info("SQLite vector store initialized")
+	return nil
+}
+
+// IndexDocument indexes a single document
+func (s *SQLiteVectorStore) IndexDocument(ctx context.Context, doc *Document) error {
+	if doc.ID == "" {
+		doc.ID = uuid.New().String()
+	}
+
+	now := time.Now().Unix()
+	if doc.CreatedAt.IsZero() {
+		doc.CreatedAt = time.Now()
+	}
+	doc.UpdatedAt = time.Now()
+
+	// Serialize metadata to JSON
+	metadataJSON, err := json.Marshal(doc.Metadata)
+	if err != nil {
+		return fmt.Errorf("failed to marshal metadata: %w", err)
+	}
+
+	// Start transaction
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }() // Best-effort rollback
+
+	// Insert/update document
+	var parentID, level, summary interface{}
+	if doc.ParentID != "" {
+		parentID = doc.ParentID
+	}
+	if doc.Level != "" {
+		level = string(doc.Level)
+	}
+	if doc.Summary != "" {
+		summary = doc.Summary
+	}
+
+	_, err = tx.ExecContext(ctx, `
+		INSERT INTO documents (id, connection_id, type, content, parent_id, level, summary, metadata, created_at, updated_at, access_count, last_accessed)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(id) DO UPDATE SET
+			content = excluded.content,
+			parent_id = excluded.parent_id,
+			level = excluded.level,
+			summary = excluded.summary,
+			metadata = excluded.metadata,
+			updated_at = excluded.updated_at
+	`, doc.ID, doc.ConnectionID, string(doc.Type), doc.Content, parentID, level, summary, string(metadataJSON),
+		doc.CreatedAt.Unix(), doc.UpdatedAt.Unix(), doc.AccessCount, now)
+
+	if err != nil {
+		return fmt.Errorf("failed to insert document: %w", err)
+	}
+
+	// Insert/update embedding if present
+	if len(doc.Embedding) > 0 {
+		embeddingBytes := serializeEmbedding(doc.Embedding)
+		_, err = tx.ExecContext(ctx, `
+			INSERT INTO embeddings (document_id, embedding, dimension)
+			VALUES (?, ?, ?)
+			ON CONFLICT(document_id) DO UPDATE SET
+				embedding = excluded.embedding,
+				dimension = excluded.dimension
+		`, doc.ID, embeddingBytes, len(doc.Embedding))
+
+		if err != nil {
+			return fmt.Errorf("failed to insert embedding: %w", err)
+		}
+	}
+
+	// Update collection count
+	collection := s.getCollectionForType(doc.Type)
+	_, err = tx.ExecContext(ctx, `
+		UPDATE collections
+		SET document_count = document_count + 1, updated_at = ?
+		WHERE name = ?
+	`, now, collection)
+	if err != nil {
+		s.logger.WithError(err).Warn("Failed to update collection count")
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	s.logger.WithFields(logrus.Fields{
+		"document_id": doc.ID,
+		"type":        doc.Type,
+		"collection":  collection,
+	}).Debug("Document indexed")
+
+	return nil
+}
+
+// BatchIndexDocuments indexes multiple documents
+func (s *SQLiteVectorStore) BatchIndexDocuments(ctx context.Context, docs []*Document) error {
+	if len(docs) == 0 {
+		return nil
+	}
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }() // Best-effort rollback
+
+	now := time.Now().Unix()
+
+	// Prepare statements
+	docStmt, err := tx.PrepareContext(ctx, `
+		INSERT INTO documents (id, connection_id, type, content, metadata, created_at, updated_at, access_count, last_accessed)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(id) DO UPDATE SET
+			content = excluded.content,
+			metadata = excluded.metadata,
+			updated_at = excluded.updated_at
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to prepare document statement: %w", err)
+	}
+	defer func() {
+		if err := docStmt.Close(); err != nil {
+			s.logger.WithError(err).Error("Failed to close document statement")
+		}
+	}()
+
+	embStmt, err := tx.PrepareContext(ctx, `
+		INSERT INTO embeddings (document_id, embedding, dimension)
+		VALUES (?, ?, ?)
+		ON CONFLICT(document_id) DO UPDATE SET
+			embedding = excluded.embedding,
+			dimension = excluded.dimension
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to prepare embedding statement: %w", err)
+	}
+	defer func() {
+		if err := embStmt.Close(); err != nil {
+			s.logger.WithError(err).Error("Failed to close embedding statement")
+		}
+	}()
+
+	// Insert documents
+	for _, doc := range docs {
+		if doc.ID == "" {
+			doc.ID = uuid.New().String()
+		}
+
+		if doc.CreatedAt.IsZero() {
+			doc.CreatedAt = time.Now()
+		}
+		doc.UpdatedAt = time.Now()
+
+		metadataJSON, err := json.Marshal(doc.Metadata)
+		if err != nil {
+			s.logger.WithError(err).Warn("Failed to marshal metadata")
+			continue
+		}
+
+		_, err = docStmt.ExecContext(ctx, doc.ID, doc.ConnectionID, string(doc.Type), doc.Content,
+			string(metadataJSON), doc.CreatedAt.Unix(), doc.UpdatedAt.Unix(), doc.AccessCount, now)
+		if err != nil {
+			s.logger.WithError(err).Warn("Failed to insert document")
+			continue
+		}
+
+		if len(doc.Embedding) > 0 {
+			embeddingBytes := serializeEmbedding(doc.Embedding)
+			_, err = embStmt.ExecContext(ctx, doc.ID, embeddingBytes, len(doc.Embedding))
+			if err != nil {
+				s.logger.WithError(err).Warn("Failed to insert embedding")
+			}
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	s.logger.WithField("count", len(docs)).Debug("Batch indexed documents")
+	return nil
+}
+
+// SearchSimilarHNSW performs HNSW-accelerated vector search using sqlite-vec
+func (s *SQLiteVectorStore) SearchSimilarHNSW(ctx context.Context, embedding []float32, k int, filter map[string]interface{}) ([]*Document, error) {
+	// Convert embedding to JSON array format for sqlite-vec
+	embJSON := embeddingToJSON(embedding)
+
+	// Build query
+	query := `
+		SELECT
+			d.id,
+			d.connection_id,
+			d.type,
+			d.content,
+			d.parent_id,
+			d.level,
+			d.summary,
+			d.metadata,
+			d.created_at,
+			d.updated_at,
+			d.access_count,
+			d.last_accessed,
+			vec_distance_cosine(vec.embedding, ?) as distance
+		FROM vec_embeddings vec
+		INNER JOIN documents d ON vec.document_id = d.id
+		WHERE 1=1
+	`
+
+	args := []interface{}{embJSON}
+
+	// Add metadata filters
+	if filter != nil {
+		if connID, ok := filter["connection_id"].(string); ok && connID != "" {
+			query += " AND d.connection_id = ?"
+			args = append(args, connID)
+		}
+
+		if docType, ok := filter["type"].(string); ok && docType != "" {
+			query += " AND d.type = ?"
+			args = append(args, docType)
+		}
+	}
+
+	// Add vector search with HNSW index (ORDER BY automatically uses index)
+	query += `
+		ORDER BY distance
+		LIMIT ?
+	`
+	args = append(args, k)
+
+	// Execute query
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("HNSW search failed: %w", err)
+	}
+	defer func() {
+		if err := rows.Close(); err != nil {
+			s.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
+
+	// Parse results
+	var documents []*Document
+	for rows.Next() {
+		var doc Document
+		var metadataJSON string
+		var parentID, level, summary sql.NullString
+		var distance float32
+		var createdAt, updatedAt, lastAccessed int64
+		var accessCount int
+
+		err := rows.Scan(
+			&doc.ID,
+			&doc.ConnectionID,
+			&doc.Type,
+			&doc.Content,
+			&parentID,
+			&level,
+			&summary,
+			&metadataJSON,
+			&createdAt,
+			&updatedAt,
+			&accessCount,
+			&lastAccessed,
+			&distance,
+		)
+		if err != nil {
+			s.logger.WithError(err).Warn("Failed to scan row")
+			continue
+		}
+
+		// Parse metadata
+		if metadataJSON != "" {
+			if err := json.Unmarshal([]byte(metadataJSON), &doc.Metadata); err != nil {
+				s.logger.WithError(err).Warn("Failed to unmarshal metadata")
+				doc.Metadata = make(map[string]interface{})
+			}
+		} else {
+			doc.Metadata = make(map[string]interface{})
+		}
+
+		// Convert distance to similarity score (1 - distance for cosine)
+		doc.Score = 1.0 - distance
+
+		doc.CreatedAt = time.Unix(createdAt, 0)
+		doc.UpdatedAt = time.Unix(updatedAt, 0)
+		doc.LastAccessed = time.Unix(lastAccessed, 0)
+		doc.AccessCount = accessCount
+
+		// Set hierarchical fields if present
+		if parentID.Valid {
+			doc.ParentID = parentID.String
+		}
+		if level.Valid {
+			doc.Level = DocumentLevel(level.String)
+		}
+		if summary.Valid {
+			doc.Summary = summary.String
+		}
+
+		documents = append(documents, &doc)
+	}
+
+	return documents, nil
+}
+
+// SearchSimilar searches for similar documents using vector similarity
+// Automatically uses HNSW when available, falls back to brute force
+func (s *SQLiteVectorStore) SearchSimilar(ctx context.Context, embedding []float32, k int, filter map[string]interface{}) ([]*Document, error) {
+	// Try HNSW first if available
+	if s.hnswAvailable {
+		docs, err := s.SearchSimilarHNSW(ctx, embedding, k, filter)
+		if err == nil {
+			return docs, nil
+		}
+
+		// Log error but fall back to brute force
+		s.logger.WithError(err).Warn("HNSW search failed, falling back to brute force")
+	}
+
+	// Fall back to brute force search
+	return s.searchSimilarBruteForce(ctx, embedding, k, filter)
+}
+
+// searchSimilarBruteForce is the original brute force vector search implementation
+func (s *SQLiteVectorStore) searchSimilarBruteForce(ctx context.Context, embedding []float32, k int, filter map[string]interface{}) ([]*Document, error) {
+	// Get all documents with embeddings
+	query := `
+		SELECT d.id, d.connection_id, d.type, d.content, d.parent_id, d.level, d.summary, d.metadata, d.created_at, d.updated_at, d.access_count, d.last_accessed, e.embedding
+		FROM documents d
+		INNER JOIN embeddings e ON d.id = e.document_id
+	`
+
+	args := []interface{}{}
+
+	// Apply filters
+	if filter != nil {
+		whereClauses := []string{}
+		if connID, ok := filter["connection_id"].(string); ok {
+			whereClauses = append(whereClauses, "d.connection_id = ?")
+			args = append(args, connID)
+		}
+		if docType, ok := filter["type"].(string); ok {
+			whereClauses = append(whereClauses, "d.type = ?")
+			args = append(args, docType)
+		}
+
+		if len(whereClauses) > 0 {
+			query += " WHERE " + whereClauses[0]
+			for i := 1; i < len(whereClauses); i++ {
+				query += " AND " + whereClauses[i]
+			}
+		}
+	}
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query documents: %w", err)
+	}
+	defer func() {
+		if err := rows.Close(); err != nil {
+			s.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
+
+	// Calculate similarities
+	type docWithScore struct {
+		doc   *Document
+		score float32
+	}
+	var results []docWithScore
+
+	for rows.Next() {
+		var id, connID, docType, content, metadataStr string
+		var parentID, level, summary sql.NullString
+		var createdAt, updatedAt, lastAccessed int64
+		var accessCount int
+		var embeddingBytes []byte
+
+		err := rows.Scan(&id, &connID, &docType, &content, &parentID, &level, &summary, &metadataStr, &createdAt, &updatedAt, &accessCount, &lastAccessed, &embeddingBytes)
+		if err != nil {
+			s.logger.WithError(err).Warn("Failed to scan document")
+			continue
+		}
+
+		docEmbedding := deserializeEmbedding(embeddingBytes)
+		similarity := cosineSimilarity(embedding, docEmbedding)
+
+		var metadata map[string]interface{}
+		if err := json.Unmarshal([]byte(metadataStr), &metadata); err != nil {
+			metadata = make(map[string]interface{})
+		}
+
+		doc := &Document{
+			ID:           id,
+			ConnectionID: connID,
+			Type:         DocumentType(docType),
+			Content:      content,
+			Embedding:    docEmbedding,
+			Metadata:     metadata,
+			CreatedAt:    time.Unix(createdAt, 0),
+			UpdatedAt:    time.Unix(updatedAt, 0),
+			AccessCount:  accessCount,
+			LastAccessed: time.Unix(lastAccessed, 0),
+			Score:        similarity,
+		}
+
+		// Set hierarchical fields if present
+		if parentID.Valid {
+			doc.ParentID = parentID.String
+		}
+		if level.Valid {
+			doc.Level = DocumentLevel(level.String)
+		}
+		if summary.Valid {
+			doc.Summary = summary.String
+		}
+
+		results = append(results, docWithScore{doc: doc, score: similarity})
+	}
+
+	// Sort by score (descending)
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].score > results[j].score
+	})
+
+	// Limit to top k
+	if len(results) > k {
+		results = results[:k]
+	}
+
+	// Extract documents
+	docs := make([]*Document, len(results))
+	for i, r := range results {
+		docs[i] = r.doc
+	}
+
+	return docs, nil
+}
+
+// SearchByText performs text-based search using FTS5
+func (s *SQLiteVectorStore) SearchByText(ctx context.Context, query string, k int, filter map[string]interface{}) ([]*Document, error) {
+	sqlQuery := `
+		SELECT d.id, d.connection_id, d.type, d.content, d.parent_id, d.level, d.summary, d.metadata, d.created_at, d.updated_at, d.access_count, d.last_accessed
+		FROM documents d
+		INNER JOIN documents_fts fts ON d.id = fts.document_id
+		WHERE documents_fts MATCH ?
+	`
+
+	args := []interface{}{query}
+
+	// Apply additional filters
+	if filter != nil {
+		if connID, ok := filter["connection_id"].(string); ok {
+			sqlQuery += " AND d.connection_id = ?"
+			args = append(args, connID)
+		}
+		if docType, ok := filter["type"].(string); ok {
+			sqlQuery += " AND d.type = ?"
+			args = append(args, docType)
+		}
+	}
+
+	sqlQuery += fmt.Sprintf(" ORDER BY rank LIMIT %d", k)
+
+	rows, err := s.db.QueryContext(ctx, sqlQuery, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to search text: %w", err)
+	}
+	defer func() {
+		if err := rows.Close(); err != nil {
+			s.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
+
+	var docs []*Document
+	for rows.Next() {
+		var id, connID, docType, content, metadataStr string
+		var parentID, level, summary sql.NullString
+		var createdAt, updatedAt, lastAccessed int64
+		var accessCount int
+
+		err := rows.Scan(&id, &connID, &docType, &content, &parentID, &level, &summary, &metadataStr, &createdAt, &updatedAt, &accessCount, &lastAccessed)
+		if err != nil {
+			s.logger.WithError(err).Warn("Failed to scan document")
+			continue
+		}
+
+		var metadata map[string]interface{}
+		if err := json.Unmarshal([]byte(metadataStr), &metadata); err != nil {
+			metadata = make(map[string]interface{})
+		}
+
+		doc := &Document{
+			ID:           id,
+			ConnectionID: connID,
+			Type:         DocumentType(docType),
+			Content:      content,
+			Metadata:     metadata,
+			CreatedAt:    time.Unix(createdAt, 0),
+			UpdatedAt:    time.Unix(updatedAt, 0),
+			AccessCount:  accessCount,
+			LastAccessed: time.Unix(lastAccessed, 0),
+		}
+
+		// Set hierarchical fields if present
+		if parentID.Valid {
+			doc.ParentID = parentID.String
+		}
+		if level.Valid {
+			doc.Level = DocumentLevel(level.String)
+		}
+		if summary.Valid {
+			doc.Summary = summary.String
+		}
+
+		docs = append(docs, doc)
+	}
+
+	return docs, nil
+}
+
+// GetDocument retrieves a document by ID
+func (s *SQLiteVectorStore) GetDocument(ctx context.Context, id string) (*Document, error) {
+	var connID, docType, content, metadataStr string
+	var parentID, level, summary sql.NullString
+	var createdAt, updatedAt, lastAccessed int64
+	var accessCount int
+
+	err := s.db.QueryRowContext(ctx, `
+		SELECT connection_id, type, content, parent_id, level, summary, metadata, created_at, updated_at, access_count, last_accessed
+		FROM documents
+		WHERE id = ?
+	`, id).Scan(&connID, &docType, &content, &parentID, &level, &summary, &metadataStr, &createdAt, &updatedAt, &accessCount, &lastAccessed)
+
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("document not found: %s", id)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get document: %w", err)
+	}
+
+	var metadata map[string]interface{}
+	if err := json.Unmarshal([]byte(metadataStr), &metadata); err != nil {
+		metadata = make(map[string]interface{})
+	}
+
+	doc := &Document{
+		ID:           id,
+		ConnectionID: connID,
+		Type:         DocumentType(docType),
+		Content:      content,
+		Metadata:     metadata,
+		CreatedAt:    time.Unix(createdAt, 0),
+		UpdatedAt:    time.Unix(updatedAt, 0),
+		AccessCount:  accessCount,
+		LastAccessed: time.Unix(lastAccessed, 0),
+	}
+
+	// Set hierarchical fields if present
+	if parentID.Valid {
+		doc.ParentID = parentID.String
+	}
+	if level.Valid {
+		doc.Level = DocumentLevel(level.String)
+	}
+	if summary.Valid {
+		doc.Summary = summary.String
+	}
+
+	// Try to get embedding
+	var embeddingBytes []byte
+	err = s.db.QueryRowContext(ctx, `SELECT embedding FROM embeddings WHERE document_id = ?`, id).Scan(&embeddingBytes)
+	if err == nil {
+		doc.Embedding = deserializeEmbedding(embeddingBytes)
+	}
+
+	return doc, nil
+}
+
+// UpdateDocument updates an existing document
+func (s *SQLiteVectorStore) UpdateDocument(ctx context.Context, doc *Document) error {
+	doc.UpdatedAt = time.Now()
+	return s.IndexDocument(ctx, doc)
+}
+
+// DeleteDocument deletes a document
+func (s *SQLiteVectorStore) DeleteDocument(ctx context.Context, id string) error {
+	_, err := s.db.ExecContext(ctx, `DELETE FROM documents WHERE id = ?`, id)
+	if err != nil {
+		return fmt.Errorf("failed to delete document: %w", err)
+	}
+
+	// Embedding is deleted automatically via CASCADE
+	s.logger.WithField("document_id", id).Debug("Document deleted")
+	return nil
+}
+
+// CreateCollection creates a new collection
+func (s *SQLiteVectorStore) CreateCollection(ctx context.Context, name string, dimension int) error {
+	now := time.Now().Unix()
+
+	_, err := s.db.ExecContext(ctx, `
+		INSERT INTO collections (name, vector_size, distance, document_count, created_at, updated_at)
+		VALUES (?, ?, ?, 0, ?, ?)
+	`, name, dimension, "cosine", now, now)
+
+	if err != nil {
+		return fmt.Errorf("failed to create collection: %w", err)
+	}
+
+	s.collectionsMu.Lock()
+	s.collections[name] = &CollectionConfig{
+		Name:       name,
+		VectorSize: dimension,
+		Distance:   "cosine",
+	}
+	s.collectionsMu.Unlock()
+
+	s.logger.WithField("collection", name).Info("Collection created")
+	return nil
+}
+
+// DeleteCollection deletes a collection
+func (s *SQLiteVectorStore) DeleteCollection(ctx context.Context, name string) error {
+	_, err := s.db.ExecContext(ctx, `DELETE FROM collections WHERE name = ?`, name)
+	if err != nil {
+		return fmt.Errorf("failed to delete collection: %w", err)
+	}
+
+	s.collectionsMu.Lock()
+	delete(s.collections, name)
+	s.collectionsMu.Unlock()
+
+	s.logger.WithField("collection", name).Info("Collection deleted")
+	return nil
+}
+
+// ListCollections lists all collections
+func (s *SQLiteVectorStore) ListCollections(ctx context.Context) ([]string, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT name FROM collections ORDER BY name`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list collections: %w", err)
+	}
+	defer func() {
+		if err := rows.Close(); err != nil {
+			s.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
+
+	var names []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			continue
+		}
+		names = append(names, name)
+	}
+
+	return names, nil
+}
+
+// GetStats returns vector store statistics
+func (s *SQLiteVectorStore) GetStats(ctx context.Context) (*VectorStoreStats, error) {
+	var totalDocs int64
+	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM documents`).Scan(&totalDocs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get document count: %w", err)
+	}
+
+	s.collectionsMu.RLock()
+	collectionsCount := len(s.collections)
+	s.collectionsMu.RUnlock()
+
+	stats := &VectorStoreStats{
+		TotalDocuments:   totalDocs,
+		TotalCollections: collectionsCount,
+		LastOptimized:    time.Now(), // TODO: Track this properly
+	}
+
+	return stats, nil
+}
+
+// GetCollectionStats returns collection-specific statistics
+func (s *SQLiteVectorStore) GetCollectionStats(ctx context.Context, collection string) (*CollectionStats, error) {
+	var name, distance string
+	var vectorSize, docCount int
+	var createdAt, updatedAt int64
+
+	err := s.db.QueryRowContext(ctx, `
+		SELECT name, vector_size, distance, document_count, created_at, updated_at
+		FROM collections
+		WHERE name = ?
+	`, collection).Scan(&name, &vectorSize, &distance, &docCount, &createdAt, &updatedAt)
+
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("collection not found: %s", collection)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get collection stats: %w", err)
+	}
+
+	return &CollectionStats{
+		Name:          name,
+		DocumentCount: int64(docCount),
+		Dimension:     vectorSize,
+		LastUpdated:   time.Unix(updatedAt, 0),
+	}, nil
+}
+
+// Optimize optimizes the vector store
+func (s *SQLiteVectorStore) Optimize(ctx context.Context) error {
+	// Run VACUUM to reclaim space
+	if _, err := s.db.ExecContext(ctx, `VACUUM`); err != nil {
+		s.logger.WithError(err).Warn("Failed to VACUUM database")
+	}
+
+	// Optimize FTS5 index
+	if _, err := s.db.ExecContext(ctx, `INSERT INTO documents_fts(documents_fts) VALUES('optimize')`); err != nil {
+		s.logger.WithError(err).Warn("Failed to optimize FTS5 index")
+	}
+
+	// Analyze for query planner
+	if _, err := s.db.ExecContext(ctx, `ANALYZE`); err != nil {
+		s.logger.WithError(err).Warn("Failed to ANALYZE database")
+	}
+
+	s.logger.Info("Vector store optimization completed")
+	return nil
+}
+
+// Backup creates a backup of the vector store
+func (s *SQLiteVectorStore) Backup(ctx context.Context, path string) error {
+	// SQLite backup using VACUUM INTO
+	_, err := s.db.ExecContext(ctx, fmt.Sprintf(`VACUUM INTO '%s'`, path))
+	if err != nil {
+		return fmt.Errorf("failed to backup database: %w", err)
+	}
+
+	s.logger.WithField("path", path).Info("Backup created")
+	return nil
+}
+
+// Restore restores from a backup
+func (s *SQLiteVectorStore) Restore(ctx context.Context, path string) error {
+	// Close current database
+	if err := s.db.Close(); err != nil {
+		return fmt.Errorf("failed to close database: %w", err)
+	}
+
+	// Copy backup file to current path
+	// This is OS-specific, implement using appropriate file operations
+	return fmt.Errorf("restore not yet implemented")
+}
+
+// Helper functions
+
+func (s *SQLiteVectorStore) getCollectionForType(docType DocumentType) string {
+	switch docType {
+	case DocumentTypeSchema:
+		return "schemas"
+	case DocumentTypeQuery, DocumentTypePlan:
+		return "queries"
+	case DocumentTypePerformance:
+		return "performance"
+	case DocumentTypeBusiness:
+		return "business"
+	case DocumentTypeMemory:
+		return "memory"
+	default:
+		return "queries"
+	}
+}
+
+// loadVecExtension attempts to load the sqlite-vec extension
+func (s *SQLiteVectorStore) loadVecExtension() error {
+	// Determine extension filename based on OS
+	var extFile string
+	switch runtime.GOOS {
+	case "darwin":
+		extFile = "vec0.dylib"
+	case "linux":
+		extFile = "vec0.so"
+	case "windows":
+		extFile = "vec0.dll"
+	default:
+		return fmt.Errorf("unsupported OS: %s", runtime.GOOS)
+	}
+
+	// Find libs directory (relative to executable or workspace)
+	libsDir := filepath.Join(".", "libs")
+	extPath := filepath.Join(libsDir, extFile)
+
+	// Load extension
+	_, err := s.db.Exec("SELECT load_extension(?)", extPath)
+	if err != nil {
+		return fmt.Errorf("failed to load vec extension from %s: %w", extPath, err)
+	}
+
+	s.logger.WithField("path", extPath).Info("Loaded sqlite-vec extension")
+
+	// Verify extension loaded and get version
+	var version string
+	err = s.db.QueryRow("SELECT vec_version()").Scan(&version)
+	if err != nil {
+		return fmt.Errorf("vec extension loaded but not functional: %w", err)
+	}
+
+	s.vecVersion = version
+	s.logger.WithField("version", version).Info("sqlite-vec version")
+	return nil
+}
+
+// checkHNSWAvailable checks if HNSW index is available
+func (s *SQLiteVectorStore) checkHNSWAvailable() bool {
+	// Check if vec_embeddings table exists
+	var count int
+	err := s.db.QueryRow(`
+		SELECT COUNT(*) FROM sqlite_master
+		WHERE type='table' AND name='vec_embeddings'
+	`).Scan(&count)
+
+	return err == nil && count > 0
+}
+
+// embeddingToJSON converts []float32 to JSON array format for sqlite-vec
+func embeddingToJSON(embedding []float32) string {
+	parts := make([]string, len(embedding))
+	for i, v := range embedding {
+		parts[i] = fmt.Sprintf("%f", v)
+	}
+	return "[" + strings.Join(parts, ",") + "]"
+}
+
+// StoreDocumentWithoutEmbedding stores a document without requiring an embedding
+// Used for hierarchical child documents that are lazy-loaded
+func (s *SQLiteVectorStore) StoreDocumentWithoutEmbedding(ctx context.Context, doc *Document) error {
+	if doc.ID == "" {
+		doc.ID = uuid.New().String()
+	}
+
+	now := time.Now().Unix()
+	if doc.CreatedAt.IsZero() {
+		doc.CreatedAt = time.Now()
+	}
+	doc.UpdatedAt = time.Now()
+
+	// Serialize metadata to JSON
+	metadataJSON, err := json.Marshal(doc.Metadata)
+	if err != nil {
+		return fmt.Errorf("failed to marshal metadata: %w", err)
+	}
+
+	// Insert/update document only (no embedding)
+	_, err = s.db.ExecContext(ctx, `
+		INSERT INTO documents (id, connection_id, type, content, parent_id, level, summary, metadata, created_at, updated_at, access_count, last_accessed)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(id) DO UPDATE SET
+			content = excluded.content,
+			parent_id = excluded.parent_id,
+			level = excluded.level,
+			summary = excluded.summary,
+			metadata = excluded.metadata,
+			updated_at = excluded.updated_at
+	`, doc.ID, doc.ConnectionID, string(doc.Type), doc.Content, doc.ParentID, string(doc.Level), doc.Summary,
+		string(metadataJSON), doc.CreatedAt.Unix(), doc.UpdatedAt.Unix(), doc.AccessCount, now)
+
+	if err != nil {
+		return fmt.Errorf("failed to insert document: %w", err)
+	}
+
+	s.logger.WithFields(logrus.Fields{
+		"document_id": doc.ID,
+		"parent_id":   doc.ParentID,
+		"level":       doc.Level,
+	}).Debug("Document stored without embedding")
+
+	return nil
+}
+
+// GetDocumentsBatch retrieves multiple documents by their IDs
+func (s *SQLiteVectorStore) GetDocumentsBatch(ctx context.Context, ids []string) ([]*Document, error) {
+	if len(ids) == 0 {
+		return []*Document{}, nil
+	}
+
+	// Build placeholders for IN clause
+	placeholders := make([]string, len(ids))
+	args := make([]interface{}, len(ids))
+	for i, id := range ids {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+
+	// #nosec G201 -- using parameterized placeholders for IN clause, not user input
+	query := fmt.Sprintf(`
+		SELECT d.id, d.connection_id, d.type, d.content, d.parent_id, d.level, d.summary, d.metadata,
+		       d.created_at, d.updated_at, d.access_count, d.last_accessed, e.embedding
+		FROM documents d
+		LEFT JOIN embeddings e ON d.id = e.document_id
+		WHERE d.id IN (%s)
+	`, strings.Join(placeholders, ","))
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query documents: %w", err)
+	}
+	defer func() {
+		if err := rows.Close(); err != nil {
+			s.logger.WithError(err).Error("Failed to close rows")
+		}
+	}()
+
+	docs := make([]*Document, 0, len(ids))
+	for rows.Next() {
+		var id, connID, docType, content, metadataJSON string
+		var parentID, level, summary sql.NullString
+		var embeddingBytes []byte
+		var createdAt, updatedAt, accessCount, lastAccessed int64
+
+		err := rows.Scan(&id, &connID, &docType, &content, &parentID, &level, &summary, &metadataJSON,
+			&createdAt, &updatedAt, &accessCount, &lastAccessed, &embeddingBytes)
+		if err != nil {
+			s.logger.WithError(err).Warn("Failed to scan document")
+			continue
+		}
+
+		doc := &Document{
+			ID:           id,
+			ConnectionID: connID,
+			Type:         DocumentType(docType),
+			Content:      content,
+			CreatedAt:    time.Unix(createdAt, 0),
+			UpdatedAt:    time.Unix(updatedAt, 0),
+			AccessCount:  int(accessCount),
+			LastAccessed: time.Unix(lastAccessed, 0),
+		}
+
+		if parentID.Valid {
+			doc.ParentID = parentID.String
+		}
+		if level.Valid {
+			doc.Level = DocumentLevel(level.String)
+		}
+		if summary.Valid {
+			doc.Summary = summary.String
+		}
+
+		// Deserialize metadata
+		if metadataJSON != "" {
+			var metadata map[string]interface{}
+			if err := json.Unmarshal([]byte(metadataJSON), &metadata); err == nil {
+				doc.Metadata = metadata
+			}
+		}
+
+		// Deserialize embedding if present
+		if embeddingBytes != nil {
+			doc.Embedding = deserializeEmbedding(embeddingBytes)
+		}
+
+		docs = append(docs, doc)
+	}
+
+	return docs, nil
+}
+
+// UpdateDocumentMetadata updates only the metadata of a document
+func (s *SQLiteVectorStore) UpdateDocumentMetadata(ctx context.Context, id string, metadata map[string]interface{}) error {
+	// Serialize metadata to JSON
+	metadataJSON, err := json.Marshal(metadata)
+	if err != nil {
+		return fmt.Errorf("failed to marshal metadata: %w", err)
+	}
+
+	now := time.Now().Unix()
+	_, err = s.db.ExecContext(ctx, `
+		UPDATE documents
+		SET metadata = ?, updated_at = ?
+		WHERE id = ?
+	`, string(metadataJSON), now, id)
+
+	if err != nil {
+		return fmt.Errorf("failed to update document metadata: %w", err)
+	}
+
+	s.logger.WithField("document_id", id).Debug("Document metadata updated")
+	return nil
+}
+
+// applyHNSWMigration applies the HNSW vector index migration
+func (s *SQLiteVectorStore) applyHNSWMigration(ctx context.Context) error {
+	// Check if migration already applied
+	var currentVersion int
+	err := s.db.QueryRowContext(ctx, `
+		SELECT COALESCE(MAX(version), 0)
+		FROM sqlite_master
+		WHERE type='table' AND name='schema_migrations'
+	`).Scan(&currentVersion)
+
+	// If schema_migrations doesn't exist, version is 0
+	if err != nil && err != sql.ErrNoRows {
+		// Create schema_migrations table if it doesn't exist
+		_, err = s.db.ExecContext(ctx, `
+			CREATE TABLE IF NOT EXISTS schema_migrations (
+				version INTEGER PRIMARY KEY,
+				applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+				description TEXT
+			)
+		`)
+		if err != nil {
+			return fmt.Errorf("failed to create schema_migrations table: %w", err)
+		}
+		currentVersion = 0
+	}
+
+	// Check current version
+	err = s.db.QueryRowContext(ctx, `
+		SELECT COALESCE(MAX(version), 0) FROM schema_migrations
+	`).Scan(&currentVersion)
+	if err != nil && err != sql.ErrNoRows {
+		return fmt.Errorf("failed to get current version: %w", err)
+	}
+
+	// Apply migration 002 if needed
+	if currentVersion < 2 {
+		s.logger.Info("Applying migration 002: Add HNSW vector index")
+
+		migrationPath := filepath.Join("internal", "rag", "migrations", "002_add_vector_index.sql")
+		migrationSQL, err := os.ReadFile(migrationPath) // #nosec G304 - migration file path is fully hardcoded with no user input
+		if err != nil {
+			return fmt.Errorf("failed to read migration file: %w", err)
+		}
+
+		// Parse and execute migration statements
+		statements := s.parseSQLStatements(string(migrationSQL))
+		for _, stmt := range statements {
+			stmt = strings.TrimSpace(stmt)
+			if stmt == "" {
+				continue
+			}
+
+			_, err = s.db.ExecContext(ctx, stmt)
+			if err != nil {
+				return fmt.Errorf("failed to execute HNSW migration statement: %w", err)
+			}
+		}
+
+		s.logger.Info("Migration 002 applied successfully")
+	}
+
+	return nil
+}

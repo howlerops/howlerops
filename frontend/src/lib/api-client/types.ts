@@ -229,30 +229,30 @@ export interface SchemaInfo {
 export interface TableInfo {
   name: string
   schema: string
-  type: string
-  comment: string
-  createdAt: string
-  updatedAt: string
-  rowCount: number
-  sizeBytes: number
-  owner: string
-  metadata: Record<string, unknown>
+  type?: string
+  comment?: string
+  createdAt?: string
+  updatedAt?: string
+  rowCount?: number
+  sizeBytes?: number
+  owner?: string
+  metadata?: Record<string, unknown>
 }
 
 export interface ColumnInfo {
   name: string
   dataType: string
   nullable: boolean
-  defaultValue?: string
+  defaultValue?: string | null
   primaryKey: boolean
-  unique: boolean
-  indexed: boolean
-  comment: string
-  ordinalPosition: number
-  characterMaximumLength?: number
-  numericPrecision?: number
-  numericScale?: number
-  metadata: Record<string, unknown>
+  unique?: boolean
+  indexed?: boolean
+  comment?: string
+  ordinalPosition?: number
+  characterMaximumLength?: number | null
+  numericPrecision?: number | null
+  numericScale?: number | null
+  metadata?: Record<string, unknown>
 }
 
 export interface TableStructureResult {

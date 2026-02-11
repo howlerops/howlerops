@@ -7,7 +7,7 @@
 
 import type { AIRecallItem } from '@/types/ai'
 
-import { RecallAIMemorySessions } from '../../../wailsjs/go/main/App'
+import { RecallAIMemorySessions } from '../../../bindings/github.com/jbeck018/howlerops/app'
 
 /**
  * Fetches related sessions from backend based on prompt similarity

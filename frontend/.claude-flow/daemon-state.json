@@ -1,46 +1,46 @@
 {
   "running": true,
-  "startedAt": "2026-01-19T20:11:26.845Z",
+  "startedAt": "2026-02-04T18:49:40.622Z",
   "workers": {
     "map": {
       "runCount": 0,
       "successCount": 0,
       "failureCount": 0,
       "averageDurationMs": 0,
-      "isRunning": false,
-      "nextRun": "2026-01-19T20:11:26.845Z"
+      "nextRun": "2026-02-04T18:49:40.622Z",
+      "isRunning": false
     },
     "audit": {
       "runCount": 0,
       "successCount": 0,
       "failureCount": 0,
       "averageDurationMs": 0,
-      "isRunning": false,
-      "nextRun": "2026-01-19T20:13:26.845Z"
+      "nextRun": "2026-02-04T18:51:40.622Z",
+      "isRunning": false
     },
     "optimize": {
       "runCount": 0,
       "successCount": 0,
       "failureCount": 0,
       "averageDurationMs": 0,
-      "isRunning": false,
-      "nextRun": "2026-01-19T20:15:26.845Z"
+      "nextRun": "2026-02-04T18:53:40.622Z",
+      "isRunning": false
     },
     "consolidate": {
       "runCount": 0,
       "successCount": 0,
       "failureCount": 0,
       "averageDurationMs": 0,
-      "isRunning": false,
-      "nextRun": "2026-01-19T20:17:26.845Z"
+      "nextRun": "2026-02-04T18:55:40.622Z",
+      "isRunning": false
     },
     "testgaps": {
       "runCount": 0,
       "successCount": 0,
       "failureCount": 0,
       "averageDurationMs": 0,
-      "isRunning": false,
-      "nextRun": "2026-01-19T20:19:26.845Z"
+      "nextRun": "2026-02-04T18:57:40.622Z",
+      "isRunning": false
     },
     "predict": {
       "runCount": 0,
@@ -59,8 +59,8 @@
   },
   "config": {
     "autoStart": false,
-    "logDir": "/Users/jacob/projects/amplifier/ai_working/howlerops/frontend/.claude-flow/logs",
-    "stateFile": "/Users/jacob/projects/amplifier/ai_working/howlerops/frontend/.claude-flow/daemon-state.json",
+    "logDir": "/Users/jacob_1/projects/howlerops/frontend/.claude-flow/logs",
+    "stateFile": "/Users/jacob_1/projects/howlerops/frontend/.claude-flow/daemon-state.json",
     "maxConcurrent": 2,
     "workerTimeoutMs": 300000,
     "resourceThresholds": {
@@ -126,5 +126,5 @@
       }
     ]
   },
-  "savedAt": "2026-01-19T20:11:26.845Z"
+  "savedAt": "2026-02-04T18:49:40.622Z"
 }

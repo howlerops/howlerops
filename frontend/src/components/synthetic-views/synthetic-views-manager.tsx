@@ -59,7 +59,7 @@ export const SyntheticViewsManager: React.FC<SyntheticViewsManagerProps> = ({
       // Load synthetic views
       try {
         // @ts-expect-error - Wails API may not be available in development
-        const App = await import('../../wailsjs/go/main/App') as WailsApp
+        const App = await import('../../../bindings/github.com/jbeck018/howlerops/app') as WailsApp
         const viewsList = await App.ListSyntheticViews()
         setViews(viewsList)
       } catch (importError) {
@@ -80,7 +80,7 @@ export const SyntheticViewsManager: React.FC<SyntheticViewsManagerProps> = ({
     try {
       try {
         // @ts-expect-error - Wails API may not be available in development
-        const App = await import('../../wailsjs/go/main/App') as WailsApp
+        const App = await import('../../../bindings/github.com/jbeck018/howlerops/app') as WailsApp
         const view = await App.GetSyntheticView(viewId)
         setSelectedView(view)
         if (onViewSelect) {
@@ -105,7 +105,7 @@ export const SyntheticViewsManager: React.FC<SyntheticViewsManagerProps> = ({
     try {
       try {
         // @ts-expect-error - Wails API may not be available in development
-        const App = await import('../../wailsjs/go/main/App') as WailsApp
+        const App = await import('../../../bindings/github.com/jbeck018/howlerops/app') as WailsApp
         await App.DeleteSyntheticView(viewId)
         
         // Remove from local state
@@ -129,7 +129,7 @@ export const SyntheticViewsManager: React.FC<SyntheticViewsManagerProps> = ({
     try {
       try {
         // @ts-expect-error - Wails API may not be available in development
-        const App = await import('../../wailsjs/go/main/App') as WailsApp
+        const App = await import('../../../bindings/github.com/jbeck018/howlerops/app') as WailsApp
         const viewDetails = await App.GetSyntheticView(view.id)
         if (onViewEdit) {
           onViewEdit(viewDetails)

@@ -16,7 +16,6 @@
 import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
 
-import { dedupedRequest } from '@/lib/request-deduplication'
 import {
   getRequiredTier,
   isTierAtLeast,
@@ -25,6 +24,7 @@ import {
   TIER_METADATA,
   tierHasFeature,
 } from '@/config/tier-limits'
+import { dedupedRequest } from '@/lib/request-deduplication'
 import { validateLicenseKey } from '@/lib/tiers/license-validator'
 import type {
   LimitCheckResult,

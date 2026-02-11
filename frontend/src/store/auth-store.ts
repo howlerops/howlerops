@@ -19,9 +19,9 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
 import * as authApi from '@/lib/auth-api'
-import { dedupedRequest } from '@/lib/request-deduplication'
 import { importMasterKeyFromBase64 } from '@/lib/crypto/encryption'
 import { isWailsApp } from '@/lib/platform'
+import { dedupedRequest } from '@/lib/request-deduplication'
 import { subscribeToWailsEvent } from '@/lib/wails-guard'
 import type { AuthRestoredEvent,AuthSuccessEvent } from '@/types/wails-auth'
 
@@ -511,7 +511,7 @@ export const initializeAuthStore = () => {
   const { isAuthenticated, refreshToken, checkStoredAuth } = useAuthStore.getState()
 
   // Set up event listeners for OAuth authentication (desktop mode only)
-  if (isWailsApp() && typeof window !== 'undefined' && window.runtime) {
+  if (isWailsApp()) {
     try {
       // Listen for successful OAuth authentication
       subscribeToWailsEvent('auth:success', (data: AuthSuccessEvent) => {

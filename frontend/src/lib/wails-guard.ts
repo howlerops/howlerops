@@ -1,52 +1,59 @@
 /**
- * Wails API Guard Utilities
+ * Wails v3 API Guard Utilities
  *
- * Provides type-safe wrappers for calling Wails backend methods with proper error handling.
+ * Provides type-safe wrappers for calling Wails v3 backend methods with proper error handling.
+ * In v3, we import functions directly from generated bindings rather than using window.go.
  */
 
-export function ensureWailsAPI() {
-  if (!window.go?.main?.App) {
-    throw new Error('Wails runtime not available')
+import { Events } from '@wailsio/runtime'
+
+import { isWailsReady } from './wails-runtime'
+
+// Ensure Wails v3 runtime is available
+export function ensureWailsRuntime(): boolean {
+  if (!isWailsReady()) {
+    throw new Error('Wails v3 runtime not available')
   }
-  return window.go.main.App
+  return true
 }
 
-export function ensureWailsRuntime() {
-  if (!window.runtime) {
-    throw new Error('Wails runtime events not available')
-  }
-  return window.runtime
+// Legacy API guard - now just checks runtime availability
+// In v3, functions are imported directly from bindings, not from window.go
+export function ensureWailsAPI(): boolean {
+  return ensureWailsRuntime()
 }
 
 /**
- * Call a Wails method with automatic runtime checking
+ * Call a Wails v3 method with automatic runtime checking
+ * In v3, we use direct imports from bindings, so this is just a wrapper for error handling
  */
 export async function callWails<T>(
-  method: (app: NonNullable<NonNullable<NonNullable<typeof window.go>['main']>['App']>) => Promise<T>
+  fn: () => Promise<T>
 ): Promise<T> {
-  const app = ensureWailsAPI()
-  return method(app)
+  ensureWailsRuntime()
+  return fn()
 }
 
 /**
- * Subscribe to Wails runtime events with automatic cleanup
+ * Subscribe to Wails v3 runtime events with automatic cleanup
  */
 export function subscribeToWailsEvent(
   eventName: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Wails runtime events emit untyped data payloads
   callback: (data: any) => void
 ): () => void {
-  const runtime = ensureWailsRuntime()
+  ensureWailsRuntime()
 
-  if (!runtime.EventsOn) {
-    throw new Error('Wails EventsOn not available')
-  }
-
-  const unsubscribe = runtime.EventsOn(eventName, callback)
-
-  if (!unsubscribe) {
-    throw new Error(`Failed to subscribe to event: ${eventName}`)
-  }
+  // In v3, Events.On returns the cancel function directly
+  const unsubscribe = Events.On(eventName, callback)
 
   return unsubscribe
+}
+
+/**
+ * Emit an event to the Wails v3 runtime
+ */
+export function emitWailsEvent(eventName: string, data?: unknown): void {
+  ensureWailsRuntime()
+  Events.Emit(eventName, data)
 }

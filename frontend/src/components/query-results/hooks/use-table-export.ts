@@ -57,7 +57,7 @@ export function useTableExport({
           content = JSON.stringify(dataToExport, null, 2)
         }
 
-        const { SaveToDownloads } = await import('../../../../wailsjs/go/main/App')
+        const { SaveToDownloads } = await import('../../../../bindings/github.com/jbeck018/howlerops/app')
         const filePath = await SaveToDownloads(filename, content)
 
         toast({
@@ -129,7 +129,7 @@ export function useTableExport({
         content = JSON.stringify(jsonData, null, 2)
       }
 
-      const { SaveToDownloads } = await import('../../../../wailsjs/go/main/App')
+      const { SaveToDownloads } = await import('../../../../bindings/github.com/jbeck018/howlerops/app')
       const filePath = await SaveToDownloads(filename, content)
 
       toast({

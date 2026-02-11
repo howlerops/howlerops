@@ -18,7 +18,7 @@ import {
   ListSchemaSnapshots,
   CreateSchemaSnapshot,
   DeleteSchemaSnapshot
-} from '@/wailsjs/go/main/App'
+} from '@/bindings/github.com/jbeck018/howlerops/app'
 
 export function SnapshotManager() {
   const [snapshots, setSnapshots] = useState<SnapshotMetadata[]>([])
@@ -93,7 +93,7 @@ import {
   type DiffStatus,
   type DiffStatsBreakdown
 } from '@/types/schema-diff'
-import { CompareConnectionSchemas } from '@/wailsjs/go/main/App'
+import { CompareConnectionSchemas } from '@/bindings/github.com/jbeck018/howlerops/app'
 
 interface SchemaComparisonProps {
   sourceId: string
@@ -330,7 +330,7 @@ import {
   type MigrationPreview,
   type MigrationWarning
 } from '@/types/schema-diff'
-import { GenerateMigrationSQL } from '@/wailsjs/go/main/App'
+import { GenerateMigrationSQL } from '@/bindings/github.com/jbeck018/howlerops/app'
 
 interface MigrationGeneratorProps {
   sourceId: string
@@ -478,7 +478,7 @@ import {
   SearchCatalog,
   GetCatalogStats,
   ListTableCatalogEntries
-} from '@/wailsjs/go/main/App'
+} from '@/bindings/github.com/jbeck018/howlerops/app'
 
 export function CatalogBrowser({ connectionId }: { connectionId: string }) {
   const [tables, setTables] = useState<TableCatalogEntry[]>([])
@@ -561,7 +561,7 @@ import {
   type ColumnCatalogEntry,
   type PIIDetectionResult
 } from '@/types/catalog'
-import { MarkColumnAsPII, ListColumnCatalogEntries } from '@/wailsjs/go/main/App'
+import { MarkColumnAsPII, ListColumnCatalogEntries } from '@/bindings/github.com/jbeck018/howlerops/app'
 
 const PII_TYPES: { value: PIIType; label: string }[] = [
   { value: 'email', label: 'Email Address' },
@@ -821,7 +821,7 @@ export function summarizeColumnChanges(column: ColumnDiff): string {
 ```typescript
 import { useState, useEffect } from 'react'
 import type { CatalogStats } from '@/types/catalog'
-import { GetCatalogStats } from '@/wailsjs/go/main/App'
+import { GetCatalogStats } from '@/bindings/github.com/jbeck018/howlerops/app'
 
 export function useCatalogStats(connectionId: string) {
   const [stats, setStats] = useState<CatalogStats | null>(null)

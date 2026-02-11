@@ -142,7 +142,7 @@ Edit the `ignores` section in `eslint.config.js`:
 
 ```javascript
 {
-  ignores: ['dist', 'wailsjs', 'src/lib/sync/INTEGRATION_EXAMPLE.tsx']
+  ignores: ['dist', 'bindings', 'src/lib/sync/INTEGRATION_EXAMPLE.tsx']
 }
 ```
 

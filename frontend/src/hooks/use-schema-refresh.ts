@@ -2,7 +2,7 @@ import { useCallback,useEffect, useRef } from 'react'
 
 import { useConnectionStore } from '@/store/connection-store'
 
-import { RefreshSchema } from '../../wailsjs/go/main/App'
+import { RefreshSchema } from '../../bindings/github.com/jbeck018/howlerops/app'
 
 export function useSchemaRefresh(intervalMs = 60000) {
   const { connections } = useConnectionStore()

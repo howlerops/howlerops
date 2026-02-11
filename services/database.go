@@ -10,8 +10,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 
-	"github.com/jbeck018/howlerops/backend-go/pkg/database"
-	"github.com/jbeck018/howlerops/backend-go/pkg/database/multiquery"
+	"github.com/jbeck018/howlerops/pkg/database"
+	"github.com/jbeck018/howlerops/pkg/database/multiquery"
 )
 
 // DatabaseManager captures the subset of backend-go's Manager used by the desktop services layer.
@@ -138,11 +138,11 @@ func (s *DatabaseService) SetContext(ctx context.Context) {
 }
 
 func (s *DatabaseService) emitEvent(event string, payload interface{}) {
-	if s.emitter == nil || s.ctx == nil {
+	if s.emitter == nil {
 		return
 	}
 
-	if err := s.emitter.Emit(s.ctx, event, payload); err != nil && s.logger != nil {
+	if err := s.emitter.Emit(event, payload); err != nil && s.logger != nil {
 		s.logger.WithError(err).WithField("event", event).Warn("Failed to emit event")
 	}
 }
@@ -962,14 +962,14 @@ func (s *DatabaseService) ExecuteMultiDatabaseQuery(query string, options *multi
 func (s *DatabaseService) ValidateMultiQuery(query string) (*MultiQueryValidation, error) {
 	parsed, err := s.manager.ParseMultiQuery(query)
 	if err != nil {
-		return &MultiQueryValidation{
+		return &MultiQueryValidation{ //nolint:nilerr // error embedded in response
 			Valid:  false,
 			Errors: []string{err.Error()},
 		}, nil
 	}
 
 	if err := s.manager.ValidateMultiQuery(parsed); err != nil {
-		return &MultiQueryValidation{
+		return &MultiQueryValidation{ //nolint:nilerr // error embedded in response
 			Valid:  false,
 			Errors: []string{err.Error()},
 		}, nil

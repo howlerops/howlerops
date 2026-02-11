@@ -1,8 +1,8 @@
 import { create } from 'zustand'
 import { createJSONStorage,persist } from 'zustand/middleware'
 
+import { getDefaultModelId } from '@/config/ai-models'
 import type { SchemaNode } from '@/hooks/use-schema-introspection'
-import { dedupedRequest } from '@/lib/request-deduplication'
 import {
   buildFixSQLBackendRequest,
   buildGenerateSQLBackendRequest,
@@ -23,13 +23,14 @@ import {
 } from '@/lib/ai'
 import { handleVoidPromise } from '@/lib/ai-error-handling'
 import { detectsMultiDB } from '@/lib/ai-schema-context-builder'
+import { dedupedRequest } from '@/lib/request-deduplication'
 import { showHybridNotification,testAIProviderConnection } from '@/lib/wails-ai-api'
 import { type AIMemorySession as MemorySession,estimateTokens as estimateMemoryTokens, useAIMemoryStore } from '@/store/ai-memory-store'
 import type { DatabaseConnection } from '@/store/connection-store'
 import type { AISessionId } from '@/types/ai'
 
-import { ConfigureAIProvider,DeleteAIMemorySession, LoadAIMemorySessions, SaveAIMemorySessions } from '../../wailsjs/go/main/App'
-import { main as wailsModels } from '../../wailsjs/go/models'
+import { ConfigureAIProvider, DeleteAIMemorySession, LoadAIMemorySessions, SaveAIMemorySessions } from '../../bindings/github.com/jbeck018/howlerops/app'
+import * as wailsModels from '../../bindings/github.com/jbeck018/howlerops/models'
 
 // Normalize endpoint URL
 function normalizeEndpoint(endpoint: string | undefined): string {
@@ -170,7 +171,7 @@ const defaultConfig: AIConfig = {
   codexOrganization: '',
   ollamaEndpoint: 'http://localhost:11434',
   huggingfaceEndpoint: 'http://localhost:11434',
-  selectedModel: 'gpt-4o-mini',
+  selectedModel: getDefaultModelId('openai'),
   maxTokens: 2048,
   temperature: 0.1,
   autoFixEnabled: true,
@@ -196,42 +197,46 @@ const defaultState: AIState = {
 }
 
 type WailsMemorySession = InstanceType<typeof wailsModels.AIMemorySessionPayload>
-type WailsMemoryMessage = InstanceType<typeof wailsModels.AIMemoryMessagePayload>
 
 const serializeMemorySessions = (sessions: MemorySession[]): WailsMemorySession[] => {
   return sessions.map(session => wailsModels.AIMemorySessionPayload.createFrom({
     id: session.id,
     title: session.title,
-    createdAt: session.createdAt,
-    updatedAt: session.updatedAt,
+    createdAt: new Date(session.createdAt).toISOString(),
+    updatedAt: new Date(session.updatedAt).toISOString(),
     summary: session.summary ?? '',
     summaryTokens: session.summaryTokens ?? 0,
     metadata: session.metadata ?? {},
     messages: session.messages.map(message => wailsModels.AIMemoryMessagePayload.createFrom({
       role: message.role,
       content: message.content,
-      timestamp: message.timestamp,
+      timestamp: new Date(message.timestamp).toISOString(),
       metadata: message.metadata ?? {},
     })),
   }))
+}
+
+// Type guard to check if message has timestamp property
+function hasTimestamp(message: unknown): message is { timestamp: string; role: string; content: string; metadata?: Record<string, unknown> } {
+  return typeof message === 'object' && message !== null && 'timestamp' in message;
 }
 
 const deserializeMemorySessions = (payload: WailsMemorySession[]): MemorySession[] => {
   return payload.map(session => ({
     id: session.id,
     title: session.title,
-    createdAt: session.createdAt,
-    updatedAt: session.updatedAt,
+    createdAt: new Date(session.createdAt).getTime(),
+    updatedAt: new Date(session.updatedAt).getTime(),
     summary: session.summary || undefined,
     summaryTokens: session.summaryTokens || undefined,
     metadata: session.metadata && Object.keys(session.metadata).length ? session.metadata : undefined,
-    messages: (session.messages || []).map((message: WailsMemoryMessage) => ({
+    messages: (session.messages || []).map((message) => ({
       id: crypto.randomUUID(),
-      role: (message.role as 'system' | 'user' | 'assistant') ?? 'user',
+      role: ((message.role as 'system' | 'user' | 'assistant') ?? 'user'),
       content: message.content,
       tokens: estimateMemoryTokens(message.content),
-      timestamp: message.timestamp,
-      metadata: message.metadata && Object.keys(message.metadata).length ? message.metadata : undefined,
+      timestamp: hasTimestamp(message) ? new Date(message.timestamp).getTime() : Date.now(),
+      metadata: ('metadata' in message && message.metadata && Object.keys(message.metadata).length) ? message.metadata : undefined,
     })),
   }))
 }
@@ -650,7 +655,7 @@ export const useAIStore = create<AIState & AIActions>()(
           }
 
           // Import and execute Wails binding
-          const { GenerateSQLFromNaturalLanguage } = await import('../../wailsjs/go/main/App')
+          const { GenerateSQLFromNaturalLanguage } = await import('../../bindings/github.com/jbeck018/howlerops/app')
           const rawResult = await GenerateSQLFromNaturalLanguage(request)
 
           // Parse and validate response
@@ -755,7 +760,7 @@ export const useAIStore = create<AIState & AIActions>()(
           )
 
           // Import and execute Wails binding
-          const { FixSQLErrorWithOptions } = await import('../../wailsjs/go/main/App')
+          const { FixSQLErrorWithOptions } = await import('../../bindings/github.com/jbeck018/howlerops/app')
           const rawResult = await FixSQLErrorWithOptions(request)
 
           // Parse and validate response
@@ -864,7 +869,7 @@ export const useAIStore = create<AIState & AIActions>()(
           )
 
           // Import and execute Wails binding
-          const { GenericChat } = await import('../../wailsjs/go/main/App')
+          const { GenericChat } = await import('../../bindings/github.com/jbeck018/howlerops/app')
           const rawResponse = await GenericChat(request)
 
           // Parse and validate response

@@ -5,7 +5,7 @@ export GOCACHE := $(CURDIR)/.gocache
 GO := $(CURDIR)/scripts/go
 NPM := npm
 export PATH := $(CURDIR)/scripts:$(shell go env GOPATH)/bin:$(PATH)
-WAILS_BIN := $(shell go env GOPATH)/bin/wails
+WAILS_BIN := $(shell go env GOPATH)/bin/wails3
 WAILS := $(WAILS_BIN)
 BINARY_NAME := howlerops
 BUILD_DIR := ./build/bin
@@ -36,48 +36,46 @@ help:
 	@echo "$(COLOR_BOLD)Build Targets:$(COLOR_RESET)"
 	@grep -E '^## ' Makefile | sed 's/## /  /' | column -t -s ':'
 
-## build: Build the Wails desktop application
+## build: Build the Wails v3 desktop application
 .PHONY: build
-build: deps proto
-	@echo "$(COLOR_BLUE)Building Wails desktop application...$(COLOR_RESET)"
-	@$(WAILS) build -tags duckdb -skipbindings -clean
+build: deps proto generate-assets
+	@echo "$(COLOR_BLUE)Building Wails v3 desktop application...$(COLOR_RESET)"
+	@$(WAILS) task build
 	@echo "$(COLOR_GREEN)✓ Desktop application built$(COLOR_RESET)"
 
-## bindings: Regenerate Wails JS bindings (without DuckDB tag to avoid CGO architecture issues)
+## bindings: Regenerate Wails v3 JS bindings
 .PHONY: bindings
 bindings: deps proto
-	@echo "$(COLOR_BLUE)Regenerating Wails bindings...$(COLOR_RESET)"
-	@echo "$(COLOR_YELLOW)Note: Building without DuckDB tag to regenerate bindings$(COLOR_RESET)"
-	@$(WAILS) build -skipbindings=false -s -clean
+	@echo "$(COLOR_BLUE)Regenerating Wails v3 bindings...$(COLOR_RESET)"
+	@$(WAILS) generate bindings
 	@echo "$(COLOR_GREEN)✓ Bindings regenerated$(COLOR_RESET)"
-	@echo "$(COLOR_YELLOW)Now run 'make build' or 'make dev' to build with DuckDB support$(COLOR_RESET)"
 
 ## build-debug: Build the application with debug symbols
 .PHONY: build-debug
 build-debug: deps proto
 	@echo "$(COLOR_BLUE)Building debug version...$(COLOR_RESET)"
-	@$(WAILS) build -tags duckdb -skipbindings -debug -clean
+	@$(WAILS) task build DEBUG=true
 	@echo "$(COLOR_GREEN)✓ Debug build complete$(COLOR_RESET)"
 
-## build-mac: Build for macOS (universal binary)
+## build-mac: Build for macOS (current arch)
 .PHONY: build-mac
 build-mac: deps proto
-	@echo "$(COLOR_BLUE)Building macOS universal binary...$(COLOR_RESET)"
-	@$(WAILS) build -tags duckdb -skipbindings -platform darwin/universal -clean
+	@echo "$(COLOR_BLUE)Building macOS application...$(COLOR_RESET)"
+	@$(WAILS) task darwin:build
 	@echo "$(COLOR_GREEN)✓ macOS build complete$(COLOR_RESET)"
 
-## build-windows: Build for Windows
+## build-windows: Build for Windows (via Docker)
 .PHONY: build-windows
 build-windows: deps proto
-	@echo "$(COLOR_BLUE)Building Windows executable...$(COLOR_RESET)"
-	@$(WAILS) build -tags duckdb -skipbindings -platform windows/amd64 -clean
+	@echo "$(COLOR_BLUE)Building Windows executable (via Docker cross-compile)...$(COLOR_RESET)"
+	@$(WAILS) task windows:build
 	@echo "$(COLOR_GREEN)✓ Windows build complete$(COLOR_RESET)"
 
-## build-linux: Build for Linux
+## build-linux: Build for Linux (via Docker)
 .PHONY: build-linux
 build-linux: deps proto
-	@echo "$(COLOR_BLUE)Building Linux executable...$(COLOR_RESET)"
-	@$(WAILS) build -tags duckdb -skipbindings -platform linux/amd64 -clean
+	@echo "$(COLOR_BLUE)Building Linux executable (via Docker cross-compile)...$(COLOR_RESET)"
+	@$(WAILS) task linux:build
 	@echo "$(COLOR_GREEN)✓ Linux build complete$(COLOR_RESET)"
 
 ## deps: Install all dependencies
@@ -105,12 +103,12 @@ build-frontend:
 	@cd $(FRONTEND_DIR) && $(NPM) run build
 	@echo "$(COLOR_GREEN)✓ Frontend bundle ready$(COLOR_RESET)"
 
-## check-wails: Check if Wails is installed
+## check-wails: Check if Wails v3 is installed
 .PHONY: check-wails
 check-wails:
-	@echo "$(COLOR_BLUE)Checking Wails installation...$(COLOR_RESET)"
-	@which wails > /dev/null || (echo "$(COLOR_YELLOW)Wails not found. Installing...$(COLOR_RESET)" && go install github.com/wailsapp/wails/v2/cmd/wails@latest)
-	@echo "$(COLOR_GREEN)✓ Wails is installed$(COLOR_RESET)"
+	@echo "$(COLOR_BLUE)Checking Wails v3 installation...$(COLOR_RESET)"
+	@which wails3 > /dev/null || (echo "$(COLOR_YELLOW)Wails v3 not found. Installing...$(COLOR_RESET)" && go install github.com/wailsapp/wails/v3/cmd/wails3@latest)
+	@echo "$(COLOR_GREEN)✓ Wails v3 is installed$(COLOR_RESET)"
 
 ## check-node: Ensure Node.js version is compatible with Vite
 .PHONY: check-node
@@ -125,38 +123,25 @@ if (!valid) { \
 }' || (echo "$(COLOR_YELLOW)Please install a supported Node.js version (>=20.19 or >=22.12).$(COLOR_RESET)" && exit 1)
 	@echo "$(COLOR_GREEN)✓ Node.js version compatible$(COLOR_RESET)"
 
-## dev: Start Wails development mode with hot reload
-.PHONY: dev
-dev: check-node check-wails deps proto init-local-db
-	@echo "$(COLOR_BLUE)Starting frontend dev server and Wails (hot reload)...$(COLOR_RESET)"
-	@echo "$(COLOR_YELLOW)The application will open automatically$(COLOR_RESET)"
-	@bash -c '\
-		set -euo pipefail; \
-		cd $(FRONTEND_DIR); \
-		$(NPM) run dev -- --host 127.0.0.1 & \
-		FRONTEND_PID=$$!; \
-		trap '\''kill "$$FRONTEND_PID" 2>/dev/null || true'\'' EXIT INT TERM; \
-		echo \"$(COLOR_BLUE)Waiting for Vite dev server...$(COLOR_RESET)\"; \
-		sleep 2; \
-		cd ..; \
-		$(WAILS) dev -s -tags duckdb -skipbindings -frontenddevserverurl http://127.0.0.1:5173 || true; \
-		kill "$$FRONTEND_PID" 2>/dev/null || true'
+## generate-assets: Regenerate platform build assets from build/config.yml
+.PHONY: generate-assets
+generate-assets: check-wails
+	@echo "$(COLOR_BLUE)Generating platform build assets from config.yml...$(COLOR_RESET)"
+	@$(WAILS) task common:update:build-assets
+	@echo "$(COLOR_GREEN)✓ Build assets generated$(COLOR_RESET)"
 
-## dev-browser: Start development mode in browser with hot reload
+## dev: Start Wails v3 development mode with hot reload
+.PHONY: dev
+dev: check-node check-wails deps proto init-local-db generate-assets
+	@echo "$(COLOR_BLUE)Starting Wails v3 dev mode (hot reload)...$(COLOR_RESET)"
+	@echo "$(COLOR_YELLOW)The application will open automatically$(COLOR_RESET)"
+	@$(WAILS) dev -config ./build/config.yml -port 5173
+
+## dev-browser: Start development mode in browser (server mode)
 .PHONY: dev-browser
 dev-browser: check-node check-wails deps proto
-	@echo "$(COLOR_BLUE)Starting frontend dev server and Wails in browser (hot reload)...$(COLOR_RESET)"
-	@bash -c '\
-		set -euo pipefail; \
-		cd $(FRONTEND_DIR); \
-		$(NPM) run dev -- --host 127.0.0.1 & \
-		FRONTEND_PID=$$!; \
-		trap '\''kill "$$FRONTEND_PID" 2>/dev/null || true'\'' EXIT INT TERM; \
-		echo \"$(COLOR_BLUE)Waiting for Vite dev server...$(COLOR_RESET)\"; \
-		sleep 2; \
-		cd ..; \
-		$(WAILS) dev -browser -s -tags duckdb -skipbindings -frontenddevserverurl http://127.0.0.1:5173 || true; \
-		kill "$$FRONTEND_PID" 2>/dev/null || true'
+	@echo "$(COLOR_BLUE)Starting Wails v3 server mode for browser development...$(COLOR_RESET)"
+	@$(WAILS) task run:server
 
 ## dev-run: Build and run (workaround for Wails dev CGO issues on arm64)
 .PHONY: dev-run
@@ -279,12 +264,25 @@ docker-compose-down:
 	@echo "$(COLOR_BLUE)Stopping docker-compose services...$(COLOR_RESET)"
 	@docker-compose down
 
-## install: Install Wails and project dependencies
+## install: Clean stale data and install all dependencies fresh
 .PHONY: install
-install: deps
+install: clean-stale deps generate-assets
 	@echo "$(COLOR_BLUE)Running Wails doctor...$(COLOR_RESET)"
-	@$(shell go env GOPATH)/bin/wails doctor
+	@$(WAILS) doctor
 	@echo "$(COLOR_GREEN)✓ Installation complete$(COLOR_RESET)"
+
+## clean-stale: Remove stale build artifacts, caches, and lock files (preserves databases)
+.PHONY: clean-stale
+clean-stale:
+	@echo "$(COLOR_BLUE)Cleaning stale data...$(COLOR_RESET)"
+	@rm -rf build/bin
+	@rm -rf $(FRONTEND_DIR)/dist
+	@rm -rf $(FRONTEND_DIR)/src/generated
+	@rm -rf .gocache
+	@rm -f coverage.out coverage.html
+	@find . -name "*.log" -delete 2>/dev/null || true
+	@rm -f ~/.howlerops/*.db-shm ~/.howlerops/*.db-wal 2>/dev/null || true
+	@echo "$(COLOR_GREEN)✓ Stale data cleaned (databases preserved)$(COLOR_RESET)"
 
 ## uninstall: Uninstall the binary from system
 .PHONY: uninstall
@@ -303,7 +301,7 @@ release: validate build
 
 ## setup: Complete development environment setup
 .PHONY: setup
-setup: install setup-tools
+setup: install setup-tools generate-assets
 	@echo "$(COLOR_GREEN)✓ Development environment ready$(COLOR_RESET)"
 	@echo "$(COLOR_YELLOW)Run 'make dev' to start development mode$(COLOR_RESET)"
 
@@ -324,7 +322,7 @@ run: deps proto
 ## doctor: Check system requirements
 .PHONY: doctor
 doctor:
-	@echo "$(COLOR_BLUE)Checking system requirements...$(COLOR_RESET)"
+	@echo "$(COLOR_BLUE)Checking Wails v3 system requirements...$(COLOR_RESET)"
 	@$(WAILS) doctor
 
 .PHONY: all

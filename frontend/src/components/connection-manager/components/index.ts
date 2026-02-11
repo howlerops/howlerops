@@ -1,5 +1,6 @@
 export { ConnectionCard } from "./connection-card"
+export { ConnectionForm } from "./connection-form"
 export { ConnectionList } from "./connection-list"
 export { EnvironmentFilter } from "./environment-filter"
-export { ConnectionForm } from "./connection-form"
+export { EnvImportDialog } from "./env-import-dialog"
 export { ExportDialog, ImportDialog } from "./export-import-dialogs"

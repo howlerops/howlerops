@@ -62,8 +62,11 @@ export function Header() {
   }
 
   return (
-    <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="flex h-12 items-center px-4">
+    <header className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      {/* Native title bar drag zone — sits behind macOS traffic lights */}
+      <div className="h-11" />
+      {/* Header content — below the native title bar */}
+      <div className="flex h-10 items-center border-b px-4 pb-2">
         {/* Logo */}
         <Link to="/dashboard" className="flex items-center space-x-2">
           <HowlerOpsIcon size={24} variant={theme === "dark" ? "dark" : "light"} />

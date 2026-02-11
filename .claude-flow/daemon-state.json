@@ -1,46 +1,46 @@
 {
   "running": true,
-  "startedAt": "2026-01-19T19:35:39.077Z",
+  "startedAt": "2026-02-03T22:11:14.214Z",
   "workers": {
     "map": {
       "runCount": 0,
       "successCount": 0,
       "failureCount": 0,
       "averageDurationMs": 0,
-      "isRunning": false,
-      "nextRun": "2026-01-19T19:35:39.077Z"
+      "nextRun": "2026-02-03T22:11:14.214Z",
+      "isRunning": false
     },
     "audit": {
       "runCount": 0,
       "successCount": 0,
       "failureCount": 0,
       "averageDurationMs": 0,
-      "isRunning": false,
-      "nextRun": "2026-01-19T19:37:39.078Z"
+      "nextRun": "2026-02-03T22:13:14.214Z",
+      "isRunning": false
     },
     "optimize": {
       "runCount": 0,
       "successCount": 0,
       "failureCount": 0,
       "averageDurationMs": 0,
-      "isRunning": false,
-      "nextRun": "2026-01-19T19:39:39.078Z"
+      "nextRun": "2026-02-03T22:15:14.214Z",
+      "isRunning": false
     },
     "consolidate": {
       "runCount": 0,
       "successCount": 0,
       "failureCount": 0,
       "averageDurationMs": 0,
-      "isRunning": false,
-      "nextRun": "2026-01-19T19:41:39.078Z"
+      "nextRun": "2026-02-03T22:17:14.214Z",
+      "isRunning": false
     },
     "testgaps": {
       "runCount": 0,
       "successCount": 0,
       "failureCount": 0,
       "averageDurationMs": 0,
-      "isRunning": false,
-      "nextRun": "2026-01-19T19:43:39.078Z"
+      "nextRun": "2026-02-03T22:19:14.214Z",
+      "isRunning": false
     },
     "predict": {
       "runCount": 0,
@@ -59,8 +59,8 @@
   },
   "config": {
     "autoStart": false,
-    "logDir": "/Users/jacob/projects/amplifier/ai_working/howlerops/.claude-flow/logs",
-    "stateFile": "/Users/jacob/projects/amplifier/ai_working/howlerops/.claude-flow/daemon-state.json",
+    "logDir": "/Users/jacob_1/projects/howlerops/.claude-flow/logs",
+    "stateFile": "/Users/jacob_1/projects/howlerops/.claude-flow/daemon-state.json",
     "maxConcurrent": 2,
     "workerTimeoutMs": 300000,
     "resourceThresholds": {
@@ -126,5 +126,5 @@
       }
     ]
   },
-  "savedAt": "2026-01-19T19:35:39.078Z"
+  "savedAt": "2026-02-03T22:11:14.215Z"
 }

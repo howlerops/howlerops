@@ -1,3 +1,13 @@
+# Claude Flow / swarm artifacts
+.swarm/
+.hive-mind/
+.taskmaster/
+memory/
+
+# Wails v3 generated bindings (regenerated on build)
+frontend/wailsjs/
+frontend/frontend/
+
 # Executables and binaries
 *.exe
 *.exe~
@@ -32,7 +42,9 @@ vendor/
 app.syso
 wails.json.bak
 .wails/
-bindings/
+# Wails bindings - track all bindings for Vercel web builds
+# The frontend uses a mock @wailsio/runtime for web builds
+# frontend/bindings/ is tracked in git
 
 # Node/Vite build artifacts
 node_modules/
@@ -47,11 +59,31 @@ frontend/.vitest/
 frontend/.cache/
 dist/
 out/
-build/
-!build/icons/
-!build/appicon.png
-!build/darwin/
 build/bin/
+build/.DS_Store
+build/**/.DS_Store
+
+# Auto-generated platform configs (regenerated from build/config.yml)
+# After fresh clone, run: make generate-assets
+build/darwin/Info.plist
+build/darwin/Info.dev.plist
+build/darwin/Assets.car
+build/darwin/icons.icns
+build/windows/info.json
+build/windows/wails.exe.manifest
+build/windows/icon.ico
+build/windows/msix/app_manifest.xml
+build/windows/msix/template.xml
+build/windows/nsis/wails_tools.nsh
+build/linux/desktop
+build/linux/*.desktop
+build/ios/Info.plist
+build/ios/Info.dev.plist
+build/ios/project.pbxproj
+build/ios/Assets.xcassets
+build/ios/icon.png
+build/android/app/src/main/res/values/strings.xml
+build/android/app/src/main/res/mipmap-*/
 playwright/.cache/
 
 # Generated sources (frontend files now tracked for Vercel deployment)

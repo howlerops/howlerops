@@ -1,23 +1,20 @@
 /**
- * Wails Runtime Utilities
- * Provides utilities for checking and waiting for Wails runtime availability
- *
- * Note: Window interface extensions are defined in @/types/wails-auth.d.ts
+ * Wails v3 Runtime Utilities
+ * Provides utilities for checking and waiting for Wails v3 runtime availability
  */
 
-// Check if Wails runtime is ready
+import { Call, Events, Flags,System } from '@wailsio/runtime'
+
+// Check if Wails v3 runtime is ready
 export function isWailsReady(): boolean {
-  return typeof window !== 'undefined' && 
-         !!window.go && 
-         !!window.go.main && 
-         !!window.go.main.App &&
-         typeof window.go.main.App.GetTableStructure === 'function'
+  // In v3, the runtime is ready if Call is available
+  return typeof window !== 'undefined' && typeof Call !== 'undefined'
 }
 
-// Wait for Wails runtime to be ready
+// Wait for Wails v3 runtime to be ready
 export async function waitForWails(timeoutMs: number = 5000): Promise<boolean> {
   if (isWailsReady()) return true
-  
+
   return new Promise((resolve) => {
     const checkInterval = setInterval(() => {
       if (isWailsReady()) {
@@ -25,7 +22,7 @@ export async function waitForWails(timeoutMs: number = 5000): Promise<boolean> {
         resolve(true)
       }
     }, 100)
-    
+
     // Timeout after specified milliseconds
     setTimeout(() => {
       clearInterval(checkInterval)
@@ -40,11 +37,11 @@ export async function executeWailsFunction<T>(
   timeoutMs: number = 5000
 ): Promise<T> {
   const isReady = await waitForWails(timeoutMs)
-  
+
   if (!isReady) {
-    throw new Error('Wails runtime not available after timeout')
+    throw new Error('Wails v3 runtime not available after timeout')
   }
-  
+
   return fn()
 }
 
@@ -64,18 +61,49 @@ export async function safeWailsCall<T>(
 
 // Check if we're running in a Wails environment
 export function isWailsEnvironment(): boolean {
-  return typeof window !== 'undefined' && 
-         window.go !== undefined
+  return typeof window !== 'undefined' && isWailsReady()
+}
+
+// v3 compatibility helpers for IsDev/IsProduction
+function isDev(): boolean {
+  try {
+    // Check debug flag or environment
+    return System.IsDebug() || Flags.GetFlag('dev') === true
+  } catch {
+    return false
+  }
+}
+
+function isProduction(): boolean {
+  try {
+    return !System.IsDebug() && Flags.GetFlag('dev') !== true
+  } catch {
+    return true
+  }
+}
+
+function isDebug(): boolean {
+  try {
+    return System.IsDebug()
+  } catch {
+    return false
+  }
 }
 
 // Get Wails runtime version info
-export function getWailsInfo(): { version?: string; ready: boolean } {
+export function getWailsInfo(): { version: string; ready: boolean; isDev: boolean; isProduction: boolean; isDebug: boolean } {
   if (!isWailsEnvironment()) {
-    return { ready: false }
+    return { version: 'unknown', ready: false, isDev: false, isProduction: false, isDebug: false }
   }
-  
+
   return {
-    version: window.go?.version,
-    ready: isWailsReady()
+    version: 'v3',
+    ready: isWailsReady(),
+    isDev: isDev(),
+    isProduction: isProduction(),
+    isDebug: isDebug()
   }
 }
+
+// Re-export Events for v3 event handling
+export { Events }

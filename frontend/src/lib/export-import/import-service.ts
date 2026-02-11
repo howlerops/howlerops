@@ -249,13 +249,40 @@ async function importSingleConnection(exported: ExportedConnection): Promise<voi
     }
   }
 
+  const fullConnection = { ...connection, isConnected: false } as DatabaseConnection
+
   // Add to store (bypass the addConnection method to preserve ID)
   useConnectionStore.setState((state) => ({
-    connections: [
-      ...state.connections,
-      { ...connection, isConnected: false } as DatabaseConnection,
-    ],
+    connections: [...state.connections, fullConnection],
   }))
+
+  // Sync to SQLite for v3 persistence (fire-and-forget)
+  syncToSQLite(fullConnection)
+}
+
+/**
+ * Sync a connection to SQLite storage (v3 compatibility)
+ * This is a fire-and-forget operation - errors are logged but don't fail the import
+ */
+async function syncToSQLite(connection: DatabaseConnection): Promise<void> {
+  try {
+    const App = await import('../../../bindings/github.com/jbeck018/howlerops/app')
+    if (typeof App.SQLiteSaveConnection !== 'function') return
+
+    await App.SQLiteSaveConnection(JSON.stringify({
+      id: connection.id,
+      name: connection.name,
+      type: connection.type,
+      host: connection.host || '',
+      port: connection.port || 0,
+      database: connection.database,
+      username: connection.username || '',
+      ssl_config: connection.sslMode ? { mode: connection.sslMode } : {},
+      environments: connection.environments || [],
+    }))
+  } catch {
+    // SQLite sync is best-effort - Wails bindings may not be available (web mode)
+  }
 }
 
 /**
@@ -317,6 +344,12 @@ async function overwriteConnection(exported: ExportedConnection): Promise<void> 
     }
   }
 
-  // Update via store
+  // Update via store (this will trigger SQLite sync via the store's updateConnection)
   await store.updateConnection(exported.id, updates)
+
+  // Also explicitly sync to SQLite in case updateConnection doesn't have the sync
+  const updatedConn = useConnectionStore.getState().connections.find(c => c.id === exported.id)
+  if (updatedConn) {
+    syncToSQLite(updatedConn)
+  }
 }

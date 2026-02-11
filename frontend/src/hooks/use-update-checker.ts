@@ -2,7 +2,7 @@ import { useCallback,useEffect, useState } from 'react';
 
 import { isWailsEnvironment } from '@/lib/wails-runtime';
 
-import { CheckForUpdates, GetCurrentVersion,OpenDownloadPage } from '../../wailsjs/go/main/App';
+import { CheckForUpdates, GetCurrentVersion, OpenDownloadPage } from '../../bindings/github.com/jbeck018/howlerops/app';
 
 export interface UpdateInfo {
   available: boolean;
@@ -52,7 +52,7 @@ export function useUpdateChecker(): UseUpdateCheckerReturn {
       const info = await CheckForUpdates();
 
       // Don't show notification if this version was already dismissed
-      if (info.available && isDismissed(info.latestVersion)) {
+      if (info && info.available && isDismissed(info.latestVersion)) {
         setUpdateInfo(null);
       } else {
         setUpdateInfo(info);

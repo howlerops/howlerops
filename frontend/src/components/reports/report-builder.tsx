@@ -2,6 +2,7 @@ import { debounce } from 'lodash-es'
 import { AlertCircle, BarChart3, Edit, Eye, FileQuestion, Filter, Grid3x3, Play, Plus } from 'lucide-react'
 import React, { useMemo, useState } from 'react'
 
+import { getDefaultModelId } from '@/config/ai-models'
 import { DashboardCanvas } from '@/components/reports/dashboard-canvas'
 import { QueryModeSwitcher } from '@/components/reports/query-mode-switcher'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -66,7 +67,7 @@ export function ReportBuilder({ report, disabled, onChange, onRun }: ReportBuild
         type === 'llm'
           ? {
               provider: 'openai',
-              model: 'gpt-4o-mini',
+              model: getDefaultModelId('openai'),
               promptTemplate: 'Summarize the selected data set using {{component.previous}}',
               contextComponents: [],
               temperature: 0.2,
@@ -474,7 +475,7 @@ const ComponentEditor = React.memo(
             llm: {
               ...(component.llm ?? {
                 provider: 'openai',
-                model: 'gpt-4o-mini',
+                model: getDefaultModelId('openai'),
                 contextComponents: [],
               }),
               promptTemplate,

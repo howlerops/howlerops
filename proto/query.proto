@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package sqlstudio.query;
 
-option go_package = "github.com/sql-studio/backend-go/api/query";
+option go_package = "github.com/jbeck018/howlerops/pkg/pb/query";
 
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/any.proto";

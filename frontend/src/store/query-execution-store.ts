@@ -3,13 +3,13 @@
  * Manages query execution state: running queries, results processing, errors
  */
 
+import { Events } from '@wailsio/runtime'
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
 import { useShallow } from 'zustand/react/shallow'
 
 import { api } from '@/lib/api-client'
 
-import { EventsOn } from '../../wailsjs/runtime/runtime'
 import { useConnectionStore } from './connection-store'
 import { useQueryEditorStore } from './query-editor-store'
 import { useQueryHistoryStore } from './query-history-store'
@@ -473,7 +473,7 @@ const hasWailsRuntime =
   typeof (window as { runtime?: { EventsOnMultiple?: unknown } }).runtime?.EventsOnMultiple === 'function'
 
 if (hasWailsRuntime) {
-  EventsOn('query:editableMetadata', (payload: unknown) => {
+  Events.On('query:editableMetadata', (payload: unknown) => {
     try {
       const data = (payload ?? {}) as Record<string, unknown>
       const jobId = (data.jobId as string) ?? (data.job_id as string)
