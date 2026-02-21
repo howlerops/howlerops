@@ -1,5 +1,6 @@
 import {
   BookOpen,
+  Bot,
   ChevronDown,
   ChevronRight,
   Columns,
@@ -51,6 +52,7 @@ const NAV_ITEMS = [
   { path: '/reports', label: 'Reports', icon: FileText },
   { path: '/schema-diff', label: 'Schema Diff', icon: GitCompare },
   { path: '/data-catalog', label: 'Data Catalog', icon: BookOpen },
+  { path: '/agents', label: 'Agents', icon: Bot },
   { path: '/settings', label: 'Settings', icon: Settings },
 ] as const
 
