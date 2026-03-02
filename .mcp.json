@@ -15,6 +15,15 @@
         "CLAUDE_FLOW_MEMORY_BACKEND": "hybrid"
       },
       "autoStart": false
+    },
+    "howler-agents": {
+      "command": "npx",
+      "args": [
+        "howler-agents@latest",
+        "serve",
+        "--transport",
+        "stdio"
+      ]
     }
   }
 }

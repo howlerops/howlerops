@@ -94,7 +94,7 @@ export const PaginationControls = React.memo(function PaginationControls({
   }
 
   return (
-    <div className={`flex items-center ${compact ? 'gap-2' : 'gap-4'} ${compact ? 'text-xs' : 'text-sm'}`}>
+    <div className={`flex items-center justify-end ${compact ? 'gap-2' : 'gap-4'} ${compact ? 'text-xs' : 'text-sm'}`}>
       {/* Page size selector */}
       <div className="flex items-center gap-2">
         <span className="text-muted-foreground whitespace-nowrap">Rows per page:</span>

@@ -1,13 +1,13 @@
 {
   "running": true,
-  "startedAt": "2026-02-03T22:11:14.214Z",
+  "startedAt": "2026-02-25T13:58:47.440Z",
   "workers": {
     "map": {
       "runCount": 0,
       "successCount": 0,
       "failureCount": 0,
       "averageDurationMs": 0,
-      "nextRun": "2026-02-03T22:11:14.214Z",
+      "nextRun": "2026-02-25T13:58:47.440Z",
       "isRunning": false
     },
     "audit": {
@@ -15,7 +15,7 @@
       "successCount": 0,
       "failureCount": 0,
       "averageDurationMs": 0,
-      "nextRun": "2026-02-03T22:13:14.214Z",
+      "nextRun": "2026-02-25T14:00:47.440Z",
       "isRunning": false
     },
     "optimize": {
@@ -23,7 +23,7 @@
       "successCount": 0,
       "failureCount": 0,
       "averageDurationMs": 0,
-      "nextRun": "2026-02-03T22:15:14.214Z",
+      "nextRun": "2026-02-25T14:02:47.440Z",
       "isRunning": false
     },
     "consolidate": {
@@ -31,7 +31,7 @@
       "successCount": 0,
       "failureCount": 0,
       "averageDurationMs": 0,
-      "nextRun": "2026-02-03T22:17:14.214Z",
+      "nextRun": "2026-02-25T14:04:47.440Z",
       "isRunning": false
     },
     "testgaps": {
@@ -39,7 +39,7 @@
       "successCount": 0,
       "failureCount": 0,
       "averageDurationMs": 0,
-      "nextRun": "2026-02-03T22:19:14.214Z",
+      "nextRun": "2026-02-25T14:06:47.440Z",
       "isRunning": false
     },
     "predict": {
@@ -59,8 +59,8 @@
   },
   "config": {
     "autoStart": false,
-    "logDir": "/Users/jacob_1/projects/howlerops/.claude-flow/logs",
-    "stateFile": "/Users/jacob_1/projects/howlerops/.claude-flow/daemon-state.json",
+    "logDir": "/Users/jacob/projects/amplifier/ai_working/howlerops/.claude-flow/logs",
+    "stateFile": "/Users/jacob/projects/amplifier/ai_working/howlerops/.claude-flow/daemon-state.json",
     "maxConcurrent": 2,
     "workerTimeoutMs": 300000,
     "resourceThresholds": {
@@ -126,5 +126,5 @@
       }
     ]
   },
-  "savedAt": "2026-02-03T22:11:14.215Z"
+  "savedAt": "2026-02-25T13:58:47.440Z"
 }

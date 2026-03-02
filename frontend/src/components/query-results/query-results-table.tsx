@@ -46,6 +46,7 @@ export function QueryResultsTable({
   const updateResultRows = useQueryStore((state) => state.updateResultRows)
   const tableContextRef = useRef<EditableTableContext | null>(null)
 
+
   // Pagination hook
   const pagination = useTablePagination({
     resultId,

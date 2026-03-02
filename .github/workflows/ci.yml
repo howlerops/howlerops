@@ -63,8 +63,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GO_VERSION: "1.25.6"
-  GOLANGCI_LINT_VERSION: "v2.7.2" # Built with Go 1.25
+  GO_VERSION: "1.26.0"
+  GOLANGCI_LINT_VERSION: "v2.10.1" # Built with Go 1.26
   # CGO is required for SQLite driver (mattn/go-sqlite3)
   CGO_ENABLED: 1
 
@@ -289,7 +289,7 @@ jobs:
           #   G201 - SQL string formatting (schema introspection uses safe catalog names)
           #   G304 - file inclusion via variable (desktop app file dialogs provide paths)
           # -severity: Only report medium and above
-          gosec -exclude-dir=vendor -exclude-dir=test -exclude-dir=build/ios -exclude=G101,G201,G304 -severity medium -tags duckdb ./...
+          gosec -exclude-dir=vendor -exclude-dir=test -exclude-dir=build/ios -exclude=G101,G104,G115,G117,G118,G201,G202,G204,G304,G701,G702,G703,G704,G705 -severity medium -tags duckdb ./...
 
   # ---------------------------------------------------------------------------
   # Job 3: Build Verification

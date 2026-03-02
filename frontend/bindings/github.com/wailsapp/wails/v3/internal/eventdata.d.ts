@@ -11,8 +11,8 @@ declare module "@wailsio/runtime" {
             "app:shutdown": any;
             "app:startup-complete": any;
             "auth:error": string;
-            "auth:success": { [_: string]: any };
-            "webauthn:success": { [_: string]: any };
+            "auth:success": { [_ in string]?: any };
+            "webauthn:success": { [_ in string]?: any };
         }
     }
 }
