@@ -61,16 +61,14 @@ linters:
         - G104  # Audit errors not checked (covered by errcheck)
         - G115  # Integer overflow conversion (e.g. int->rune for HSTS max-age)
         - G117  # Exported struct fields matching secret patterns (APIKey, Password etc. in DTOs)
-        - G118  # Goroutine context patterns (intentional fire-and-forget async work)
         - G201  # SQL string formatting (schema introspection uses fmt.Sprintf safely)
         - G202  # SQL string concatenation (EXPLAIN prefix on user queries is safe)
-        - G204  # Subprocess with variable (intentional CLI tool execution)
         - G304  # File path from user input (intentional for file operations)
         - G701  # SQL injection via taint analysis (queries use parameterized placeholders)
-        - G702  # Command injection via taint analysis (intentional subprocess execution)
         - G703  # Path traversal via taint analysis (intentional file ops in desktop app)
         - G704  # SSRF via taint analysis (intentional HTTP calls in email/AI services)
         - G705  # XSS via taint analysis (writing CSS/CSV content, not user HTML)
+        # Note: G118, G204, G702 excluded in standalone gosec (ci.yml) but not valid here
       severity: medium
       confidence: medium
 
