@@ -92,6 +92,12 @@ const AGGridTableInner: React.FC<EditableTableProps> = ({
     dataRef.current = data;
   }, [data]);
 
+  // FIX: isEditable ref — allows columnDefs closure to read the CURRENT value
+  // without adding isEditable to columnDefs deps (which would trigger full column
+  // regeneration on every edit-mode toggle and cause AG Grid to re-initialize).
+  const isEditableRef = useRef(isEditable);
+  useEffect(() => { isEditableRef.current = isEditable; }, [isEditable]);
+
   // Track dirty rows (edited but not saved)
   const [dirtyRows, setDirtyRows] = useState<Set<string>>(new Set());
   // Ref mirror of dirtyRows — used by cellClassRules to avoid stale closures
@@ -198,7 +204,7 @@ const AGGridTableInner: React.FC<EditableTableProps> = ({
       // 1. Include the eye icon for row inspection (consistent with other columns)
       // 2. Have full control over styling and interaction
       if (column.type === 'boolean') {
-        const isDisabled = !column.editable || !isEditable;
+        const isDisabled = !column.editable || !isEditableRef.current;
         const checkboxId = `bool-${rowData.__rowId}-${column.accessorKey || column.id}`;
 
         const handleBooleanChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -239,13 +245,31 @@ const AGGridTableInner: React.FC<EditableTableProps> = ({
 
       // Select renderer
       if (column.type === 'select' && column.options) {
+        const isSelectDisabled = !column.editable || !isEditableRef.current;
+
+        const handleSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+          e.stopPropagation();
+          if (isSelectDisabled) return;
+
+          const newValue = e.target.value;
+          const api = gridRef.current?.api;
+          if (api && rowData.__rowId) {
+            const rowNode = api.getRowNode(rowData.__rowId);
+            if (rowNode) {
+              const field = column.accessorKey || column.id || column.header;
+              rowNode.setDataValue(field, newValue || null);
+            }
+          }
+        };
+
         return (
           <div className="group flex items-center h-full w-full relative">
             {isDirty && <DirtyTriangle />}
             <select
               value={String(value || '')}
-              disabled={!column.editable}
-              className="flex-1 h-full bg-transparent border-none outline-none"
+              disabled={isSelectDisabled}
+              onChange={handleSelectChange}
+              className="flex-1 h-full bg-transparent border-none outline-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
             >
               <option value="">Select...</option>
               {column.options.map(opt => (
@@ -422,9 +446,10 @@ const AGGridTableInner: React.FC<EditableTableProps> = ({
         maxWidth: columnMaxWidth,
         sortable: col.sortable !== false,
         filter: col.filterable !== false,
-        // CRITICAL: Use function to dynamically check isEditable at edit-time
+        // CRITICAL: Use ref to dynamically check isEditable at edit-time
+        // The closure captures isEditableRef (stable) instead of isEditable (stale)
         // This prevents column regeneration when global editable state changes
-        editable: columnCanBeEditable ? () => isEditable : false,
+        editable: columnCanBeEditable ? () => isEditableRef.current : false,
         resizable: enableColumnResizing,
         initialPinned: col.sticky || undefined,
         // Never wrap text or auto-height - always truncate to maintain consistent row height
@@ -1028,6 +1053,11 @@ const AGGridTableInner: React.FC<EditableTableProps> = ({
 
 AGGridTableInner.displayName = 'AGGridTable';
 
-// Wrap in React.memo to prevent re-renders when parent re-renders with same props
-// (e.g., when toolbar callback changes due to dirty count update in parent)
+// NOTE: React.memo here does NOT prevent re-renders when toolbar changes (it always
+// changes on dirty count updates, which is intentional — the toolbar must show the
+// current dirty count). The real AG Grid protection is gridElement useMemo above,
+// which is stable across dirty-state changes because none of its deps include dirty
+// state. AGGridTableInner re-renders are cheap: they only call renderToolbar() and
+// return the memoized gridElement from cache. React.memo still helps for other
+// unrelated parent re-renders where toolbar IS stable.
 export const AGGridTable = React.memo(AGGridTableInner);

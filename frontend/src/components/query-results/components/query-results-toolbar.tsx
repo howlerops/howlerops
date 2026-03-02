@@ -38,22 +38,20 @@ export function QueryResultsToolbar({
 
   return (
     <div className="flex flex-col gap-2 border-b border-gray-200 bg-background px-1 py-1">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-1 items-center gap-3 min-w-[220px]">
-          {/* Database selector and search disabled for now */}
-        </div>
-
+      <div className="flex flex-wrap items-center justify-end gap-3">
         <div className="flex items-center gap-3">
-          <span className="text-xs text-muted-foreground">{formatTimestamp(executedAt)}</span>
+          {/* <span className="text-xs text-muted-foreground">{formatTimestamp(executedAt)}</span> */}
 
-          {/* Unsaved changes indicator */}
-          {dirtyRowCount > 0 && (
-            <div className="flex items-center gap-1 px-2 py-1 bg-accent/10 border border-accent rounded text-xs">
-              <span className="text-accent-foreground">
-                {dirtyRowCount} unsaved{dirtyRowCount === 1 ? '' : ''}
-              </span>
-            </div>
-          )}
+          {/* Unsaved changes indicator - always rendered to prevent layout shift */}
+          <div className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition-opacity duration-150 ${
+            dirtyRowCount > 0
+              ? 'bg-accent/10 border border-accent opacity-100'
+              : 'border border-transparent opacity-0 pointer-events-none'
+          }`}>
+            <span className="text-accent-foreground">
+              {dirtyRowCount > 0 ? `${dirtyRowCount} unsaved` : '\u00A0'}
+            </span>
+          </div>
 
           {/* Validation errors indicator */}
           {invalidCellsCount > 0 && (
@@ -112,14 +110,16 @@ export function QueryResultsToolbar({
           {/* Show save controls when table has editable columns and metadata is available */}
           {metadata && hasEditableColumns && (
             <>
-              {/* Discard Changes Button */}
-              {dirtyRowCount > 0 && onDiscardChanges && metadata.enabled && (
+              {/* Discard Changes Button - always rendered to prevent layout shift */}
+              {onDiscardChanges && metadata.enabled && (
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={onDiscardChanges}
-                  disabled={saving}
-                  className="gap-2"
+                  disabled={saving || dirtyRowCount === 0}
+                  className={`gap-2 transition-opacity duration-150 ${
+                    dirtyRowCount > 0 ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                  }`}
                 >
                   Discard Changes
                 </Button>

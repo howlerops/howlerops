@@ -177,3 +177,5 @@ Thumbs.db
 # package-lock.json  # REMOVED: We want to commit this for reproducible builds in CI/CD
 yarn.lock
 pnpm-lock.yaml
+.howler-agents/
+.claude/memory.db

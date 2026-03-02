@@ -122,15 +122,65 @@ tasks:
           > app.js
 
   generate:icons:
-    summary: Generates Windows `.ico` and Mac `.icns` from the appicon.png input image.
+    summary: Generates Windows `.ico`, Mac `.icns`, and Mac `Assets.car` from the appicon.png input image.
     dir: build
     sources:
       - "appicon.png"
     generates:
       - "darwin/icons.icns"
+      - "darwin/Assets.car"
       - "windows/icon.ico"
     cmds:
       - wails3 generate icons -input appicon.png -macfilename darwin/icons.icns -windowsfilename windows/icon.ico
+      - task: generate:assets-car
+
+  generate:assets-car:
+    summary: Regenerates macOS Assets.car from appicon.png
+    internal: true
+    dir: build
+    platforms: [darwin]
+    cmds:
+      - |
+        set -euo pipefail
+        TMPDIR=$(mktemp -d)
+        ICONSET="$TMPDIR/Icons.xcassets/appicon.appiconset"
+        mkdir -p "$ICONSET"
+        for size in 16 32 64 128 256 512 1024; do
+          sips -z $size $size appicon.png --out "$ICONSET/icon_${size}x${size}.png" >/dev/null 2>&1
+          half=$((size / 2))
+          if [ $half -ge 16 ]; then
+            cp "$ICONSET/icon_${size}x${size}.png" "$ICONSET/icon_${half}x${half}@2x.png"
+          fi
+        done
+        cat > "$ICONSET/Contents.json" << 'EOF'
+        {
+          "images" : [
+            { "filename" : "icon_16x16.png", "idiom" : "mac", "scale" : "1x", "size" : "16x16" },
+            { "filename" : "icon_16x16@2x.png", "idiom" : "mac", "scale" : "2x", "size" : "16x16" },
+            { "filename" : "icon_32x32.png", "idiom" : "mac", "scale" : "1x", "size" : "32x32" },
+            { "filename" : "icon_32x32@2x.png", "idiom" : "mac", "scale" : "2x", "size" : "32x32" },
+            { "filename" : "icon_128x128.png", "idiom" : "mac", "scale" : "1x", "size" : "128x128" },
+            { "filename" : "icon_128x128@2x.png", "idiom" : "mac", "scale" : "2x", "size" : "128x128" },
+            { "filename" : "icon_256x256.png", "idiom" : "mac", "scale" : "1x", "size" : "256x256" },
+            { "filename" : "icon_256x256@2x.png", "idiom" : "mac", "scale" : "2x", "size" : "256x256" },
+            { "filename" : "icon_512x512.png", "idiom" : "mac", "scale" : "1x", "size" : "512x512" },
+            { "filename" : "icon_512x512@2x.png", "idiom" : "mac", "scale" : "2x", "size" : "512x512" },
+            { "filename" : "icon_1024x1024.png", "idiom" : "mac", "scale" : "1x", "size" : "1024x1024" }
+          ],
+          "info" : { "author" : "xcode", "version" : 1 }
+        }
+        EOF
+        cat > "$TMPDIR/Icons.xcassets/Contents.json" << 'EOF'
+        { "info" : { "author" : "xcode", "version" : 1 } }
+        EOF
+        xcrun actool "$TMPDIR/Icons.xcassets" \
+          --compile darwin/ \
+          --platform macosx \
+          --minimum-deployment-target 10.15 \
+          --app-icon appicon \
+          --output-partial-info-plist /dev/null 2>/dev/null
+        rm -f darwin/appicon.icns
+        rm -rf "$TMPDIR"
 
   dev:frontend:
     summary: Runs the frontend in development mode

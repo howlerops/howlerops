@@ -5,8 +5,57 @@
     <link rel="icon" type="image/png" href="/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>HowlerOps</title>
+    <script>
+      // Apply theme class before CSS/React loads to prevent flash
+      (function() {
+        var theme = localStorage.getItem('sql-studio-theme') || 'system';
+        if (theme === 'system') {
+          theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        document.documentElement.classList.add(theme);
+      })();
+    </script>
+    <style>
+      html { background-color: #1B263B; }
+      html.light { background-color: #f8f9fa; }
+      html.dark { background-color: #000000; }
+      body { margin: 0; }
+      #splash-screen {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        transition: opacity 0.3s ease-out;
+      }
+      html.dark #splash-screen { background: #000; color: #e5e5e5; }
+      html.light #splash-screen { background: #f8f9fa; color: #333; }
+      #splash-screen { background: #1B263B; color: #e5e5e5; }
+      #splash-screen img { width: 96px; height: 96px; border-radius: 20px; }
+      #splash-screen p { margin-top: 16px; font-family: system-ui, sans-serif; font-size: 13px; opacity: 0.6; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      #splash-spinner {
+        margin-top: 24px;
+        width: 24px; height: 24px;
+        border: 2px solid rgba(255,255,255,0.15);
+        border-top-color: rgba(255,255,255,0.6);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+      html.light #splash-spinner {
+        border-color: rgba(0,0,0,0.1);
+        border-top-color: rgba(0,0,0,0.4);
+      }
+    </style>
   </head>
   <body>
+    <div id="splash-screen">
+      <img src="/favicon.png" alt="HowlerOps" />
+      <div id="splash-spinner"></div>
+      <p>Loading HowlerOps...</p>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

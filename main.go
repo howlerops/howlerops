@@ -4,6 +4,8 @@ import (
 	_ "embed"
 	"log"
 	"runtime"
+	"sync/atomic"
+	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
@@ -27,10 +29,14 @@ func main() {
 	// Create the lifecycle coordinator that manages all 11 services
 	lifecycle := NewAppLifecycle()
 
+	// Load the application icon from embedded assets
+	iconBytes, _ := iconFS.ReadFile("assets/howlerops-transparent.png")
+
 	// Create a new Wails v3 application with all services registered
 	app := application.New(application.Options{
 		Name:        "HowlerOps",
 		Description: "A powerful desktop SQL client",
+		Icon:        iconBytes,
 		Services:    lifecycle.GetServices(),
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
@@ -61,6 +67,22 @@ func main() {
 
 	// Store the main window reference for dialogs across services
 	lifecycle.SetMainWindow(mainWindow)
+
+	// Workaround for Wails v3 dev mode: the webview may open before the page
+	// is ready, resulting in a blank screen. Track successful navigation and
+	// retry once if it hasn't completed after a short delay.
+	var navDone atomic.Bool
+	if runtime.GOOS == "darwin" {
+		mainWindow.OnWindowEvent(events.Mac.WebViewDidFinishNavigation, func(_ *application.WindowEvent) {
+			navDone.Store(true)
+		})
+	}
+	go func() {
+		time.Sleep(3 * time.Second)
+		if !navDone.Load() {
+			mainWindow.Reload()
+		}
+	}()
 
 	// Set up menus (v3 menu API)
 	setupMenu(app, mainWindow)
