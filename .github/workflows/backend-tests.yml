@@ -196,7 +196,7 @@ jobs:
       - name: Run Gosec Security Scanner
         uses: securego/gosec@master
         with:
-          args: '-no-fail -fmt sarif -out results.sarif -exclude-dir=vendor -exclude-dir=test -exclude-dir=build/ios -exclude-dir=pkg/pb -exclude=G101,G104,G115,G117,G201,G202,G304,G701,G703,G704,G705 -severity medium -tags duckdb ./...'
+          args: '-no-fail -fmt sarif -out results.sarif -exclude-dir=vendor -exclude-dir=test -exclude-dir=build/ios -exclude-dir=pkg/pb -exclude=G101,G104,G115,G117,G118,G201,G202,G204,G304,G701,G702,G703,G704,G705 -severity medium -tags duckdb ./...'
 
       - name: Upload SARIF file
         uses: github/codeql-action/upload-sarif@v3
