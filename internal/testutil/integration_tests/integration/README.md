@@ -10,12 +10,11 @@ Run all integration tests against local server:
 
 ```bash
 # Start the server first
-cd backend-go
-go run cmd/server/main.go
+go run ./cmd/server
 
 # In another terminal, run tests
-cd backend-go
-go test ./test/integration/... -v
+TEST_BASE_URL=http://localhost:8080 \
+  go test ./internal/testutil/integration_tests/integration -v
 ```
 
 ### Testing Against Remote Server
@@ -24,27 +23,27 @@ Set the `TEST_BASE_URL` environment variable:
 
 ```bash
 export TEST_BASE_URL=https://api.sqlstudio.io
-go test ./test/integration/... -v
+go test ./internal/testutil/integration_tests/integration -v
 ```
 
 ### Running Specific Test Suites
 
 ```bash
 # Run only auth tests
-go test ./test/integration/... -v -run TestAuth
+go test ./internal/testutil/integration_tests/integration -v -run TestAuth
 
 # Run only sync tests
-go test ./test/integration/... -v -run TestSync
+go test ./internal/testutil/integration_tests/integration -v -run TestSync
 
 # Run only health tests
-go test ./test/integration/... -v -run TestHealth
+go test ./internal/testutil/integration_tests/integration -v -run TestHealth
 ```
 
 ### Generate Test Report
 
 ```bash
 # Run tests with coverage
-go test ./test/integration/... -v -coverprofile=coverage.out
+go test ./internal/testutil/integration_tests/integration -v -coverprofile=coverage.out
 
 # View coverage report
 go tool cover -html=coverage.out
@@ -57,7 +56,7 @@ go tool cover -html=coverage.out
 go install gotest.tools/gotestsum@latest
 
 # Run tests with formatted output
-gotestsum --format testname ./test/integration/...
+gotestsum --format testname ./internal/testutil/integration_tests/integration
 ```
 
 ## Test Suites
@@ -92,7 +91,7 @@ gotestsum --format testname ./test/integration/...
 
 ## Environment Variables
 
-- `TEST_BASE_URL`: Base URL of the API (default: `http://localhost:8500`)
+- `TEST_BASE_URL`: Base URL of the API (default: `http://localhost:8080`)
 - `METRICS_URL`: URL of the metrics endpoint (default: `http://localhost:9100/metrics`)
 
 ## Test Data
@@ -105,7 +104,7 @@ These tests can be run in CI/CD pipelines:
 
 ```bash
 # Example GitHub Actions
-go test ./test/integration/... -v -timeout 5m
+TEST_BASE_URL=http://localhost:8080 go test ./internal/testutil/integration_tests/integration -v -timeout 5m
 ```
 
 ## Notes

@@ -89,37 +89,12 @@ jobs:
           # Fetch all history for accurate coverage reporting
           fetch-depth: 0
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - name: Bootstrap Go CI
+        uses: ./.github/actions/setup-go-ci
         with:
           go-version: ${{ env.GO_VERSION }}
-          # Cache Go modules and build cache for faster subsequent runs
-          cache: true
           cache-dependency-path: go.sum
-
-      - name: Install system dependencies
-        run: |
-          # Install GCC and SQLite development libraries
-          # Required for building with CGO_ENABLED=1
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq \
-            gcc \
-            musl-dev \
-            sqlite3 \
-            libsqlite3-dev \
-            libgtk-3-dev \
-            libwebkit2gtk-4.1-dev \
-            libsoup-3.0-dev \
-            pkg-config
-
-      - name: Create frontend dist stub for embed
-        run: mkdir -p frontend/dist && touch frontend/dist/index.html
-
-      - name: Download Go modules
-        run: |
-          # Download dependencies with retries for transient failures
-          go mod download
-          go mod verify
+          verify-modules: 'true'
 
       - name: Run go vet
         run: |
@@ -136,7 +111,7 @@ jobs:
           # -covermode=atomic: Thread-safe coverage collection (required with -race)
           # -timeout: Prevent hanging tests (default 10m)
           # -shuffle=on: Randomize test execution to catch order dependencies
-          # -short: Skip integration tests (test/integration/*) that expect server at localhost:8500
+          # -short: Skip integration tests that expect a running local backend server
           #         Integration tests check testing.Short() and skip themselves in CI
           #         Run integration tests locally: `go test ./test/integration/... -v`
           # -tags duckdb: Required build tag for DuckDB support
@@ -391,20 +366,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - name: Bootstrap Go CI
+        uses: ./.github/actions/setup-go-ci
         with:
           go-version: ${{ env.GO_VERSION }}
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq \
-            gcc musl-dev sqlite3 libsqlite3-dev \
-            libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev pkg-config
-
-      - name: Create frontend dist stub for embed
-        run: mkdir -p frontend/dist && touch frontend/dist/index.html
+          download-modules: 'false'
 
       - name: Run govulncheck
         continue-on-error: true

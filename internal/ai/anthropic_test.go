@@ -115,9 +115,9 @@ func TestNewAnthropicProvider_DefaultModels(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, provider)
 	assert.NotEmpty(t, config.Models)
-	assert.Contains(t, config.Models, "claude-3-5-sonnet-20241022")
-	assert.Contains(t, config.Models, "claude-3-5-haiku-20241022")
-	assert.Contains(t, config.Models, "claude-3-opus-20240229")
+	assert.Contains(t, config.Models, "claude-sonnet-4-5-20250929")
+	assert.Contains(t, config.Models, "claude-haiku-4-5-20251001")
+	assert.Contains(t, config.Models, "claude-sonnet-4-20250514")
 }
 
 // TestNewAnthropicProvider_CustomConfig tests custom configuration is preserved
@@ -1161,7 +1161,7 @@ func TestAnthropicGetModels(t *testing.T) {
 			name:           "default models",
 			configModels:   []string{},
 			expectedCount:  3,
-			expectedModels: []string{"claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229"},
+			expectedModels: []string{"claude-sonnet-4-5-20250929", "claude-haiku-4-5-20251001", "claude-sonnet-4-20250514"},
 		},
 		{
 			name:           "custom models",
@@ -1225,27 +1225,27 @@ func TestAnthropicGetModels_ModelDescriptions(t *testing.T) {
 	}{
 		{
 			name:              "sonnet model",
-			modelID:           "claude-3-5-sonnet-20241022",
-			expectedDesc:      "Claude 3.5 Sonnet",
+			modelID:           "claude-sonnet-4-5-20250929",
+			expectedDesc:      "Claude Sonnet 4.5",
 			expectedMaxTokens: 200000,
 		},
 		{
 			name:              "haiku model",
-			modelID:           "claude-3-5-haiku-20241022",
-			expectedDesc:      "Claude 3.5 Haiku",
+			modelID:           "claude-haiku-4-5-20251001",
+			expectedDesc:      "Claude Haiku 4.5",
 			expectedMaxTokens: 200000,
 		},
 		{
-			name:              "opus model",
-			modelID:           "claude-3-opus-20240229",
-			expectedDesc:      "Claude 3 Opus",
+			name:              "sonnet 4 model",
+			modelID:           "claude-sonnet-4-20250514",
+			expectedDesc:      "Claude Sonnet 4",
 			expectedMaxTokens: 200000,
 		},
 		{
 			name:              "unknown model",
 			modelID:           "claude-future-model",
-			expectedDesc:      "Anthropic claude-future-model model",
-			expectedMaxTokens: 100000,
+			expectedDesc:      "Anthropic claude-future-model",
+			expectedMaxTokens: 200000,
 		},
 	}
 

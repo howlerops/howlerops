@@ -1,12 +1,12 @@
-# HowlerOps Howlerops
+# HowlerOps
 
 **A powerful, cloud-enabled desktop SQL client with AI-powered features and multi-device sync**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Latest Release](https://img.shields.io/github/v/release/yourusername/sql-studio?include_prereleases)](https://github.com/yourusername/sql-studio/releases)
-[![Build Status](https://img.shields.io/github/actions/workflow/status/yourusername/sql-studio/ci-cd.yml?branch=main)](https://github.com/yourusername/sql-studio/actions)
-[![Go Version](https://img.shields.io/github/go-mod/go-version/yourusername/sql-studio?filename=backend-go%2Fgo.mod)](https://github.com/yourusername/sql-studio/blob/main/backend-go/go.mod)
-[![codecov](https://codecov.io/gh/yourusername/sql-studio/branch/main/graph/badge.svg)](https://codecov.io/gh/yourusername/sql-studio)
+[![Latest Release](https://img.shields.io/github/v/release/howlerops/howlerops?include_prereleases)](https://github.com/howlerops/howlerops/releases)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/howlerops/howlerops/ci.yml?branch=main)](https://github.com/howlerops/howlerops/actions)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/howlerops/howlerops)](https://github.com/howlerops/howlerops/blob/main/go.mod)
+[![codecov](https://codecov.io/gh/howlerops/howlerops/branch/main/graph/badge.svg)](https://codecov.io/gh/howlerops/howlerops)
 [![Phase 2 Complete](https://img.shields.io/badge/Phase%202-Complete-success)](docs/progress-tracker.md)
 
 ## Features
@@ -61,20 +61,20 @@
 Install Howlerops with a single command:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/sql-studio/sql-studio/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/howlerops/howlerops/main/install.sh | sh
 ```
 
 **Other options:**
 
 ```bash
 # Install specific version
-curl -fsSL https://raw.githubusercontent.com/sql-studio/sql-studio/main/install.sh | sh -s -- --version v2.0.0
+curl -fsSL https://raw.githubusercontent.com/howlerops/howlerops/main/install.sh | sh -s -- --version v2.0.0
 
 # Preview what will be installed (dry-run)
-curl -fsSL https://raw.githubusercontent.com/sql-studio/sql-studio/main/install.sh | sh -s -- --dry-run
+curl -fsSL https://raw.githubusercontent.com/howlerops/howlerops/main/install.sh | sh -s -- --dry-run
 
 # Verbose output for troubleshooting
-curl -fsSL https://raw.githubusercontent.com/sql-studio/sql-studio/main/install.sh | sh -s -- --verbose
+curl -fsSL https://raw.githubusercontent.com/howlerops/howlerops/main/install.sh | sh -s -- --verbose
 ```
 
 **Supported platforms:**
@@ -86,8 +86,8 @@ curl -fsSL https://raw.githubusercontent.com/sql-studio/sql-studio/main/install.
 
 ### Alternative Methods
 
-- **Homebrew** (coming soon): `brew install sqlstudio/tap/sqlstudio`
-- **Direct Download**: [Latest Release](https://github.com/yourusername/sql-studio/releases/latest)
+- **Homebrew** (coming soon): follow release notes for tap/package updates
+- **Direct Download**: [Latest Release](https://github.com/howlerops/howlerops/releases/latest)
 - **Build from Source**: See [Development](#development) section below
 
 For detailed installation instructions, platform-specific guides, and troubleshooting, see [INSTALL.md](INSTALL.md).
@@ -98,21 +98,20 @@ For detailed installation instructions, platform-specific guides, and troublesho
 
 - **Go** 1.21+
 - **Node.js** 22.12+ (recommended) or 20.19+
-- **Wails CLI** v2.10.2+
+- **Wails CLI** v3
 
 ### Development Setup
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/howlerops-sql-studio.git
-cd howlerops-sql-studio
+git clone https://github.com/howlerops/howlerops.git
+cd howlerops
 
 # Install Wails CLI (if not installed)
-go install github.com/wailsapp/wails/v2/cmd/wails@latest
+go install github.com/wailsapp/wails/v3/cmd/wails3@latest
 
-# Install dependencies & initialize databases
+# Install dependencies
 make deps
-make init-local-db
 
 # Start development server
 make dev
@@ -253,23 +252,17 @@ HowlerOps supports multiple AI providers:
 ### Project Structure
 
 ```
-sql-studio/
-├── app.go                 # Wails app entry point
-├── main.go               # Main application
-├── backend-go/
-│   ├── pkg/
-│   │   ├── database/     # Database connections
-│   │   ├── storage/      # Local storage layer
-│   │   └── ai/           # AI service wrapper
-│   └── internal/
-│       ├── ai/           # AI providers
-│       └── rag/          # RAG implementation
-├── frontend/
-│   └── src/
-│       ├── components/   # React components
-│       ├── pages/        # App pages
-│       └── services/     # API clients
-├── services/             # Wails services
+howlerops/
+├── main.go               # Wails desktop entry point
+├── app_lifecycle.go      # Desktop composition root
+├── cmd/
+│   └── server/           # Backend/server entry point
+├── internal/             # Backend/domain packages
+├── pkg/                  # Shared libraries
+├── services/             # Desktop-facing Go service layer
+├── frontend/             # React/TypeScript UI
+├── proto/                # Shared protobuf definitions
+├── scripts/              # Maintenance and CI helpers
 └── docs/                 # Documentation
 ```
 
@@ -505,12 +498,11 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## Support
 
-- 🐛 [Report Bugs](https://github.com/yourusername/howlerops/issues)
-- 💡 [Request Features](https://github.com/yourusername/howlerops/issues)
+- 🐛 [Report Bugs](https://github.com/howlerops/howlerops/issues)
+- 💡 [Request Features](https://github.com/howlerops/howlerops/issues)
 - 📖 [Read Docs](./docs/)
-- 💬 [Discussions](https://github.com/yourusername/howlerops/discussions)
+- 💬 [Discussions](https://github.com/howlerops/howlerops/discussions)
 
 ---
 
 **Made with ❤️ by the HowlerOps team**
-

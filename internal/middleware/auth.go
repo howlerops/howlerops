@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
@@ -178,6 +179,7 @@ func (a *AuthMiddleware) GenerateToken(userID, username, role string, duration t
 			NotBefore: jwt.NewNumericDate(time.Now()),
 			Issuer:    "sql-studio",
 			Subject:   userID,
+			ID:        uuid.NewString(),
 		},
 	}
 
@@ -193,7 +195,7 @@ func (a *AuthMiddleware) GenerateRefreshToken(userID string, duration time.Durat
 		NotBefore: jwt.NewNumericDate(time.Now()),
 		Issuer:    "sql-studio",
 		Subject:   userID,
-		ID:        "refresh",
+		ID:        "refresh:" + uuid.NewString(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -228,7 +230,7 @@ func (a *AuthMiddleware) ValidateRefreshToken(tokenString string) (string, error
 	}
 
 	// Check if it's a refresh token
-	if claims.ID != "refresh" {
+	if claims.ID != "refresh" && !strings.HasPrefix(claims.ID, "refresh:") {
 		return "", fmt.Errorf("not a refresh token")
 	}
 

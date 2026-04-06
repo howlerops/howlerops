@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -141,10 +142,10 @@ func TestSyncFlow(t *testing.T) {
 
 func (s *SyncTestSuite) authenticate(t *testing.T) string {
 	// Create a test user and login
-	timestamp := time.Now().Unix()
+	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
 	signupReq := map[string]string{
-		"email":    "synctest" + string(rune(timestamp)) + "@example.com",
-		"username": "synctest" + string(rune(timestamp)),
+		"email":    "synctest" + timestamp + "@example.com",
+		"username": "synctest" + timestamp,
 		"password": "TestPassword123!",
 	}
 

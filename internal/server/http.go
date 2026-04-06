@@ -70,7 +70,7 @@ func NewHTTPServer(cfg *config.Config, logger *logrus.Logger, svc *services.Serv
 	// Register Sync HTTP routes
 	if svc.Sync != nil {
 		logger.Info("Registering Sync HTTP routes")
-		registerSyncRoutes(mainRouter, svc, logger)
+		registerSyncRoutes(mainRouter, svc, authMiddleware, logger)
 		logger.Info("Sync HTTP routes registered successfully")
 	} else {
 		logger.Warn("Sync service is nil, skipping Sync route registration")

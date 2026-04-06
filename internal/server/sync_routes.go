@@ -7,12 +7,13 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 
+	"github.com/jbeck018/howlerops/internal/middleware"
 	"github.com/jbeck018/howlerops/internal/services"
 	"github.com/jbeck018/howlerops/internal/sync"
 )
 
 // registerSyncRoutes registers HTTP routes for sync operations
-func registerSyncRoutes(router *mux.Router, services *services.Services, logger *logrus.Logger) {
+func registerSyncRoutes(router *mux.Router, services *services.Services, authMiddleware *middleware.AuthMiddleware, logger *logrus.Logger) {
 	// Create sync handler
 	handler := &syncHandler{
 		syncService: services.Sync,
@@ -21,6 +22,7 @@ func registerSyncRoutes(router *mux.Router, services *services.Services, logger 
 
 	// Sync routes (all require authentication)
 	syncRouter := router.PathPrefix("/api/sync").Subrouter()
+	syncRouter.Use(middleware.HTTPAuthMiddleware(authMiddleware, logger))
 
 	// Upload local changes to cloud
 	syncRouter.HandleFunc("/upload", handler.handleUpload).Methods("POST", "OPTIONS")
@@ -44,7 +46,7 @@ type syncHandler struct {
 // handleUpload handles uploading local changes to the cloud
 func (h *syncHandler) handleUpload(w http.ResponseWriter, r *http.Request) {
 	// Get user ID from context (set by auth middleware)
-	userID, ok := r.Context().Value("user_id").(string)
+	userID, ok := r.Context().Value(middleware.UserIDKey).(string)
 	if !ok || userID == "" {
 		h.logger.Warn("Upload attempted without authentication")
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
@@ -98,7 +100,7 @@ func (h *syncHandler) handleUpload(w http.ResponseWriter, r *http.Request) {
 // handleDownload handles downloading remote changes from the cloud
 func (h *syncHandler) handleDownload(w http.ResponseWriter, r *http.Request) {
 	// Get user ID from context (set by auth middleware)
-	userID, ok := r.Context().Value("user_id").(string)
+	userID, ok := r.Context().Value(middleware.UserIDKey).(string)
 	if !ok || userID == "" {
 		h.logger.Warn("Download attempted without authentication")
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
@@ -153,7 +155,7 @@ func (h *syncHandler) handleDownload(w http.ResponseWriter, r *http.Request) {
 // handleListConflicts lists all unresolved conflicts for the user
 func (h *syncHandler) handleListConflicts(w http.ResponseWriter, r *http.Request) {
 	// Get user ID from context (set by auth middleware)
-	userID, ok := r.Context().Value("user_id").(string)
+	userID, ok := r.Context().Value(middleware.UserIDKey).(string)
 	if !ok || userID == "" {
 		h.logger.Warn("List conflicts attempted without authentication")
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
@@ -184,7 +186,7 @@ func (h *syncHandler) handleListConflicts(w http.ResponseWriter, r *http.Request
 // handleResolveConflict resolves a specific conflict
 func (h *syncHandler) handleResolveConflict(w http.ResponseWriter, r *http.Request) {
 	// Get user ID from context (set by auth middleware)
-	userID, ok := r.Context().Value("user_id").(string)
+	userID, ok := r.Context().Value(middleware.UserIDKey).(string)
 	if !ok || userID == "" {
 		h.logger.Warn("Resolve conflict attempted without authentication")
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
