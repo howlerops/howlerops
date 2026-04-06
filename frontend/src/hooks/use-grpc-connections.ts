@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { api } from '../lib/api-client'
+import { executeQueryByConnectionId } from '../lib/query-engine/runtime'
 
 export interface Connection {
   id: string
@@ -124,9 +125,10 @@ export function useGrpcQuery() {
       sql: string;
       options?: { limit?: number; timeout?: number }
     }) => {
-      const limit = options?.limit
-      const timeout = options?.timeout
-      return api.queries.execute(connectionId, sql, limit, undefined, timeout)
+      return executeQueryByConnectionId(connectionId, sql, {
+        limit: options?.limit,
+        timeout: options?.timeout,
+      })
     },
   })
 }

@@ -9,19 +9,53 @@
  * - Tier integration
  */
 
-import { act,renderHook } from '@testing-library/react'
+const { fetchMock, storage } = vi.hoisted(() => {
+  const store = new Map<string, string>()
+  const storageMock: Storage = {
+    get length() {
+      return store.size
+    },
+    clear: () => {
+      store.clear()
+    },
+    getItem: (key: string) => store.get(key) ?? null,
+    key: (index: number) => Array.from(store.keys())[index] ?? null,
+    removeItem: (key: string) => {
+      store.delete(key)
+    },
+    setItem: (key: string, value: string) => {
+      store.set(key, value)
+    },
+  }
+
+  const mockFetch = vi.fn()
+  Object.defineProperty(globalThis, 'localStorage', { value: storageMock, configurable: true })
+  Object.defineProperty(globalThis, 'sessionStorage', { value: storageMock, configurable: true })
+  Object.defineProperty(globalThis, 'fetch', { value: mockFetch, configurable: true })
+
+  return { fetchMock: mockFetch, storage: storageMock }
+})
+
+import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { useAuthStore } from '@/store/auth-store'
+vi.mock('@/lib/wails-runtime', () => ({
+  isWailsReady: () => false,
+}))
 
-// Mock fetch
-global.fetch = vi.fn()
+vi.mock('@/lib/wails-guard', () => ({
+  callWails: (fn: () => Promise<unknown>) => fn(),
+  subscribeToWailsEvent: vi.fn(() => () => {}),
+}))
+
+import { useAuthStore } from '@/store/auth-store'
 
 describe('Auth System Integration', () => {
   beforeEach(() => {
     // Clear store
+    storage.clear()
     useAuthStore.getState().reset()
-    vi.clearAllMocks()
+    fetchMock.mockReset()
   })
 
   describe('Sign Up Flow', () => {
@@ -39,7 +73,7 @@ describe('Auth System Integration', () => {
         expires_at: new Date(Date.now() + 3600000).toISOString(),
       }
 
-      ;(global.fetch as any).mockResolvedValueOnce({
+      fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => mockResponse,
       })
@@ -57,7 +91,7 @@ describe('Auth System Integration', () => {
     })
 
     it('should handle signup errors', async () => {
-      ;(global.fetch as any).mockResolvedValueOnce({
+      fetchMock.mockResolvedValueOnce({
         ok: false,
         json: async () => ({ message: 'Username already exists' }),
       })
@@ -92,7 +126,7 @@ describe('Auth System Integration', () => {
         expires_at: new Date(Date.now() + 3600000).toISOString(),
       }
 
-      ;(global.fetch as any).mockResolvedValueOnce({
+      fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => mockResponse,
       })
@@ -109,7 +143,7 @@ describe('Auth System Integration', () => {
     })
 
     it('should handle invalid credentials', async () => {
-      ;(global.fetch as any).mockResolvedValueOnce({
+      fetchMock.mockResolvedValueOnce({
         ok: false,
         json: async () => ({ message: 'Invalid credentials' }),
       })
@@ -145,7 +179,7 @@ describe('Auth System Integration', () => {
         expires_at: new Date(Date.now() + 3600000).toISOString(),
       }
 
-      ;(global.fetch as any).mockResolvedValueOnce({
+      fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => signInResponse,
       })
@@ -163,7 +197,7 @@ describe('Auth System Integration', () => {
         expires_at: new Date(Date.now() + 3600000).toISOString(),
       }
 
-      ;(global.fetch as any).mockResolvedValueOnce({
+      fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => refreshResponse,
       })
@@ -193,7 +227,7 @@ describe('Auth System Integration', () => {
         expires_at: new Date(Date.now() + 3600000).toISOString(),
       }
 
-      ;(global.fetch as any).mockResolvedValueOnce({
+      fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => signInResponse,
       })
@@ -205,13 +239,13 @@ describe('Auth System Integration', () => {
       })
 
       // Refresh fails
-      ;(global.fetch as any).mockResolvedValueOnce({
+      fetchMock.mockResolvedValueOnce({
         ok: false,
         json: async () => ({ message: 'Invalid refresh token' }),
       })
 
       // Mock logout endpoint
-      ;(global.fetch as any).mockResolvedValueOnce({
+      fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({}),
       })
@@ -243,7 +277,7 @@ describe('Auth System Integration', () => {
         expires_at: new Date(Date.now() + 3600000).toISOString(),
       }
 
-      ;(global.fetch as any).mockResolvedValueOnce({
+      fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => signInResponse,
       })
@@ -257,7 +291,7 @@ describe('Auth System Integration', () => {
       expect(result.current.isAuthenticated).toBe(true)
 
       // Mock logout endpoint
-      ;(global.fetch as any).mockResolvedValueOnce({
+      fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({}),
       })
@@ -288,7 +322,7 @@ describe('Auth System Integration', () => {
         expires_at: new Date(Date.now() + 3600000).toISOString(),
       }
 
-      ;(global.fetch as any).mockResolvedValueOnce({
+      fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => mockResponse,
       })

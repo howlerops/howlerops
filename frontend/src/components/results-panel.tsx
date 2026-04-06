@@ -13,7 +13,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useQueryActionsOptional } from '@/contexts'
 import { useAIConfig } from '@/store/ai-store'
 import { useConnectionStore } from '@/store/connection-store'
-import { useQueryStore } from '@/store/query-store'
+import { useQueryEditorStore } from '@/store/query-editor-store'
+import { useQueryHistoryStore } from '@/store/query-history-store'
 
 /**
  * @deprecated Props are deprecated - use QueryActionsProvider context instead.
@@ -31,9 +32,11 @@ export function ResultsPanel({ onFixWithAI: propOnFixWithAI, onPageChange: propO
   const contextActions = useQueryActionsOptional()
   const onFixWithAI = contextActions.onFixWithAI ?? propOnFixWithAI
   const onPageChange = contextActions.onPageChange ?? propOnPageChange
-  const { tabs, activeTabId, results } = useQueryStore(useShallow((state) => ({
+  const { tabs, activeTabId } = useQueryEditorStore(useShallow((state) => ({
     tabs: state.tabs,
     activeTabId: state.activeTabId,
+  })))
+  const { results } = useQueryHistoryStore(useShallow((state) => ({
     results: state.results,
   })))
   const { connections } = useConnectionStore(useShallow((state) => ({

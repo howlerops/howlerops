@@ -268,7 +268,8 @@ export const restApiClient: ApiClient = {
       sql: string,
       limit: number = 5000,
       offset: number = 0,
-      timeout: number = 30
+      timeout: number = 30,
+      isExport: boolean = false
     ): Promise<ApiResponse<QueryResult>> => {
       try {
         const result = await request<{
@@ -287,6 +288,7 @@ export const restApiClient: ApiClient = {
           limit,
           offset,
           timeout,
+          isExport,
         })
 
         const hasError = Boolean(result.error)

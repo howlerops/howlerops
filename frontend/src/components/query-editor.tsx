@@ -54,7 +54,10 @@ import { useAIQueryAgentStore } from "@/store/ai-query-agent-store"
 import { useAIConfig, useAIGeneration, useAIStore } from "@/store/ai-store"
 import { useAuthStore } from "@/store/auth-store"
 import { type DatabaseConnection,useConnectionStore } from "@/store/connection-store"
-import { type QueryTab,useQueryStore } from "@/store/query-store"
+import { useQueryEditorStore } from "@/store/query-editor-store"
+import { useQueryEngineStore } from "@/store/query-engine-store"
+import { useQueryHistoryStore } from "@/store/query-history-store"
+import type { QueryTab } from "@/store/query-types"
 import { buildExecutableSql } from "@/utils/sql"
 
 // Lazy-load heavy AI components for better initial load performance
@@ -168,9 +171,9 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
     closeTab,
     updateTab,
     setActiveTab,
-    executeQuery,
-    results,
-  } = useQueryStore()
+  } = useQueryEditorStore()
+  const { executeQuery } = useQueryEngineStore()
+  const { results } = useQueryHistoryStore()
 
   // AI Integration
   const { config: aiConfig, isEnabled: aiEnabled } = useAIConfig()
@@ -555,7 +558,7 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
 
   const flushTabUpdate = useCallback((tabId: string, value: string) => {
     if (!tabId) return
-    const snapshot = useQueryStore.getState().tabs.find(tab => tab.id === tabId)
+    const snapshot = useQueryEditorStore.getState().tabs.find(tab => tab.id === tabId)
     const baselineContent = snapshot?.content ?? ''
     updateTab(tabId, {
       content: value,
@@ -695,8 +698,12 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
       const schemasMap = new Map<string, SchemaNode[]>()
       
       // Process each connection (connId here is sessionId from backend)
-      for (const [sessionId, connSchema] of Object.entries(combined.connections || {})) {
+      for (const [sessionId, rawConnSchema] of Object.entries(combined.connections || {})) {
         const schemaNodes: SchemaNode[] = []
+        const connSchema = rawConnSchema as {
+          schemas?: string[]
+          tables?: Array<{ name: string; schema: string }>
+        }
         
         // Find the connection by sessionId to get its name
         const connection = connectedWithSessions.find(c => c.sessionId === sessionId)

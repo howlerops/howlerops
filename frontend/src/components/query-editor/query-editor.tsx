@@ -17,7 +17,7 @@ import { generateSQL as generateSQLFromIR, type QueryIR } from "@/lib/query-ir"
 import { useAIStore } from "@/store/ai-store"
 import { useAuthStore } from "@/store/auth-store"
 import { useConnectionStore } from "@/store/connection-store"
-import { useQueryStore } from "@/store/query-store"
+import { useQueryEditorStore } from "@/store/query-editor-store"
 
 import { AISidebar, EditorToolbar, EmptyState, HeaderBar, QueryTabs } from "./components"
 import {
@@ -53,7 +53,7 @@ export const QueryEditor = forwardRef<QueryEditorHandle, QueryEditorProps>(({ mo
     closeTab,
     updateTab,
     setActiveTab,
-  } = useQueryStore()
+  } = useQueryEditorStore()
   const { schema } = useSchemaIntrospection()
   const user = useAuthStore(state => state.user)
 

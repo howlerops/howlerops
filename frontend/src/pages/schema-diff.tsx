@@ -203,7 +203,7 @@ export function SchemaDiff() {
 
     setGenerating(true)
     try {
-      let result: schemadiff.MigrationScript
+      let result: schemadiff.MigrationScript | null
       if (sourceType === 'connection' && targetType === 'connection') {
         result = await GenerateMigrationSQL(sourceId, targetId, allowDestructive)
       } else if (sourceType === 'connection' && targetType === 'snapshot') {
@@ -216,7 +216,7 @@ export function SchemaDiff() {
       }
 
       // Extract the SQL string from the MigrationScript object
-      setGeneratedSQL(result.sql || '')
+      setGeneratedSQL(result?.sql || '')
       toast({ title: 'Migration SQL generated', duration: 2000 })
     } catch (err) {
       const errMsg = typeof err === 'string'

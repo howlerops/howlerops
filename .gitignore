@@ -27,6 +27,14 @@ backend-go/bin/
 backend-go/.gobuild/
 backend-go/cmd/server/main
 
+# Keep the generated Wails binding tree visible even though the repo name matches
+# the broad "howlerops" binary ignore above.
+!frontend/bindings/
+!frontend/bindings/github.com/
+!frontend/bindings/github.com/jbeck018/
+!frontend/bindings/github.com/jbeck018/howlerops/
+!frontend/bindings/github.com/jbeck018/howlerops/**
+
 # Go build/test artifacts
 *.test
 *.out

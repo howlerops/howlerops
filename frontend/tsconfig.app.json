@@ -30,7 +30,11 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["src", "bindings"],
+  "include": [
+    "src",
+    "bindings/github.com/jbeck018/howlerops/app.ts",
+    "bindings/github.com/jbeck018/howlerops/models.ts"
+  ],
   "exclude": [
     "node_modules",
     "src/**/*INTEGRATION_EXAMPLE*.tsx",

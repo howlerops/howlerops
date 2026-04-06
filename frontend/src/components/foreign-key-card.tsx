@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { toast } from '@/hooks/use-toast'
-import { api } from '@/lib/api-client'
+import { executeQueryByConnectionId } from '@/lib/query-engine/runtime'
 import { useConnectionStore } from '@/store/connection-store'
 import { QueryEditableMetadata } from '@/store/query-store'
 import { CellValue } from '@/types/table'
@@ -91,7 +91,7 @@ export function ForeignKeyCard({
       return
     }
 
-    const actualConnectionId = activeConnection.sessionId
+    const actualConnectionId = activeConnection.id
 
     setIsLoading(true)
     setError(null)
@@ -104,22 +104,12 @@ export function ForeignKeyCard({
       const query = `SELECT * FROM ${foreignKeyInfo.schema ? `"${foreignKeyInfo.schema}"."${foreignKeyInfo.tableName}"` : `"${foreignKeyInfo.tableName}"`} WHERE "${foreignKeyInfo.columnName}" = ${escapedValue} LIMIT 10`
 
       // Execute query
-      const response = await api.queries.execute(actualConnectionId, query, 10)
+      const result = await executeQueryByConnectionId(actualConnectionId, query, { limit: 10 })
 
-      if (!response.success || response.message) {
-        throw new Error(response.message || 'Query execution failed')
-      }
-
-      // Convert QueryColumn[] to string[] for column names
-      const columnNames = response.data.columns.map((col: unknown) =>
-        typeof col === 'string' ? col : (col as { name: string }).name
-      )
-
-      const relatedRows = (response.data.rows || []).map((row: unknown): ForeignKeyRecord => {
-        const cells = Array.isArray(row) ? row : ([] as unknown[])
+      const relatedRows = (result.rows || []).map((row): ForeignKeyRecord => {
         const record: ForeignKeyRecord = {}
-        columnNames.forEach((col: string, index: number) => {
-          record[col] = cells[index] as CellValue
+        result.columns.forEach((col) => {
+          record[col] = row[col] as CellValue
         })
         return record
       })
@@ -130,7 +120,7 @@ export function ForeignKeyCard({
         schema: foreignKeyInfo.schema,
         relatedRows,
         loading: false,
-        totalCount: response.data.rowCount
+        totalCount: result.rowCount
       }
 
       setForeignKeyData(newFKData)

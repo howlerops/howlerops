@@ -4,7 +4,7 @@
  * This file re-exports from the split stores for backwards compatibility.
  * The query store has been split into three separate stores:
  * - query-editor-store.ts: Tabs, active query, editor state
- * - query-execution-store.ts: Query execution, running queries, errors
+ * - query-engine-store.ts: Query execution runtime, running queries, errors
  * - query-history-store.ts: Query results and history
  *
  * New code should import directly from the specific stores.
@@ -39,7 +39,7 @@ export type {
 
 // Re-export stores for direct use
 export { useQueryEditorStore } from './query-editor-store'
-export { useQueryExecutionStore } from './query-execution-store'
+export { useQueryEngineStore,useQueryExecutionStore } from './query-execution-store'
 export { useQueryHistoryStore } from './query-history-store'
 
 // Re-export selectors
@@ -52,6 +52,7 @@ export {
 export {
   useExecutingQueries,
   useIsExecuting,
+  useQueryEngineActions,
   useQueryExecutionActions,
 } from './query-execution-store'
 export {
@@ -101,12 +102,12 @@ interface QueryState {
  */
 export const useQueryStore = create<QueryState>()(
   devtools(
-    persist(
-      (set, get) => ({
+    persist<QueryState>(
+      () => ({
         // State is derived from individual stores via subscriptions
-        tabs: [],
-        activeTabId: null,
-        results: [],
+        tabs: [] as QueryTab[],
+        activeTabId: null as string | null,
+        results: [] as QueryResult[],
 
         createTab: (title, options) => {
           return useQueryEditorStore.getState().createTab(title, options)
@@ -166,7 +167,7 @@ export const useQueryStore = create<QueryState>()(
         partialize: (state) => ({
           tabs: state.tabs,
           activeTabId: state.activeTabId,
-        }),
+        }) as unknown as QueryState,
       }
     ),
     {

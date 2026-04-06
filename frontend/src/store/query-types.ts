@@ -1,6 +1,6 @@
 /**
  * Shared types for query stores
- * These types are used across query-editor-store, query-execution-store, and query-history-store
+ * These types are used across query-editor-store, query-engine-store, and query-history-store
  */
 
 export type QueryTabType = 'sql' | 'ai'

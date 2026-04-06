@@ -2,7 +2,7 @@ import { CheckCircle2, Inbox } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 
 import { toast } from '../../hooks/use-toast'
-import { useQueryStore } from '../../store/query-store'
+import { useQueryHistoryStore } from '../../store/query-history-store'
 import type { EditableTableContext, TableRow } from '../../types/table'
 import { AGGridTable } from '../ag-grid-table'
 import { JsonRowViewerSidebarV2 } from '../json-row-viewer-sidebar-v2'
@@ -43,7 +43,7 @@ export function QueryResultsTable({
     [columns]
   )
 
-  const updateResultRows = useQueryStore((state) => state.updateResultRows)
+  const updateResultRows = useQueryHistoryStore((state) => state.updateResultRows)
   const tableContextRef = useRef<EditableTableContext | null>(null)
 
 

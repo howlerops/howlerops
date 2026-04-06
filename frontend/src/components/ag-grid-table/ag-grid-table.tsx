@@ -963,14 +963,6 @@ const AGGridTableInner: React.FC<EditableTableProps> = ({
    */
   const containerHeight = typeof height === 'number' ? `${height}px` : height;
 
-  if (error) {
-    return (
-      <div className={cn('rounded-lg border border-destructive bg-destructive/10 p-4', className)}>
-        <p className="text-sm text-destructive">{error}</p>
-      </div>
-    );
-  }
-
   // CRITICAL: Memoize the grid element separately from toolbar/footer.
   // This prevents toolbar-driven re-renders (e.g., dirty count change) from
   // causing AG Grid to reconcile. Only grid-relevant prop changes rebuild this.
@@ -1041,6 +1033,14 @@ const AGGridTableInner: React.FC<EditableTableProps> = ({
     onSortChanged, onFilterChanged, onColumnMoved, onColumnVisible, onColumnResized,
     rowSelectionConfig, selectionColumnDef, loading,
   ]);
+
+  if (error) {
+    return (
+      <div className={cn('rounded-lg border border-destructive bg-destructive/10 p-4', className)}>
+        <p className="text-sm text-destructive">{error}</p>
+      </div>
+    );
+  }
 
   return (
     <div className={cn('flex flex-col', className)}>

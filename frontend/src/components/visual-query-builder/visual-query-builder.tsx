@@ -11,7 +11,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { createMultiConnectionExecutor, MergedResult } from '@/lib/multi-connection-executor'
+import { createMultiConnectionQueryEngine, MergedResult } from '@/lib/query-engine/multi-connection-engine'
 import { OrderBy,QueryIR, SelectItem, TableRef } from '@/lib/query-ir'
 
 import { ColumnPicker } from './column-picker'
@@ -231,7 +231,7 @@ export function VisualQueryBuilder({
         throw new Error('Invalid query configuration')
       }
 
-      const executor = createMultiConnectionExecutor(connections)
+      const executor = createMultiConnectionQueryEngine(connections)
       const result = await executor.executeQuery(queryIR, queryState.connections, {
         dialect: selectedDialect(),
         addProvenance: queryState.connections.length > 1

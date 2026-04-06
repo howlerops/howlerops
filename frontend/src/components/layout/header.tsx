@@ -17,11 +17,11 @@ import { useTheme } from "@/hooks/use-theme"
 import { useAIQueryAgentStore } from "@/store/ai-query-agent-store"
 import { useAIConfig } from "@/store/ai-store"
 import { useConnectionStore } from "@/store/connection-store"
-import { useQueryStore } from "@/store/query-store"
+import { useQueryEditorStore } from "@/store/query-editor-store"
 
 export function Header() {
   const { theme, setTheme } = useTheme()
-  const { createTab, setActiveTab } = useQueryStore(useShallow((state) => ({
+  const { createTab, setActiveTab } = useQueryEditorStore(useShallow((state) => ({
     createTab: state.createTab,
     setActiveTab: state.setActiveTab,
   })))

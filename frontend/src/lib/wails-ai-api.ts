@@ -22,7 +22,7 @@ export interface AITestParams {
  */
 export async function testAIProviderConnection(params: AITestParams): Promise<AITestResponse> {
   try {
-    let response: AITestResponse
+    let response: AITestResponse | null
 
     switch (params.provider) {
       case 'openai':
@@ -62,6 +62,10 @@ export async function testAIProviderConnection(params: AITestParams): Promise<AI
         throw new Error(`Unknown provider: ${params.provider}`)
     }
 
+    if (!response) {
+      throw new Error('AI provider test returned no response')
+    }
+
     return response
   } catch (error) {
     console.error(`AI provider test failed for ${params.provider}:`, error)
@@ -75,7 +79,11 @@ export async function testAIProviderConnection(params: AITestParams): Promise<AI
 
 export async function launchClaudeCodeLogin(binaryPath: string): Promise<AITestResponse> {
   try {
-    return await StartClaudeCodeLogin(binaryPath)
+    const response = await StartClaudeCodeLogin(binaryPath)
+    if (!response) {
+      throw new Error('Claude login returned no response')
+    }
+    return response
   } catch (error) {
     console.error('Claude login failed:', error)
     return {
@@ -88,7 +96,11 @@ export async function launchClaudeCodeLogin(binaryPath: string): Promise<AITestR
 
 export async function launchCodexLogin(binaryPath: string): Promise<AITestResponse> {
   try {
-    return await StartCodexLogin(binaryPath)
+    const response = await StartCodexLogin(binaryPath)
+    if (!response) {
+      throw new Error('Codex login returned no response')
+    }
+    return response
   } catch (error) {
     console.error('Codex login failed:', error)
     return {

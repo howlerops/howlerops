@@ -12,9 +12,7 @@ import { getSecureStorage } from '@/lib/secure-storage'
 
 import {
   ConnectionExportFile,
-  ConflictResolution,
   ExportedConnection,
-  ImportFailure,
   ImportOptions,
   ImportResult,
 } from './types'
@@ -169,12 +167,13 @@ export async function importConnections(
             result.overwritten++
             break
 
-          case 'keep-both':
+          case 'keep-both': {
             // Import with new UUID
             const newConnection = { ...connection, id: crypto.randomUUID() }
             await importSingleConnection(newConnection)
             result.imported++
             break
+          }
         }
       }
     } catch (error) {
@@ -193,8 +192,6 @@ export async function importConnections(
  * Import a single connection into the store
  */
 async function importSingleConnection(exported: ExportedConnection): Promise<void> {
-  const store = useConnectionStore.getState()
-
   // Build connection object
   const connection: Omit<DatabaseConnection, 'isConnected' | 'sessionId'> = {
     id: exported.id,

@@ -75,23 +75,21 @@ export function useTableExport({
         variant: 'default',
       })
 
-      const { wailsApiClient } = await import('../../../lib/wails-api')
-      const result = await wailsApiClient.executeQuery(
+      const { executeQueryByConnectionId, queryResultRowsToMatrix } = await import('../../../lib/query-engine/runtime')
+      const result = await executeQueryByConnectionId(
         connectionId,
         query,
-        0, // limit=0 triggers unlimited export (backend handles max 1M rows)
-        0, // offset
-        300, // 5 minute timeout
-        true // isExport = true
+        {
+          limit: 0, // limit=0 triggers unlimited export (backend handles max 1M rows)
+          offset: 0,
+          timeout: 300, // 5 minute timeout
+          isExport: true,
+        }
       )
 
-      if (!result.success || !result.data) {
-        throw new Error(result.message || 'Failed to fetch export data')
-      }
-
       // Prepare export data
-      const exportRows = result.data.rows || []
-      const exportColumns = result.data.columns || []
+      const exportRows = queryResultRowsToMatrix(result)
+      const exportColumns = result.columns || []
 
       // Show warning if hitting max export limit (1M rows)
       if (exportRows.length >= 1000000) {

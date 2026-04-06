@@ -22,8 +22,6 @@ import {
 import { useCallback, useReducer, useState } from 'react'
 import { useDropzone } from 'react-dropzone'
 
-import { OpenEnvFileDialog } from '../../../../bindings/github.com/jbeck018/howlerops/app'
-
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -48,6 +46,7 @@ import {
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
+import { importConnections } from '@/lib/export-import'
 import {
   applyFilenameEnvironment,
   convertToExportedConnection,
@@ -55,19 +54,20 @@ import {
   envImportActions,
   envImportReducer,
   envImportSelectors,
+  type ExistingConnection,
   extractConnectionsWithAI,
   filterConnectionRelatedEntries,
   isAcceptedEnvFile,
+  type ParsedEnvConnection,
   parseEnvFile,
   readEnvFile,
   validateParsedConnection,
-  type ExistingConnection,
-  type ParsedEnvConnection,
 } from '@/lib/export-import/env-parser'
 import { INITIAL_ENV_IMPORT_STATE } from '@/lib/export-import/env-parser/types'
-import { importConnections } from '@/lib/export-import'
-import { useAIGeneration, useAIConfig } from '@/store/ai-store'
+import { useAIConfig,useAIGeneration } from '@/store/ai-store'
 import { useConnectionStore } from '@/store/connection-store'
+
+import { OpenEnvFileDialog } from '../../../../bindings/github.com/jbeck018/howlerops/app'
 
 // ============================================================================
 // Types
@@ -581,14 +581,14 @@ export function EnvImportDialog({
 
       const result = await importConnections(
         {
-          version: '1.0',
-          exportedAt: new Date().toISOString(),
-          connections: exportedConnections,
           metadata: {
-            source: 'env-import',
+            version: '1.0',
             exportedAt: new Date().toISOString(),
+            appVersion: 'env-import',
+            connectionCount: exportedConnections.length,
             includesPasswords: true,
           },
+          connections: exportedConnections,
         },
         { conflictResolution: state.importOptions.conflictResolution }
       )

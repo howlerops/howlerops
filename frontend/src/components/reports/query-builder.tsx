@@ -21,6 +21,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { executeQueryByConnectionId, queryResultRowsToMatrix } from '@/lib/query-engine/runtime'
 import { cn } from '@/lib/utils'
 import { wailsApiClient } from '@/lib/wails-api'
 import type {
@@ -925,7 +926,7 @@ async function fetchDatabaseSchema(connectionId: string): Promise<DatabaseSchema
       // Get columns for each table
       const columnsResponse = await wailsApiClient.getTableStructure(connectionId, schema.name, table.name)
 
-      const columns: ColumnMetadata[] = (columnsResponse.data || []).map((col, index) => ({
+      const columns: ColumnMetadata[] = (columnsResponse.data || []).map((col: ColumnMetadata, index: number) => ({
         name: col.name,
         dataType: col.dataType || 'unknown',
         nullable: col.nullable ?? true,
@@ -935,7 +936,7 @@ async function fetchDatabaseSchema(connectionId: string): Promise<DatabaseSchema
         indexed: col.indexed ?? false,
         comment: col.comment,
         ordinalPosition: col.ordinalPosition ?? index + 1,
-        characterMaxLength: col.characterMaximumLength ?? undefined,
+        characterMaxLength: col.characterMaxLength ?? undefined,
         numericPrecision: col.numericPrecision ?? undefined,
         numericScale: col.numericScale ?? undefined,
       }))
@@ -956,19 +957,15 @@ async function fetchDatabaseSchema(connectionId: string): Promise<DatabaseSchema
 }
 
 async function runPreviewQuery(connectionId: string, sql: string): Promise<QueryPreview> {
-  const result = await wailsApiClient.executeQuery(connectionId, sql, 10)
-
-  if (!result.success || !result.data) {
-    throw new Error(result.message || 'Preview query failed')
-  }
+  const result = await executeQueryByConnectionId(connectionId, sql, { limit: 10 })
 
   return {
     sql,
-    estimatedRows: result.data.rowCount ?? 0,
-    columns: result.data.columns || [],
-    rows: result.data.rows || [],
-    totalRows: result.data.rowCount ?? 0,
-    executionTimeMs: result.data.stats?.duration ?? 0,
+    estimatedRows: result.rowCount ?? 0,
+    columns: result.columns || [],
+    rows: queryResultRowsToMatrix(result),
+    totalRows: result.rowCount ?? 0,
+    executionTimeMs: result.executionTime ?? 0,
   }
 }
 

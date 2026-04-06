@@ -38,7 +38,7 @@ import { toast } from "@/hooks/use-toast"
 import { preloadComponent } from "@/lib/component-preload"
 import { cn } from "@/lib/utils"
 import { type DatabaseConnection, useConnectionStore } from "@/store/connection-store"
-import { useQueryStore } from "@/store/query-store"
+import { useQueryEditorStore } from "@/store/query-editor-store"
 
 // Lazy-load the heavy schema visualizer (uses reactflow)
 const SchemaVisualizerWrapper = lazy(() => import("@/components/schema-visualizer/schema-visualizer").then(m => ({ default: m.SchemaVisualizerWrapper })))
@@ -176,7 +176,7 @@ export function Sidebar({ onToggle, isCollapsed = false }: SidebarProps) {
     fetchDatabases: state.fetchDatabases,
     switchDatabase: state.switchDatabase,
   })))
-  const { tabs, activeTabId, updateTab } = useQueryStore(useShallow((state) => ({
+  const { tabs, activeTabId, updateTab } = useQueryEditorStore(useShallow((state) => ({
     tabs: state.tabs,
     activeTabId: state.activeTabId,
     updateTab: state.updateTab,

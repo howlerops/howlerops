@@ -288,7 +288,7 @@ export interface ApiClient {
   }
 
   queries: {
-    execute: (connectionId: string, sql: string, limit?: number, offset?: number, timeout?: number) => Promise<ApiResponse<QueryResult>>
+    execute: (connectionId: string, sql: string, limit?: number, offset?: number, timeout?: number, isExport?: boolean) => Promise<ApiResponse<QueryResult>>
     getEditableMetadata: (jobId: string) => Promise<ApiResponse<EditableMetadata | null>>
     updateRow: (payload: UpdateRowRequest) => Promise<ApiResponse<null>>
     insertRow: (payload: InsertRowRequest) => Promise<InsertRowResult>

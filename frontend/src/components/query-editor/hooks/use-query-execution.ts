@@ -2,7 +2,9 @@ import type { RefObject } from "react"
 import { useCallback, useState } from "react"
 
 import type { CodeMirrorEditorRef } from "@/components/codemirror-editor"
-import { useQueryStore } from "@/store/query-store"
+import { useQueryEditorStore } from "@/store/query-editor-store"
+import { useQueryEngineStore } from "@/store/query-engine-store"
+import { useQueryHistoryStore } from "@/store/query-history-store"
 import { buildExecutableSql } from "@/utils/sql"
 
 import type { TabPaginationState } from "../types"
@@ -31,7 +33,9 @@ export function useQueryExecution({
   flushTabUpdate,
   pendingTabUpdateRef,
 }: UseQueryExecutionProps) {
-  const { tabs, activeTabId, executeQuery, results } = useQueryStore()
+  const { tabs, activeTabId } = useQueryEditorStore()
+  const { executeQuery } = useQueryEngineStore()
+  const { results } = useQueryHistoryStore()
   const activeTab = tabs.find(tab => tab.id === activeTabId)
 
   // Pagination state per tab

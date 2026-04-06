@@ -627,8 +627,28 @@ export async function initializeConnectionStore() {
         const currentState = useConnectionStore.getState()
         const existingIds = new Set(currentState.connections.map(c => c.id))
         const newConnections: DatabaseConnection[] = sqliteConnections
-          .filter(sc => !existingIds.has(sc.id))
-          .map(sc => ({
+          .filter((sc: {
+            id: string
+            name: string
+            type: string
+            host?: string
+            port?: number
+            database: string
+            username?: string
+            ssl_config?: { mode?: string }
+            environments?: string[]
+          }) => !existingIds.has(sc.id))
+          .map((sc: {
+            id: string
+            name: string
+            type: string
+            host?: string
+            port?: number
+            database: string
+            username?: string
+            ssl_config?: { mode?: string }
+            environments?: string[]
+          }) => ({
             id: sc.id,
             name: sc.name,
             type: (sc.type as DatabaseTypeString) || 'postgresql',
@@ -649,7 +669,7 @@ export async function initializeConnectionStore() {
         }
 
         // Persist any localStorage-only connections back to SQLite
-        const sqliteIds = new Set(sqliteConnections.map(sc => sc.id))
+        const sqliteIds = new Set(sqliteConnections.map((sc: { id: string }) => sc.id))
         for (const conn of useConnectionStore.getState().connections) {
           if (!sqliteIds.has(conn.id)) syncConnectionToSQLite(conn)
         }

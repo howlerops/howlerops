@@ -79,7 +79,7 @@ export function useMultiConnectionSchema(): UseMultiConnectionSchemaReturn {
 
     try {
       const conns = await ListConnections();
-      setConnections((conns || []).map(id => ({ 
+      setConnections((conns || []).map((id: string) => ({ 
         id, 
         name: `Connection ${id}`, 
         type: 'unknown',

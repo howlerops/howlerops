@@ -16,7 +16,7 @@ export class WailsApiClient {
       const schemas = await App.GetSchemas(connectionId)
 
       return {
-        data: schemas.map(schemaName => ({
+        data: schemas.map((schemaName: string) => ({
           name: schemaName,
           owner: '',
           createdAt: '',
@@ -47,7 +47,14 @@ export class WailsApiClient {
       const tables = await App.GetTables(connectionId, schemaName || '')
 
       return {
-        data: tables.map(table => ({
+        data: tables.map((table: {
+          name: string
+          schema: string
+          type: string
+          comment?: string
+          rowCount?: number
+          sizeBytes?: number
+        }) => ({
           name: table.name,
           schema: table.schema,
           type: table.type,
@@ -82,7 +89,18 @@ export class WailsApiClient {
       const structure = await App.GetTableStructure(connectionId, schemaName, tableName)
 
       return {
-        data: structure.columns?.map(column => ({
+        data: structure.columns?.map((column: {
+          name: string
+          data_type: string
+          nullable?: boolean
+          default_value?: string | null
+          primary_key?: boolean
+          unique?: boolean
+          ordinal_position?: number
+          character_maximum_length?: number | null
+          numeric_precision?: number | null
+          numeric_scale?: number | null
+        }) => ({
           name: column.name,
           dataType: column.data_type,
           nullable: column.nullable,
@@ -293,7 +311,7 @@ export class WailsApiClient {
       const connections = await App.ListConnections()
 
       return {
-        data: connections.map(id => ({
+        data: connections.map((id: string) => ({
           id,
           name: `Connection ${id}`,
           description: '',
@@ -726,8 +744,8 @@ export const wailsEndpoints = {
 
   // Query endpoints
   queries: {
-    execute: async (connectionId: string, sql: string, limit?: number, offset?: number, timeout?: number) => {
-      return wailsApiClient.executeQuery(connectionId, sql, limit, offset, timeout)
+    execute: async (connectionId: string, sql: string, limit?: number, offset?: number, timeout?: number, isExport?: boolean) => {
+      return wailsApiClient.executeQuery(connectionId, sql, limit, offset, timeout, isExport)
     },
     getEditableMetadata: async (jobId: string) => {
       return wailsApiClient.getEditableMetadata(jobId)

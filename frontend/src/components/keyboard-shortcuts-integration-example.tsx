@@ -18,7 +18,7 @@ import { useRef, useState } from 'react'
 
 import { KeyboardShortcutsProvider } from '@/components/keyboard-shortcuts-provider'
 import type { QueryEditorHandle } from '@/components/query-editor'
-import { useQueryStore } from '@/store/query-store'
+import { useQueryEditorStore } from '@/store/query-editor-store'
 
 /**
  * Example parent component that wraps the app with keyboard shortcuts
@@ -33,7 +33,7 @@ export function AppWithKeyboardShortcuts({ children }: { children: React.ReactNo
     setActiveTab,
     tabs,
     activeTabId,
-  } = useQueryStore()
+  } = useQueryEditorStore()
 
   return (
     <KeyboardShortcutsProvider
@@ -56,9 +56,9 @@ export function AppWithKeyboardShortcuts({ children }: { children: React.ReactNo
         }
       }}
       onSwitchTab={(index) => {
-        const tabIds = Object.keys(tabs)
-        if (tabIds[index]) {
-          setActiveTab(tabIds[index])
+        const targetTab = tabs[index]
+        if (targetTab) {
+          setActiveTab(targetTab.id)
         }
       }}
 

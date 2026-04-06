@@ -141,9 +141,10 @@ export const wailsApiClient: ApiClient = {
       sql: string,
       limit?: number,
       offset?: number,
-      timeout?: number
+      timeout?: number,
+      isExport?: boolean
     ): Promise<ApiResponse<QueryResult>> => {
-      const result = await wailsEndpoints.queries.execute(connectionId, sql, limit, offset, timeout)
+      const result = await wailsEndpoints.queries.execute(connectionId, sql, limit, offset, timeout, isExport)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Backend returns dynamic shape
       const data = (result.data || {}) as Record<string, any>
 

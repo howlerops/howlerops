@@ -1,6 +1,6 @@
 import { useCallback,useState } from 'react'
 
-import { api } from '@/lib/api-client'
+import { executeQueryByConnectionId } from '@/lib/query-engine/runtime'
 import type { CellValue } from '@/types/table'
 
 interface ForeignKeyData {
@@ -34,24 +34,15 @@ export function useForeignKeyResolver() {
       const escapedValue = typeof value === 'string' ? `'${value.replace(/'/g, "''")}'` : String(value)
       const query = `SELECT * FROM ${tableName} WHERE "${foreignKeyInfo.columnName}" = ${escapedValue} LIMIT 10`
 
-      const response = await api.queries.execute(connectionId, query, 10)
-
-      if (!response.success || response.message) {
-        throw new Error(response.message || 'Query execution failed')
-      }
-
-      // Convert QueryColumn[] to string[] for column names
-      const columnNames = response.data.columns.map((col: unknown) =>
-        typeof col === 'string' ? col : (col as { name: string }).name
-      )
+      const result = await executeQueryByConnectionId(connectionId, query, { limit: 10 })
 
       const data: ForeignKeyData = {
         tableName: foreignKeyInfo.tableName,
         columnName: foreignKeyInfo.columnName,
-        relatedRows: (response.data.rows || []).map((row: unknown[]) => {
+        relatedRows: (result.rows || []).map((row) => {
           const record: Record<string, CellValue> = {}
-          columnNames.forEach((col: string, index: number) => {
-            record[col] = row[index] as CellValue
+          result.columns.forEach((col) => {
+            record[col] = row[col] as CellValue
           })
           return record
         }),
@@ -78,5 +69,4 @@ export function useForeignKeyResolver() {
 
   return { loadForeignKeyData, clearCache }
 }
-
 

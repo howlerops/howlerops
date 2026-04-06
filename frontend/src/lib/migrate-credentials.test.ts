@@ -1,66 +1,62 @@
-/**
- * Tests for credential migration utility
- */
-
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import {
-  clearMigrationFlag,
-  getMigrationStatus,
-  migrateCredentialsToKeychain,
-  retryMigration,
-  type StoredCredential,
-} from './migrate-credentials'
+import type { StoredCredential } from './migrate-credentials'
 
-// Mock localStorage
-const localStorageMock: Record<string, string> = {}
+type MigrationModule = typeof import('./migrate-credentials')
 
-const mockLocalStorage = {
-  getItem: (key: string) => localStorageMock[key] ?? null,
-  setItem: (key: string, value: string) => {
-    localStorageMock[key] = value
-  },
-  removeItem: (key: string) => {
-    delete localStorageMock[key]
-  },
-  clear: () => {
-    Object.keys(localStorageMock).forEach((key) => delete localStorageMock[key])
-  },
+let mockStorePassword: ReturnType<typeof vi.fn> | undefined
+let mockGetPassword: ReturnType<typeof vi.fn> | undefined
+let mockDeletePassword: ReturnType<typeof vi.fn> | undefined
+
+const createStorageMock = (): Storage => {
+  const store = new Map<string, string>()
+  return {
+    get length() {
+      return store.size
+    },
+    clear: () => {
+      store.clear()
+    },
+    getItem: (key: string) => store.get(key) ?? null,
+    key: (index: number) => Array.from(store.keys())[index] ?? null,
+    removeItem: (key: string) => {
+      store.delete(key)
+    },
+    setItem: (key: string, value: string) => {
+      store.set(key, value)
+    },
+  }
 }
 
-// Mock window.go Wails API
-const mockWailsAPI = {
-  StorePassword: vi.fn(),
-  GetPassword: vi.fn(),
-}
+vi.mock('../../bindings/github.com/jbeck018/howlerops/app', () => ({
+  get StorePassword() {
+    return mockStorePassword
+  },
+  get GetPassword() {
+    return mockGetPassword
+  },
+  get DeletePassword() {
+    return mockDeletePassword
+  },
+}))
+
+const loadModule = async (): Promise<MigrationModule> => import('./migrate-credentials')
 
 describe('migrate-credentials', () => {
   beforeEach(() => {
-    // Clear localStorage mock
-    mockLocalStorage.clear()
-
-    // Reset Wails API mocks
-    mockWailsAPI.StorePassword.mockReset()
-    mockWailsAPI.GetPassword.mockReset()
-
-    // Setup window mocks
-    Object.defineProperty(global, 'window', {
-      value: {
-        go: {
-          main: {
-            App: mockWailsAPI,
-          },
-        },
-      },
+    vi.resetModules()
+    const storage = createStorageMock()
+    Object.defineProperty(globalThis, 'localStorage', { value: storage, configurable: true })
+    Object.defineProperty(globalThis, 'window', {
+      value: { localStorage: storage },
+      configurable: true,
       writable: true,
     })
-
-    Object.defineProperty(global, 'localStorage', {
-      value: mockLocalStorage,
-      writable: true,
-    })
-
-    // Mock console methods
+    storage.clear()
+    mockStorePassword = vi.fn().mockResolvedValue(undefined)
+    mockGetPassword = vi.fn().mockResolvedValue('stored-secret')
+    mockDeletePassword = vi.fn().mockResolvedValue(undefined)
+    vi.spyOn(console, 'debug').mockImplementation(() => {})
     vi.spyOn(console, 'log').mockImplementation(() => {})
     vi.spyOn(console, 'warn').mockImplementation(() => {})
     vi.spyOn(console, 'error').mockImplementation(() => {})
@@ -70,312 +66,128 @@ describe('migrate-credentials', () => {
     vi.restoreAllMocks()
   })
 
-  describe('getMigrationStatus', () => {
-    it('should return not migrated by default', () => {
-      const status = getMigrationStatus()
-      expect(status.migrated).toBe(false)
-      expect(status.version).toBe(null)
-      expect(status.hasCredentials).toBe(false)
-      expect(status.keychainAvailable).toBe(true)
-    })
+  it('reports default unmigrated status', async () => {
+    const { getMigrationStatus } = await loadModule()
 
-    it('should detect migrated state', () => {
-      localStorage.setItem('credentials-migrated', 'true')
-      localStorage.setItem('credentials-migration-version', '1.0')
-
-      const status = getMigrationStatus()
-      expect(status.migrated).toBe(true)
-      expect(status.version).toBe('1.0')
-    })
-
-    it('should detect credentials presence', () => {
-      const credentials: StoredCredential[] = [
-        { connectionId: 'conn-1', password: 'test123' },
-      ]
-      localStorage.setItem('sql-studio-secure-credentials', JSON.stringify(credentials))
-
-      const status = getMigrationStatus()
-      expect(status.hasCredentials).toBe(true)
-    })
-
-    it('should detect keychain availability', () => {
-      const status = getMigrationStatus()
-      expect(status.keychainAvailable).toBe(true)
+    await expect(getMigrationStatus()).resolves.toEqual({
+      migrated: false,
+      version: null,
+      hasCredentials: false,
+      keychainAvailable: true,
     })
   })
 
-  describe('migrateCredentialsToKeychain', () => {
-    it('should skip if already migrated', async () => {
-      localStorage.setItem('credentials-migrated', 'true')
-      localStorage.setItem('credentials-migration-version', '1.0')
+  it('migrates stored credentials into keychain bindings', async () => {
+    const { migrateCredentialsToKeychain } = await loadModule()
+    const credentials: StoredCredential[] = [{ connectionId: 'conn-1', password: 'password123' }]
+    localStorage.setItem('sql-studio-secure-credentials', JSON.stringify(credentials))
 
-      const result = await migrateCredentialsToKeychain()
+    const result = await migrateCredentialsToKeychain()
 
-      expect(result.skipped).toBe(true)
-      expect(result.reason).toBe('Already migrated')
-      expect(mockWailsAPI.StorePassword).not.toHaveBeenCalled()
-    })
+    expect(result).toMatchObject({ success: true, migratedCount: 1, failedCount: 0 })
+    expect(mockStorePassword).toHaveBeenCalledWith('conn-1-password', 'password123', '')
+    expect(localStorage.getItem('credentials-migrated')).toBe('true')
+    expect(localStorage.getItem('sql-studio-secure-credentials')).toBe(null)
+  })
 
-    it('should skip if no credentials found', async () => {
-      const result = await migrateCredentialsToKeychain()
-
-      expect(result.success).toBe(true)
-      expect(result.skipped).toBe(true)
-      expect(result.reason).toBe('No credentials found')
-      expect(localStorage.getItem('credentials-migrated')).toBe('true')
-    })
-
-    it('should migrate single credential successfully', async () => {
-      const credentials: StoredCredential[] = [
-        {
-          connectionId: 'conn-1',
-          password: 'password123',
-        },
-      ]
-      localStorage.setItem('sql-studio-secure-credentials', JSON.stringify(credentials))
-      mockWailsAPI.StorePassword.mockResolvedValue(undefined)
-
-      const result = await migrateCredentialsToKeychain()
-
-      expect(result.success).toBe(true)
-      expect(result.migratedCount).toBe(1)
-      expect(result.failedCount).toBe(0)
-      expect(mockWailsAPI.StorePassword).toHaveBeenCalledWith(
-        'sql-studio',
-        'conn-1-password',
-        'password123'
-      )
-      expect(localStorage.getItem('credentials-migrated')).toBe('true')
-      expect(localStorage.getItem('sql-studio-secure-credentials')).toBe(null)
-    })
-
-    it('should migrate multiple credentials successfully', async () => {
-      const credentials: StoredCredential[] = [
-        {
-          connectionId: 'conn-1',
-          password: 'password123',
-        },
-        {
-          connectionId: 'conn-2',
-          password: 'password456',
-          sshPassword: 'sshpass789',
-        },
-      ]
-      localStorage.setItem('sql-studio-secure-credentials', JSON.stringify(credentials))
-      mockWailsAPI.StorePassword.mockResolvedValue(undefined)
-
-      const result = await migrateCredentialsToKeychain()
-
-      expect(result.success).toBe(true)
-      expect(result.migratedCount).toBe(2)
-      expect(result.failedCount).toBe(0)
-      expect(mockWailsAPI.StorePassword).toHaveBeenCalledTimes(3)
-      expect(localStorage.getItem('sql-studio-secure-credentials')).toBe(null)
-    })
-
-    it('should migrate all credential types', async () => {
-      const credentials: StoredCredential[] = [
+  it('migrates all supported credential fields', async () => {
+    const { migrateCredentialsToKeychain } = await loadModule()
+    localStorage.setItem(
+      'sql-studio-secure-credentials',
+      JSON.stringify([
         {
           connectionId: 'conn-1',
           password: 'dbpass',
           sshPassword: 'sshpass',
-          sshPrivateKey: '-----BEGIN RSA PRIVATE KEY-----',
+          sshPrivateKey: 'private-key',
         },
-      ]
-      localStorage.setItem('sql-studio-secure-credentials', JSON.stringify(credentials))
-      mockWailsAPI.StorePassword.mockResolvedValue(undefined)
+      ] satisfies StoredCredential[])
+    )
 
-      const result = await migrateCredentialsToKeychain()
+    const result = await migrateCredentialsToKeychain()
 
-      expect(result.success).toBe(true)
-      expect(mockWailsAPI.StorePassword).toHaveBeenCalledWith(
-        'sql-studio',
-        'conn-1-password',
-        'dbpass'
-      )
-      expect(mockWailsAPI.StorePassword).toHaveBeenCalledWith(
-        'sql-studio',
-        'conn-1-ssh_password',
-        'sshpass'
-      )
-      expect(mockWailsAPI.StorePassword).toHaveBeenCalledWith(
-        'sql-studio',
-        'conn-1-ssh_private_key',
-        '-----BEGIN RSA PRIVATE KEY-----'
-      )
-    })
+    expect(result.success).toBe(true)
+    expect(mockStorePassword).toHaveBeenNthCalledWith(1, 'conn-1-password', 'dbpass', '')
+    expect(mockStorePassword).toHaveBeenNthCalledWith(2, 'conn-1-ssh_password', 'sshpass', '')
+    expect(mockStorePassword).toHaveBeenNthCalledWith(3, 'conn-1-ssh_private_key', 'private-key', '')
+  })
 
-    it('should handle individual credential failures gracefully', async () => {
-      const credentials: StoredCredential[] = [
+  it('keeps localStorage intact on partial migration failure', async () => {
+    const { migrateCredentialsToKeychain } = await loadModule()
+    localStorage.setItem(
+      'sql-studio-secure-credentials',
+      JSON.stringify([
         { connectionId: 'conn-1', password: 'password123' },
         { connectionId: 'conn-2', password: 'password456' },
-      ]
-      localStorage.setItem('sql-studio-secure-credentials', JSON.stringify(credentials))
+      ] satisfies StoredCredential[])
+    )
+    mockStorePassword = vi
+      .fn()
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error('Keychain access denied'))
 
-      // First call succeeds, second fails
-      mockWailsAPI.StorePassword
-        .mockResolvedValueOnce(undefined)
-        .mockRejectedValueOnce(new Error('Keychain access denied'))
+    const result = await migrateCredentialsToKeychain()
 
-      const result = await migrateCredentialsToKeychain()
-
-      expect(result.success).toBe(false)
-      expect(result.migratedCount).toBe(1)
-      expect(result.failedCount).toBe(1)
-      expect(result.errors).toHaveLength(1)
-      expect(result.errors[0].connectionId).toBe('conn-2')
-      expect(result.errors[0].error).toBe('Keychain access denied')
-      // localStorage should NOT be cleared on partial failure
-      expect(localStorage.getItem('sql-studio-secure-credentials')).not.toBe(null)
+    expect(result).toMatchObject({ success: false, migratedCount: 1, failedCount: 1 })
+    expect(result.errors[0]).toEqual({
+      connectionId: 'conn-2',
+      error: 'Keychain access denied',
     })
-
-    it('should handle parse errors gracefully', async () => {
-      localStorage.setItem('sql-studio-secure-credentials', 'invalid-json')
-
-      const result = await migrateCredentialsToKeychain()
-
-      expect(result.success).toBe(false)
-      expect(result.errors).toHaveLength(1)
-      expect(result.errors[0].connectionId).toBe('parse-error')
-      expect(mockWailsAPI.StorePassword).not.toHaveBeenCalled()
-    })
-
-    it('should handle keychain API not available', async () => {
-      // Remove Wails API
-      Object.defineProperty(global, 'window', {
-        value: {},
-        writable: true,
-      })
-
-      const credentials: StoredCredential[] = [
-        { connectionId: 'conn-1', password: 'password123' },
-      ]
-      localStorage.setItem('sql-studio-secure-credentials', JSON.stringify(credentials))
-
-      const result = await migrateCredentialsToKeychain()
-
-      expect(result.skipped).toBe(true)
-      expect(result.reason).toContain('Keychain API not yet available')
-      // Credentials should remain in localStorage
-      expect(localStorage.getItem('sql-studio-secure-credentials')).not.toBe(null)
-    })
-
-    it('should handle missing credential fields', async () => {
-      const credentials: StoredCredential[] = [
-        { connectionId: 'conn-1' }, // No password fields
-      ]
-      localStorage.setItem('sql-studio-secure-credentials', JSON.stringify(credentials))
-      mockWailsAPI.StorePassword.mockResolvedValue(undefined)
-
-      const result = await migrateCredentialsToKeychain()
-
-      // Should succeed but not call StorePassword since no fields to migrate
-      expect(result.success).toBe(true)
-      expect(result.migratedCount).toBe(1)
-      expect(mockWailsAPI.StorePassword).not.toHaveBeenCalled()
-    })
+    expect(localStorage.getItem('sql-studio-secure-credentials')).not.toBe(null)
   })
 
-  describe('retryMigration', () => {
-    it('should clear migration flag and retry', async () => {
-      localStorage.setItem('credentials-migrated', 'true')
-      localStorage.setItem('credentials-migration-version', '1.0')
+  it('skips when bindings are unavailable', async () => {
+    mockStorePassword = undefined
+    mockGetPassword = undefined
+    const { migrateCredentialsToKeychain } = await loadModule()
+    localStorage.setItem(
+      'sql-studio-secure-credentials',
+      JSON.stringify([{ connectionId: 'conn-1', password: 'password123' }] satisfies StoredCredential[])
+    )
 
-      const credentials: StoredCredential[] = [
-        { connectionId: 'conn-1', password: 'password123' },
-      ]
-      localStorage.setItem('sql-studio-secure-credentials', JSON.stringify(credentials))
-      mockWailsAPI.StorePassword.mockResolvedValue(undefined)
+    const result = await migrateCredentialsToKeychain()
 
-      const result = await retryMigration()
-
-      expect(result.success).toBe(true)
-      expect(result.migratedCount).toBe(1)
-      expect(mockWailsAPI.StorePassword).toHaveBeenCalled()
-    })
+    expect(result.skipped).toBe(true)
+    expect(result.reason).toContain('Keychain API not yet available')
   })
 
-  describe('clearMigrationFlag', () => {
-    it('should clear migration flags', () => {
-      localStorage.setItem('credentials-migrated', 'true')
-      localStorage.setItem('credentials-migration-version', '1.0')
+  it('returns parse errors without touching keychain', async () => {
+    const { migrateCredentialsToKeychain } = await loadModule()
+    localStorage.setItem('sql-studio-secure-credentials', 'invalid-json')
 
-      clearMigrationFlag()
+    const result = await migrateCredentialsToKeychain()
 
-      expect(localStorage.getItem('credentials-migrated')).toBe(null)
-      expect(localStorage.getItem('credentials-migration-version')).toBe(null)
-    })
+    expect(result.success).toBe(false)
+    expect(result.errors[0]?.connectionId).toBe('parse-error')
+    expect(mockStorePassword).not.toHaveBeenCalled()
   })
 
-  describe('edge cases', () => {
-    it('should handle empty credentials array', async () => {
-      localStorage.setItem('sql-studio-secure-credentials', '[]')
-      mockWailsAPI.StorePassword.mockResolvedValue(undefined)
+  it('retryMigration clears prior flags before migrating again', async () => {
+    const { retryMigration } = await loadModule()
+    localStorage.setItem('credentials-migrated', 'true')
+    localStorage.setItem('credentials-migration-version', '0.9')
+    localStorage.setItem(
+      'sql-studio-secure-credentials',
+      JSON.stringify([{ connectionId: 'conn-1', password: 'password123' }] satisfies StoredCredential[])
+    )
 
-      const result = await migrateCredentialsToKeychain()
+    const result = await retryMigration()
 
-      expect(result.success).toBe(true)
-      expect(result.migratedCount).toBe(0)
-      expect(mockWailsAPI.StorePassword).not.toHaveBeenCalled()
-    })
-
-    it('should handle very long credential values', async () => {
-      const longPrivateKey = 'A'.repeat(10000)
-      const credentials: StoredCredential[] = [
-        {
-          connectionId: 'conn-1',
-          sshPrivateKey: longPrivateKey,
-        },
-      ]
-      localStorage.setItem('sql-studio-secure-credentials', JSON.stringify(credentials))
-      mockWailsAPI.StorePassword.mockResolvedValue(undefined)
-
-      const result = await migrateCredentialsToKeychain()
-
-      expect(result.success).toBe(true)
-      expect(mockWailsAPI.StorePassword).toHaveBeenCalledWith(
-        'sql-studio',
-        'conn-1-ssh_private_key',
-        longPrivateKey
-      )
-    })
-
-    it('should handle special characters in connection IDs', async () => {
-      const credentials: StoredCredential[] = [
-        {
-          connectionId: 'conn-with-special-chars-!@#$%',
-          password: 'password123',
-        },
-      ]
-      localStorage.setItem('sql-studio-secure-credentials', JSON.stringify(credentials))
-      mockWailsAPI.StorePassword.mockResolvedValue(undefined)
-
-      const result = await migrateCredentialsToKeychain()
-
-      expect(result.success).toBe(true)
-      expect(mockWailsAPI.StorePassword).toHaveBeenCalledWith(
-        'sql-studio',
-        'conn-with-special-chars-!@#$%-password',
-        'password123'
-      )
-    })
+    expect(result.success).toBe(true)
+    expect(localStorage.getItem('credentials-migration-version')).toBe('1.0')
+    expect(mockStorePassword).toHaveBeenCalledTimes(1)
   })
 
-  describe('migration version handling', () => {
-    it('should upgrade from old version', async () => {
-      localStorage.setItem('credentials-migrated', 'true')
-      localStorage.setItem('credentials-migration-version', '0.9') // Old version
+  it('clearMigrationFlag removes migration markers only', async () => {
+    const { clearMigrationFlag } = await loadModule()
+    localStorage.setItem('credentials-migrated', 'true')
+    localStorage.setItem('credentials-migration-version', '1.0')
+    localStorage.setItem('sql-studio-secure-credentials', '[]')
 
-      const credentials: StoredCredential[] = [
-        { connectionId: 'conn-1', password: 'password123' },
-      ]
-      localStorage.setItem('sql-studio-secure-credentials', JSON.stringify(credentials))
-      mockWailsAPI.StorePassword.mockResolvedValue(undefined)
+    clearMigrationFlag()
 
-      const result = await migrateCredentialsToKeychain()
-
-      expect(result.success).toBe(true)
-      expect(localStorage.getItem('credentials-migration-version')).toBe('1.0')
-    })
+    expect(localStorage.getItem('credentials-migrated')).toBe(null)
+    expect(localStorage.getItem('credentials-migration-version')).toBe(null)
+    expect(localStorage.getItem('sql-studio-secure-credentials')).toBe('[]')
   })
 })

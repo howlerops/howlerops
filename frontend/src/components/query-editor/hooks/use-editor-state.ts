@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 
 import type { CodeMirrorEditorRef } from "@/components/codemirror-editor"
 import type { QueryIR } from "@/lib/query-ir"
-import { useQueryStore } from "@/store/query-store"
+import { useQueryEditorStore } from "@/store/query-editor-store"
 
 import type { AISheetTab,AISidebarMode } from "../types"
 
@@ -10,7 +10,7 @@ import type { AISheetTab,AISidebarMode } from "../types"
  * Hook that manages all the UI state for the query editor
  */
 export function useEditorState() {
-  const { tabs, activeTabId, updateTab } = useQueryStore()
+  const { tabs, activeTabId, updateTab } = useQueryEditorStore()
   const activeTab = tabs.find(tab => tab.id === activeTabId)
 
   // Editor content state
@@ -60,7 +60,7 @@ export function useEditorState() {
   // Flush pending tab updates
   const flushTabUpdate = useCallback((tabId: string, value: string) => {
     if (!tabId) return
-    const snapshot = useQueryStore.getState().tabs.find(tab => tab.id === tabId)
+    const snapshot = useQueryEditorStore.getState().tabs.find(tab => tab.id === tabId)
     const baselineContent = snapshot?.content ?? ''
     updateTab(tabId, {
       content: value,
